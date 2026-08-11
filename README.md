@@ -53,6 +53,12 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **Category menu foreground repair.** The open progression map category list now renders above
   every stage frame and item icon, including nodes positioned directly beneath the menu. Category
   selection, scrolling, filtering, graph movement, zoom, and the pinned inspector are unchanged.
+- **Smithing table enforcement repair.** Smithing upgrades now honor locked recipe identifiers,
+  locked recipe outputs, locked result items, and transitive ingredient gates. The server rejects
+  result pickup even when another mod changes the visible smithing output.
+- **Clearer player layout toolbar.** The redundant `Arrange and save` action is gone. Dragged stage
+  positions still save to the draft, `Use automatic layout` still removes manual coordinates, and
+  `Apply changes` remains the single server publication flow.
 
 ---
 
@@ -576,6 +582,10 @@ compat/
 ### v3.0.3
 - **Progression category layering**. The open category list now uses a dedicated foreground depth
   so stage item icons cannot appear above its panel, labels, active marker, or scrollbar.
+- **Smithing recipe enforcement**. Smithing upgrades now use the same recipe id, recipe output,
+  direct item, ingredient, creative bypass, and notification policies as normal crafting.
+- **Player layout toolbar cleanup**. The redundant `Arrange and save` action was removed without
+  changing manual drag persistence, automatic layout reset, graph fitting, or review and apply.
 
 ### v3.0.2
 - **Integrated-server editor repair** — authenticated localhost editor requests now work for

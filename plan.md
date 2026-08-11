@@ -517,6 +517,11 @@ vanilla `SmithingMenu` class loading, the complete Java test and build, dedicate
 virtual display client startup, and browser verification pass. The 3.0.3 release gate still requires
 the manual in world locked smithing pickup check and the approved phase merge.
 
+The owner confirmed the 3.0.3 release candidate in game on August 10, 2026 and authorized the phase
+merge plus CurseForge and Modrinth publication. This satisfies the remaining manual UI and smithing
+acceptance checks. Required pull request checks, the merge commit, signed release tag, broker
+preview, publication confirmation, and post publication file verification remain release gates.
+
 Exit gate: the current 3.0 feature set has a clean build and no known release blocking defect.
 
 ### Phase B. Extensibility kernel
@@ -638,19 +643,18 @@ Every phase runs:
   new transaction API when semantics are safe.
 - Migrations never overwrite an existing destination without an explicit conflict report.
 - A failed reload never replaces the last valid runtime snapshot.
-- Phase work stays on an `envy` branch until approved, then main advances by fast forward and the
-  approved commit receives a lightweight phase tag.
+- Phase work stays on an `envy` branch until approved. GitHub merges the approved pull request with
+  a merge commit, then the resulting `master` commit receives a signed annotated version tag.
 
 ## Immediate next work
 
-1. Merge the verified localhost easy builder controls for enchantment level caps and selection
-   weights.
-2. Complete the manual in-world overlap check for the verified 3.0.3 category menu foreground
-   repair.
-3. Complete the manual in world locked smithing pickup check for the verified issue 15 repair.
-4. Merge the verified 3.0.3 smithing repair and editor toolbar cleanup through the approved phase
-   pull request.
-5. Complete manual in-world UI, two-client multiplayer, and optional mod Phase A matrix testing.
+1. Open the 3.0.3 phase pull request containing the verified enchantment controls, progression map
+   polish, structure safety repair, issue 15 repair, and editor cleanup.
+2. Pass every required GitHub check and reconcile available review findings.
+3. Merge the approved pull request through GitHub, close issue 15, and mark its roadmap item done.
+4. Create the signed annotated `v3.0.3` tag from the resulting `master` merge commit.
+5. Build and inspect the clean tagged source, preview the broker release, publish the identical JAR
+   to CurseForge and Modrinth, and verify both platform results.
 6. Build the registry and schema kernel without changing existing stage semantics.
 7. Adapt the current trigger condition types into registry entries.
 8. Introduce fully immutable compiled snapshots and atomic registry replacement.

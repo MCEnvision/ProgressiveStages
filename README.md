@@ -50,9 +50,26 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 
 ## What's new in 3.0.3
 
+- **Stage aware enchantment generation.** `[enchants].max_levels` and
+  `[enchants].selection_weights` now shape enchanting table choices and player aware enchanted loot
+  before enchantments are applied. A maximum of zero removes retained copies, while a selection
+  weight of zero prevents new rolls without stripping existing items. The existing enchantment
+  strip remains a final safety net.
+- **Visual enchantment generation controls.** The Rules tab now loads and edits maximum levels and
+  selection weights without requiring TOML. Search the connected server's enchantment registry,
+  choose an exact enchantment, then set either control or both.
+- **Polished in game progression map.** The compact advancement style window now uses readable
+  stage-group names, better spacing, shorter dividers, structured bonus cards, item icons for exact
+  selectors, cycling tag icons, and focused branch highlighting.
+- **Recipe book style inventory button.** The progression map button now uses a parchment map icon,
+  matching vanilla button states, and a wider default gap from the recipe book button. Existing
+  visibility, position, size, and icon-size configuration remains available.
 - **Category menu foreground repair.** The open progression map category list now renders above
   every stage frame and item icon, including nodes positioned directly beneath the menu. Category
   selection, scrolling, filtering, graph movement, zoom, and the pinned inspector are unchanged.
+- **World generation safe structure rules.** Structure aware entity decisions use an immutable
+  server published session snapshot during asynchronous chunk generation. Ocean ruins and similar
+  structures no longer call server thread only session state from a chunk worker.
 - **Smithing table enforcement repair.** Smithing upgrades now honor locked recipe identifiers,
   locked recipe outputs, locked result items, and transitive ingredient gates. The server rejects
   result pickup even when another mod changes the visible smithing output.
@@ -70,28 +87,13 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **Simpler stage editor.** The editor uses a restrained dark gray and gold layout centered on
   stages, the easy builder, player layout, TOML source, validation, and review. Advanced tools
   remain available without crowding the primary workflow.
-- **Visual enchantment generation controls.** The Rules tab now loads and edits
-  `[enchants].max_levels` and `[enchants].selection_weights` without requiring TOML. Search the
-  connected server's enchantment registry, choose an exact enchantment, then set a maximum level,
-  a roll weight, or both. The form explains the difference between preventing new rolls and
-  removing retained enchantments, validates duplicates and numeric ranges, and preserves unrelated
-  rule sections.
 - **Optional inventory button.** Set `client.show_inventory_button = false` to remove the
   progression map button from the survival inventory without disabling commands or the optional
   keybind.
 - **Move and resize the inventory button.** Configure `inventory_button_x`,
   `inventory_button_y`, `inventory_button_width`, `inventory_button_height`, and
   `inventory_button_icon_size` under `[client]`. Positions are relative to the inventory, and the
-  centered parchment-map emblem automatically shrinks to fit. New configurations place it with a
-  wider gap from the recipe-book button.
-- **Polished in-game progression map.** The compact advancement-style window now uses readable
-  stage-group names, spaced inspector sections, shorter dividers, and structured bonus cards
-  instead of raw registry dumps. Exact item selectors show their item icon. Item and block tags
-  cycle through their registered contents so broad rules are still recognizable at a glance.
-- **World-generation-safe mob gating.** Structure-aware entity rules read an immutable
-  server-published session snapshot when vanilla finalizes structure mobs on a chunk worker. Ocean
-  ruins and other asynchronous structure generation no longer call the server-thread-only session
-  API.
+  centered lock icon automatically shrinks to fit.
 
 ---
 
@@ -580,8 +582,18 @@ compat/
 ## Changelog
 
 ### v3.0.3
+- **Stage aware enchantment generation**. Enchanting table choices and player aware enchanted loot
+  now honor per stage maximum levels and selection weights, with the existing strip retained as a
+  safety net.
+- **Easy builder enchantment controls**. Pack authors can search the live enchantment registry and
+  edit maximum levels or roll weights without opening TOML.
+- **Progression map polish**. The compact map now has clearer inspector content, translated labels,
+  selector icons, cycling tag previews, focused branch highlighting, and a parchment map inventory
+  button styled after vanilla controls.
 - **Progression category layering**. The open category list now uses a dedicated foreground depth
   so stage item icons cannot appear above its panel, labels, active marker, or scrollbar.
+- **Asynchronous structure safety**. Structure aware entity decisions use immutable session data
+  during chunk generation instead of reading server thread only state.
 - **Smithing recipe enforcement**. Smithing upgrades now use the same recipe id, recipe output,
   direct item, ingredient, creative bypass, and notification policies as normal crafting.
 - **Player layout toolbar cleanup**. The redundant `Arrange and save` action was removed without

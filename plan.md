@@ -522,6 +522,15 @@ merge plus CurseForge and Modrinth publication. This satisfies the remaining man
 acceptance checks. Required pull request checks, the merge commit, signed release tag, broker
 preview, publication confirmation, and post publication file verification remain release gates.
 
+ProgressiveStages 3.0.3 was released on August 10, 2026. Pull request 18 passed the required Gradle,
+Node, secret scan, dependency review, and CodeQL checks and merged into `master` as
+`b867c2ef4590aca5c449341df364022cd3de45ad`. The signed annotated `v3.0.3` tag points to that merge.
+The identical `progressivestages-3.0.3.jar` was accepted by CurseForge as file `8621291` and listed
+by Modrinth as version `KxB8xxEe`. Its SHA-512 is
+`2d9561af1f982d1fb1f9678df248bc240c4f2247811cd4fe7ae73a69606a8d931220c5ba07ccf01dbb1ee67efda1fdcbb8f3e967ffbeb1df6d48f70fdde6dca2`.
+All 3.0.3 release gates are complete. CurseForge may keep the file page unavailable while its normal
+moderation and cache publication complete.
+
 Exit gate: the current 3.0 feature set has a clean build and no known release blocking defect.
 
 ### Phase B. Extensibility kernel
@@ -646,20 +655,23 @@ Every phase runs:
 - Phase work stays on an `envy` branch until approved. GitHub merges the approved pull request with
   a merge commit, then the resulting `master` commit receives a signed annotated version tag.
 
+## Completed 3.0.3 release work
+
+1. The phase pull request included the verified enchantment controls, progression map polish,
+   structure safety repair, issue 15 repair, and editor cleanup.
+2. Every required GitHub check passed and the independent review found no actionable issue.
+3. Pull request 18 merged through GitHub, issue 15 closed, and both roadmap items moved to done.
+4. The signed annotated `v3.0.3` tag was created from the resulting `master` merge commit.
+5. The clean tagged source was built and inspected, then the identical JAR was published to
+   CurseForge and Modrinth through the confirmed broker preview.
+
 ## Immediate next work
 
-1. Open the 3.0.3 phase pull request containing the verified enchantment controls, progression map
-   polish, structure safety repair, issue 15 repair, and editor cleanup.
-2. Pass every required GitHub check and reconcile available review findings.
-3. Merge the approved pull request through GitHub, close issue 15, and mark its roadmap item done.
-4. Create the signed annotated `v3.0.3` tag from the resulting `master` merge commit.
-5. Build and inspect the clean tagged source, preview the broker release, publish the identical JAR
-   to CurseForge and Modrinth, and verify both platform results.
-6. Build the registry and schema kernel without changing existing stage semantics.
-7. Adapt the current trigger condition types into registry entries.
-8. Introduce fully immutable compiled snapshots and atomic registry replacement.
-9. Introduce the transaction result model and move one mutation path at a time.
-10. Use the FTB Quests bridge as the first external capability integration test.
+1. Build the registry and schema kernel without changing existing stage semantics.
+2. Adapt the current trigger condition types into registry entries.
+3. Introduce fully immutable compiled snapshots and atomic registry replacement.
+4. Introduce the transaction result model and move one mutation path at a time.
+5. Use the FTB Quests bridge as the first external capability integration test.
 
 The architectural constraint for every new implementation is simple. If a pack author or another
 mod could reasonably need a different behavior, core exposes a registered provider or configured

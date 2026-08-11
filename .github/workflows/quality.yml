@@ -1,0 +1,55 @@
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "master"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # pinned shared quality validates gradle wrapper jars by default.
+  quality:
+    permissions:
+      actions: read
+      contents: read
+    uses: MCEnvision/.github/.github/workflows/quality.yml@d731214d860ad2422ab8956a5d337dfaec51f64a
+    with:
+      shared-ref: "d731214d860ad2422ab8956a5d337dfaec51f64a"
+      gradle-enabled: true
+      node-enabled: true
+      node-working-directory: "editor-ui"
+      native-security: true
+      enforce-docs-layout: false
+
+  codeql:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: MCEnvision/.github/.github/workflows/codeql.yml@d731214d860ad2422ab8956a5d337dfaec51f64a
+    with:
+      shared-ref: "d731214d860ad2422ab8956a5d337dfaec51f64a"
+      languages: '["java-kotlin","javascript-typescript"]'
+      gradle-enabled: true
+      neoforge-enabled: true
+
+  dependency-submission:
+    if: >-
+      ${{
+        github.actor != 'dependabot[bot]' &&
+        (
+          github.event_name == 'workflow_dispatch' ||
+          (
+            github.event_name == 'push' &&
+            github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+          )
+        )
+      }}
+    permissions:
+      contents: write
+    uses: MCEnvision/.github/.github/workflows/dependency-submission.yml@d731214d860ad2422ab8956a5d337dfaec51f64a

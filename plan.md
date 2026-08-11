@@ -462,10 +462,30 @@ Deliverables:
 - Expose enchantment level caps and selection weights in the localhost easy builder with
   registry-backed selection, existing-value editing, duplicate and range validation, deterministic
   TOML round trips, and verification of the embedded production bundle.
+- Keep the open in-game category menu above stage frames and item icons at every graph position by
+  rendering the panel, rows, text, active marker, and scrollbar on one balanced foreground pose
+  layer. Preserve existing pointer and keyboard selection, scrolling, filtering, inspector,
+  tooltip, pan, and zoom behavior. Add a render order regression test and manually verify the
+  overlap case shown by the player report.
 - Complete the real client and dedicated server release matrix.
 
 The enchantment easy builder deliverable is implemented and verified on
 `envy/enchantment-selection`. It remains in review until the branch is merged.
+
+The same Phase A branch also owns a reported progression map layering defect. Stage icons use
+Minecraft's item rendering depth, while the open category menu currently draws its panel at the
+base GUI depth. Icons whose screen positions intersect the menu can therefore remain visible above
+the menu even though the menu is rendered later. The maintenance fix must render the complete open
+category menu on a balanced foreground pose layer above stage item depth without changing graph
+layout, category hit testing, filtering, scrolling, inspector behavior, or server data. A focused
+render order regression test must guard the foreground layer. This client only correction requires
+no schema, migration, networking, or dedicated server behavior change and advances the maintenance
+version to 3.0.3.
+
+The 3.0.3 foreground correction is implemented and verified on `envy/enchantment-selection`.
+The category panel now uses one balanced foreground pose above stage item depth. Its focused render
+order regression, complete Java test and build, editor checks, and virtual display client startup
+pass. The exact reported overlap remains part of the manual in-world release matrix before merge.
 
 Exit gate: the current 3.0 feature set has a clean build and no known release blocking defect.
 
@@ -595,12 +615,14 @@ Every phase runs:
 
 1. Merge the verified localhost easy builder controls for enchantment level caps and selection
    weights.
-2. Complete manual in-world UI, two-client multiplayer, and optional mod Phase A matrix testing.
-3. Build the registry and schema kernel without changing existing stage semantics.
-4. Adapt the current trigger condition types into registry entries.
-5. Introduce fully immutable compiled snapshots and atomic registry replacement.
-6. Introduce the transaction result model and move one mutation path at a time.
-7. Use the FTB Quests bridge as the first external capability integration test.
+2. Complete the manual in-world overlap check for the verified 3.0.3 category menu foreground
+   repair.
+3. Complete manual in-world UI, two-client multiplayer, and optional mod Phase A matrix testing.
+4. Build the registry and schema kernel without changing existing stage semantics.
+5. Adapt the current trigger condition types into registry entries.
+6. Introduce fully immutable compiled snapshots and atomic registry replacement.
+7. Introduce the transaction result model and move one mutation path at a time.
+8. Use the FTB Quests bridge as the first external capability integration test.
 
 The architectural constraint for every new implementation is simple. If a pack author or another
 mod could reasonably need a different behavior, core exposes a registered provider or configured

@@ -588,6 +588,8 @@ public final class StageTreeScreen extends Screen {
 
     private void renderCategoryMenu(GuiGraphics g, int mouseX, int mouseY) {
         if (!categoryOpen) return;
+        g.pose().pushPose();
+        g.pose().translate(0.0F, 0.0F, 400.0F);
         int rows = Math.min(CATEGORY_VISIBLE_ROWS, categoryOptionCount());
         categoryMenuX = categoryX;
         categoryMenuY = categoryY + categoryH + 2;
@@ -628,6 +630,7 @@ public final class StageTreeScreen extends Screen {
             int thumbY = categoryMenuY + 3 + (track - thumb) * categoryScroll / maximumScroll;
             fillPixelRounded(g, categoryMenuX + categoryMenuW - 4, thumbY, 2, thumb, GOLD);
         }
+        g.pose().popPose();
     }
 
     private void tileHorizontal(GuiGraphics g, int x, int y, int width, int height, int u, int v, int sourceWidth) {

@@ -4,7 +4,7 @@
 
 A NeoForge mod for Minecraft 1.21.1 that gives modpack developers complete control over stage-based progression. Define stages as TOML files; ProgressiveStages locks items, blocks, entities, fluids, dimensions, recipes, enchantments, crops, mob spawns, pets, regions, structures, screens, and player interactions until the player has earned the right stage(s).
 
-**ProgressiveStages 3.0.2** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
+**ProgressiveStages 3.0.3** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
 
 ---
 
@@ -45,6 +45,14 @@ A NeoForge mod for Minecraft 1.21.1 that gives modpack developers complete contr
 The older [`diamond_stage.toml`](examples/reference/diamond_stage.toml) remains the fully commented
 one-file reference. It is no longer generated into new installations because the fifty stage
 schema 4 showcase now demonstrates the editor and class tree directly.
+
+---
+
+## What's new in 3.0.3
+
+- **Category menu foreground repair.** The open progression map category list now renders above
+  every stage frame and item icon, including nodes positioned directly beneath the menu. Category
+  selection, scrolling, filtering, graph movement, zoom, and the pinned inspector are unchanged.
 
 ---
 
@@ -564,6 +572,10 @@ compat/
 ---
 
 ## Changelog
+
+### v3.0.3
+- **Progression category layering**. The open category list now uses a dedicated foreground depth
+  so stage item icons cannot appear above its panel, labels, active marker, or scrollbar.
 
 ### v3.0.2
 - **Integrated-server editor repair** — authenticated localhost editor requests now work for

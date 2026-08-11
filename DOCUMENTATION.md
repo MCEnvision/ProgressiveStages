@@ -1,6 +1,6 @@
-# ProgressiveStages 3.0.2 — Complete Documentation
+# ProgressiveStages 3.0.3 — Complete Documentation
 
-> ProgressiveStages **3.0.2** for NeoForge 1.21.1, Java 21.
+> ProgressiveStages **3.0.3** for NeoForge 1.21.1, Java 21.
 > Mod id: `progressivestages`  Java package root: `com.enviouse.progressivestages`  
 > This document is exhaustive — every feature, every TOML field, every config key,
 > every command, every integration, every troubleshooting tip. If a section of
@@ -14,6 +14,10 @@
 > simpler dark gray and gold stage-first layout. The survival inventory progression button can be
 > hidden, moved relative to the inventory, resized, and given a custom centered icon size through
 > the `[client]` section of `progressivestages.toml`.
+
+> **3.0.3 maintenance release:** The open progression map category list now uses a dedicated
+> foreground depth. Stage item icons cannot appear through its panel, rows, text, active marker, or
+> scrollbar when a graph node is positioned beneath the list.
 
 > **New to stage mods?** Start with [GETTING_STARTED.md](GETTING_STARTED.md), copy the tested
 > [beginner pack](examples/beginner_pack/README.md), and return here when the beginner guide links
@@ -3095,7 +3099,9 @@ used by ProgressiveSkills. WASD and the arrow keys also pan, and their visible
 movement stays consistent at every zoom level. Press Space or use the header
 home button to center the complete graph and choose the best zoom that fits it.
 Click the category control to open its full list. Press `C` to open or close
-that list from the keyboard.
+that list from the keyboard. The open list renders on a dedicated foreground
+layer above every stage frame and item icon. This keeps the menu readable even
+when a node is positioned directly beneath it.
 
 **Nodes and details.** Hover a framed node for its name, id, status,
 description, category, and trigger completion. Click it to pin an inspector with

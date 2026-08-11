@@ -4,7 +4,7 @@
 
 A NeoForge mod for Minecraft 1.21.1 that gives modpack developers complete control over stage-based progression. Define stages as TOML files; ProgressiveStages locks items, blocks, entities, fluids, dimensions, recipes, enchantments, crops, mob spawns, pets, regions, structures, screens, and player interactions until the player has earned the right stage(s).
 
-**ProgressiveStages 3.0.2** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
+**ProgressiveStages 3.0.3** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
 
 ---
 
@@ -45,6 +45,37 @@ A NeoForge mod for Minecraft 1.21.1 that gives modpack developers complete contr
 The older [`diamond_stage.toml`](examples/reference/diamond_stage.toml) remains the fully commented
 one-file reference. It is no longer generated into new installations because the fifty stage
 schema 4 showcase now demonstrates the editor and class tree directly.
+
+---
+
+## What's new in 3.0.3
+
+- **Stage aware enchantment generation.** `[enchants].max_levels` and
+  `[enchants].selection_weights` now shape enchanting table choices and player aware enchanted loot
+  before enchantments are applied. A maximum of zero removes retained copies, while a selection
+  weight of zero prevents new rolls without stripping existing items. The existing enchantment
+  strip remains a final safety net.
+- **Visual enchantment generation controls.** The Rules tab now loads and edits maximum levels and
+  selection weights without requiring TOML. Search the connected server's enchantment registry,
+  choose an exact enchantment, then set either control or both.
+- **Polished in game progression map.** The compact advancement style window now uses readable
+  stage-group names, better spacing, shorter dividers, structured bonus cards, item icons for exact
+  selectors, cycling tag icons, and focused branch highlighting.
+- **Recipe book style inventory button.** The progression map button now uses a parchment map icon,
+  matching vanilla button states, and a wider default gap from the recipe book button. Existing
+  visibility, position, size, and icon-size configuration remains available.
+- **Category menu foreground repair.** The open progression map category list now renders above
+  every stage frame and item icon, including nodes positioned directly beneath the menu. Category
+  selection, scrolling, filtering, graph movement, zoom, and the pinned inspector are unchanged.
+- **World generation safe structure rules.** Structure aware entity decisions use an immutable
+  server published session snapshot during asynchronous chunk generation. Ocean ruins and similar
+  structures no longer call server thread only session state from a chunk worker.
+- **Smithing table enforcement repair.** Smithing upgrades now honor locked recipe identifiers,
+  locked recipe outputs, locked result items, and transitive ingredient gates. The server rejects
+  result pickup even when another mod changes the visible smithing output.
+- **Clearer player layout toolbar.** The redundant `Arrange and save` action is gone. Dragged stage
+  positions still save to the draft, `Use automatic layout` still removes manual coordinates, and
+  `Apply changes` remains the single server publication flow.
 
 ---
 
@@ -105,7 +136,7 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   showcase Diamond Engineer costs 32 diamonds and doubles only final diamond drops produced with
   Fortune from diamond or deepslate diamond ore.
 - **Temporary and triggered lock rules** — `[[temporary_locks]]`, `[[temporary_unlocks]]`, `[[triggered_locks]]`, and `[[triggered_unlocks]]` apply priority-based locks or permissions by dimension, structure, biome, height, health, stage state, effect, movement state, KubeJS predicate, combat, attack, hurt, kill, command, or API timer. A single rule can target items, blocks, fluids, entities, recipes, dimensions, structures, and `jump`/`elytra`/`sprint`/`swim`/`climb`, with per-rule exceptions. Static gates are priority `0`, conditional rules default to `100`, the highest priority wins, and a lock safely wins an equal-priority tie.
-* **Vanilla advancement style stage map.** `/stage`, `/stages`, `/pstages`, `/stage gui`, the keybind, or the lock button beside the inventory recipe book button opens a draggable and mouse wheel zoomable progression graph using vanilla task, goal, and challenge frames, dependency connectors, tiled backgrounds, hover cards, search, owned stage filtering, click to pin details, trigger progress, unlock previews, and server validated purchases. Set `client.show_inventory_button = false` in `progressivestages.toml` to remove only the inventory button.
+* **Vanilla advancement style stage map.** `/stage`, `/stages`, `/pstages`, `/stage gui`, the keybind, or the progression map button beside the inventory recipe book button opens a compact, draggable, and mouse wheel zoomable progression graph using vanilla task, goal, and challenge frames, dependency connectors, tiled backgrounds, hover cards, search, owned stage filtering, click to pin details, trigger progress, structured equipment and affinity previews, cycling tag icons, unlock previews, and server validated purchases. Set `client.show_inventory_button = false` in `progressivestages.toml` to remove only the inventory button.
 - **Author-controlled map layout** — each stage's `[display]` can set `x`, `y`, `frame`, `background`, `reveal`, and `sort_order`; omit `x` + `y` for automatic dependency graph layout. Reveal can be `always`, `dependencies`, or `unlocked`. The React editor's **Player layout** page pans, zooms, drags icons using these same coordinates, draws new prerequisite branches, removes existing branch lines, and saves exact X and Y positions.
 - **Named trigger counters** — `type = "custom_counter", counter = "quest_points", count = 10` bridges stage TOML to `/stage counter get|add|set|reset ...` and `ProgressiveStages.counter/addCounter/setCounter/resetCounter(...)` in KubeJS.
 - **Expanded KubeJS API** — actual-change `grant`/`revoke`, plus `toggle`, `exists`, slot-aware `available`, `slot` decision details, dependency queries, tag queries/bulk operations, counters, immediate trigger evaluation, and `openGui`.
@@ -120,7 +151,7 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **`[display].encrypt_blocks`** — `encrypt_blocks = true` masquerades this stage's exact-id locked **blocks** as `encrypt_as` (default `minecraft:stone`) until owned, reusing the ore-spoof pipeline (chunk rewrite, break-speed, drop replacement). Per-stage on/off.
 - **Authoring / debug commands** — `/stage simulate [player]` (dry-run: reachable-next stages with % and which conditions are short, plus dep-blocked stages); `/stage new <id>` (scaffold a stage TOML); `/stage export` (write a markdown progression guide to the config folder).
 - **Three finer-grained gates (now shipped — were "planned" in earlier 3.0 drafts):**
-  - **`[enchants].max_levels`** — `max_levels = ["minecraft:sharpness:3", "minecraft:protection:2"]` caps an enchantment at that level until the gating stage is owned (effective cap = MIN across every still-missing capping stage; level `0` removes it). Enforced in the periodic inventory scan. Whole-enchant locking via `[enchants].locked` is unchanged.
+  - **Stage-aware enchantment selection** — `[enchants].locked` removes locked candidates before enchanting-table and player-aware loot rolls. `max_levels = ["minecraft:sharpness:3"]` limits generated and retained levels. `selection_weights = ["minecraft:mending:0", "minecraft:fortune:10"]` changes exact enchantment roll weights until the stage is owned; weight `0` prevents new rolls without stripping existing copies. The immediate loot pass and periodic inventory scan remain safety nets.
   - **`[beacon].locked`** — `locked = ["id:minecraft:strength", "id:minecraft:haste"]` (MobEffect ids). A player missing the gating stage simply doesn't receive that beacon effect; other players in range are unaffected.
   - **`[brewing].locked`** — `locked = ["id:minecraft:strength", "id:minecraft:swiftness"]` (Potion ids). A player missing the gating stage can't TAKE the brewed potion out of a brewing stand's slots (it brews and sits there until they unlock it). Hopper/automation extraction is gated too, best-effort via the nearest player.
 - **Stage map search + reveal controls** — search by stage name, id, description, category, or **locked item id**; hide owned stages; use per-stage `reveal` rules to conceal future branches until prerequisites are met.
@@ -245,7 +276,7 @@ Each category lives in its own TOML section. Lists accept the unified prefix syn
 | `[dimensions]` | `locked` (exact ids only) | Cancel travel, eject players from locked dimensions |
 | `[entities]` | `locked`, `always_unlocked` | Legacy complete presence gate. Cancel spawns when every nearby player is denied. Conceal mixed access entities per player. Block attacking, interaction, mounting, mob targeting, and mob damage for denied players. Schema 4 can instead choose `presence`, `attack`, `interact`, or `mount`. |
 | `[recipes]` | `locked_ids`, `locked_items` | `locked_ids` blocks specific recipe IDs; `locked_items` blocks every recipe producing the output item |
-| `[enchants]` | `locked`, **`max_levels`** | Hide enchants in enchanting table, refuse anvil application, strip from inventory. **New in 3.0:** `max_levels = ["minecraft:sharpness:3", ...]` caps an enchant at that level (instead of locking it) until the gating stage is owned — effective cap = MIN across every missing capping stage, level `0` removes it; enforced in the inventory scan |
+| `[enchants]` | `locked`, **`max_levels`**, **`selection_weights`** | Filter table and player-aware loot candidates before they roll, refuse locked anvil and trade results, and sanitize generated loot and inventories. `max_levels = ["minecraft:sharpness:3", ...]` limits generated and retained levels. `selection_weights = ["minecraft:mending:0", ...]` changes exact enchantment roll weights until the stage is owned; weight `0` prevents generation without stripping existing copies. |
 | `[crops]` | `locked`, `always_unlocked` | Block planting, growth ticks, bonemeal application |
 | `[screens]` | `locked` | Block opening container / GUI blocks |
 | `[professions]` | `locked` | **New in 2.5.** Gate opening a villager's trade GUI by the villager's PROFESSION (`id:`/`mod:`/`name:`; no tags). Wandering traders unaffected (use `[trades]`). |
@@ -384,7 +415,7 @@ Condition types: `kill`, `mine`, `craft`, `pickup`, `use`, `drop`, `break_item`,
 
 ## Stage Tree Viewer & Per-Stage `[display]`
 
-Players can open the **vanilla style progression map** with `/stage`, `/stages`, `/pstages`, `/stage gui`, the "Open Progression Tree" keybind, or the lock button beside the recipe book button in the survival inventory. The `[client]` config can hide the button or customize its inventory relative X position, Y position, width, height, and centered icon size. Drag from empty space or a stage node to pan. Roll the mouse wheel over the map to zoom toward the pointer, from 65 percent through 165 percent. Stage icons stay at a readable size while their positions and connector paths zoom. WASD and the arrow keys pan by the same visible distance at every zoom level. Press Space or use the header home button to center and fit the complete graph. Hover a framed node for its stage card, and click without dragging to pin prerequisites, clearly grouped live trigger routes, unlock previews, and any purchase button. Search matches stage text and locked item ids. The Owned control filters completed stages.
+Players can open the **vanilla style progression map** with `/stage`, `/stages`, `/pstages`, `/stage gui`, the "Open Progression Tree" keybind, or the progression map button beside the recipe book button in the survival inventory. Its custom 20 by 18 pixel background follows the recipe-book button silhouette instead of using the generic dark widget. Separate light silver and pale blue hover sprites provide rounded corners, a dark pixel outline, and a bottom shadow. A centered gold folded map with a cyan route and three stage markers distinguishes the action. The `[client]` config can hide the button or customize its inventory relative X position, Y position, width, height, and centered icon size. Drag from empty space or a stage node to pan. Roll the mouse wheel over the map to zoom toward the pointer, from 65 percent through 165 percent. Stage icons stay at a readable size while their positions and connector paths zoom. WASD and the arrow keys pan by the same visible distance at every zoom level. Press Space or use the header home button to center and fit the complete graph. Hover or select a node to emphasize its ancestors and descendants while unrelated branches recede. Available stages use a restrained gold corner pulse, selected stages use a pixel rounded frame, and the map controls use vanilla widget surfaces. Click without dragging to pin prerequisites, clearly grouped live trigger routes, unlock previews, and any purchase button. Search matches stage text and locked item ids. The Owned control filters completed stages.
 
 Each stage can override the global tooltip/icon defaults for its own locked items with a `[display]` block — all keys optional, inheriting the global default when omitted:
 
@@ -470,7 +501,7 @@ Every line of every command's output is a configurable template via `messages.cm
 `config/progressivestages/progressivestages.toml` — high-level groups. Stage files live beside it in `config/progressivestages/stages/`:
 
 - **`[general]`** — `starting_stages`, `team_mode` (`ftb_teams` / `solo`), `linear_progression`, `reapply_starting_stages_on_login`, `debug_logging`.
-- **`[client]`** — `show_inventory_button`, `inventory_button_x`, `inventory_button_y`, `inventory_button_width`, `inventory_button_height`, and `inventory_button_icon_size`. Hide, move, or resize the survival inventory progression button without affecting commands or the optional keybind.
+- **`[client]`** — `show_inventory_button`, `inventory_button_x`, `inventory_button_y`, `inventory_button_width`, `inventory_button_height`, and `inventory_button_icon_size`. Hide, move, or resize the survival inventory progression button without affecting commands or the optional keybind. The default X position is `132`, leaving a visible gap after the recipe-book button.
 - **`[enforcement]`** — every per-category enforcement toggle (`block_item_use`, `block_block_placement`, `block_dimension_travel`, `block_enchants`, `block_crop_growth`, `block_pet_interact`, `block_loot_drops`, `block_mob_spawns`, `block_mob_replacements`, `block_region_entry`, `block_structure_entry`, `block_screen_open`, ...), plus `allow_creative_bypass`, `mask_locked_item_names`, `obscure_locked_item_icons` (new — replace a locked item's icon with a `?`), `trigger_poll_interval` (new — `[[triggers]]` poll cadence in ticks), `notification_cooldown`, `reveal_stage_names_only_to_operators`, lock-sound config, eject-blocked-inventory frequency.
 - **`[messages]`** — every player-facing string. Supports `&` color codes (`&0`–`&f`, `&l/m/n/o/k/r`) and named placeholders. Generic `*_generic` variants are emitted when `reveal_stage_names_only_to_operators = true` and the player is non-op. Includes the `messages.prefix` template, `messages.tooltip_*` (now including `tooltip_stage_description`), `messages.cmd_*`, `messages.type_label_*`, and `messages.cmd_ftb_status_*` families.
 - **`[emi]`** — `enabled`, `show_lock_icon`, `lock_icon_position`, `lock_icon_size`, `show_highlight`, `highlight_color`, `show_tooltip`, `show_stage_description_on_tooltip` (new — append the gating stage's description to a locked item's tooltip), `show_locked_recipes`.
@@ -525,7 +556,9 @@ mixin/
   AnvilMenuMixin                   — clears result slot when locked
   CraftingMenuMixin                — recipe + recipe-item gate
   ResultSlotMixin                  — pickup gate
-  EnchantmentMenuMixin             — clears clues + refuses click
+  EnchantmentMenuMixin             — filters table candidates for the exact opener
+  EnchantWithLevelsFunctionMixin   — filters table-style loot enchantment rolls
+  EnchantRandomlyFunctionMixin     — filters uniformly random loot enchantments
   ServerPlayerMerchantMixin        — gates villager trades
   client/EmiStackWidgetMixin       — paints lock in EMI panel
   client/EmiScreenManagerMixin     — EMI search / sidebar
@@ -548,6 +581,24 @@ compat/
 
 ## Changelog
 
+### v3.0.3
+- **Stage aware enchantment generation**. Enchanting table choices and player aware enchanted loot
+  now honor per stage maximum levels and selection weights, with the existing strip retained as a
+  safety net.
+- **Easy builder enchantment controls**. Pack authors can search the live enchantment registry and
+  edit maximum levels or roll weights without opening TOML.
+- **Progression map polish**. The compact map now has clearer inspector content, translated labels,
+  selector icons, cycling tag previews, focused branch highlighting, and a parchment map inventory
+  button styled after vanilla controls.
+- **Progression category layering**. The open category list now uses a dedicated foreground depth
+  so stage item icons cannot appear above its panel, labels, active marker, or scrollbar.
+- **Asynchronous structure safety**. Structure aware entity decisions use immutable session data
+  during chunk generation instead of reading server thread only state.
+- **Smithing recipe enforcement**. Smithing upgrades now use the same recipe id, recipe output,
+  direct item, ingredient, creative bypass, and notification policies as normal crafting.
+- **Player layout toolbar cleanup**. The redundant `Arrange and save` action was removed without
+  changing manual drag persistence, automatic layout reset, graph fitting, or review and apply.
+
 ### v3.0.2
 - **Integrated-server editor repair** — authenticated localhost editor requests now work for
   permission level 3 operators in single-player worlds while remote hosts, origins, ports, and
@@ -568,7 +619,7 @@ compat/
 - **Conditional access engine** — live location/state rules and event-driven timers can lock or unlock eight target families with explicit priority, safe tie behavior, per-rule exceptions, stage ownership modes, combat entity filters, `/pstages rule` operations, KubeJS bindings, Java APIs, validation, and worked Stronghold/Wither/End examples.
 - **Conflict-free map command** — `/pstages` is the dedicated player-facing map command, leaving the previously used short command available to other mods.
 - **Nineteen-phase pack-building guide** — a copy-ready path now covers installation, every lock and trigger family, the vanilla-style map, commands, KubeJS, Java integration, optional mods, migration, testing, and release evidence.
-- **Progression-map polish** — menu blur stays below the interface, map node icons no longer overlap the pinned inspector, trigger routes are labeled clearly, dragging may begin on nodes or empty space, and a lock button beside the survival inventory recipe-book button opens the map.
+- **Progression-map polish** — menu blur stays below the interface, map node icons no longer overlap the pinned inspector, trigger routes are labeled clearly, dragging may begin on nodes or empty space, and a progression map button beside the survival inventory recipe-book button opens the map.
 - **Custom backgrounds documented and tested** — `[display].background` accepts any namespaced client texture such as `mypack:gui/progression`.
 - **Stable camera during live progression changes** — stage grants, revokes, and game-mode changes now refresh ore disguises with targeted block updates instead of unloading the chunk beneath the player. Unchanged scale attribute modifiers are also preserved during stage synchronization.
 
@@ -581,7 +632,7 @@ compat/
 - **Jade + WTHIT overlay** — looking at a locked block or mob shows `🔒 Requires: <stage>`. Sourced from the Modrinth Maven as `compileOnly` dev jars, inert when uninstalled. Entity locks are now synced to the client for the mob overlay.
 - **`[display].encrypt_blocks`** — masquerades this stage's exact-id locked blocks as `encrypt_as` (default `minecraft:stone`) until owned, reusing the ore-spoof pipeline. Per-stage on/off.
 - **Authoring/debug commands** — `/stage simulate [player]` (dry-run reachable-next stages + short conditions + dep-blocked stages), `/stage new <id>` (scaffold a stage TOML), `/stage export` (markdown progression guide).
-- **`[enchants].max_levels` enchant level cap** — `max_levels = ["minecraft:sharpness:3", ...]` caps an enchant at that level (instead of locking it) until the gating stage is owned; effective cap = MIN across every missing capping stage, level `0` removes it; enforced in the periodic inventory scan. `[enchants].locked` (whole-enchant) unchanged.
+- **Stage-aware enchantment generation** — `[enchants].locked` now removes every locked candidate before enchanting-table and player-aware loot rolls. `max_levels = ["minecraft:sharpness:3", ...]` limits both newly generated and retained levels. `selection_weights = ["minecraft:mending:0", "minecraft:fortune:10"]` changes exact enchantment roll weights while the declaring stage is missing; weight `0` disables new generation without deleting existing copies. Multiple missing-stage caps and weights use the strictest value. Immediate loot sanitization and the periodic inventory scan remain defense in depth.
 - **`[beacon].locked` beacon-effect gating** — `["id:minecraft:strength", ...]` (MobEffect ids). A player missing the gating stage doesn't receive that beacon effect; other players in range are unaffected.
 - **`[brewing].locked` brewed-potion gating** — `["id:minecraft:strength", ...]` (Potion ids). A player missing the gating stage can't take the brewed potion out of a brewing stand's slots; hopper/automation extraction is gated too (best-effort, via the nearest player).
 - **Stage Tree GUI search + hide** — a search box filters by stage name OR by a locked item id (type an item to find the stage(s) that gate it; flat results), an "☑ owned" toggle hides already-unlocked stages, and the detail pane shows a "Gates mods: create ×42, mekanism ×18" breakdown.

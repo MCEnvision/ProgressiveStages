@@ -62,7 +62,7 @@ public class StageConfig {
     private static final ModConfigSpec.IntValue INVENTORY_BUTTON_X = BUILDER
         .comment("Horizontal button position measured from the left edge of the survival inventory.",
                  "Negative values place the button left of the inventory.")
-        .defineInRange("client.inventory_button_x", 126, -4096, 4096);
+        .defineInRange("client.inventory_button_x", 132, -4096, 4096);
 
     private static final ModConfigSpec.IntValue INVENTORY_BUTTON_Y = BUILDER
         .comment("Vertical button position measured from the top edge of the survival inventory.",
@@ -176,9 +176,9 @@ public class StageConfig {
     // ============ 2.0 Enforcement Toggles ============
 
     private static final ModConfigSpec.BooleanValue BLOCK_ENCHANTS = BUILDER
-        .comment("Gate enchantments behind stages",
-                 "Strips locked enchantments from items in the player's inventory each scan,",
-                 "and blocks anvils from applying locked enchantment books.")
+        .comment("Gate enchantment generation and retention behind stages.",
+                 "Filters enchanting table and player aware loot candidates.",
+                 "Sanitizes generated loot and inventories, and blocks locked anvil applications.")
         .define("enforcement.block_enchants", true);
 
     private static final ModConfigSpec.BooleanValue BLOCK_SCREEN_OPEN = BUILDER
@@ -768,7 +768,7 @@ public class StageConfig {
     private static boolean linearProgression;
     private static boolean reapplyStartingStagesOnLogin;
     private static boolean showInventoryButton = true;
-    private static int inventoryButtonX = 126;
+    private static int inventoryButtonX = 132;
     private static int inventoryButtonY = 61;
     private static int inventoryButtonWidth = 20;
     private static int inventoryButtonHeight = 18;

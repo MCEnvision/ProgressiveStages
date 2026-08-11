@@ -5,6 +5,7 @@ import com.enviouse.progressivestages.client.ClientStageCache;
 import com.enviouse.progressivestages.client.ClientTriggerProgress;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.util.TextUtil;
+import net.minecraft.Util;
 import net.minecraft.ChatFormatting;
 import net.minecraft.advancements.AdvancementType;
 import net.minecraft.client.Minecraft;
@@ -12,9 +13,13 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.advancements.AdvancementWidgetType;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -28,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -42,11 +48,21 @@ public final class StageTreeScreen extends Screen {
         ResourceLocation.withDefaultNamespace("advancements/title_box");
     private static final ResourceLocation DEFAULT_BACKGROUND =
         ResourceLocation.withDefaultNamespace("textures/block/stone.png");
+    private static final ResourceLocation BUTTON =
+        ResourceLocation.withDefaultNamespace("widget/button");
+    private static final ResourceLocation BUTTON_HIGHLIGHTED =
+        ResourceLocation.withDefaultNamespace("widget/button_highlighted");
+    private static final ResourceLocation BUTTON_DISABLED =
+        ResourceLocation.withDefaultNamespace("widget/button_disabled");
 
     private static final int BORDER_X = 9;
     private static final int HEADER_H = 18;
     private static final int BOTTOM_H = 9;
     private static final int NODE = 26;
+    private static final int GOLD = 0xFFFFC74A;
+    private static final int GREEN = 0xFF55AA55;
+    private static final int RED = 0xFFFF5555;
+    private static final int TEXT_MUTED = 0xFFB7B7B7;
 
     private int left, top, right, bottom;
     private int mapLeft, mapTop, mapRight, mapBottom;
@@ -60,8 +76,11 @@ public final class StageTreeScreen extends Screen {
 
     private final List<MapNode> nodes = new ArrayList<>();
     private final Map<StageId, MapNode> byId = new HashMap<>();
+    private final Set<StageId> focusedPath = new HashSet<>();
+    private StageId pathFocus;
     private StageId selected;
     private StageId hovered;
+    private long mapHintUntil;
 
     private EditBox searchBox;
     private String filter = "";
@@ -83,8 +102,10 @@ public final class StageTreeScreen extends Screen {
     private int buyX, buyY, buyW, buyH;
     private boolean buyEnabled;
     private StageId buyStage;
+    private final Map<String, List<ItemStack>> selectorIconCache = new HashMap<>();
 
     private record MapNode(StageId id, int x, int y, boolean owned, boolean available) {}
+    private record PreviewRow(ItemStack icon, List<FormattedCharSequence> lines, int height) {}
 
     public StageTreeScreen() {
         super(Component.translatable("gui.progressivestages.tree.title"));
@@ -100,8 +121,8 @@ public final class StageTreeScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = Math.max(230, Math.min(width - 24, 520));
-        int h = Math.max(140, Math.min(height - 38, 300));
+        int w = Math.max(230, Math.min(width - 24, 460));
+        int h = Math.max(140, Math.min(height - 38, 250));
         left = (width - w) / 2;
         top = (height - h) / 2;
         right = left + w;
@@ -135,6 +156,7 @@ public final class StageTreeScreen extends Screen {
 
         recomputeItemFilter();
         rebuild(true);
+        mapHintUntil = Util.getMillis() + 5000L;
     }
 
     private void recomputeItemFilter() {
@@ -194,6 +216,8 @@ public final class StageTreeScreen extends Screen {
         nodes.sort(Comparator.comparingInt(MapNode::x).thenComparingInt(MapNode::y));
 
         if (selected != null && !byId.containsKey(selected)) selected = null;
+        pathFocus = null;
+        focusedPath.clear();
         computeBounds();
         if (recenter || !centered) centerGraph();
         else clampPan();
@@ -245,7 +269,9 @@ public final class StageTreeScreen extends Screen {
         categoryFilter = index <= 0 ? "" : categories.get(index - 1);
         categoryOpen = false;
         selected = null;
+        playButtonSound();
         rebuild(true);
+        mapHintUntil = Util.getMillis() + 2500L;
     }
 
     private int categoryOptionCount() {
@@ -317,12 +343,16 @@ public final class StageTreeScreen extends Screen {
         renderBackground(g, mouseX, mouseY, partialTick);
         renderMapBackground(g);
 
-        hovered = null;
+        MapNode hoveredNode = inside(mouseX, mouseY, mapLeft, mapTop, mapRight - mapLeft, mapBottom - mapTop)
+            ? nodeAt(mouseX, mouseY)
+            : null;
+        hovered = hoveredNode != null ? hoveredNode.id() : null;
+        refreshFocusedPath(hovered != null ? hovered : selected);
         g.enableScissor(mapLeft, mapTop, mapRight, mapBottom);
         renderConnections(g);
-        renderNodes(g, mouseX, mouseY);
+        renderNodes(g);
         g.disableScissor();
-        renderZoomIndicator(g);
+        renderMapHud(g);
 
         if (selected != null) {
             g.pose().pushPose();
@@ -358,20 +388,37 @@ public final class StageTreeScreen extends Screen {
             }
         }
         g.fill(mapLeft, mapTop, mapRight, mapBottom, 0x66000000);
+        g.fill(mapLeft, mapTop, mapRight, mapTop + 5, 0x33000000);
+        g.fill(mapLeft, mapBottom - 5, mapRight, mapBottom, 0x33000000);
+        g.fill(mapLeft, mapTop, mapLeft + 4, mapBottom, 0x22000000);
+        g.fill(mapRight - 4, mapTop, mapRight, mapBottom, 0x22000000);
         if (nodes.isEmpty()) {
             g.drawCenteredString(font, Component.translatable("gui.progressivestages.tree.empty"),
                 (mapLeft + mapRight) / 2, (mapTop + mapBottom) / 2 - 4, 0xFFFFFFFF);
         }
     }
 
-    private void renderZoomIndicator(GuiGraphics g) {
+    private void renderMapHud(GuiGraphics g) {
+        long remaining = mapHintUntil - Util.getMillis();
+        if (remaining <= 0L) return;
+        int alpha = remaining >= 500L ? 230 : Math.max(0, (int) (remaining * 230L / 500L));
         Component label = Component.translatable(
             "gui.progressivestages.tree.zoom", Math.round(zoom * 100.0D));
         int labelWidth = font.width(label);
-        int x = mapLeft + 4;
-        int y = mapBottom - font.lineHeight - 4;
-        g.fill(x - 2, y - 2, x + labelWidth + 2, y + font.lineHeight + 2, 0x99000000);
-        g.drawString(font, label, x, y, 0xFFFFFFFF, false);
+        int x = mapLeft + 6;
+        int y = mapBottom - font.lineHeight - 6;
+        fillPixelRounded(g, x - 3, y - 2, labelWidth + 6, font.lineHeight + 4,
+            withAlpha(0xFF000000, alpha * 3 / 5));
+        g.drawString(font, label, x, y, withAlpha(0xFFFFFFFF, alpha), false);
+
+        Component navigation = Component.translatable("gui.progressivestages.tree.navigation_hint");
+        int navigationWidth = font.width(navigation);
+        int navigationX = mapRight - navigationWidth - 6;
+        if (navigationX > x + labelWidth + 12) {
+            fillPixelRounded(g, navigationX - 3, y - 2, navigationWidth + 6, font.lineHeight + 4,
+                withAlpha(0xFF000000, alpha * 3 / 5));
+            g.drawString(font, navigation, navigationX, y, withAlpha(0xFFFFFFFF, alpha), false);
+        }
     }
 
     private ResourceLocation backgroundTexture() {
@@ -392,15 +439,33 @@ public final class StageTreeScreen extends Screen {
     }
 
     private void renderConnections(GuiGraphics g) {
+        boolean hasFocus = pathFocus != null;
+        renderConnectionPass(g, false, hasFocus);
+        if (hasFocus) renderConnectionPass(g, true, true);
+    }
+
+    private void renderConnectionPass(GuiGraphics g, boolean emphasized, boolean hasFocus) {
         for (MapNode child : nodes) {
             for (StageId dependency : ClientStageCache.getDependencies(child.id())) {
                 MapNode parent = byId.get(dependency);
                 if (parent == null) continue;
-                int color = child.owned() ? 0xFF55AA55 : child.available() ? 0xFFFFD45A : 0xFFB0B0B0;
-                drawConnector(g, screenX(parent) + NODE, screenY(parent) + NODE / 2,
-                    screenX(child), screenY(child) + NODE / 2, 0xFF000000, 3);
-                drawConnector(g, screenX(parent) + NODE, screenY(parent) + NODE / 2,
-                    screenX(child), screenY(child) + NODE / 2, color, 1);
+                boolean focused = hasFocus
+                    && focusedPath.contains(parent.id())
+                    && focusedPath.contains(child.id());
+                if (hasFocus && focused != emphasized) continue;
+
+                int x1 = screenX(parent) + NODE;
+                int y1 = screenY(parent) + NODE / 2;
+                int x2 = screenX(child);
+                int y2 = screenY(child) + NODE / 2;
+                int stateColor = child.owned() ? GREEN : child.available() ? GOLD : 0xFF9A9A9A;
+                if (hasFocus && !focused) {
+                    drawConnector(g, x1, y1, x2, y2, withAlpha(stateColor, 52), 1);
+                } else {
+                    drawConnector(g, x1, y1, x2, y2, hasFocus ? 0xE6000000 : 0xB8000000, 3);
+                    int alpha = child.owned() || child.available() ? 255 : hasFocus ? 210 : 135;
+                    drawConnector(g, x1, y1, x2, y2, withAlpha(stateColor, alpha), 1);
+                }
             }
         }
     }
@@ -413,19 +478,40 @@ public final class StageTreeScreen extends Screen {
         g.fill(Math.min(mid, x2), y2 - half, Math.max(mid, x2) + 1, y2 - half + thickness, color);
     }
 
-    private void renderNodes(GuiGraphics g, int mouseX, int mouseY) {
+    private void renderNodes(GuiGraphics g) {
+        int pulseAlpha = 205 + (int) Math.round(Math.sin(Util.getMillis() / 260.0D) * 35.0D);
         for (MapNode node : nodes) {
             int x = screenX(node), y = screenY(node);
             if (x + NODE < mapLeft || x > mapRight || y + NODE < mapTop || y > mapBottom) continue;
             AdvancementWidgetType state = node.owned() ? AdvancementWidgetType.OBTAINED : AdvancementWidgetType.UNOBTAINED;
             g.blitSprite(state.frameSprite(frameType(node.id())), x, y, NODE, NODE);
             g.renderFakeItem(iconFor(node.id()), x + 5, y + 5);
-            if (node.id().equals(selected)) g.renderOutline(x - 2, y - 2, NODE + 4, NODE + 4, 0xFFFFFFFF);
-            else if (node.available()) g.renderOutline(x - 1, y - 1, NODE + 2, NODE + 2, 0xFFFFD45A);
-            if (mouseX >= x && mouseX <= x + NODE && mouseY >= y && mouseY <= y + NODE
-                    && mouseX >= mapLeft && mouseX < mapRight && mouseY >= mapTop && mouseY < mapBottom) {
-                hovered = node.id();
+
+            boolean dimmed = pathFocus != null && !focusedPath.contains(node.id());
+            if (dimmed) {
+                fillPixelRounded(g, x + 1, y + 1, NODE - 2, NODE - 2, 0x72000000);
             }
+
+            int accent = stageColorOr(node.id(), GOLD);
+            if (node.id().equals(selected)) {
+                renderPixelRoundedOutline(g, x - 3, y - 3, NODE + 6, NODE + 6, 0xD9000000);
+                renderPixelRoundedOutline(g, x - 2, y - 2, NODE + 4, NODE + 4, accent);
+            } else if (node.id().equals(hovered)) {
+                renderPixelRoundedOutline(g, x - 2, y - 2, NODE + 4, NODE + 4, 0xEEFFFFFF);
+            } else if (node.available() && !dimmed) {
+                renderCornerBrackets(g, x - 1, y - 1, NODE + 2, NODE + 2,
+                    withAlpha(accent, pulseAlpha));
+            }
+        }
+    }
+
+    private void refreshFocusedPath(StageId focus) {
+        if (Objects.equals(pathFocus, focus)) return;
+        pathFocus = focus;
+        focusedPath.clear();
+        if (focus != null) {
+            focusedPath.addAll(StageTreeFocus.branch(
+                focus, byId.keySet(), ClientStageCache::getDependencies));
         }
     }
 
@@ -474,38 +560,36 @@ public final class StageTreeScreen extends Screen {
         }
 
         boolean ownedHover = inside(mouseX, mouseY, ownedX, ownedY, ownedW, ownedH);
-        g.fill(ownedX, ownedY, ownedX + ownedW, ownedY + ownedH,
-            hideOwned ? 0xFF6A8F55 : ownedHover ? 0xFFA0A0A0 : 0xFF777777);
-        g.renderOutline(ownedX, ownedY, ownedW, ownedH, 0xFF202020);
+        renderControl(g, ownedX, ownedY, ownedW, ownedH, ownedHover, true, hideOwned);
         Component ownedLabel = Component.translatable(hideOwned
             ? "gui.progressivestages.tree.owned.hidden"
             : "gui.progressivestages.tree.owned.visible");
         g.drawCenteredString(font, ownedLabel, ownedX + ownedW / 2, ownedY + 2, 0xFFFFFFFF);
 
         boolean homeHover = inside(mouseX, mouseY, homeX, homeY, homeW, homeH);
-        g.fill(homeX, homeY, homeX + homeW, homeY + homeH, homeHover ? 0xFFA0A0A0 : 0xFF777777);
-        g.renderOutline(homeX, homeY, homeW, homeH, 0xFF202020);
-        g.drawCenteredString(font, "•", homeX + homeW / 2, homeY + 2, 0xFFFFFFFF);
+        renderControl(g, homeX, homeY, homeW, homeH, homeHover, true, false);
+        renderTargetIcon(g, homeX + homeW / 2, homeY + homeH / 2, 0xFFFFFFFF);
 
         if (!categories.isEmpty()) {
             boolean categoryHover = inside(mouseX, mouseY, categoryX, categoryY, categoryW, categoryH);
             if (categoryHover) hovered = null;
-            g.fill(categoryX, categoryY, categoryX + categoryW, categoryY + categoryH,
-                categoryHover ? 0xEEA0A0A0 : 0xEE666666);
-            g.renderOutline(categoryX, categoryY, categoryW, categoryH, 0xFF202020);
+            renderControl(g, categoryX, categoryY, categoryW, categoryH,
+                categoryHover, true, !categoryFilter.isEmpty());
             String raw = categoryFilter.isEmpty()
                 ? Component.translatable("gui.progressivestages.tree.category.all").getString()
                 : categoryFilter;
             String label = font.plainSubstrByWidth(raw, categoryW - 18);
             g.drawString(font, label, categoryX + 5, categoryY + 3, 0xFFFFFFFF, false);
-            g.drawString(font, categoryOpen ? "▲" : "▼", categoryX + categoryW - 11,
-                categoryY + 3, 0xFFFFFFFF, false);
+            renderChevron(g, categoryX + categoryW - 9, categoryY + categoryH / 2,
+                categoryOpen, 0xFFFFFFFF);
             renderCategoryMenu(g, mouseX, mouseY);
         }
     }
 
     private void renderCategoryMenu(GuiGraphics g, int mouseX, int mouseY) {
         if (!categoryOpen) return;
+        g.pose().pushPose();
+        g.pose().translate(0.0F, 0.0F, 400.0F);
         int rows = Math.min(CATEGORY_VISIBLE_ROWS, categoryOptionCount());
         categoryMenuX = categoryX;
         categoryMenuY = categoryY + categoryH + 2;
@@ -513,9 +597,12 @@ public final class StageTreeScreen extends Screen {
         categoryMenuH = rows * CATEGORY_ROW_H + 2;
         int maximumScroll = Math.max(0, categoryOptionCount() - rows);
         categoryScroll = Math.max(0, Math.min(categoryScroll, maximumScroll));
-        g.fill(categoryMenuX, categoryMenuY, categoryMenuX + categoryMenuW,
-            categoryMenuY + categoryMenuH, 0xF0101010);
-        g.renderOutline(categoryMenuX, categoryMenuY, categoryMenuW, categoryMenuH, 0xFFB0B0B0);
+        if (inside(mouseX, mouseY, categoryMenuX, categoryMenuY, categoryMenuW, categoryMenuH)) {
+            hovered = null;
+        }
+        fillPixelRounded(g, categoryMenuX, categoryMenuY, categoryMenuW, categoryMenuH, 0xF0141414);
+        renderPixelRoundedOutline(g, categoryMenuX, categoryMenuY,
+            categoryMenuW, categoryMenuH, 0xFFE0B54D);
         for (int row = 0; row < rows; row++) {
             int index = categoryScroll + row;
             if (index >= categoryOptionCount()) break;
@@ -524,14 +611,26 @@ public final class StageTreeScreen extends Screen {
                 categoryMenuW - 2, CATEGORY_ROW_H);
             boolean active = index == 0 ? categoryFilter.isEmpty()
                 : categories.get(index - 1).equalsIgnoreCase(categoryFilter);
-            if (hover || active) g.fill(categoryMenuX + 1, y, categoryMenuX + categoryMenuW - 1,
-                y + CATEGORY_ROW_H, active ? 0xEE6A8F55 : 0xEE666666);
+            if (hover || active) {
+                fillPixelRounded(g, categoryMenuX + 2, y + 1, categoryMenuW - 4,
+                    CATEGORY_ROW_H - 2, active ? 0xCC785F27 : 0xCC4D4D4D);
+            }
             String value = index == 0
                 ? Component.translatable("gui.progressivestages.tree.category.all").getString()
                 : categories.get(index - 1);
             g.drawString(font, font.plainSubstrByWidth(value, categoryMenuW - 12),
-                categoryMenuX + 5, y + 3, 0xFFFFFFFF, false);
+                categoryMenuX + 8, y + 3, active ? GOLD : 0xFFFFFFFF, false);
+            if (active) {
+                g.fill(categoryMenuX + 4, y + 5, categoryMenuX + 6, y + 9, GOLD);
+            }
         }
+        if (maximumScroll > 0) {
+            int track = categoryMenuH - 6;
+            int thumb = Math.max(8, track * rows / categoryOptionCount());
+            int thumbY = categoryMenuY + 3 + (track - thumb) * categoryScroll / maximumScroll;
+            fillPixelRounded(g, categoryMenuX + categoryMenuW - 4, thumbY, 2, thumb, GOLD);
+        }
+        g.pose().popPose();
     }
 
     private void tileHorizontal(GuiGraphics g, int x, int y, int width, int height, int u, int v, int sourceWidth) {
@@ -584,32 +683,41 @@ public final class StageTreeScreen extends Screen {
     private void renderInspector(GuiGraphics g, int mouseX, int mouseY) {
         MapNode node = byId.get(selected);
         if (node == null) return;
-        panelW = Math.min(208, Math.max(160, mapRight - mapLeft - 20));
+        panelW = Math.min(196, Math.max(156, mapRight - mapLeft - 20));
         panelH = Math.max(90, mapBottom - mapTop - 12);
         panelX = mapRight - panelW - 6;
         panelY = mapTop + 6;
         g.fill(panelX - 1, panelY - 1, panelX + panelW + 1, panelY + panelH + 1, 0xEE000000);
         g.blitSprite(TITLE_BOX, panelX, panelY, panelW, panelH);
 
-        int x = panelX + 7;
-        int contentTop = panelY + 28;
+        int x = panelX + 8;
+        int contentTop = panelY + 31;
         ClientTriggerProgress.StageData data = ClientTriggerProgress.get(selected);
         boolean showBuy = data.purchasable() && !node.owned();
         int contentBottom = panelY + panelH - 7 - (showBuy ? 20 : 0);
-        int innerW = panelW - 14;
+        int innerW = panelW - 16;
+        int nameColor = stageColorOr(selected,
+            node.owned() ? GREEN : node.available() ? GOLD : RED);
+        g.fill(panelX + 3, panelY + 9, panelX + 4, panelY + panelH - 9,
+            withAlpha(nameColor, 210));
 
         g.renderFakeItem(iconFor(selected), x, panelY + 6);
-        int nameColor = stageColorOr(selected, node.owned() ? 0xFF55AA55 : node.available() ? 0xFFFFD45A : 0xFFFF5555);
-        g.drawString(font, Component.literal(ClientStageCache.getDisplayName(selected)).withStyle(ChatFormatting.BOLD),
+        String displayName = font.plainSubstrByWidth(
+            ClientStageCache.getDisplayName(selected), Math.max(20, panelW - 61));
+        g.drawString(font, Component.literal(displayName).withStyle(ChatFormatting.BOLD),
             x + 21, panelY + 7, nameColor, false);
         Component status = Component.translatable(node.owned()
             ? "gui.progressivestages.tree.status.unlocked"
             : node.available() ? "gui.progressivestages.tree.status.ready"
             : "gui.progressivestages.tree.status.locked");
-        g.drawString(font, status,
-            x + 21, panelY + 17, 0xFF606060, false);
-        g.drawString(font, "×", panelX + panelW - 12, panelY + 7,
-            inside(mouseX, mouseY, panelX + panelW - 15, panelY + 4, 12, 12) ? 0xFFFF5555 : 0xFF606060, false);
+        g.drawString(font, status, x + 21, panelY + 17, nameColor, false);
+        boolean closeHover = inside(mouseX, mouseY, panelX + panelW - 16, panelY + 4, 13, 13);
+        renderControl(g, panelX + panelW - 16, panelY + 4, 13, 13,
+            closeHover, true, false);
+        g.drawCenteredString(font, "×", panelX + panelW - 10, panelY + 6,
+            closeHover ? RED : 0xFFFFFFFF);
+        g.fill(x, panelY + 28, panelX + panelW - 7, panelY + 29,
+            withAlpha(nameColor, 120));
 
         g.enableScissor(panelX + 3, contentTop, panelX + panelW - 3, contentBottom);
         int y = contentTop - panelScroll;
@@ -619,7 +727,7 @@ public final class StageTreeScreen extends Screen {
                 g.drawString(font, line, x, y, 0xFFFFFFFF, false);
                 y += 10;
             }
-            y += 4;
+            y += 7;
         }
 
         List<StageId> dependencies = ClientStageCache.getDependencies(selected);
@@ -631,12 +739,11 @@ public final class StageTreeScreen extends Screen {
                     ClientStageCache.getDependencyCount(selected));
                 default -> Component.translatable("gui.progressivestages.tree.prerequisites.all");
             };
-            g.drawString(font, prerequisiteTitle, x, y, 0xFFAAAAAA, false);
-            y += 11;
+            y = drawSectionHeading(g, prerequisiteTitle, x, y, innerW, GOLD);
             for (StageId dependency : dependencies) {
                 boolean has = ClientStageCache.hasStage(dependency);
                 g.drawString(font, (has ? "✔ " : "✗ ") + ClientStageCache.getDisplayName(dependency), x + 3, y,
-                    has ? 0xFF55AA55 : 0xFFFF5555, false);
+                    has ? GREEN : RED, false);
                 y += 10;
             }
             y += 3;
@@ -644,35 +751,40 @@ public final class StageTreeScreen extends Screen {
 
         String slotGroup = ClientStageCache.getSlotGroup(selected);
         if (!slotGroup.isBlank()) {
+            y = drawSectionHeading(g,
+                Component.translatable("gui.progressivestages.tree.slots.heading"),
+                x, y, innerW, GOLD);
+            g.drawString(font, Component.literal(humanizeIdentifier(slotGroup))
+                .withStyle(ChatFormatting.BOLD), x + 3, y, 0xFFFFD45A, false);
+            y += 11;
             int limit = ClientStageCache.getSlotLimit(selected);
             int active = ClientStageCache.getOwnedSlotCount(slotGroup);
             Component slots = limit <= 0
-                ? Component.translatable("gui.progressivestages.tree.slots.unlimited", slotGroup)
-                : Component.translatable("gui.progressivestages.tree.slots.limited", slotGroup, active, limit);
+                ? Component.translatable("gui.progressivestages.tree.slots.unlimited")
+                : Component.translatable("gui.progressivestages.tree.slots.limited", active, limit);
             for (FormattedCharSequence wrapped : font.split(slots, innerW)) {
-                g.drawString(font, wrapped, x, y, 0xFFFFD45A, false);
+                g.drawString(font, wrapped, x + 3, y, 0xFFCCCCCC, false);
                 y += 10;
             }
             if (limit > 0) {
                 Component policy = Component.translatable("gui.progressivestages.tree.slots.policy",
-                    ClientStageCache.getSlotPolicy(selected).replace('_', ' '));
+                    humanizeIdentifier(ClientStageCache.getSlotPolicy(selected)));
                 g.drawString(font, policy, x + 3, y, 0xFFAAAAAA, false);
-                y += 13;
+                y += 15;
             } else {
-                y += 3;
+                y += 6;
             }
         }
 
         if (data.hasTriggers()) {
             float pct = Math.max(0, data.percent());
-            g.drawString(font, Component.translatable("gui.progressivestages.tree.triggers"),
-                x, y, 0xFFFFD45A, false);
-            y += 11;
+            y = drawSectionHeading(g,
+                Component.translatable("gui.progressivestages.tree.triggers"), x, y, innerW, GOLD);
             g.drawString(font, Component.translatable("gui.progressivestages.tree.progress.percent",
-                Math.round(pct * 100)), x, y, 0xFF55FFFF, false);
+                Math.round(pct * 100)), x, y, 0xFF7FD8FF, false);
             y += 11;
-            drawProgressBar(g, x, y, innerW, pct);
-            y += 9;
+            drawProgressBar(g, x, y, innerW, pct, nameColor);
+            y += 10;
             int route = 1;
             for (ClientTriggerProgress.Rule rule : data.rules()) {
                 Component routeLabel = Component.translatable(
@@ -681,7 +793,7 @@ public final class StageTreeScreen extends Screen {
                         : "gui.progressivestages.tree.trigger.all",
                     route++);
                 g.drawString(font, (rule.satisfied() ? "✔ " : "• ") + routeLabel.getString(), x + 2, y,
-                    rule.satisfied() ? 0xFF55AA55 : 0xFFAAAAAA, false);
+                    rule.satisfied() ? GREEN : TEXT_MUTED, false);
                 y += 10;
                 if (!rule.description().isBlank()) {
                     for (FormattedCharSequence wrapped : font.split(
@@ -694,7 +806,8 @@ public final class StageTreeScreen extends Screen {
                     String line = (condition.satisfied() ? "✔ " : "✗ ") + condition.label()
                         + " " + Math.min(condition.current(), condition.threshold()) + "/" + condition.threshold();
                     for (FormattedCharSequence wrapped : font.split(Component.literal(line), innerW - 5)) {
-                        g.drawString(font, wrapped, x + 5, y, condition.satisfied() ? 0xFF55AA55 : 0xFFCCCCCC, false);
+                        g.drawString(font, wrapped, x + 5, y,
+                            condition.satisfied() ? GREEN : 0xFFCCCCCC, false);
                         y += 10;
                     }
                 }
@@ -703,12 +816,13 @@ public final class StageTreeScreen extends Screen {
         }
 
         if (!data.challenges().isEmpty()) {
-            g.drawString(font, Component.translatable("gui.progressivestages.tree.challenges"), x, y,
-                0xFFFFAA55, false);
-            y += 11;
+            y = drawSectionHeading(g,
+                Component.translatable("gui.progressivestages.tree.challenges"),
+                x, y, innerW, 0xFFFFAA55);
             for (ClientTriggerProgress.Challenge challenge : data.challenges()) {
-                g.drawString(font, challenge.id().getPath() + ". " + challenge.status(), x + 3, y,
-                    challenge.status().equals("succeeded") ? 0xFF55AA55 : 0xFFDDCC88, false);
+                g.drawString(font, humanizeResource(challenge.id()) + ". "
+                        + humanizeIdentifier(challenge.status()), x + 3, y,
+                    challenge.status().equals("succeeded") ? GREEN : 0xFFDDCC88, false);
                 y += 10;
                 for (String budget : challenge.budgets()) {
                     g.drawString(font, "  " + budget, x + 3, y, 0xFFCCCCCC, false);
@@ -719,25 +833,27 @@ public final class StageTreeScreen extends Screen {
         }
 
         if (!data.modifiers().isEmpty()) {
-            g.drawString(font, Component.translatable("gui.progressivestages.tree.modifiers"), x, y,
-                0xFFAA88FF, false);
-            y += 11;
-            for (String modifier : data.modifiers()) {
-                for (FormattedCharSequence wrapped : font.split(Component.literal(modifier), innerW - 5)) {
-                    g.drawString(font, wrapped, x + 3, y, 0xFFCCCCCC, false);
-                    y += 10;
-                }
+            y = drawSectionHeading(g,
+                Component.translatable("gui.progressivestages.tree.modifiers"),
+                x, y, innerW, 0xFFAA88FF);
+            for (ClientTriggerProgress.ModifierPreview modifier : data.modifiers()) {
+                y = renderModifierPreview(g, modifier, x, y, innerW);
             }
-            y += 3;
+            y += 4;
         }
 
         if (!data.why().isEmpty()) {
-            g.drawString(font, Component.translatable("gui.progressivestages.tree.why"), x, y,
-                0xFF55DDDD, false);
-            y += 11;
+            y = drawSectionHeading(g,
+                Component.translatable("gui.progressivestages.tree.why"),
+                x, y, innerW, 0xFF55DDDD);
             for (ClientTriggerProgress.Why why : data.why().stream()
                     .skip(Math.max(0, data.why().size() - 5)).toList()) {
-                String line = why.effect() + ". " + why.category() + ". " + why.target();
+                String line = java.util.stream.Stream.of(
+                        humanizeIdentifier(why.effect()),
+                        humanizeIdentifier(why.category()),
+                        displayTarget(why.target()))
+                    .filter(value -> !value.isBlank())
+                    .collect(java.util.stream.Collectors.joining(". "));
                 for (FormattedCharSequence wrapped : font.split(Component.literal(line), innerW - 5)) {
                     g.drawString(font, wrapped, x + 3, y, why.blocked() ? 0xFFFF7777 : 0xFF77DD77, false);
                     y += 10;
@@ -747,12 +863,13 @@ public final class StageTreeScreen extends Screen {
         }
 
         if (!data.history().isEmpty()) {
-            g.drawString(font, Component.translatable("gui.progressivestages.tree.history"), x, y,
-                0xFFAAAAAA, false);
-            y += 11;
+            y = drawSectionHeading(g,
+                Component.translatable("gui.progressivestages.tree.history"),
+                x, y, innerW, TEXT_MUTED);
             for (ClientTriggerProgress.History history : data.history().stream()
                     .skip(Math.max(0, data.history().size() - 5)).toList()) {
-                String line = history.direction() + ". " + (history.committed() ? "committed" : "rejected");
+                String line = humanizeIdentifier(history.direction()) + ". "
+                    + (history.committed() ? "Committed" : "Rejected");
                 g.drawString(font, line, x + 3, y, history.committed() ? 0xFF77DD77 : 0xFFFF7777, false);
                 y += 10;
             }
@@ -760,9 +877,9 @@ public final class StageTreeScreen extends Screen {
         }
 
         if (data.unlockTotal() > 0) {
-            g.drawString(font, Component.translatable("gui.progressivestages.tree.unlocks",
-                data.unlockTotal()), x, y, 0xFFAAAAAA, false);
-            y += 11;
+            y = drawSectionHeading(g,
+                Component.translatable("gui.progressivestages.tree.unlocks", data.unlockTotal()),
+                x, y, innerW, GOLD);
             int columns = Math.max(1, innerW / 18);
             for (int i = 0; i < data.unlockSample().size(); i++) {
                 ResourceLocation itemId = data.unlockSample().get(i);
@@ -780,33 +897,369 @@ public final class StageTreeScreen extends Screen {
             int track = contentBottom - contentTop;
             int thumb = Math.max(12, track * track / (track + panelMax));
             int thumbY = contentTop + (track - thumb) * panelScroll / panelMax;
-            g.fill(panelX + panelW - 3, thumbY, panelX + panelW - 1, thumbY + thumb, 0xFFAAAAAA);
+            fillPixelRounded(g, panelX + panelW - 4, contentTop, 2, track, 0x66101010);
+            fillPixelRounded(g, panelX + panelW - 4, thumbY, 2, thumb, nameColor);
         }
 
         buyEnabled = false;
         buyStage = null;
         if (showBuy) {
             buyX = x;
-            buyY = panelY + panelH - 20;
+            buyY = panelY + panelH - 21;
             buyW = innerW;
-            buyH = 14;
+            buyH = 16;
             buyStage = selected;
             buyEnabled = data.canPurchase();
             boolean hover = buyEnabled && inside(mouseX, mouseY, buyX, buyY, buyW, buyH);
-            g.fill(buyX, buyY, buyX + buyW, buyY + buyH,
-                buyEnabled ? hover ? 0xFF6A9F55 : 0xFF4F7F3F : 0xFF5A4545);
-            g.renderOutline(buyX, buyY, buyW, buyH, 0xFF202020);
+            renderControl(g, buyX, buyY, buyW, buyH, hover, buyEnabled, buyEnabled);
             Component label = Component.translatable(buyEnabled
                 ? "gui.progressivestages.tree.purchase"
                 : "gui.progressivestages.tree.purchase.need", data.costSummary());
-            g.drawCenteredString(font, label, buyX + buyW / 2, buyY + 3, 0xFFFFFFFF);
+            String visibleLabel = font.plainSubstrByWidth(label.getString(), buyW - 8);
+            g.drawCenteredString(font, visibleLabel, buyX + buyW / 2, buyY + 4,
+                buyEnabled ? 0xFFFFFFFF : 0xFFB0B0B0);
         }
     }
 
-    private void drawProgressBar(GuiGraphics g, int x, int y, int width, float fraction) {
-        g.fill(x, y, x + width, y + 6, 0xFF000000);
-        int fill = Math.round((width - 2) * Math.max(0, Math.min(1, fraction)));
-        g.fill(x + 1, y + 1, x + 1 + fill, y + 5, fraction >= 1 ? 0xFF55AA55 : 0xFF55AADD);
+    private void drawProgressBar(GuiGraphics g, int x, int y, int width, float fraction, int accent) {
+        fillPixelRounded(g, x, y, width, 7, 0xFF151515);
+        renderPixelRoundedOutline(g, x, y, width, 7, 0xFF686868);
+        int fill = Math.round((width - 4) * Math.max(0, Math.min(1, fraction)));
+        if (fill > 0) {
+            int color = fraction >= 1 ? GREEN : accent;
+            g.fill(x + 2, y + 2, x + 2 + fill, y + 5, color);
+        }
+    }
+
+    private int renderModifierPreview(
+            GuiGraphics g,
+            ClientTriggerProgress.ModifierPreview preview,
+            int x,
+            int y,
+            int width
+    ) {
+        int cardX = x + 1;
+        int cardW = Math.max(40, width - 2);
+        List<PreviewRow> rows = new ArrayList<>();
+        for (ClientTriggerProgress.ModifierField field : preview.fields()) {
+            ItemStack icon = selectorIcon(field.registry(), field.selector());
+            String value = field.selector().isBlank()
+                ? humanizeFreeText(field.value())
+                : selectorDisplayName(field.registry(), field.selector(), icon);
+            Component line = Component.literal(field.label() + ": ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(value).withStyle(ChatFormatting.WHITE));
+            int textWidth = Math.max(20, cardW - 10 - (icon.isEmpty() ? 0 : 19));
+            List<FormattedCharSequence> wrapped = font.split(line, textWidth);
+            int height = Math.max(icon.isEmpty() ? 10 : 18, wrapped.size() * 10) + 2;
+            rows.add(new PreviewRow(icon, wrapped, height));
+        }
+
+        int cardH = 27 + rows.stream().mapToInt(PreviewRow::height).sum();
+        fillPixelRounded(g, cardX, y, cardW, cardH, 0xB0161616);
+        renderPixelRoundedOutline(g, cardX, y, cardW, cardH, 0x995D4B78);
+
+        Component title = modifierTitle(preview.kind());
+        g.drawString(font, title.copy().withStyle(ChatFormatting.BOLD),
+            cardX + 5, y + 5, 0xFFCCAAFF, false);
+        String subtitle = humanizeResource(preview.id());
+        g.drawString(font, font.plainSubstrByWidth(subtitle, cardW - 10),
+            cardX + 5, y + 15, 0xFF888888, false);
+
+        int rowY = y + 27;
+        for (PreviewRow row : rows) {
+            int textX = cardX + 5;
+            if (!row.icon().isEmpty()) {
+                g.renderItem(row.icon(), textX, rowY);
+                textX += 19;
+            }
+            int textY = rowY + (row.icon().isEmpty() ? 0 : 1);
+            for (FormattedCharSequence line : row.lines()) {
+                g.drawString(font, line, textX, textY, 0xFFFFFFFF, false);
+                textY += 10;
+            }
+            rowY += row.height();
+        }
+        return y + cardH + 5;
+    }
+
+    private Component modifierTitle(String kind) {
+        return Component.translatable(switch (kind) {
+            case "block_drop_bonus" -> "gui.progressivestages.tree.modifier.block_drop";
+            case "equipment_locked" -> "gui.progressivestages.tree.modifier.locked";
+            case "equipment_active" -> "gui.progressivestages.tree.modifier.active";
+            case "affinity" -> "gui.progressivestages.tree.modifier.affinity";
+            default -> "gui.progressivestages.tree.modifier.equipment";
+        });
+    }
+
+    private ItemStack selectorIcon(String registry, String selector) {
+        if (registry.isBlank() || selector.isBlank()) return ItemStack.EMPTY;
+        String key = registry + "|" + normalizeSelector(selector);
+        List<ItemStack> icons = selectorIconCache.computeIfAbsent(key,
+            ignored -> resolveSelectorIcons(registry, selector));
+        if (icons.isEmpty()) return ItemStack.EMPTY;
+        int cycle = (int) (Util.getMillis() / 1100L);
+        return icons.get(Math.floorMod(cycle + key.hashCode(), icons.size()));
+    }
+
+    private List<ItemStack> resolveSelectorIcons(String registry, String selector) {
+        String normalized = normalizeSelector(selector);
+        List<ItemStack> icons = new ArrayList<>();
+        if (normalized.startsWith("tag:") || normalized.startsWith("#")) {
+            String rawTag = normalized.startsWith("tag:") ? normalized.substring(4) : normalized.substring(1);
+            ResourceLocation tagId = ResourceLocation.tryParse(rawTag);
+            if (tagId == null) return List.of();
+            if ("block".equals(registry)) {
+                BuiltInRegistries.BLOCK.getTag(TagKey.create(Registries.BLOCK, tagId))
+                    .ifPresent(values -> values.forEach(holder -> addPreviewIcon(icons, holder.value().asItem())));
+            } else if ("item".equals(registry)) {
+                BuiltInRegistries.ITEM.getTag(TagKey.create(Registries.ITEM, tagId))
+                    .ifPresent(values -> values.forEach(holder -> addPreviewIcon(icons, holder.value())));
+            }
+            return List.copyOf(icons);
+        }
+        if (normalized.startsWith("mod:")) {
+            String namespace = normalized.substring(4);
+            if ("block".equals(registry)) {
+                BuiltInRegistries.BLOCK.forEach(block -> {
+                    ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
+                    if (id != null && id.getNamespace().equals(namespace)) addPreviewIcon(icons, block.asItem());
+                });
+            } else if ("item".equals(registry)) {
+                BuiltInRegistries.ITEM.forEach(item -> {
+                    ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+                    if (id != null && id.getNamespace().equals(namespace)) addPreviewIcon(icons, item);
+                });
+            }
+            return List.copyOf(icons);
+        }
+        if (normalized.equals("all") || normalized.equals("*")) return List.of();
+        String rawId = normalized.startsWith("id:") ? normalized.substring(3) : normalized;
+        ResourceLocation id = ResourceLocation.tryParse(rawId);
+        if (id == null) return List.of();
+        if ("block".equals(registry)) {
+            BuiltInRegistries.BLOCK.getOptional(id).ifPresent(block -> addPreviewIcon(icons, block.asItem()));
+        } else if ("item".equals(registry)) {
+            BuiltInRegistries.ITEM.getOptional(id).ifPresent(item -> addPreviewIcon(icons, item));
+        }
+        return List.copyOf(icons);
+    }
+
+    private static void addPreviewIcon(List<ItemStack> icons, net.minecraft.world.item.Item item) {
+        if (item != Items.AIR) icons.add(new ItemStack(item));
+    }
+
+    private String selectorDisplayName(String registry, String selector, ItemStack icon) {
+        String normalized = normalizeSelector(selector);
+        if (normalized.startsWith("tag:") || normalized.startsWith("#")) {
+            String rawTag = normalized.startsWith("tag:") ? normalized.substring(4) : normalized.substring(1);
+            ResourceLocation tag = ResourceLocation.tryParse(rawTag);
+            return tag == null ? humanizeIdentifier(rawTag) : humanizeTag(tag);
+        }
+        if (normalized.startsWith("mod:")) {
+            return "All " + humanizeIdentifier(normalized.substring(4)) + " content";
+        }
+        if (normalized.startsWith("name:")) {
+            return "Names containing " + humanizeIdentifier(normalized.substring(5));
+        }
+        if (normalized.equals("all") || normalized.equals("*")) return "Everything";
+        if (!icon.isEmpty()) return icon.getHoverName().getString();
+        String rawId = normalized.startsWith("id:") ? normalized.substring(3) : normalized;
+        ResourceLocation id = ResourceLocation.tryParse(rawId);
+        return id == null ? humanizeIdentifier(rawId) : humanizeResource(id);
+    }
+
+    private static String normalizeSelector(String selector) {
+        String normalized = selector == null ? "" : selector.trim();
+        int priority = normalized.indexOf("|priority=");
+        return priority < 0 ? normalized : normalized.substring(0, priority).trim();
+    }
+
+    private static String humanizeTag(ResourceLocation tag) {
+        String[] parts = tag.getPath().split("/");
+        StringBuilder output = new StringBuilder();
+        for (int index = parts.length - 1; index >= 0; index--) {
+            if (output.length() > 0) output.append(' ');
+            output.append(humanizeIdentifier(parts[index]));
+        }
+        return output.toString();
+    }
+
+    private static String humanizeResource(ResourceLocation id) {
+        if (id == null) return "";
+        String path = id.getPath();
+        return humanizeIdentifier(path.substring(path.lastIndexOf('/') + 1));
+    }
+
+    private String displayTarget(ResourceLocation id) {
+        return BuiltInRegistries.ITEM.getOptional(id)
+            .map(item -> item.getDescription().getString())
+            .filter(value -> !value.isBlank())
+            .orElseGet(() -> BuiltInRegistries.BLOCK.getOptional(id)
+                .map(block -> block.getName().getString())
+                .filter(value -> !value.isBlank())
+                .orElseGet(() -> humanizeResource(id)));
+    }
+
+    private static String humanizeFreeText(String value) {
+        if (value == null || value.isBlank()) return "";
+        if (!value.contains("_") && !value.contains(":")) return value;
+        if (value.contains(", ")) {
+            return java.util.Arrays.stream(value.split(", "))
+                .map(StageTreeScreen::humanizeIdentifier)
+                .collect(java.util.stream.Collectors.joining(", "));
+        }
+        return humanizeIdentifier(value);
+    }
+
+    private static String humanizeIdentifier(String value) {
+        if (value == null || value.isBlank()) return "";
+        String clean = value.trim();
+        int namespace = clean.lastIndexOf(':');
+        if (namespace >= 0) clean = clean.substring(namespace + 1);
+        int path = clean.lastIndexOf('/');
+        if (path >= 0) clean = clean.substring(path + 1);
+        clean = clean.replace('_', ' ').replace('-', ' ').replace('.', ' ');
+        StringBuilder output = new StringBuilder(clean.length());
+        boolean capitalize = true;
+        for (int index = 0; index < clean.length(); index++) {
+            char character = clean.charAt(index);
+            if (Character.isWhitespace(character)) {
+                if (output.length() > 0 && output.charAt(output.length() - 1) != ' ') output.append(' ');
+                capitalize = true;
+            } else {
+                output.append(capitalize ? Character.toUpperCase(character) : character);
+                capitalize = false;
+            }
+        }
+        return output.toString().trim();
+    }
+
+    private int drawSectionHeading(
+            GuiGraphics g,
+            Component title,
+            int x,
+            int y,
+            int width,
+            int color
+    ) {
+        String label = font.plainSubstrByWidth(title.getString(), width);
+        g.drawString(font, label, x, y, color, false);
+        int lineX = x + font.width(label) + 4;
+        if (lineX < x + width) {
+            g.fill(lineX, y + 5, Math.min(x + width, lineX + 42), y + 6, withAlpha(color, 95));
+        }
+        return y + 14;
+    }
+
+    private void renderControl(
+            GuiGraphics g,
+            int x,
+            int y,
+            int width,
+            int height,
+            boolean hovered,
+            boolean enabled,
+            boolean active
+    ) {
+        ResourceLocation sprite = enabled
+            ? hovered ? BUTTON_HIGHLIGHTED : BUTTON
+            : BUTTON_DISABLED;
+        g.blitSprite(sprite, x, y, width, height);
+        if (active) {
+            renderPixelRoundedOutline(g, x, y, width, height, withAlpha(GOLD, 220));
+        }
+    }
+
+    private static void renderTargetIcon(GuiGraphics g, int centerX, int centerY, int color) {
+        g.fill(centerX - 3, centerY, centerX - 1, centerY + 1, color);
+        g.fill(centerX + 2, centerY, centerX + 4, centerY + 1, color);
+        g.fill(centerX, centerY - 3, centerX + 1, centerY - 1, color);
+        g.fill(centerX, centerY + 2, centerX + 1, centerY + 4, color);
+        g.fill(centerX, centerY, centerX + 1, centerY + 1, color);
+    }
+
+    private static void renderChevron(
+            GuiGraphics g,
+            int centerX,
+            int centerY,
+            boolean pointsUp,
+            int color
+    ) {
+        int direction = pointsUp ? -1 : 1;
+        g.fill(centerX - 3, centerY - direction, centerX + 4, centerY - direction + 1, color);
+        g.fill(centerX - 2, centerY, centerX + 3, centerY + 1, color);
+        g.fill(centerX - 1, centerY + direction, centerX + 2, centerY + direction + 1, color);
+    }
+
+    private static void fillPixelRounded(
+            GuiGraphics g,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color
+    ) {
+        if (width <= 0 || height <= 0) return;
+        if (width < 3 || height < 3) {
+            g.fill(x, y, x + width, y + height, color);
+            return;
+        }
+        g.fill(x + 1, y, x + width - 1, y + height, color);
+        g.fill(x, y + 1, x + width, y + height - 1, color);
+    }
+
+    private static void renderPixelRoundedOutline(
+            GuiGraphics g,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color
+    ) {
+        if (width < 5 || height < 5) {
+            g.renderOutline(x, y, width, height, color);
+            return;
+        }
+        g.fill(x + 2, y, x + width - 2, y + 1, color);
+        g.fill(x + 1, y + 1, x + 2, y + 2, color);
+        g.fill(x, y + 2, x + 1, y + height - 2, color);
+        g.fill(x + 1, y + height - 2, x + 2, y + height - 1, color);
+        g.fill(x + 2, y + height - 1, x + width - 2, y + height, color);
+        g.fill(x + width - 2, y + height - 2, x + width - 1, y + height - 1, color);
+        g.fill(x + width - 1, y + 2, x + width, y + height - 2, color);
+        g.fill(x + width - 2, y + 1, x + width - 1, y + 2, color);
+    }
+
+    private static void renderCornerBrackets(
+            GuiGraphics g,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color
+    ) {
+        int length = Math.min(6, Math.min(width, height) / 3);
+        g.fill(x + 2, y, x + 2 + length, y + 1, color);
+        g.fill(x, y + 2, x + 1, y + 2 + length, color);
+        g.fill(x + width - 2 - length, y, x + width - 2, y + 1, color);
+        g.fill(x + width - 1, y + 2, x + width, y + 2 + length, color);
+        g.fill(x + 2, y + height - 1, x + 2 + length, y + height, color);
+        g.fill(x, y + height - 2 - length, x + 1, y + height - 2, color);
+        g.fill(x + width - 2 - length, y + height - 1, x + width - 2, y + height, color);
+        g.fill(x + width - 1, y + height - 2 - length, x + width, y + height - 2, color);
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return color & 0x00FFFFFF | Math.clamp(alpha, 0, 255) << 24;
+    }
+
+    private void playButtonSound() {
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(
+                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        }
     }
 
     private int stageColorOr(StageId id, int fallback) {
@@ -833,11 +1286,14 @@ public final class StageTreeScreen extends Screen {
         }
         if (button == 0 && inside(mouseX, mouseY, ownedX, ownedY, ownedW, ownedH)) {
             hideOwned = !hideOwned;
+            playButtonSound();
             rebuild(false);
             return true;
         }
         if (button == 0 && inside(mouseX, mouseY, homeX, homeY, homeW, homeH)) {
+            playButtonSound();
             centerGraph();
+            mapHintUntil = Util.getMillis() + 2500L;
             return true;
         }
         if (button == 0 && categoryOpen) {
@@ -853,6 +1309,7 @@ public final class StageTreeScreen extends Screen {
         if (button == 0 && !categories.isEmpty()
                 && inside(mouseX, mouseY, categoryX, categoryY, categoryW, categoryH)) {
             categoryOpen = !categoryOpen;
+            playButtonSound();
             if (categoryOpen) {
                 int selectedIndex = categoryFilter.isEmpty() ? 0 : categories.indexOf(categoryFilter) + 1;
                 categoryScroll = Math.max(0, selectedIndex - CATEGORY_VISIBLE_ROWS / 2);
@@ -860,11 +1317,13 @@ public final class StageTreeScreen extends Screen {
             return true;
         }
         if (selected != null) {
-            if (button == 0 && inside(mouseX, mouseY, panelX + panelW - 15, panelY + 4, 12, 12)) {
+            if (button == 0 && inside(mouseX, mouseY, panelX + panelW - 16, panelY + 4, 13, 13)) {
+                playButtonSound();
                 selected = null;
                 return true;
             }
             if (button == 0 && buyEnabled && buyStage != null && inside(mouseX, mouseY, buyX, buyY, buyW, buyH)) {
+                playButtonSound();
                 ClientTriggerProgress.requestPurchase(buyStage);
                 return true;
             }
@@ -886,6 +1345,7 @@ public final class StageTreeScreen extends Screen {
         if (button == 0 && draggingMap) {
             dragDistance += Math.hypot(dragX, dragY);
             if (dragDistance >= 2.0) {
+                mapHintUntil = 0L;
                 StageTreeViewport.Camera camera = StageTreeViewport.drag(
                     new StageTreeViewport.Camera(panX, panY, zoom), dragX, dragY);
                 panX = camera.panX();
@@ -901,6 +1361,7 @@ public final class StageTreeScreen extends Screen {
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (button == 0 && draggingMap) {
             if (dragDistance < 2.0 && pressedNode != null) {
+                playButtonSound();
                 selected = pressedNode.id();
                 panelScroll = 0;
             }
@@ -935,6 +1396,7 @@ public final class StageTreeScreen extends Screen {
             panX = camera.panX();
             panY = camera.panY();
             zoom = camera.zoom();
+            mapHintUntil = Util.getMillis() + 1800L;
             clampPan();
             return true;
         }
@@ -954,11 +1416,16 @@ public final class StageTreeScreen extends Screen {
         else if (keyCode == GLFW.GLFW_KEY_UP || keyCode == GLFW.GLFW_KEY_W) dy = 16;
         else if (keyCode == GLFW.GLFW_KEY_DOWN || keyCode == GLFW.GLFW_KEY_S) dy = -16;
         else if (keyCode == GLFW.GLFW_KEY_C) {
-            if (!categories.isEmpty()) categoryOpen = !categoryOpen;
+            if (!categories.isEmpty()) {
+                categoryOpen = !categoryOpen;
+                playButtonSound();
+            }
             return true;
         }
         else if (keyCode == GLFW.GLFW_KEY_SPACE) {
+            playButtonSound();
             centerGraph();
+            mapHintUntil = Util.getMillis() + 2500L;
             return true;
         }
         else if (keyCode == GLFW.GLFW_KEY_ESCAPE && categoryOpen) {

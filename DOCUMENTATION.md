@@ -1,6 +1,6 @@
-# ProgressiveStages 3.0.2 — Complete Documentation
+# ProgressiveStages 3.0.3 — Complete Documentation
 
-> ProgressiveStages **3.0.2** for NeoForge 1.21.1, Java 21.
+> ProgressiveStages **3.0.3** for NeoForge 1.21.1, Java 21.
 > Mod id: `progressivestages`  Java package root: `com.enviouse.progressivestages`  
 > This document is exhaustive — every feature, every TOML field, every config key,
 > every command, every integration, every troubleshooting tip. If a section of
@@ -14,6 +14,10 @@
 > simpler dark gray and gold stage-first layout. The survival inventory progression button can be
 > hidden, moved relative to the inventory, resized, and given a custom centered icon size through
 > the `[client]` section of `progressivestages.toml`.
+
+> **3.0.3 maintenance release:** The open progression map category list now uses a dedicated
+> foreground depth. Stage item icons cannot appear through its panel, rows, text, active marker, or
+> scrollbar when a graph node is positioned beneath the list.
 
 > **New to stage mods?** Start with [GETTING_STARTED.md](GETTING_STARTED.md), copy the tested
 > [beginner pack](examples/beginner_pack/README.md), and return here when the beginner guide links
@@ -57,7 +61,7 @@
    - [4.6 `[recipes]` — two flavors of crafting gate](#46-recipes--two-flavors-of-crafting-gate)
    - [4.7 `[crops]` — planting, growth, bonemeal, harvest](#47-crops--planting-growth-bonemeal-harvest)
    - [4.8 `[dimensions]` — portal and teleport gating](#48-dimensions--portal-and-teleport-gating)
-   - [4.9 `[enchants]` — table, anvil, villager, inventory strip](#49-enchants--table-anvil-villager-inventory-strip)
+   - [4.9 `[enchants]` — table, loot, anvil, villager, inventory safety net](#49-enchants--table-loot-anvil-villager-inventory-safety-net)
    - [4.10 `[entities]` — attack and interact gating](#410-entities--attack-and-interact-gating)
    - [4.11 `[[interactions]]` — fine-grained "X-on-Y" rules](#411-interactions--fine-grained-x-on-y-rules)
    - [4.12 `[loot]` — chest / fishing / archeology / mob / block drop filter](#412-loot--chest--fishing--archeology--mob--block-drop-filter)
@@ -84,7 +88,7 @@
    - [4.30 Datapack-loaded stages](#430-datapack-loaded-stages) — **New in 2.5**
    - [4.31 `[rewards]` — items / effects / commands / teleport / xp on grant](#431-rewards--items--effects--commands--teleport--xp-on-grant) — **New in 3.0**
    - [4.32 `[display].encrypt_blocks` — encrypted-block visual](#432-displayencrypt_blocks--encrypted-block-visual) — **New in 3.0**
-   - [4.33 `[enchants].max_levels`, `[beacon]`, `[brewing]` — finer-grained gates](#433-enchantsmax_levels-beacon-brewing--finer-grained-gates) — **New in 3.0**
+   - [4.33 Enchantment selection policy, `[beacon]`, and `[brewing]`](#433-enchantment-selection-policy-beacon-and-brewing) — **New in 3.0**
    - [4.34 Temporary, triggered, and priority-based lock rules](#434-temporary-triggered-and-priority-based-lock-rules) — **New in 3.0.1**
    - [4.35 Structure session providers, leased stages, and active locks](#435-structure-session-providers-leased-stages-and-active-locks) — **New in 3.0.1**
    - [4.36 `[[drop_modifiers]]` — selector based block output bonuses](#436-drop_modifiers--selector-based-block-output-bonuses) — **New in 3.0.1**
@@ -415,7 +419,24 @@ To create a stage without knowing TOML:
    activation condition. Structure choices include entering, leaving, being inside, and remaining
    inside for a required number of seconds. The help text beside the condition explains whether a
    target and amount are required.
-9. Open Progression. Use **How players obtain this stage** to add grants. Use **How players lose this stage** to add
+9. In the Rules tab, use **Enchantment generation** when a stage should change enchanting table or
+   player aware loot rolls. Click **Add enchantment**, then search the connected server's
+   enchantment registry or enter one exact identifier such as `minecraft:mending`. Set
+   **Maximum level**, **Selection weight**, or both:
+   - A positive maximum level caps newly generated enchantments and reduces retained copies above
+     that level while the stage is missing.
+   - Maximum level `0` prevents new rolls and removes retained copies.
+   - A positive selection weight changes the enchantment's relative chance without changing copies
+     already owned.
+   - Selection weight `0` prevents new rolls without stripping existing copies.
+   - An empty field keeps that half of the enchantment's normal behavior.
+
+   The builder loads existing `max_levels` and `selection_weights` entries into one card per
+   enchantment. Edit or remove those cards directly. Exact identifier validation, duplicate
+   detection, nonnegative maximum levels, and the documented selection weight range of `0..1024`
+   are checked before the draft is saved. The resulting values remain ordinary `[enchants]` fields
+   in `rules.toml`, and unrelated rules or extension sections are preserved.
+10. Open Progression. Use **How players obtain this stage** to add grants. Use **How players lose this stage** to add
    revokes. Both sections use the same trigger library and ask for the amount, repeat policy, player,
    team, or server scope, priority, and cooldown. `Player dies` means the stage owner dies.
    `Another player dies` means any other online player dies, even when the stage owner is not the
@@ -425,7 +446,7 @@ To create a stage without knowing TOML:
    Choose **Set up purchase**, search the live item registry, click payment items, and set each
    amount plus optional XP, cooldown, refund, and trigger bypass. Use reward cards for items,
    effects, commands, teleportation, and XP granted after ownership changes.
-10. Open Rewards. Configure items, effects, commands, teleportation, and experience
+11. Open Rewards. Configure items, effects, commands, teleportation, and experience
     granted after ownership changes. Choose ability restrictions for jump, sprint, swim, climb,
     elytra, or abilities registered by an extension. Add a stage attribute or an item modifier that
     depends on item context, owned stages, missing stages, a condition, aggregation, stack limit,
@@ -434,11 +455,11 @@ To create a stage without knowing TOML:
     minimum, maximum, priority, and exclusive stacking. This
     creates `[[drop_modifiers]]`; the generated Diamond Engineer demonstrates a purchase for 32
     diamonds plus a Fortune only double diamond rule.
-11. Open Advanced for guided challenge, variable, formula, lifecycle state, affinity profile, and
+12. Open Advanced for guided challenge, variable, formula, lifecycle state, affinity profile, and
     reusable template builders. A challenge can define start, success, and end conditions, retries,
     timeout, hit limit, measured budget, ordered step, and detailed HUD presentation. Registered
     Java and KubeJS data remains available through Extensions and the exact source tab.
-12. Open `Player UI`, filter by category, search, zoom, fit the complete graph, or drag nodes to
+13. Open `Player UI`, filter by category, search, zoom, fit the complete graph, or drag nodes to
     save their in game coordinates. Drag empty graph space to pan. Scroll to zoom around the mouse
     pointer. Curved connectors follow at every zoom.
     Click `Connect stages` to edit progression directly on the graph. Select the prerequisite stage
@@ -448,12 +469,15 @@ To create a stage without knowing TOML:
     connector turns red so it is clear which branch will be removed. Keyboard users may focus a
     connector and press Enter, Space, Delete, or Backspace. The `Required stages` editor remains
     available when a stage needs an `all`, `any`, or `at_least` dependency policy.
-    Automatic layout puts beginner stages at
-    the bottom, reduces crossings, and places evolutions above them. `Arrange and save` writes the
-    complete layout with fewer crossing lines. `Use automatic layout` removes every manual position. The
-    Stage details card also has `Edit player UI position` for exact X and Y values or a one stage
-    reset. The browser scales cards for editing but stores the compact coordinates Minecraft uses.
-13. Click `Apply changes`. This action validates every stage before it opens the review. Inspect
+    Automatic layout puts beginner stages at the bottom, reduces crossings, and places evolutions
+    above them. `Use automatic layout` removes every manual position so Minecraft calculates that
+    arrangement. Dragging a stage writes only that stage's manual position into the draft. `Fit graph`
+    changes the browser camera without changing saved coordinates. The Stage details card
+    also has `Edit player UI position` for exact X and Y values or a one stage reset. The browser
+    scales cards for editing but stores the compact coordinates Minecraft uses. The layout page has
+    no separate save action. `Apply changes` is the only action that publishes the draft to the
+    server.
+14. Click `Apply changes`. This action validates every stage before it opens the review. Inspect
     every file in the diff, then confirm.
     After the server validates, writes, reloads, and synchronizes the result, every online operator
     receives the complete file change list in Minecraft chat. Added files appear in green. Modified
@@ -788,6 +812,13 @@ The mixin gating the crafting result slot is
 [`ResultSlotMixin`](src/main/java/com/enviouse/progressivestages/mixin/ResultSlotMixin.java);
 the recipe-id capture for the `ItemCraftedEvent` fallback path is
 [`CraftingMenuMixin`](src/main/java/com/enviouse/progressivestages/mixin/CraftingMenuMixin.java).
+Smithing uses
+[`SmithingMenuMixin`](src/main/java/com/enviouse/progressivestages/mixin/SmithingMenuMixin.java).
+After vanilla selects a smithing recipe, the mixin checks the stored recipe identifier, result
+recipe lock, direct result item lock, and every opted in transitive ingredient lock. It clears a
+result when normal crafting would hide that result and independently rejects server side pickup.
+The pickup check remains authoritative if another mod restores or redraws the visible output.
+`block_crafting`, creative bypass, and the configured lock notifications apply normally.
 
 ### 4.7 `[crops]` — planting, growth, bonemeal, harvest
 
@@ -855,7 +886,7 @@ registers the compass against the player's item-use checks.
 The implementation is
 [`DimensionEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/DimensionEnforcer.java).
 
-### 4.9 `[enchants]` — table, anvil, villager, inventory strip
+### 4.9 `[enchants]` — table, loot, anvil, villager, inventory safety net
 
 ```toml
 [enchants]
@@ -865,42 +896,86 @@ locked = [
     "tag:c:curse",
     "mod:apotheosis",
 ]
+max_levels = [
+    "minecraft:sharpness:3",
+    "minecraft:protection:2",
+]
+selection_weights = [
+    "minecraft:mending:0",
+    "minecraft:fortune:10",
+]
 ```
 
-The most ambitious category — every surface where an enchantment can reach a
-player's gear is gated:
+This category controls both enchantment generation and the later safety checks
+that prevent a forbidden enchantment from reaching or remaining on a player's
+gear:
 
-- **Enchanting Table** — `EnchantmentMenuMixin` filters the preview clues.
-  Locked enchantments do not appear in the three preview slots; the apply
-  button refuses if the primary pick is locked. XP / lapis are NOT consumed
-  on refusal.
+- **Enchanting table selection** — `EnchantmentMenuMixin` redirects the
+  `EnchantmentHelper.selectEnchantment` call for the actual player who opened
+  that menu. Locked enchantments are removed from the candidate pool before
+  the first or any compatible secondary enchantment is rolled. `max_levels`
+  removes levels above the effective cap before selection, and
+  `selection_weights` changes each exact enchantment's weighted chance.
+  Preview clues and the result are therefore produced from the same filtered
+  list. The existing clue and click checks remain as a refusal safety net, so
+  a rejected offer consumes no XP or lapis.
+- **Loot selection** — the vanilla `EnchantWithLevelsFunction` and
+  `EnchantRandomlyFunction` call paths use the same player-aware policy before
+  choosing an enchantment. This covers normal player-opened chests, fishing,
+  player-caused entity drops, and player-caused block drops when their
+  `LootContext` identifies the player.
+- **Immediate loot sanitation** — the Global Loot Modifier and Lootr filter
+  apply the same locked-enchantment removal and maximum-level cap to the final
+  generated stacks before delivery. This catches enchantments added by other
+  loot functions or mods that do not use the two vanilla selection helpers.
 - **Anvil** — `AnvilUpdateEvent` and `AnvilMenuMixin`. If either input
   (the target item OR the enchantment source) carries a locked enchantment,
   the output is refused.
 - **Villager trades** — `ServerPlayerMerchantMixin` filters merchant offers
   server-side before the offer list is sent to the client. Librarian books
   with locked enchantments simply do not appear.
-- **Inventory strip** — every periodic inventory scan rewrites the
-  `ItemEnchantments` / `StoredEnchantments` data components, stripping any
-  locked entries. Catches loot drops, fishing, dungeon chests, etc.
+- **Inventory safety net** — every periodic inventory scan rewrites the
+  `ItemEnchantments` and `StoredEnchantments` data components. It removes
+  locked entries and reduces levels above `max_levels`. This remains the final
+  defense for commands, custom item creation, direct inventory mutation, and
+  unsupported modded generation paths.
 - **Curios slots** — if Curios is installed, items inside curio slots also
   get scrubbed (see §13).
 
-**Level cap instead of a full lock — New in 3.0.** To cap an enchantment at a
-maximum level (rather than hiding it entirely) until a stage is owned, use
-`[enchants].max_levels` — see §4.33.
+`locked`, `max_levels`, and `selection_weights` have separate jobs:
+
+- `locked` uses the unified selector grammar. It prevents new generation and
+  removes matching enchantments already on items.
+- `max_levels` accepts exact IDs only. It limits new generation and reduces
+  existing copies above the cap. Level `0` is therefore a full generation and
+  retention ban for that exact enchantment.
+- `selection_weights` accepts exact IDs only. It changes generation chance but
+  never removes a copy the player already owns. Weight `0` means “do not roll
+  this enchantment while this stage is missing.”
+
+See §4.33 for parsing, priority, multiple-stage, and playerless-loot rules.
 
 The implementation is
-[`EnchantEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/EnchantEnforcer.java).
+[`EnchantmentSelectionPolicy`](src/main/java/com/enviouse/progressivestages/server/enforcement/EnchantmentSelectionPolicy.java),
+[`EnchantEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/EnchantEnforcer.java), and
+[`LootPlayerResolver`](src/main/java/com/enviouse/progressivestages/server/enforcement/LootPlayerResolver.java).
 Mixin entry points: [`EnchantmentMenuMixin`](src/main/java/com/enviouse/progressivestages/mixin/EnchantmentMenuMixin.java),
+[`EnchantWithLevelsFunctionMixin`](src/main/java/com/enviouse/progressivestages/mixin/EnchantWithLevelsFunctionMixin.java),
+[`EnchantRandomlyFunctionMixin`](src/main/java/com/enviouse/progressivestages/mixin/EnchantRandomlyFunctionMixin.java),
 [`AnvilMenuMixin`](src/main/java/com/enviouse/progressivestages/mixin/AnvilMenuMixin.java),
 [`ServerPlayerMerchantMixin`](src/main/java/com/enviouse/progressivestages/mixin/ServerPlayerMerchantMixin.java).
 
-**Known limitation:** the enchanting-table preview is generated from secondary
-enchantments via `getEnchantmentList()`. Edge cases can occasionally let a
-locked enchant slip into the preview; the inventory-strip pass removes it
-within one tick of being applied. Players cannot keep a locked enchant, but
-they may briefly see one in the preview.
+**Playerless loot rule:** a stage policy cannot be selected when loot generation
+has no responsible player. For example, automation that unpacks a container
+without a player can use vanilla enchantment generation because there is no
+player whose owned stages should control the roll. Normal chest opens include
+the opener in `THIS_ENTITY`. Fishing and player-caused drops expose the player
+directly or through the attacking projectile. Generation never borrows an
+unrelated nearby player. The final Global Loot Modifier and Lootr sanitation
+pass may use the nearest player inside
+`enforcement.mob_spawn_check_radius` when the context lacks a responsible
+player. This preserves the existing post-generation loot ownership fallback
+without making that nearby player's stages change the random roll itself.
 
 ### 4.10 `[entities]` — presence, attack, interaction, and mount gating
 
@@ -2051,17 +2126,16 @@ block entries are not synthesised into overrides.
 > Implementation: [`LockRegistry`](src/main/java/com/enviouse/progressivestages/common/lock/LockRegistry.java)
 > (encrypt → ore-override synthesis) + the existing ore-spoof enforcers.
 
-### 4.33 `[enchants].max_levels`, `[beacon]`, `[brewing]` — finer-grained gates
+### 4.33 Enchantment selection policy, `[beacon]`, and `[brewing]`
 
 > **New in 3.0.** Previously listed here as "planned" — **all three now ship.**
 
-Three finer-grained gates that sit alongside the whole-resource categories
-above: cap an enchantment's level (rather than locking it outright), withhold an
-individual beacon effect, and gate pulling a specific brewed potion out of a
-brewing stand. Each is fully opt-in — there is **zero overhead** when no stage
-declares the section.
+These finer controls sit alongside the whole-resource categories above: cap an
+enchantment's level, alter its generation weight, withhold an individual beacon
+effect, and gate pulling a specific brewed potion out of a brewing stand. Each
+path has an unused fast path when no stage declares its field.
 
-#### `[enchants].max_levels` — per-stage enchant level cap
+#### `[enchants].max_levels` and `selection_weights`
 
 The whole-enchant lock (`[enchants].locked`, §4.9) is unchanged. **New:**
 `max_levels` caps an enchantment at a maximum level until the gating stage is
@@ -2071,6 +2145,7 @@ owned, instead of hiding it entirely.
 [enchants]
 locked     = ["id:minecraft:mending"]                 # whole-enchant lock (§4.9)
 max_levels = ["minecraft:sharpness:3", "minecraft:protection:2"]
+selection_weights = ["minecraft:mending:0", "minecraft:fortune:10"]
 ```
 
 Each entry is `<enchant-id>:<level>` (the last `:`-segment is the integer cap;
@@ -2080,21 +2155,41 @@ no longer applies. The **effective cap** for an enchantment is the **MIN across
 every still-missing capping stage** — if two unowned stages cap `sharpness` at 3
 and 2, the player is held to 2.
 
-Enforcement happens in the **periodic inventory scan** (the same pass that strips
-whole-locked enchants, §4.9): any over-cap level is reduced to the cap, and a cap
-of `0` **removes** the enchant entirely. It applies to both live item
-enchantments and stored book enchantments. Creative-bypass players are exempt
-(`allow_creative_bypass`).
+The cap applies before enchanting-table and player-aware loot selection. The
+immediate loot pass and periodic inventory scan also reduce any over-cap result.
+A cap of `0` removes the enchant entirely. It applies to both live item
+enchantments and stored book enchantments. Creative-bypass players are exempt.
+
+Each `selection_weights` entry is `<enchant-id>:<weight>`. It accepts exact IDs
+only and an integer from `0` through `1024`. A player missing the declaring
+stage uses that configured weight. Owning the stage restores the normal
+fallback weight. Table-style selection uses the enchantment's intrinsic vanilla
+weight as its fallback. `EnchantRandomlyFunction`, which is uniformly random in
+vanilla, uses a fallback weight of `1`.
+
+Weight `0` excludes the enchantment from generation without stripping copies
+the player already owns. This distinction is useful when a pack wants to stop
+new Mending books from appearing in tables or loot while allowing previously
+earned Mending gear to remain valid.
+
+If several missing stages declare a cap or selection weight for the same exact
+enchantment, the minimum active value wins. This deterministic strictest-rule
+policy is independent of file load order. Once every declaring stage is owned,
+the vanilla fallback is restored.
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `max_levels` | list | `["<enchant-id>:<level>", ...]` — cap each enchant at `<level>` until the gating stage is owned. Exact ids only. Effective cap = MIN across every missing capping stage; level `0` removes the enchant. |
+| `max_levels` | list | `["<enchant-id>:<level>", ...]`. Exact IDs only. Limits generation and retained levels until the stage is owned. The minimum missing-stage cap wins. Level `0` removes the enchant. |
+| `selection_weights` | list | `["<enchant-id>:<weight>", ...]`. Exact IDs only. Weight range `0..1024`. Changes table and player-aware loot generation until the stage is owned. The minimum missing-stage weight wins. Weight `0` prevents new rolls but does not strip existing copies. |
 
-> Implementation: [`EnchantEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/EnchantEnforcer.java)
+> Implementation: [`EnchantmentSelectionPolicy`](src/main/java/com/enviouse/progressivestages/server/enforcement/EnchantmentSelectionPolicy.java),
+> [`EnchantEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/EnchantEnforcer.java)
 > (`applyEnchantPolicy`), [`LockRegistry`](src/main/java/com/enviouse/progressivestages/common/lock/LockRegistry.java)
-> (`effectiveEnchantCap`), [`LockDefinition.EnchantCap`](src/main/java/com/enviouse/progressivestages/common/lock/LockDefinition.java),
+> (`effectiveEnchantCap`, `effectiveEnchantSelectionWeight`),
+> [`LockDefinition.EnchantCap`](src/main/java/com/enviouse/progressivestages/common/lock/LockDefinition.java),
+> [`LockDefinition.EnchantSelectionWeight`](src/main/java/com/enviouse/progressivestages/common/lock/LockDefinition.java),
 > [`StageFileParser`](src/main/java/com/enviouse/progressivestages/server/loader/StageFileParser.java)
-> (`parseEnchantCaps`).
+> (`parseEnchantCaps`, `parseEnchantSelectionWeights`).
 
 #### `[beacon].locked` — gate individual beacon effects
 
@@ -2975,8 +3070,14 @@ dependency connectors, a tiled background, hover cards, and a pinned inspector.
 - **Open it** with the **"Open Progression Tree"** keybind (category
   *ProgressiveStages* in Controls). It is **UNBOUND by default** — players
   assign a key in Options → Controls. You can also use `/stage`, `/stages`,
-  `/pstages`, `/stage gui`, or the lock button immediately to the right of the
-  recipe-book button in the survival inventory.
+  `/pstages`, `/stage gui`, or the progression map button immediately to the
+  right of the recipe-book button in the survival inventory. The button uses
+  custom 20 by 18 pixel normal and highlighted backgrounds with the light,
+  rounded recipe-book silhouette. Its separate centered emblem is a clean gold
+  parchment map with a cyan route and two endpoints. The simpler native 16 by 16
+  sprite stays readable at the default 14 pixel rendering size. It does not
+  reuse the generic dark widget or the content-lock icon. New configurations
+  leave a six-pixel wider gap after the recipe-book control.
 
   To hide, move, or resize the inventory button, open
   `config/progressivestages/progressivestages.toml` and configure:
@@ -2984,7 +3085,7 @@ dependency connectors, a tiled background, hover cards, and a pinned inspector.
   ```toml
   [client]
   show_inventory_button = true
-  inventory_button_x = 126
+  inventory_button_x = 132
   inventory_button_y = 61
   inventory_button_width = 20
   inventory_button_height = 18
@@ -3008,15 +3109,64 @@ used by ProgressiveSkills. WASD and the arrow keys also pan, and their visible
 movement stays consistent at every zoom level. Press Space or use the header
 home button to center the complete graph and choose the best zoom that fits it.
 Click the category control to open its full list. Press `C` to open or close
-that list from the keyboard.
+that list from the keyboard. The open list renders on a dedicated foreground
+layer above every stage frame and item icon. This keeps the menu readable even
+when a node is positioned directly beneath it.
 
 **Nodes and details.** Hover a framed node for its name, id, status,
 description, category, and trigger completion. Click it to pin an inspector with
 its prerequisites, full live `[[triggers]]` condition breakdown grouped into
 clearly labeled `all_of` or `any_of` routes, unlock item preview, and purchase
-control. The inspector occupies a dedicated layer above every map node and item
-icon. Search matches display name, id, description, category, and locked item
-ids. The Owned button hides completed nodes.
+control. The window is capped at 460 by 250 GUI pixels so it retains the vanilla
+advancement-screen proportions instead of stretching across most of the display.
+The inspector occupies a dedicated layer above every map node and item icon.
+Hovering or selecting a node computes the visible branch that contains its
+ancestors and descendants. Connectors and nodes outside that branch remain
+present but become subdued, so merged paths remain understandable without
+removing context. Available nodes use animated gold corner brackets. Hovered and
+selected nodes use pixel rounded outlines instead of square debug style borders.
+
+The inspector uses the selected stage color for its accent, progress bar, and
+scroll position. Its accent stops short of the top and bottom edges, section
+dividers use a short 42-pixel rule, and extra vertical spacing separates the
+description, prerequisites, stage group, triggers, challenges, bonuses, history,
+and unlocks. Internal identifiers are presented as readable title text. For
+example, `engineering_tiers` appears as `Engineering Tiers`, followed by the
+plain sentence `Stages can stack together.`.
+
+Equipment modifiers, block-drop modifiers, live equipment effects, and affinity
+results travel from the authoritative server as structured preview fields. The
+client renders each result as a small card with a readable title, rule name,
+selectors, output transformation, stacking behavior, and priority. It does not
+parse or expose a concatenated implementation string. Exact item and block
+selectors render the registered item icon. A `tag:` selector resolves its
+registered item or block tag once, caches the resulting item stacks for the
+screen lifetime, and rotates the displayed icon every 1.1 seconds. A block with
+no item form is skipped. Text remains the humanized tag name, such as
+`tag:c:ores/coal` becoming `Coal Ores`, while the icon rotates through every
+registered coal ore. This keeps large modded tags understandable without
+performing registry scans on every frame.
+
+The structured preview packet uses ProgressiveStages network protocol version
+`2`. Clients and servers must use the same current mod build. A protocol
+mismatch is rejected during connection instead of allowing an older client to
+decode the changed stage-GUI payload incorrectly.
+
+Search matches display name, id, description, category, and locked item ids.
+The Owned button hides completed nodes.
+
+The category picker, Owned control, home control, inspector close control, and
+purchase control use vanilla button sprites and button click sounds. A short
+navigation hint and zoom readout fade after the screen opens or the camera
+changes. The inventory button keeps configurable dimensions and centered icon
+scaling. It switches between its light silver and pale blue rounded backgrounds
+for normal and hovered or keyboard-focused states.
+
+When entity conditions are evaluated from asynchronous structure generation,
+the condition context reads an immutable structure-session snapshot published by
+the server thread. Live session collections remain server-thread-only. This
+preserves structure conditions without allowing ocean ruins or other chunk
+features to call `activeSessions` or `activeStructureSeconds` from a worker.
 
 **Author layout (`[display]`).** Omit coordinates for automatic dependency-DAG
 layout, or specify both `x` and `y` (pixels). `frame` is `task`, `goal`, or
@@ -3099,11 +3249,11 @@ Default values are shown below.
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `show_inventory_button` | `true` | Show the progression map button beside the recipe book in the survival inventory. Set it to `false` to remove the button. Commands and the optional keybind continue to work. Close and reopen the inventory after changing it. |
-| `inventory_button_x` | `126` | Horizontal position measured from the left edge of the survival inventory. The accepted range is `-4096` through `4096`. |
+| `inventory_button_x` | `132` | Horizontal position measured from the left edge of the survival inventory. The accepted range is `-4096` through `4096`. The default leaves a wider gap after the recipe-book button. |
 | `inventory_button_y` | `61` | Vertical position measured from the top edge of the survival inventory. The accepted range is `-4096` through `4096`. |
 | `inventory_button_width` | `20` | Button width in GUI pixels. The accepted range is `8` through `256`. |
 | `inventory_button_height` | `18` | Button height in GUI pixels. The accepted range is `8` through `256`. |
-| `inventory_button_icon_size` | `14` | Requested centered lock icon size in GUI pixels. The accepted range is `4` through `256`. Oversized icons shrink to fit inside the button. |
+| `inventory_button_icon_size` | `14` | Requested centered map-emblem size in GUI pixels. The accepted range is `4` through `256`. Oversized icons shrink to fit inside the button. |
 
 This setting controls the local Minecraft client. In single player, edit the generated main config
 normally. For a modpack, include the same setting in the client copy of
@@ -3133,7 +3283,7 @@ that enforcement path for every stage, regardless of stage file content.
 | `block_entity_attack` | `true` | `[entities]` attack gating |
 | `block_mob_spawns` | `true` | `[mobs].locked_spawns` gating |
 | `mob_spawn_check_radius` | `128` | Legacy nearest player radius used by crop, loot, fluid, replacement, and compatibility checks. Mob spawn cancellation uses server simulation distance. |
-| `block_enchants` | `true` | Enchantment-table + anvil + villager + inventory-strip |
+| `block_enchants` | `true` | Table and player-aware loot selection, immediate loot sanitation, anvil, villager, and inventory safety net |
 | `block_screen_open` | `true` | `[screens]` GUI gating |
 | `block_trades` | `true` | `[trades]` villager / wandering-trader trade gating (hide + server-side block) |
 | `block_crop_growth` | `true` | `[crops]` planting / growth / bonemeal / harvest |
@@ -3997,10 +4147,19 @@ conflicting mod or accept that ProgressiveStages stages won't drive FTB Quests.
 
 ### 17.7 Enchant is still appearing in the enchanting table
 
-Secondary enchants from `getEnchantmentList` can slip past the clue-based
-preview filter. The inventory scan strips them within a tick of application,
-so players cannot keep them, but the PREVIEW may briefly show one. A
-lower-level fix would need a different mixin approach than 2.0 attempts.
+Run `/progressivestages validate`, then confirm the enchantment is matched by
+the missing stage's `[enchants].locked` list and `block_enchants = true`.
+Enchanting-table candidates are filtered before the primary and secondary rolls,
+so a matched locked enchantment should not appear in the preview or result.
+
+For a generation-only ban that preserves existing copies, use an exact
+`selection_weights = ["namespace:enchantment:0"]` entry. For a full ban that
+also strips existing copies, use `locked`. If only an over-level result is the
+problem, use `max_levels`.
+
+Automated playerless loot generation has no stage owner and therefore uses the
+vanilla roll. Test ordinary player-opened chests, fishing, and player-caused
+drops separately from hopper or command-driven generation.
 
 ### 17.8 Players are grief-breaking a locked structure's walls
 
@@ -4164,7 +4323,9 @@ server/
     BlockEnforcer.java               ← block placement + interaction
     CropEnforcer.java                ← planting, growth, bonemeal, harvest
     DimensionEnforcer.java           ← portal + teleport + tick safety net
-    EnchantEnforcer.java             ← table + anvil + villager + inventory strip
+    EnchantmentSelectionPolicy.java  ← table and player-aware loot candidate selection
+    EnchantEnforcer.java             ← anvil, trade, immediate loot, and inventory safety net
+    LootPlayerResolver.java          ← player attribution for loot contexts
     EntityPresenceEnforcer.java      ← multiplayer spawn, concealment, pacifism, and damage gating
     EntityEnforcer.java              ← attack, interaction, and mount gating
     FluidEnforcer.java               ← bucket, place, submersion debuff
@@ -4219,6 +4380,8 @@ client/
 
 mixin/                               ← every mixin (vanilla menus + EMI screen + FTB Quests)
   EnchantmentMenuMixin.java
+  EnchantWithLevelsFunctionMixin.java
+  EnchantRandomlyFunctionMixin.java
   AnvilMenuMixin.java
   AbstractContainerMenuMixin.java
   CraftingMenuMixin.java

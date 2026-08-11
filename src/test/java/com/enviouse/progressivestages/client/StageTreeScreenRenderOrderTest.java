@@ -77,6 +77,27 @@ class StageTreeScreenRenderOrderTest {
         assertTrue(source.contains("Math.min(x + width, lineX + 42)"));
     }
 
+    @Test
+    void categoryMenuRendersAboveStageItemDepth() throws IOException {
+        String source = Files.readString(SCREEN);
+        int start = source.indexOf("private void renderCategoryMenu(GuiGraphics g, int mouseX, int mouseY)");
+        int end = source.indexOf("private void tileHorizontal", start);
+        assertTrue(start >= 0 && end > start);
+
+        String categoryMenu = source.substring(start, end);
+        int push = categoryMenu.indexOf("g.pose().pushPose()");
+        int foreground = categoryMenu.indexOf("g.pose().translate(0.0F, 0.0F, 400.0F)");
+        int panel = categoryMenu.indexOf("fillPixelRounded(g, categoryMenuX, categoryMenuY");
+        int pop = categoryMenu.indexOf("g.pose().popPose()");
+
+        assertTrue(push >= 0);
+        assertTrue(push < foreground);
+        assertTrue(foreground < panel);
+        assertTrue(panel < pop);
+        assertEquals(1, occurrences(categoryMenu, "g.pose().pushPose()"));
+        assertEquals(1, occurrences(categoryMenu, "g.pose().popPose()"));
+    }
+
     private static int occurrences(String value, String target) {
         int count = 0;
         for (int index = value.indexOf(target); index >= 0; index = value.indexOf(target, index + target.length())) {

@@ -467,6 +467,16 @@ Deliverables:
   layer. Preserve existing pointer and keyboard selection, scrolling, filtering, inspector,
   tooltip, pan, and zoom behavior. Add a render order regression test and manually verify the
   overlap case shown by the player report.
+- Close issue 15 by applying the same server authoritative crafting policy to smithing results as
+  normal crafting results. Recipe identifier locks, recipe output locks, direct result item locks,
+  and opted in transitive ingredient locks must prevent result pickup. The smithing output must be
+  hidden when the corresponding normal crafting output would be hidden. Preserve the global
+  crafting toggle, creative bypass, lock notifications, and vanilla recipe input consumption.
+- Remove the redundant `Arrange and save` control from the `/pstages editor` player layout page.
+  Dragging a stage must continue saving that stage's coordinates, `Use automatic layout` must
+  continue removing manual coordinates, `Fit graph` must remain view-only, and the main review and
+  apply flow must remain the only server publication action. Remove the unused bulk arrangement
+  mutation and guard the packaged editor against the confusing label returning.
 - Complete the real client and dedicated server release matrix.
 
 The enchantment easy builder deliverable is implemented and verified on
@@ -486,6 +496,26 @@ The 3.0.3 foreground correction is implemented and verified on `envy/enchantment
 The category panel now uses one balanced foreground pose above stage item depth. Its focused render
 order regression, complete Java test and build, editor checks, and virtual display client startup
 pass. The exact reported overlap remains part of the manual in-world release matrix before merge.
+
+Issue 15 reports that a player missing the required crafting stage can still upgrade an item through
+the vanilla smithing table. The existing smithing mixin only inspects transitive ingredient locks and
+returns before checking the selected recipe or result. The 3.0.3 repair must read vanilla's stored
+smithing recipe after `createResult`, evaluate recipe identifier, recipe output, direct result item,
+and ingredient locks, clear a visually hidden result, and independently reject pickup on the server.
+The pickup check is the authority if another mod redraws or replaces the visible result. No stage
+schema, persistent data, network protocol, or existing stage file requires migration.
+
+The player layout toolbar also has two controls that appear to save layout state. `Arrange and save`
+immediately writes every automatic coordinate, while the editor's real publication action is the
+global review and apply flow. Removing this control and its bulk mutation keeps one clear save path.
+Manual drag saves and the automatic layout reset remain available, so existing coordinates and stage
+packages stay compatible.
+
+The issue 15 smithing repair and editor toolbar cleanup are implemented and verified on
+`envy/enchantment-selection`. Focused smithing and packaged editor regression tests, transformed
+vanilla `SmithingMenu` class loading, the complete Java test and build, dedicated server startup,
+virtual display client startup, and browser verification pass. The 3.0.3 release gate still requires
+the manual in world locked smithing pickup check and the approved phase merge.
 
 Exit gate: the current 3.0 feature set has a clean build and no known release blocking defect.
 
@@ -617,12 +647,15 @@ Every phase runs:
    weights.
 2. Complete the manual in-world overlap check for the verified 3.0.3 category menu foreground
    repair.
-3. Complete manual in-world UI, two-client multiplayer, and optional mod Phase A matrix testing.
-4. Build the registry and schema kernel without changing existing stage semantics.
-5. Adapt the current trigger condition types into registry entries.
-6. Introduce fully immutable compiled snapshots and atomic registry replacement.
-7. Introduce the transaction result model and move one mutation path at a time.
-8. Use the FTB Quests bridge as the first external capability integration test.
+3. Complete the manual in world locked smithing pickup check for the verified issue 15 repair.
+4. Merge the verified 3.0.3 smithing repair and editor toolbar cleanup through the approved phase
+   pull request.
+5. Complete manual in-world UI, two-client multiplayer, and optional mod Phase A matrix testing.
+6. Build the registry and schema kernel without changing existing stage semantics.
+7. Adapt the current trigger condition types into registry entries.
+8. Introduce fully immutable compiled snapshots and atomic registry replacement.
+9. Introduce the transaction result model and move one mutation path at a time.
+10. Use the FTB Quests bridge as the first external capability integration test.
 
 The architectural constraint for every new implementation is simple. If a pack author or another
 mod could reasonably need a different behavior, core exposes a registered provider or configured

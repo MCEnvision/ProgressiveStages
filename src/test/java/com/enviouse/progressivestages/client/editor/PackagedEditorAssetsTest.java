@@ -20,7 +20,7 @@ class PackagedEditorAssetsTest {
         assertTrue(script.contains("This tab does not have a Minecraft editor session"));
         assertTrue(script.contains("Create a new stage"));
         assertTrue(script.contains("Drag empty space to pan"));
-        assertTrue(script.contains("Arrange and save"));
+        assertFalse(script.contains("Arrange and save"));
         assertTrue(script.contains("Use automatic layout"));
         assertTrue(script.contains("Fit graph"));
         assertTrue(script.contains("Namespace"));

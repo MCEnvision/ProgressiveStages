@@ -469,11 +469,14 @@ To create a stage without knowing TOML:
     connector turns red so it is clear which branch will be removed. Keyboard users may focus a
     connector and press Enter, Space, Delete, or Backspace. The `Required stages` editor remains
     available when a stage needs an `all`, `any`, or `at_least` dependency policy.
-    Automatic layout puts beginner stages at
-    the bottom, reduces crossings, and places evolutions above them. `Arrange and save` writes the
-    complete layout with fewer crossing lines. `Use automatic layout` removes every manual position. The
-    Stage details card also has `Edit player UI position` for exact X and Y values or a one stage
-    reset. The browser scales cards for editing but stores the compact coordinates Minecraft uses.
+    Automatic layout puts beginner stages at the bottom, reduces crossings, and places evolutions
+    above them. `Use automatic layout` removes every manual position so Minecraft calculates that
+    arrangement. Dragging a stage writes only that stage's manual position into the draft. `Fit graph`
+    changes the browser camera without changing saved coordinates. The Stage details card
+    also has `Edit player UI position` for exact X and Y values or a one stage reset. The browser
+    scales cards for editing but stores the compact coordinates Minecraft uses. The layout page has
+    no separate save action. `Apply changes` is the only action that publishes the draft to the
+    server.
 14. Click `Apply changes`. This action validates every stage before it opens the review. Inspect
     every file in the diff, then confirm.
     After the server validates, writes, reloads, and synchronizes the result, every online operator
@@ -809,6 +812,13 @@ The mixin gating the crafting result slot is
 [`ResultSlotMixin`](src/main/java/com/enviouse/progressivestages/mixin/ResultSlotMixin.java);
 the recipe-id capture for the `ItemCraftedEvent` fallback path is
 [`CraftingMenuMixin`](src/main/java/com/enviouse/progressivestages/mixin/CraftingMenuMixin.java).
+Smithing uses
+[`SmithingMenuMixin`](src/main/java/com/enviouse/progressivestages/mixin/SmithingMenuMixin.java).
+After vanilla selects a smithing recipe, the mixin checks the stored recipe identifier, result
+recipe lock, direct result item lock, and every opted in transitive ingredient lock. It clears a
+result when normal crafting would hide that result and independently rejects server side pickup.
+The pickup check remains authoritative if another mod restores or redraws the visible output.
+`block_crafting`, creative bypass, and the configured lock notifications apply normally.
 
 ### 4.7 `[crops]` — planting, growth, bonemeal, harvest
 

@@ -412,9 +412,6 @@ body {
 
 code {
   color: #d7c08c;
-  background: rgba(255,255,255,.035);
-  border-radius: 4px;
-  padding: 1px 4px;
 }
 
 input, select, textarea {
@@ -447,7 +444,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-bottom-color: transparent;
   color: var(--faint);
   font-weight: 650;
-  transition: color .14s ease, background .14s ease;
+  transition: opacity .14s ease, transform .14s ease;
 }
 .top-navigation button:hover { background: rgba(255,255,255,.045); color: var(--text); }
 .top-navigation button.active { border-bottom-color: transparent; background: rgba(199,164,93,.1); color: var(--gold-bright); }
@@ -461,7 +458,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--surface-soft);
   box-shadow: none;
   font-weight: 700;
-  transition: background .14s ease, color .14s ease, transform .14s ease;
+  transition: opacity .14s ease, transform .14s ease;
 }
 .button:hover:not(:disabled) { border-color: transparent; background: #323435; }
 .button:active:not(:disabled) { transform: translateY(1px); }
@@ -511,7 +508,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-bottom-color: transparent;
   border-radius: 6px;
   color: var(--faint);
-  transition: color .14s ease, background .14s ease;
+  transition: opacity .14s ease, transform .14s ease;
 }
 .stage-tabs button:hover { background: rgba(255,255,255,.05); color: var(--text); }
 .stage-tabs button.active { border-bottom-color: transparent; background: rgba(199,164,93,.11); color: var(--gold-bright); }
@@ -647,6 +644,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: no-preference) {
   .section-card, .registry-grid article, .extension-grid > article, .button, .stage-list-item,
   .stage-tabs button, .catalog-result, .advanced-grid button, .progression-direction button {
-    transition: background .14s ease, color .14s ease, box-shadow .14s ease, transform .14s ease;
+    transition: opacity .14s ease, transform .14s ease;
   }
 }

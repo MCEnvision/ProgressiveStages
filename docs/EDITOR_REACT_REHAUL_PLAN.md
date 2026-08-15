@@ -67,19 +67,21 @@ decorative panels.
 
 ## Visual direction
 
-The editor uses a dark charcoal surface with warm gold accents taken from the current mod logo.
-Gold identifies primary actions, selected stages, active navigation, and progression connections.
-Green means valid, added, synchronized, or connected. Yellow means modified or awaiting review. Red
-means removed, destructive, invalid, or blocked.
+The editor uses dark neutral surfaces with one muted gold product accent taken from the current mod
+logo. Gold identifies primary actions, selected stages, active navigation, and progression
+connections. Green means valid, added, synchronized, or connected. Yellow means modified or
+awaiting review. Red means removed, destructive, invalid, or blocked. These semantic colors are
+reserved for state and never compete with the product accent.
 
 The actual 512 pixel ProgressiveStages logo appears in the application header and welcome state. A
 small lock mark may be used for compact navigation, but it must not replace the logo in the product
 identity area.
 
-Panels use a small radius, one spacing scale, and almost no shadow. Controls use practical pointer
-targets. Text uses a clear hierarchy with one page title, one section title size, one body size, and
-one metadata size. Motion is limited to functional feedback. Reduced motion settings disable
-nonessential animation.
+Panels use quiet fills and surface contrast instead of decorative outlines, gradients, glows, or
+competing accent colors. They use a small radius, one spacing scale, and almost no shadow. Controls
+use practical pointer targets. Text uses a clear hierarchy with one page title, one section title
+size, one body size, and one metadata size. Motion is limited to short functional opacity or
+transform feedback. Reduced motion settings disable nonessential animation.
 
 Minecraft influence comes from the lock imagery, progression connectors, item identifiers, subtle
 pixel texture, advancement frame language, and warm mineral colors. The editor must not imitate the
@@ -235,6 +237,8 @@ clean build, and JAR content verification.
    states, and readable errors.
 9. Frontend type checking, production bundling, Java tests, and the clean Gradle build pass.
 10. The JAR contains the logo, metadata, language data, and the complete React production bundle.
+11. A visual refresh does not change the current page grid, DOM order, request contract, draft
+    model, mutation behavior, review and apply workflow, or keyboard and pointer interaction.
 
 ## Completion record
 

@@ -540,6 +540,17 @@ introduce a second design or configuration model. Acceptance requires the existi
 type check, production bundle build, final JAR inspection, and browser driven validation of the
 operator workflow with no console errors or failed editor API requests.
 
+The visual refresh merged through pull request 22 on August 14, 2026 as `master` commit
+`82f8cc8cdc18c4ad3f9bf67246527c9aa4e266b8`. It changed only the React editor stylesheet, its
+generated production CSS bundle, and the corresponding plan documentation. The existing page grid,
+DOM order, routes, editor request contract, draft model, TOML mutation behavior, review and apply
+workflow, and keyboard and pointer behavior remain unchanged. Independent review corrections kept
+identifier layout neutral, restricted added motion to opacity and transform, raised small metadata
+contrast to 4.78 to 1, and restored graph node contrast to 3.82 to 1. React tests, type checking,
+production bundling, final JAR inspection, browser verification at desktop and narrow desktop
+widths, Gradle build, dependency review, secret scanning, and Java and JavaScript CodeQL all passed.
+This is presentation maintenance only and does not create a new mod release or version.
+
 ProgressiveStages 3.0.3 was released on August 10, 2026. Pull request 18 passed the required Gradle,
 Node, secret scan, dependency review, and CodeQL checks and merged into `master` as
 `b867c2ef4590aca5c449341df364022cd3de45ad`. The signed annotated `v3.0.3` tag points to that merge.

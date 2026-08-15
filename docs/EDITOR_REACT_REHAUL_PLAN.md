@@ -253,3 +253,15 @@ eight tests. The complete Java suite ran 141 tests with zero failures, zero erro
 tests. The final JAR contains the existing mod logo and the React `index.html`, `app.css`, `app.js`,
 and `favicon.svg` assets. Exact artifact size and checksum are recorded in
 `docs/verification/REHAUL_PHASES_2_TO_22.md`.
+
+### Visual refresh record
+
+Pull request 22 merged on August 14, 2026. It retained the complete React application structure and
+all editor behavior while replacing the presentation layer with dark neutral surfaces, one muted
+gold product accent, quieter fills, and short reduced motion aware feedback. The visual work did not
+change the page grid, DOM order, routes, request payloads, draft model, TOML serialization, review
+and apply workflow, or keyboard and pointer handling. Review verification kept inline identifiers
+layout neutral, limited added transitions to opacity and transform, raised small metadata contrast
+to 4.78 to 1, and restored graph node contrast to 3.82 to 1. React tests, type checking, production
+bundling, final JAR inspection, desktop and narrow desktop browser checks, Gradle build, dependency
+review, secret scanning, and Java and JavaScript CodeQL passed before merge.

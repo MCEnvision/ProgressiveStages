@@ -477,6 +477,16 @@ Deliverables:
   continue removing manual coordinates, `Fit graph` must remain view-only, and the main review and
   apply flow must remain the only server publication action. Remove the unused bulk arrangement
   mutation and guard the packaged editor against the confusing label returning.
+- Redesign the React localhost editor visual layer without changing its information architecture,
+  markup order, routes, commands, HTTP contract, draft model, registry data, TOML serialization,
+  mutation behavior, review and apply flow, or any keyboard and pointer interaction. Replace the
+  current high contrast multi accent, gradient, and outlined treatment with a restrained KISS
+  system: dark neutral surfaces, one muted gold product accent, typography led hierarchy, quiet
+  fills instead of ornamental borders, and only short opacity or transform feedback. Error and
+  success states remain clearly distinct and accessible. Preserve the location and size behavior
+  of every current control, panel, dialog, graph, and sidebar. Respect reduced motion and verify
+  the complete editor at desktop and narrow desktop widths, including focus states, dialogs,
+  review and apply, stage tabs, catalog pickers, the player layout graph, and settings.
 - Complete the real client and dedicated server release matrix.
 
 The enchantment easy builder deliverable is implemented and verified on
@@ -521,6 +531,14 @@ The owner confirmed the 3.0.3 release candidate in game on August 10, 2026 and a
 merge plus CurseForge and Modrinth publication. This satisfies the remaining manual UI and smithing
 acceptance checks. Required pull request checks, the merge commit, signed release tag, broker
 preview, publication confirmation, and post publication file verification remain release gates.
+
+The post 3.0.3 editor visual refresh is a Phase A maintenance task. It is intentionally a React
+presentation only change. The existing editor's current layout and complete behavior are public
+compatibility constraints, so the implementation may update only visual tokens, component states,
+responsive polish, and reduced motion handling. It must not reinterpret any editor action or
+introduce a second design or configuration model. Acceptance requires the existing React unit tests,
+type check, production bundle build, final JAR inspection, and browser driven validation of the
+operator workflow with no console errors or failed editor API requests.
 
 ProgressiveStages 3.0.3 was released on August 10, 2026. Pull request 18 passed the required Gradle,
 Node, secret scan, dependency review, and CodeQL checks and merged into `master` as

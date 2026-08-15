@@ -391,7 +391,7 @@ input::placeholder, textarea::placeholder { color: #646974; }
   --line-strong: rgba(255,255,255,.085);
   --text: #f1f0ed;
   --muted: #a9a8a2;
-  --faint: #777872;
+  --faint: #888982;
   --gold: #c7a45d;
   --gold-bright: #d6b66d;
   --gold-soft: #8e7540;
@@ -608,7 +608,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 #graph-grid circle { fill: #313232; opacity: .72; }
 .graph-edges path:first-child { stroke: #9b7d40; stroke-width: 2.5; }
 .graph-edge-hit:hover + path, .graph-edges g:hover path:first-child { stroke: var(--red); }
-.graph-node rect { fill: #242525; stroke: transparent; }
+.graph-node rect { fill: #242525; stroke: #77756e; }
 .graph-node:hover rect, .graph-node.connection-source rect { fill: #2d2b26; stroke: #b89551; }
 .node-accent { stroke: #9f8146; stroke-width: 2; }
 .node-diamond { fill: #c7a45d; stroke: #e2c47d; }

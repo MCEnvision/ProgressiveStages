@@ -6,12 +6,15 @@
 > **Classification:** MANDATORY
 > **Master plan:** [plan.md](../plan.md)
 > **Phase sequence:** 001 of 006
+> **Execution state:** COMPLETED through `09b18ad5b91a8c5b59faf1d35821f5c786427b80` on `master`, with verified signed tag `3.0.4-phase-001`.
 
 ## Purpose and Ownership
 
 This phase repairs the entity presence performance defect tracked by `CORE-REQ-002` while preserving the existing server-authoritative multiplayer behavior for entity visibility, spawning, targeting, interaction, and lifecycle. It exists because issue `#24` identifies condition-context construction in the entity tracking path as a server-thread hotspot. The measurable outcome is a server-thread-confined, on-demand immutable context boundary keyed only by player identity, server tick, and authoritative state revision. That boundary eliminates full context reconstruction for each tracked entity, invalidates a prior same-tick tuple before the next decision when its revision changes even when no context was constructed for that tuple, and satisfies the approved `DEC-004` correctness and performance gate.
 
 The master plan owns the product scope, global phase order, six-issue release endpoint, and `CORE-REQ-002` contract. This blueprint owns only the dependency-ordered implementation and proof for `CORE-PHASE-001`. It consumes the issue `#24` row and controlled entity-presence fixture from the Phase 000 completion packet. Phase 000 also delivers the `CORE-REQ-012` inventory-insertion seam map for Phase 003, but that handoff remains preserved and unconsumed here. This phase does not authorize inventory insertion, optional integration, editor, recipe serialization, client menu, release, or publication work assigned to later phases.
+
+The Phase 001 context snapshot is a server-thread-confined per-player, per-tick, authoritative-state-revision cache for entity-presence decisions only. It is not a build cache, optional-adapter cache, artifact cache, or prerequisite for Phase 002 beyond the completed and signed Phase 001 integration itself. Historical task wording in this blueprint cannot reopen the completed phase.
 
 ## Evidence-Based Entry State
 

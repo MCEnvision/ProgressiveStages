@@ -13,16 +13,16 @@ Project: ProgressiveStages NeoForge mod
 Requested artifact: authoritative_plan
 Repository root: /tmp/ProgressiveStages-polish-plan
 Starting branch: envy/3.0.4-phase-002
-Starting commit: 706e5cb02c4d5ffec5c51dda4749eeb1ced323a6
+Starting commit: 6d4066d90c5cb034d527f60b114eae4ef0af6fad
 Plan-authoring branch: envy/3.0.4-phase-002
-Plan-authoring commit: 706e5cb02c4d5ffec5c51dda4749eeb1ced323a6
+Plan-authoring commit: 6d4066d90c5cb034d527f60b114eae4ef0af6fad
 Saved-goal creation checkout: envy/polish-3.0.4-plan at 5b3077764907249b3711886cca538794f6139acf
 Saved-goal checkout role: immutable creation-time provenance only; it does not select or freeze a live phase execution baseline
 Authoritative remote:
 origin
 https://github.com/MCEnvision/ProgressiveStages.git
 Remote ref: origin/envy/3.0.4-phase-002
-Remote commit: 706e5cb02c4d5ffec5c51dda4749eeb1ced323a6
+Remote commit: 6d4066d90c5cb034d527f60b114eae4ef0af6fad
 Package metadata: mod_id progressivestages, version 3.0.3, Minecraft 1.21.1, NeoForge 21.1.219
 Target release: 3.0.4
 ```
@@ -67,6 +67,17 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 | Category menu depth | UNKNOWN | Source ordering changes require production map verification at supported GUI scales | Issue `#16`, SRC-003, and Phase 000 audit |
 | Artifact parity | UNKNOWN | Published 3.0.3 documentation has not been fully reconciled with the shipped JAR | SRC-002 and CORE-REQ-007 |
 | Release validation | VERIFIED | The 3.0.3 release validation fails during shared attestation verification because its GitHub CLI signer flags are incompatible | Failed GitHub Actions run `31453460136`, job `93662356066` in SRC-007 |
+
+### Execution-State Precedence
+
+The immutable saved goal records the creation checkout `5b3077764907249b3711886cca538794f6139acf` and the original Phase 000 entry action as provenance only. It never reopens a completed phase, selects a live implementation branch, or requires a later phase to recreate the creation checkout. The current master plan and deterministic handoff own the live phase state. Historical phase blueprints retain their original task wording as an execution record and are not independent status authorities.
+
+- `CORE-PHASE-000` is completed through `dc9e154871781de262ffd5eb401d65d0fa44cefb` and signed tag `3.0.4-phase-000`. Its historical artifact audit remains an evidence input. It is not reopened by the saved goal and does not need a corrected 3.0.4 candidate JAR or corrected recipe-output runtime proof.
+- `CORE-PHASE-001` is completed through `09b18ad5b91a8c5b59faf1d35821f5c786427b80` and signed tag `3.0.4-phase-001`. Its player-tick context snapshot is a completed performance implementation, not a required build cache or mutable cache input for Phase 002.
+- `CORE-PHASE-002` is active on branch `envy/3.0.4-phase-002` from the Phase 001 merge. Its sole upstream phase dependency is Phase 001. `EXT-001` is a required public artifact input, not a phase dependency. The only Phase 002 cache is a one-time optional-adapter API-resolution cache scoped to an installed artifact identity.
+- `CORE-PHASE-003` is pending until signed Phase 002 integration. It owns the corrected Easy Builder recipe serialization, persisted reload, denied-and-eligible runtime proof, and corrected packaged candidate JAR. Those outputs are intentionally absent while Phase 002 is active.
+
+No phase may use a missing Phase 003 corrected JAR or recipe-output runtime result to block Phase 000, Phase 001, or Phase 002. Phase 000 owns the historical shipped 3.0.3 artifact baseline, Phase 003 owns corrected candidate evidence, Phase 004 owns the integrated compatibility rerun, and Phase 005 owns the final release candidate. Each artifact retains its own identity and hash.
 
 ## 5. Product Contract and Profile Coverage
 

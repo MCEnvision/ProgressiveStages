@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "f3208a4e2579fe04efde5ded1b5d31e3397bff5d90ca3e52eb0e8fc4d0c92b72",
+  "planSetSha256": "7d6b57fd0f1d7a4fae90b0d85bc642cadb8f2cecb33e0124c94ef04242add4dc",
   "planningSubject": {
     "name": "ProgressiveStages 3.0.4 polish and release closure",
     "requestedArtifact": "authoritative_plan",
@@ -55,6 +55,13 @@
         "subject": "failed v3.0.3 release validation",
         "source": "GitHub Actions run 31453460136, job 93662356066",
         "use": "establishes the shared attestation-verification workflow as a release prerequisite"
+      },
+      {
+        "id": "SRC-008",
+        "role": "owner_request",
+        "subject": "browser editor recipe-lock serialization defect",
+        "source": "EnVy owner report and GitHub issue #25 on MCEnvision/ProgressiveStages",
+        "use": "makes the reported recipe-lock round-trip defect mandatory for 3.0.4 and defines its canonical field, preservation, validation, reload, and runtime proof"
       }
     ]
   },
@@ -76,9 +83,9 @@
     {
       "area": "Failure taxonomy",
       "status": "covered",
-      "source": "SRC-004",
+      "source": "SRC-004, SRC-008",
       "plan_section": "Risks and Failure Boundaries",
-      "rationale": "Reported defects span performance, optional integration absence, artifact drift, GUI depth, and release automation failure."
+      "rationale": "Reported defects span performance, optional integration absence, editor serialization and data preservation, artifact drift, GUI depth, and release automation failure."
     },
     {
       "area": "Generalization",
@@ -118,9 +125,9 @@
     {
       "area": "Test system",
       "status": "covered",
-      "source": "SRC-004",
+      "source": "SRC-004, SRC-008",
       "plan_section": "Verification Strategy",
-      "rationale": "Every issue requires focused regression evidence plus integrated, multiplayer, optional-mod, performance, and artifact proof."
+      "rationale": "Every issue requires focused regression evidence plus integrated, multiplayer, optional-mod, performance, editor-transaction, and artifact proof."
     },
     {
       "area": "Versioning",
@@ -133,8 +140,8 @@
   "mandatoryRequirements": [
     {
       "id": "CORE-REQ-001",
-      "summary": "Freeze and reproduce or artifact-verify the five baseline reports, including stale tracking reports.",
-      "source": "SRC-004",
+      "summary": "Freeze and reproduce or artifact-verify the six baseline reports, including stale tracking reports.",
+      "source": "SRC-004, SRC-008",
       "owner": "RepositoryAudit",
       "contributors": "IssueTracker",
       "dependencies": [],
@@ -241,7 +248,8 @@
         "CORE-REQ-004",
         "CORE-REQ-005",
         "CORE-REQ-006",
-        "CORE-REQ-007"
+        "CORE-REQ-007",
+        "CORE-REQ-011"
       ],
       "lifecycleStage": "continuous",
       "productionVerification": "nondestructive",
@@ -265,8 +273,8 @@
     },
     {
       "id": "CORE-REQ-010",
-      "summary": "Build, integrate, attest, document, publish, and verify 3.0.4, then close the five baseline issues with evidence.",
-      "source": "SRC-001",
+      "summary": "Build, integrate, attest, document, publish, and verify 3.0.4, then close the six baseline issues with evidence.",
+      "source": "SRC-001, SRC-008",
       "owner": "ReleaseBroker",
       "contributors": "ReleaseDocumentation",
       "dependencies": [
@@ -277,6 +285,20 @@
       "productionVerification": "nondestructive",
       "releaseImpact": "stable release",
       "canonicalPhase": "CORE-PHASE-006"
+    },
+    {
+      "id": "CORE-REQ-011",
+      "summary": "Correct the Easy Builder recipe-lock round trip so visual rules serialize, validate, persist, reload, compile, and enforce through the canonical recipes locked_items field without rule loss.",
+      "source": "SRC-008",
+      "owner": "EasyBuilder",
+      "contributors": "EditorDraftValidator, StageFileParser, Schema4StageCompiler, RecipeEnforcer",
+      "dependencies": [
+        "CORE-REQ-001"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-003"
     }
   ],
   "optionalFutureScope": [
@@ -378,6 +400,19 @@
       "affectedRequirements": [
         "CORE-REQ-009",
         "CORE-REQ-010"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-006",
+      "question": "Is the reported browser editor recipe-lock serialization defect in scope for 3.0.4?",
+      "selectedChoice": "Issue #25 is mandatory for 3.0.4 and increases the fixed issue baseline from five to six without changing the release endpoint.",
+      "rationale": "The owner promoted the reported editor serialization defect into the current polish release before goal creation",
+      "affectedRequirements": [
+        "CORE-REQ-001",
+        "CORE-REQ-008",
+        "CORE-REQ-010",
+        "CORE-REQ-011"
       ],
       "supersedes": []
     }
@@ -489,7 +524,8 @@
       "canonicalRequirements": [
         "CORE-REQ-005",
         "CORE-REQ-006",
-        "CORE-REQ-007"
+        "CORE-REQ-007",
+        "CORE-REQ-011"
       ]
     },
     {
@@ -527,15 +563,15 @@
       ]
     }
   ],
-  "completionEndpoint": "A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all five baseline GitHub issues are closed with merged-revision acceptance evidence.",
+  "completionEndpoint": "A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all six baseline GitHub issues are closed with merged-revision acceptance evidence.",
   "goalCreator": {
-    "mandatoryBoundary": "Resolve only issues #8, #10, #11, #16, and #24 plus previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit",
+    "mandatoryBoundary": "Resolve only issues #8, #10, #11, #16, #24, and #25 plus previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit",
     "optionalFutureDisposition": "excluded",
-    "lockedOwnerDecisions": "DEC-001, DEC-002, DEC-003, DEC-004, DEC-005",
+    "lockedOwnerDecisions": "DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006",
     "activePhase": "CORE-PHASE-000",
-    "nextExecutableAction": "Author phases/plan-phase-000.md and freeze the five issue reproductions and advertised capability audit against commit ab4ad138e1f74eec82cf0392a47ac1e54dd66d01",
-    "knownFailingChecks": "GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined",
+    "nextExecutableAction": "Freeze the six issue reproductions and advertised capability audit against commit 6ff75bb9479bb69f4c38a459e4ee6fe2e8aae79e",
+    "knownFailingChecks": "GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined; issue #25 reports that the Easy Builder emits `[recipes].locked`, which does not activate the intended canonical `[recipes].locked_items` rule",
     "knownExternalBlockers": "Corrected MCEnvision shared release-validation workflow revision under EXT-002 and Owner-approved platform publication confirmation for the final 3.0.4 artifact under EXT-003",
-    "requiredEvidenceGates": "CORE-REQ-001 audit matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, and downloaded artifact hashes"
+    "requiredEvidenceGates": "CORE-REQ-001 audit matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-011 visual-form-to-runtime recipe-lock proof with preservation and rollback evidence, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, downloaded artifact hashes, and six issue closure packets"
   }
 }

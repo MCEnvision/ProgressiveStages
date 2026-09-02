@@ -11,13 +11,13 @@
 
 This phase repairs the entity presence performance defect tracked by `CORE-REQ-002` while preserving the existing server-authoritative multiplayer behavior for entity visibility, spawning, targeting, interaction, and lifecycle. It exists because issue `#24` identifies condition-context construction in the entity tracking path as a server-thread hotspot. The measurable outcome is a player-scoped immutable context boundary that eliminates full context reconstruction for each tracked entity and satisfies the approved `DEC-004` correctness and performance gate.
 
-The master plan owns the product scope, global phase order, release endpoint, and `CORE-REQ-002` contract. This blueprint owns only the dependency-ordered implementation and proof for `CORE-PHASE-001`. It does not authorize optional integration, editor, client menu, release, or publication work assigned to later phases.
+The master plan owns the product scope, global phase order, six-issue release endpoint, and `CORE-REQ-002` contract. This blueprint owns only the dependency-ordered implementation and proof for `CORE-PHASE-001`. It consumes the issue `#24` row from the Phase 000 six-issue audit and does not authorize optional integration, editor, recipe serialization, client menu, release, or publication work assigned to later phases.
 
 ## Evidence-Based Entry State
 
 | Evidence class | Area | Finding | Source or command | Freshness condition |
 |---|---|---|---|---|
-| VERIFIED | Phase dependency | `CORE-PHASE-000` must freeze the issue `#24` reproduction, artifact identity, rules, and controlled fixture before this phase starts | `plan.md` §13 and the Phase 000 completion packet | Invalid if Phase 000 changes its reproduction or artifact baseline |
+| VERIFIED | Phase dependency | `CORE-PHASE-000` must freeze all six baseline reports and provide the issue `#24` reproduction, artifact identity, rules, and controlled fixture before this phase starts | `plan.md` §13 and the Phase 000 completion packet | Invalid if Phase 000 changes the six-issue baseline, issue `#24` reproduction, or artifact identity |
 | OBSERVED | Performance hotspot | The issue `#24` profile associates substantial server-thread work with entity-presence condition-context construction | `SRC-006`, issue `#24` Spark profile and configuration | Invalid if a fresh reproduction no longer attributes the cost to this path |
 | VERIFIED | Product contract | Entity presence behavior must remain player-specific in mixed multiplayer ownership and must preserve visibility, spawning, targeting, and lifecycle semantics | `CORE-REQ-002` in `plan.md` §12 | Invalid if the master requirement or owner decision changes |
 | VERIFIED | Performance decision | `DEC-004` selects a per-player-per-tick context, forbids per-entity rebuilds, and sets the sampled work and p95 MSPT thresholds | `DEC-004` in `plan.md` §9 | Invalid only by a new locked owner decision |
@@ -38,7 +38,7 @@ The master plan owns the product scope, global phase order, release endpoint, an
 ### Explicit Exclusions
 
 - `CORE-REQ-003` and `CORE-REQ-004` optional integration work belongs to `CORE-PHASE-002`.
-- `CORE-REQ-005`, `CORE-REQ-006`, and `CORE-REQ-007` editor, client menu, and artifact-parity work belongs to `CORE-PHASE-003`.
+- `CORE-REQ-005`, `CORE-REQ-006`, `CORE-REQ-007`, and `CORE-REQ-011` editor, recipe-lock serialization, client menu, and artifact-parity work belongs to `CORE-PHASE-003`.
 - `CORE-REQ-008` plan-wide compatibility certification belongs to `CORE-PHASE-004`; this phase supplies its entity-presence packet but does not claim the full matrix.
 - `CORE-REQ-009` and `CORE-REQ-010` release validation, publication, and issue closure belong to `CORE-PHASE-005` and `CORE-PHASE-006`.
 - `FUT-001`, `FUT-002`, `FUT-003`, and `FUT-004` remain excluded.
@@ -58,7 +58,7 @@ The master plan owns the product scope, global phase order, release endpoint, an
 
 **Entry criteria**
 
-- `CORE-PHASE-000` is integrated and its completion packet pins the source revision, tested artifact, issue `#24` configuration, expected behavior, observed behavior, and controlled performance fixture.
+- `CORE-PHASE-000` is integrated and its completion packet pins the six-issue baseline, source revision, tested artifact, issue `#24` configuration, expected behavior, observed behavior, and controlled performance fixture.
 - The baseline fixture reproduces or artifact-verifies the entity-presence hotspot with presence rules enabled and provides a rules-disabled control using the same environment, players, entities, simulation conditions, warmup, and sampling procedure.
 - The mixed-player scenario defines one denied player, one eligible nearby player, the same relevant entity, and observable expectations for visibility, targeting, attacks, pacification, disconnect, and re-entry.
 - `DEC-004` remains resolved with the selected choice, “Use the approved per-player-per-tick context, no per-entity rebuild, under-five-percent sampled work, and at-most-ten-percent p95 MSPT regression thresholds.”
@@ -109,7 +109,7 @@ The master plan owns the product scope, global phase order, release endpoint, an
 
 | Input or contract | Provider | Required state | Validation | Failure behavior |
 |---|---|---|---|---|
-| Phase 000 completion packet | CORE-PHASE-000 | Integrated packet pins revision, artifact, issue configuration, expected result, observed result, and assigned requirement | Compare packet identities with the checked-out phase base and controlled fixture | Stop; do not profile or implement against an unpinned baseline |
+| Phase 000 completion packet | CORE-PHASE-000 | Integrated packet pins the six-issue baseline, revision, artifact, issue `#24` configuration, expected result, observed result, and assignment to `CORE-REQ-002` | Compare packet identities with the checked-out phase base and controlled fixture | Stop; do not profile or implement against an unpinned or mismatched audit baseline |
 | Issue `#24` performance baseline | CORE-PHASE-000 | Reproduction or artifact-verification identifies the entity-presence context path and records a rules-disabled control | Re-run the recorded procedure before implementation | Route a changed hotspot back to the baseline audit instead of forcing this design |
 | `CORE-REQ-002` contract | PLAN-MASTER | Multiplayer semantics and performance thresholds are unchanged | Review canonical acceptance criteria and required evidence | Stop with plan revision required if the product contract changed materially |
 | `DEC-004` gate | PLAN-MASTER | Selected choice remains resolved and exact thresholds are authoritative | Match the locked owner-decision text and operational checks | Stop; phase cannot weaken, replace, or average away the thresholds |

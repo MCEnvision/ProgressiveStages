@@ -35,7 +35,8 @@ The phase may begin only after `CORE-PHASE-000` identifies the applicable issue 
 ### Explicit Exclusions
 
 - `CORE-REQ-002` entity-presence performance is owned by `CORE-PHASE-001` and must not be mixed into optional integration adapters.
-- `CORE-REQ-005`, `CORE-REQ-006`, and `CORE-REQ-007` editor, in-game UI, and artifact-parity corrections are owned by `CORE-PHASE-003`.
+- `CORE-REQ-005`, `CORE-REQ-006`, `CORE-REQ-007`, and `CORE-REQ-011` editor, in-game UI, artifact-parity, and browser-editor recipe-lock serialization corrections are owned by `CORE-PHASE-003`.
+- Recipe-viewer work in this phase is limited to JEI and EMI visibility adapters. It must not change Easy Builder recipe-rule serialization, TOML recipe keys, draft persistence, or runtime recipe-lock enforcement owned by `CORE-REQ-011`.
 - `CORE-REQ-008` plan-wide compatibility verification is owned by `CORE-PHASE-004`; this phase supplies its optional-integration inputs but does not close that requirement.
 - `FUT-001`, `FUT-002`, `FUT-003`, and `FUT-004` remain excluded, including platform upgrades and unpromised optional-integration features.
 - `NG-001`, `NG-002`, and `NG-003` prohibit progression redesign, hard optional dependencies, and hot-path registry scans.

@@ -80,6 +80,22 @@ class EntityPresenceContextCacheTest {
     }
 
     @Test
+    void invalidationWithoutACachedTupleStillCreatesOnlyOneReplacementContext() {
+        EntityPresenceContextCache cache = new EntityPresenceContextCache();
+        UUID player = UUID.randomUUID();
+        AtomicInteger created = new AtomicInteger();
+
+        cache.invalidate(player);
+        EntityPresenceContextCache.Key revisedKey = key(player, 100, 4, 1, 9, 3);
+        ConditionContext first = cache.getOrCreate(revisedKey, () -> context(created.incrementAndGet()));
+        ConditionContext repeated = cache.getOrCreate(revisedKey, () -> context(created.incrementAndGet()));
+
+        assertSame(first, repeated);
+        assertEquals(1, created.get());
+        assertEquals(new EntityPresenceContextCache.Stats(1, 1), cache.stats());
+    }
+
+    @Test
     void teamInvalidationOnlyEvictsAffectedCachedPlayers() {
         EntityPresenceContextCache cache = new EntityPresenceContextCache();
         UUID firstPlayer = UUID.randomUUID();
@@ -134,10 +150,10 @@ class EntityPresenceContextCacheTest {
     private static EntityPresenceContextCache.Key key(UUID player, long tick, long ruleRevision,
                                                        long playerRevision, UUID teamId,
                                                        int teamSize) {
-        return new EntityPresenceContextCache.Key(player, tick, ruleRevision, playerRevision,
-            teamId, teamSize,
-            new EntityPresenceContextCache.PlayerFacts(ResourceLocation.withDefaultNamespace("overworld"),
-                new BlockPos(0, 64, 0), 0, 20, 0L, 0, 0));
+        return new EntityPresenceContextCache.Key(player, tick,
+            new EntityPresenceContextCache.AuthoritativeRevision(ruleRevision, playerRevision, teamId, teamSize,
+                new EntityPresenceContextCache.PlayerFacts(ResourceLocation.withDefaultNamespace("overworld"),
+                    new BlockPos(0, 64, 0), 0, 20, 0L, 0, 0)));
     }
 
     private static ConditionContext context(int sequence) {

@@ -1056,8 +1056,9 @@ joining.
 
 #### Entity presence condition snapshots
 
-Entity presence uses one immutable condition snapshot for each player, server tick, compiled rule
-revision, and current authoritative player state. Every entity decision for the same snapshot reuses
+Entity presence uses one immutable condition snapshot for each player, server tick, and
+authoritative state revision. That revision combines the active compiled rule revision with the
+player relevant state sampled by the context. Every entity decision for the same snapshot reuses
 that context instead of rebuilding the full stage, team, scoreboard, metric, structure, and session
 map. The cache is server thread only and never persists or crosses players.
 

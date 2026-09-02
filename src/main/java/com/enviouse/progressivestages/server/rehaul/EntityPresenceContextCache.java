@@ -15,14 +15,17 @@ import java.util.function.Supplier;
  * Server thread cache for entity presence condition contexts.
  *
  * <p>The cache intentionally owns no persistent state. A context is reusable only while the
- * player, game tick, compiled rule revision, explicit player revision, and the mutable facts
- * that are sampled before construction remain equal. This keeps entity tracking from rebuilding
+ * player, game tick, and authoritative state revision remain equal. The authoritative revision
+ * includes the compiled rule revision, explicit player revision, and mutable facts sampled before
+ * construction. This keeps entity tracking from rebuilding
  * the full condition map for every entity while preventing stale same tick decisions.</p>
  */
 final class EntityPresenceContextCache {
 
-    record Key(UUID playerId, long gameTime, long ruleRevision, long playerRevision,
-               UUID teamId, int onlineTeamSize, PlayerFacts playerFacts) {}
+    record Key(UUID playerId, long gameTime, AuthoritativeRevision authoritativeRevision) {}
+
+    record AuthoritativeRevision(long ruleRevision, long playerRevision, UUID teamId,
+                                 int onlineTeamSize, PlayerFacts playerFacts) {}
 
     record PlayerFacts(ResourceLocation dimension, BlockPos position, int healthBits, int food,
                        long yBits, int experienceLevel, int totalExperience) {}
@@ -40,9 +43,9 @@ final class EntityPresenceContextCache {
         UUID playerId = player.getUUID();
         UUID teamId = TeamProvider.getInstance().getTeamId(player);
         int onlineTeamSize = TeamProvider.getInstance().getTeamMembers(teamId, player).size();
-        Key key = new Key(playerId, player.level().getGameTime(), ruleRevision,
-            playerRevisions.getOrDefault(playerId, 0L), teamId, onlineTeamSize,
-            playerFacts(player));
+        Key key = new Key(playerId, player.level().getGameTime(), new AuthoritativeRevision(
+            ruleRevision, playerRevisions.getOrDefault(playerId, 0L), teamId, onlineTeamSize,
+            playerFacts(player)));
         return getOrCreate(key, () -> MinecraftConditionContextFactory.create(player, runtime, java.util.Set.of()));
     }
 
@@ -70,7 +73,7 @@ final class EntityPresenceContextCache {
             return;
         }
         entries.entrySet().removeIf(entry -> {
-            if (!teamId.equals(entry.getValue().key().teamId())) return false;
+            if (!teamId.equals(entry.getValue().key().authoritativeRevision().teamId())) return false;
             playerRevisions.merge(entry.getKey(), 1L, Long::sum);
             return true;
         });

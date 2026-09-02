@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "be008284237a730897274718ea938cac32d6473c2cf0a9504f48b52d027f3100",
+  "planSetSha256": "0ab08b4997d34a7f24d52d11da2c3c3bbc001145f6e2507f67aad46d8f43d893",
   "planningSubject": {
     "name": "ProgressiveStages 3.0.4 polish and stable release closure",
     "requestedArtifact": "authoritative_plan",
@@ -556,8 +556,7 @@
       "id": "CORE-PHASE-002",
       "owner": "OptionalIntegrations",
       "dependencies": [
-        "CORE-PHASE-001",
-        "EXT-001"
+        "CORE-PHASE-001"
       ],
       "canonicalRequirements": [
         "CORE-REQ-003",
@@ -582,8 +581,6 @@
       "id": "CORE-PHASE-004",
       "owner": "CompatibilityHarness",
       "dependencies": [
-        "CORE-PHASE-001",
-        "CORE-PHASE-002",
         "CORE-PHASE-003"
       ],
       "canonicalRequirements": [
@@ -617,8 +614,8 @@
     "mandatoryBoundary": "Resolve issues #8, #10, #11, #16, #24, and #25, implement the explicit CORE-REQ-012 inventory insertion feature, and correct previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit. Do not count CORE-REQ-012 as a seventh issue.",
     "optionalFutureDisposition": "excluded",
     "lockedOwnerDecisions": "DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007",
-    "activePhase": "CORE-PHASE-000",
-    "nextExecutableAction": "Freeze the six issue reproductions, advertised capability audit, and CORE-REQ-012 interaction, menu, editor, catalog, and test seams against saved goal checkout 5b3077764907249b3711886cca538794f6139acf",
+    "activePhase": "CORE-PHASE-001",
+    "nextExecutableAction": "P001-TASK-001. Use the Phase 000 completion merged into `origin/master` as `dc9e154871781de262ffd5eb401d65d0fa44cefb` and signed tag `3.0.4-phase-000` to freeze the issue `#24` baseline, controlled fixture, measurements, mixed-player assertions, and failure interpretation for CORE-REQ-002. This records current plan progress only and does not modify immutable `docs/plan/goal.md`",
     "knownFailingChecks": "GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined; issue #25 reports an ineffective visual recipe lock whose exact production-bundle representation must be recorded by CORE-PHASE-000 before CORE-PHASE-003 corrects it",
     "knownExternalBlockers": "Corrected MCEnvision shared release-validation workflow revision under EXT-002 and Owner-approved platform publication confirmation for the final 3.0.4 artifact under EXT-003",
     "requiredEvidenceGates": "CORE-REQ-001 audit and inventory-interaction seam matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-011 visual-form-to-runtime recipe-lock proof with preservation and rollback evidence, CORE-REQ-012 two-selector schema, Easy Builder, destination resolver, click-path, transaction-conservation, automation, multiplayer, reload, custom-menu, diagnostics, documentation, and final-JAR proof, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, downloaded artifact hashes, and six issue closure packets"

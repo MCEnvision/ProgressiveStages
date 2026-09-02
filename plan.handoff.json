@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "7d6b57fd0f1d7a4fae90b0d85bc642cadb8f2cecb33e0124c94ef04242add4dc",
+  "planSetSha256": "d8a0e0c75e4c5d29cce32592967a364eed1096712937cbd0b18169d30120d91a",
   "planningSubject": {
     "name": "ProgressiveStages 3.0.4 polish and release closure",
     "requestedArtifact": "authoritative_plan",
@@ -62,6 +62,13 @@
         "subject": "browser editor recipe-lock serialization defect",
         "source": "EnVy owner report and GitHub issue #25 on MCEnvision/ProgressiveStages",
         "use": "makes the reported recipe-lock round-trip defect mandatory for 3.0.4 and defines its canonical field, preservation, validation, reload, and runtime proof"
+      },
+      {
+        "id": "SRC-009",
+        "role": "owner_request",
+        "subject": "player-initiated inventory insertion locks",
+        "source": "EnVy direct Plan Creator invocation and supplied SuperDevyn profession and selling-bin use case on 2026-09-01",
+        "use": "promotes destination-aware inventory insertion gating to mandatory 3.0.4 scope and defines source-item selectors, destination selectors, priority exceptions, transaction safety, automation boundaries, editor coverage, and compatibility proof"
       }
     ]
   },
@@ -83,9 +90,9 @@
     {
       "area": "Failure taxonomy",
       "status": "covered",
-      "source": "SRC-004, SRC-008",
+      "source": "SRC-004, SRC-008, SRC-009",
       "plan_section": "Risks and Failure Boundaries",
-      "rationale": "Reported defects span performance, optional integration absence, editor serialization and data preservation, artifact drift, GUI depth, and release automation failure."
+      "rationale": "Reported defects and the promoted feature span performance, optional integration absence, editor serialization and data preservation, destination identity, item conservation, artifact drift, GUI depth, and release automation failure."
     },
     {
       "area": "Generalization",
@@ -97,9 +104,9 @@
     {
       "area": "Inputs and outputs",
       "status": "covered",
-      "source": "SRC-001",
+      "source": "SRC-001, SRC-009",
       "plan_section": "Product Contract and Requirements",
-      "rationale": "Stage files, commands, APIs, GUI, editor, optional integrations, and release artifacts are public product surfaces."
+      "rationale": "Stage files, commands, APIs, GUI, editor, destination-aware inventory transactions, optional integrations, and release artifacts are public product surfaces."
     },
     {
       "area": "Release lifecycle",
@@ -125,9 +132,9 @@
     {
       "area": "Test system",
       "status": "covered",
-      "source": "SRC-004, SRC-008",
+      "source": "SRC-004, SRC-008, SRC-009",
       "plan_section": "Verification Strategy",
-      "rationale": "Every issue requires focused regression evidence plus integrated, multiplayer, optional-mod, performance, editor-transaction, and artifact proof."
+      "rationale": "Every issue and CORE-REQ-012 require focused regression evidence plus integrated, multiplayer, optional-mod, performance, editor-transaction, inventory-conservation, and artifact proof."
     },
     {
       "area": "Versioning",
@@ -249,7 +256,8 @@
         "CORE-REQ-005",
         "CORE-REQ-006",
         "CORE-REQ-007",
-        "CORE-REQ-011"
+        "CORE-REQ-011",
+        "CORE-REQ-012"
       ],
       "lifecycleStage": "continuous",
       "productionVerification": "nondestructive",
@@ -299,6 +307,20 @@
       "productionVerification": "nondestructive",
       "releaseImpact": "stable release",
       "canonicalPhase": "CORE-PHASE-003"
+    },
+    {
+      "id": "CORE-REQ-012",
+      "summary": "Add server-authoritative player-initiated inventory insertion locks with source-item and destination-inventory selectors, priority exceptions, complete Easy Builder and TOML round trips, and lossless transaction enforcement.",
+      "source": "SRC-009",
+      "owner": "InventoryInsertionEnforcer",
+      "contributors": "InteractionRuleCompiler, InventoryTargetResolverRegistry, EasyBuilder, EditorCatalogService, MenuTransactionTests",
+      "dependencies": [
+        "CORE-REQ-001"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-003"
     }
   ],
   "optionalFutureScope": [
@@ -316,7 +338,7 @@
     },
     {
       "id": "FUT-003",
-      "summary": "New feature requests opened after the five-issue audit baseline.",
+      "summary": "New feature requests outside the six-issue audit baseline and the explicitly owner-promoted CORE-REQ-012 inventory insertion feature.",
       "source": "SRC-001",
       "disposition": "excluded"
     },
@@ -330,8 +352,8 @@
   "nonGoals": [
     {
       "id": "NG-001",
-      "summary": "No unscoped progression redesign, schema overhaul, or new lock category.",
-      "source": "SRC-001"
+      "summary": "No unscoped progression redesign, broad schema overhaul, or lock category beyond the bounded inventory-interaction extension in CORE-REQ-012.",
+      "source": "SRC-001, SRC-009"
     },
     {
       "id": "NG-002",
@@ -346,13 +368,13 @@
     {
       "id": "NG-004",
       "summary": "No issue closure based only on source presence, prior release notes, or lower-fidelity checks.",
-      "source": "SRC-004"
+      "source": "SRC-001"
     }
   ],
   "ownerDecisions": [
     {
       "id": "DEC-001",
-      "question": "What completion endpoint closes this polish plan?",
+      "question": "Completion endpoint",
       "selectedChoice": "Publish ProgressiveStages 3.0.4 to CurseForge and Modrinth after verified master integration.",
       "rationale": "The owner selected a public patch release with verified integration",
       "affectedRequirements": [
@@ -363,7 +385,7 @@
     },
     {
       "id": "DEC-002",
-      "question": "What scope is mandatory beyond the five active issue reports?",
+      "question": "Mandatory scope boundary",
       "selectedChoice": "Implement previously advertised or documented 3.0.3 capability if a polish audit proves it missing. Exclude novel unpromised product features.",
       "rationale": "The polish matrix controls completeness without expanding the product roadmap",
       "affectedRequirements": [
@@ -374,7 +396,7 @@
     },
     {
       "id": "DEC-003",
-      "question": "How do optional recipe viewers operate?",
+      "question": "Recipe viewer operation",
       "selectedChoice": "JEI and EMI have independent enabled settings, default enabled, and both work concurrently when installed.",
       "rationale": "Mixed client installations require independent optional viewer controls",
       "affectedRequirements": [
@@ -384,7 +406,7 @@
     },
     {
       "id": "DEC-004",
-      "question": "What performance gate protects entity presence rules?",
+      "question": "Entity presence performance gate",
       "selectedChoice": "Use the approved per-player-per-tick context, no per-entity rebuild, under-five-percent sampled work, and at-most-ten-percent p95 MSPT regression thresholds.",
       "rationale": "The lag correction needs fixed correctness and performance limits",
       "affectedRequirements": [
@@ -394,7 +416,7 @@
     },
     {
       "id": "DEC-005",
-      "question": "Does the shared release validation failure block the selected endpoint?",
+      "question": "Shared workflow release gate",
       "selectedChoice": "Yes. Repair and verification of the shared attestation workflow are mandatory before 3.0.4 publication.",
       "rationale": "Release evidence must be verified by the supported shared workflow",
       "affectedRequirements": [
@@ -405,7 +427,7 @@
     },
     {
       "id": "DEC-006",
-      "question": "Is the reported browser editor recipe-lock serialization defect in scope for 3.0.4?",
+      "question": "Issue #25 inclusion",
       "selectedChoice": "Issue #25 is mandatory for 3.0.4 and increases the fixed issue baseline from five to six without changing the release endpoint.",
       "rationale": "The owner promoted the reported editor serialization defect into the current polish release before goal creation",
       "affectedRequirements": [
@@ -415,6 +437,21 @@
         "CORE-REQ-011"
       ],
       "supersedes": []
+    },
+    {
+      "id": "DEC-007",
+      "question": "Inventory insertion lock inclusion",
+      "selectedChoice": "Add destination-aware player-initiated inventory insertion locks to 3.0.4. A rule selects both the item being inserted and the receiving block, menu, or inventory owner, uses the existing selector and priority system, and does not attribute playerless hopper or automation transfers to a nearby player.",
+      "rationale": "Profession packs need to deny ore insertion into a selling bin, chest, furnace, or compatible modded container until the player owns the required stage, without item loss, duplication, or automation regressions.",
+      "affectedRequirements": [
+        "CORE-REQ-008",
+        "CORE-REQ-010",
+        "CORE-REQ-012"
+      ],
+      "supersedes": [
+        "CORE-REQ-012",
+        "DEC-002"
+      ]
     }
   ],
   "externalPrerequisites": [
@@ -525,7 +562,8 @@
         "CORE-REQ-005",
         "CORE-REQ-006",
         "CORE-REQ-007",
-        "CORE-REQ-011"
+        "CORE-REQ-011",
+        "CORE-REQ-012"
       ]
     },
     {
@@ -565,13 +603,13 @@
   ],
   "completionEndpoint": "A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all six baseline GitHub issues are closed with merged-revision acceptance evidence.",
   "goalCreator": {
-    "mandatoryBoundary": "Resolve only issues #8, #10, #11, #16, #24, and #25 plus previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit",
+    "mandatoryBoundary": "Resolve issues #8, #10, #11, #16, #24, and #25, implement the explicit CORE-REQ-012 inventory insertion feature, and correct previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit. Do not count CORE-REQ-012 as a seventh issue.",
     "optionalFutureDisposition": "excluded",
-    "lockedOwnerDecisions": "DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006",
+    "lockedOwnerDecisions": "DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007",
     "activePhase": "CORE-PHASE-000",
-    "nextExecutableAction": "Freeze the six issue reproductions and advertised capability audit against commit 6ff75bb9479bb69f4c38a459e4ee6fe2e8aae79e",
+    "nextExecutableAction": "Freeze the six issue reproductions, advertised capability audit, and CORE-REQ-012 interaction, menu, editor, catalog, and test seams against commit f6ceb9b49fda8b3cf764706bb1e5113b75383ebb",
     "knownFailingChecks": "GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined; issue #25 reports that the Easy Builder emits `[recipes].locked`, which does not activate the intended canonical `[recipes].locked_items` rule",
     "knownExternalBlockers": "Corrected MCEnvision shared release-validation workflow revision under EXT-002 and Owner-approved platform publication confirmation for the final 3.0.4 artifact under EXT-003",
-    "requiredEvidenceGates": "CORE-REQ-001 audit matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-011 visual-form-to-runtime recipe-lock proof with preservation and rollback evidence, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, downloaded artifact hashes, and six issue closure packets"
+    "requiredEvidenceGates": "CORE-REQ-001 audit and inventory-interaction seam matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-011 visual-form-to-runtime recipe-lock proof with preservation and rollback evidence, CORE-REQ-012 two-selector schema, Easy Builder, destination resolver, click-path, transaction-conservation, automation, multiplayer, reload, custom-menu, diagnostics, documentation, and final-JAR proof, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, downloaded artifact hashes, and six issue closure packets"
   }
 }

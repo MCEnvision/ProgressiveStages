@@ -13,12 +13,12 @@ Project: ProgressiveStages NeoForge mod
 Requested artifact: authoritative_plan
 Repository root: /tmp/ProgressiveStages-polish-plan
 Starting branch: envy/polish-3.0.4-plan
-Starting commit: 6ff75bb9479bb69f4c38a459e4ee6fe2e8aae79e
+Starting commit: f6ceb9b49fda8b3cf764706bb1e5113b75383ebb
 Authoritative remote:
 origin
 https://github.com/MCEnvision/ProgressiveStages.git
 Remote ref: origin/envy/polish-3.0.4-plan
-Remote commit: 6ff75bb9479bb69f4c38a459e4ee6fe2e8aae79e
+Remote commit: f6ceb9b49fda8b3cf764706bb1e5113b75383ebb
 Package metadata: mod_id progressivestages, version 3.0.3, Minecraft 1.21.1, NeoForge 21.1.219
 Target release: 3.0.4
 ```
@@ -35,20 +35,21 @@ Target release: 3.0.4
 | SRC-006 | audit_evidence | issue #24 Spark profile and configuration | GitHub issue #24 attachment and report | establishes entity-presence context construction as the performance hotspot |
 | SRC-007 | audit_evidence | failed v3.0.3 release validation | GitHub Actions run 31453460136, job 93662356066 | establishes the shared attestation-verification workflow as a release prerequisite |
 | SRC-008 | owner_request | browser editor recipe-lock serialization defect | EnVy owner report and GitHub issue #25 on MCEnvision/ProgressiveStages | makes the reported recipe-lock round-trip defect mandatory for 3.0.4 and defines its canonical field, preservation, validation, reload, and runtime proof |
+| SRC-009 | owner_request | player-initiated inventory insertion locks | EnVy direct Plan Creator invocation and supplied SuperDevyn profession and selling-bin use case on 2026-09-01 | promotes destination-aware inventory insertion gating to mandatory 3.0.4 scope and defines source-item selectors, destination selectors, priority exceptions, transaction safety, automation boundaries, editor coverage, and compatibility proof |
 
 The planning subject is the ProgressiveStages 3.0.4 polish and release closure. Source artifacts provide scope, current state, and evidence. They do not replace the authoritative plan or add scope beyond the locked intake.
 
 ## 3. Purpose and Intended Outcome
 
-ProgressiveStages needs a bounded polish release that converts the six active reports into verified outcomes while preserving the existing NeoForge 1.21.1 stage model. Server administrators need entity presence rules that do not dominate the server thread. Pack authors need Curios, JEI, and EMI behavior that survives supported optional dependency combinations. Operators need the Easy Builder controls, recipe-lock serialization, and in game category menu to match published behavior in the installed artifact.
+ProgressiveStages needs a bounded polish release that converts the six active reports into verified outcomes, adds the owner-promoted inventory insertion lock, and preserves the existing NeoForge 1.21.1 stage model. Server administrators need entity presence rules that do not dominate the server thread. Pack authors need Curios, JEI, and EMI behavior that survives supported optional dependency combinations. Operators need the Easy Builder controls, recipe-lock serialization, inventory insertion rules, and in game category menu to match published behavior in the installed artifact.
 
-The intended outcome is the exact completion endpoint recorded in §18 and §19. The work is limited to the issue baseline and only those advertised or documented 3.0.3 capabilities that the Phase 000 audit proves missing from a shipped artifact.
+The intended outcome is the exact completion endpoint recorded in §18 and §19. The work is limited to the six-issue baseline, the explicit CORE-REQ-012 inventory insertion feature, and only those advertised or documented 3.0.3 capabilities that the Phase 000 audit proves missing from a shipped artifact.
 
 ## 4. Evidence-Based Current State
 
 | Area | Evidence class | Finding | Evidence |
 |---|---|---|---|
-| Repository baseline | VERIFIED | The locked planning baseline is `origin/envy/polish-3.0.4-plan` at commit `6ff75bb9479bb69f4c38a459e4ee6fe2e8aae79e` | Git revision inspection recorded in §1 |
+| Repository baseline | VERIFIED | The locked planning baseline is `origin/envy/polish-3.0.4-plan` at commit `f6ceb9b49fda8b3cf764706bb1e5113b75383ebb` | Git revision inspection recorded in §1 |
 | Runtime contract | VERIFIED | The supported release target is ProgressiveStages for Minecraft 1.21.1 on NeoForge 21.1.219 | Gradle metadata and mod metadata inspection described by SRC-003 |
 | Issue baseline | VERIFIED | The active issue baseline is exactly `#8`, `#10`, `#11`, `#16`, `#24`, and `#25` | GitHub issue inspection in SRC-004 and SRC-008 |
 | Entity presence cost | OBSERVED | The reported hotspot constructs Minecraft rule context through the entity tracking decision path | Spark profile and configuration in SRC-006 |
@@ -56,6 +57,7 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 | Recipe viewers | VERIFIED | Existing configuration exposes EMI controls but does not prove independent JEI and EMI behavior in combined installations | Configuration inspection and optional integration evidence in SRC-003 |
 | Easy Builder enchantments | UNKNOWN | Existing source and tests require final editor bundle and JAR workflow verification | Issue `#11`, SRC-003, and Phase 000 audit |
 | Easy Builder recipe locks | OBSERVED | The classic visual-form path writes a generic `[recipes].locked` field, while the stage parser recognizes the distinct canonical `[recipes].locked_ids` and `[recipes].locked_items` fields; issue `#25` reports that the generated lock is ineffective or appears lost | `editor-ui/src/features/stages/RulesPanel.tsx`, `EditorSchemaRegistryTest`, `StageFileParser`, and SRC-008 |
+| Inventory insertion locks | OBSERVED | Existing `[[interactions]]` entries cover item-on-block, block right-click, and item-on-entity with one held-item selector and one world target. The current container-menu hook gates locked-item movement and hotbar placement but does not resolve a destination inventory owner or compile a two-selector insertion decision. The Easy Builder currently serializes one category selector per rule. | `StageFileParser.parseInteractions`, `LockDefinition.InteractionLock`, `AbstractContainerMenuMixin`, `Schema4StageCompiler.addGenericRules`, `BuiltinEditorSchemas`, `RulesPanel.tsx`, and SRC-009 |
 | Category menu depth | UNKNOWN | Source ordering changes require production map verification at supported GUI scales | Issue `#16`, SRC-003, and Phase 000 audit |
 | Artifact parity | UNKNOWN | Published 3.0.3 documentation has not been fully reconciled with the shipped JAR | SRC-002 and CORE-REQ-007 |
 | Release validation | VERIFIED | The 3.0.3 release validation fails during shared attestation verification because its GitHub CLI signer flags are incompatible | Failed GitHub Actions run `31453460136`, job `93662356066` in SRC-007 |
@@ -64,13 +66,13 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 
 | Profile area | Status | Source | Contract location | Rationale |
 |---|---|---|---|---|
-| Inputs and outputs | covered | SRC-001 | Product Contract and Requirements | Stage files, commands, APIs, GUI, editor, optional integrations, and release artifacts are public product surfaces. |
+| Inputs and outputs | covered | SRC-001, SRC-009 | Product Contract and Requirements | Stage files, commands, APIs, GUI, editor, destination-aware inventory transactions, optional integrations, and release artifacts are public product surfaces. |
 | Component architecture | covered | SRC-003 | Architecture and Ownership Boundaries | The plan must preserve server-authoritative rules, client presentation, optional integration isolation, and editor bundle boundaries. |
 | State and persistence | covered | SRC-003 | Architecture and Ownership Boundaries | Stage ownership, condition contexts, caches, server snapshots, and configuration must remain compatible. |
-| Failure taxonomy | covered | SRC-004, SRC-008 | Risks and Failure Boundaries | Reported defects span performance, optional integration absence, editor serialization and data preservation, artifact drift, GUI depth, and release automation failure. |
+| Failure taxonomy | covered | SRC-004, SRC-008, SRC-009 | Risks and Failure Boundaries | Reported defects and the promoted feature span performance, optional integration absence, editor serialization and data preservation, destination identity, item conservation, artifact drift, GUI depth, and release automation failure. |
 | Versioning | covered | SRC-001 | Compatibility, Migration, Rollout, and Recovery | The endpoint is a compatible 3.0.4 patch without platform or schema upgrades. |
 | Security | covered | SRC-003 | Architecture and Ownership Boundaries | Editor authority, client packets, optional reflection, release provenance, and no-secret handling remain mandatory. |
-| Test system | covered | SRC-004, SRC-008 | Verification Strategy | Every issue requires focused regression evidence plus integrated, multiplayer, optional-mod, performance, editor-transaction, and artifact proof. |
+| Test system | covered | SRC-004, SRC-008, SRC-009 | Verification Strategy | Every issue and CORE-REQ-012 require focused regression evidence plus integrated, multiplayer, optional-mod, performance, editor-transaction, inventory-conservation, and artifact proof. |
 | Release lifecycle | external_prerequisite | EXT-002 | Documentation, Operations, and Release Gates | The current shared attestation verifier fails and must be repaired upstream before 3.0.4 publication. |
 | Generalization | covered | SRC-003 | Compatibility, Migration, Rollout, and Recovery | Fixes must work for integrated and dedicated servers, solo and mixed multiplayer ownership, and optional-mod combinations. |
 | Determinism | covered | SRC-006 | Architecture and Ownership Boundaries | Rule snapshot revision and player-relevant state must determine cached presence decisions and invalidation. |
@@ -88,6 +90,7 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 - CORE-REQ-009 — Repair and prove the shared release attestation verifier for the 3.0.4 release artifact
 - CORE-REQ-010 — Build, integrate, attest, document, publish, and verify 3.0.4, then close the six baseline issues with evidence
 - CORE-REQ-011 — Correct the Easy Builder recipe-lock round trip so visual rules serialize, validate, persist, reload, compile, and enforce through the canonical `[recipes].locked_items` field without rule loss
+- CORE-REQ-012 — Add server-authoritative player-initiated inventory insertion locks with source-item and destination-inventory selectors, priority exceptions, complete Easy Builder and TOML round trips, and lossless transaction enforcement
 
 ## 7. Optional / Future Scope
 
@@ -95,12 +98,12 @@ Every item in this section is excluded and non-blocking for this plan.
 
 - FUT-001 — The legacy roadmap's unimplemented feature phases beyond advertised 3.0.3 behavior — excluded
 - FUT-002 — Dependabot pull request #19 unless it becomes security or compatibility blocking evidence — excluded
-- FUT-003 — New feature requests outside the owner-promoted six-issue audit baseline — excluded
+- FUT-003 — New feature requests outside the six-issue audit baseline and the explicitly owner-promoted CORE-REQ-012 inventory insertion feature — excluded
 - FUT-004 — Minecraft, NeoForge, Java, Gradle, or mapping upgrades — excluded
 
 ## 8. Non-Goals
 
-- NG-001 — No unscoped progression redesign, schema overhaul, or new lock category
+- NG-001 — No unscoped progression redesign, broad schema overhaul, or lock category beyond the bounded inventory-interaction extension in CORE-REQ-012
 - NG-002 — No hard dependency on Curios, JEI, EMI, or another optional integration
 - NG-003 — No full registry, stage, or entity scan in server tick or render hot paths
 - NG-004 — No issue closure based only on source presence, prior release notes, or lower-fidelity checks
@@ -155,6 +158,14 @@ Every item in this section is excluded and non-blocking for this plan.
 **Affected requirements:** CORE-REQ-001, CORE-REQ-008, CORE-REQ-010, CORE-REQ-011
 **Supersedes:** none
 
+### DEC-007 — Inventory insertion lock inclusion
+
+**Status:** RESOLVED
+**Selected choice:** Add destination-aware player-initiated inventory insertion locks to 3.0.4. A rule selects both the item being inserted and the receiving block, menu, or inventory owner, uses the existing selector and priority system, and does not attribute playerless hopper or automation transfers to a nearby player.
+**Rationale:** Profession packs need to deny ore insertion into a selling bin, chest, furnace, or compatible modded container until the player owns the required stage, without item loss, duplication, or automation regressions.
+**Affected requirements:** CORE-REQ-008, CORE-REQ-010, CORE-REQ-012
+**Supersedes:** DEC-002 only for the explicitly bounded CORE-REQ-012 feature. All other novel feature requests remain excluded by FUT-003.
+
 ## 10. External Prerequisites
 
 | ID | Prerequisite | Affected requirements | Availability | Authorization | Required external action |
@@ -208,11 +219,15 @@ Curios, JEI, and EMI are optional adapter boundaries. Their classes must remain 
 
 The Easy Builder, TOML source view, schema compiler, runtime enforcement, and cleanup fallback share one canonical data model. Easy Builder owns deterministic visual-form serialization. The server schema registry and draft validator own canonical-field admission and atomic rejection before persistence. For the issue `#25` recipe-output workflow, the single canonical key is `[recipes].locked_items`; `[recipes].locked_ids` remains the distinct recipe-identifier key, and the generic `[recipes].locked` alias must never be persisted as a successful recipe lock. A valid existing rule or live stage file must survive any migration or rejected draft unchanged. `StageTreeScreen` owns client menu depth and input routing. The category overlay must render above map nodes, capture menu input while open, and preserve map navigation and inspector semantics after closing.
 
+Inventory insertion gating extends the existing interaction-rule surface rather than creating an unrelated lock category. The canonical schema is a `[[interactions]]` entry with `type = "item_into_inventory"`, a source `held_item` selector, `target_kind = "block"`, `"menu"`, or `"inventory"`, a destination `target` selector, an effect, and a priority. Existing interaction entries and their `target_block` or `target_entity` fields remain unchanged. Both selectors use the existing `all`, `id`, `mod`, `tag`, `name`, and `#` tag-alias grammar and must remain paired as one compiled decision. A broad `all:*` rule and narrower higher-priority allow or exclude rule use the existing safe tie policy. The source selector resolves against the item stack being inserted. The destination selector resolves against an authoritative block ID for a block-backed inventory, registered menu type ID for a menu-backed inventory, or stable inventory-owner ID and tags supplied by a built-in or registered inventory-target resolver. A resolver must not use display text, client claims, Java class names, coordinates, or other unstable identities as serialized rule IDs.
+
+The logical server owns inventory target resolution and the complete player transaction. An insertion is a player-initiated menu operation that increases a matching stack in a matched destination inventory. Removal-only operations remain allowed unless another existing rule denies them. Standard click, quick move or shift click, quick craft or drag, hotbar swap, and pickup-all or double-click paths must be classified by resulting transfer direction rather than blocked by click name alone. Supported paths must be denied before observable mutation or side effects. A fallback rollback is acceptable only when it restores every touched slot, carried stack, stack count, state ID, and client view and proves no irreversible callback or external side effect ran. Hopper, pipe, capability, and other automation with no authenticated initiating player retain current behavior. A supported integration may supply an authenticated `ServerPlayer`; it must never infer one from proximity or ownership. Rules recompile and swap atomically, and already-open menus use the new snapshot on the next transaction after reload.
+
 Release tooling owns packaging, checksum generation, SBOM generation, source commit manifest creation, signed tag verification, and attestation validation. The shared MCEnvision workflow owns the attestation verifier implementation. The broker owns platform mutation and accepts only a release manifest authorized by EXT-003. No credentials, confirmation codes, or private release data may enter source, Git history, documentation, test fixtures, or logs.
 
 ## 12. Product Contract and Requirements
 
-The public contract covers stage files, server configuration, commands, KubeJS and integration APIs, editor drafts, synchronized player state, in game UI, optional recipe viewers, Curios slots, and release artifacts. Inputs must be schema validated and authority checked before state changes. Identical stage state, rule revision, configuration revision, and player relevant facts must produce identical normalized rule decisions. Product fixes must generalize across integrated and dedicated servers, solo players, mixed multiplayer ownership, and supported optional mod combinations.
+The public contract covers stage files, server configuration, commands, KubeJS and integration APIs, editor drafts, synchronized player state, in game UI, optional recipe viewers, Curios slots, player-initiated inventory transfers, and release artifacts. Inputs must be schema validated and authority checked before state changes. Identical stage state, rule revision, configuration revision, player relevant facts, source stack, destination kind, and destination identity must produce identical normalized rule decisions. Product fixes must generalize across integrated and dedicated servers, solo players, mixed multiplayer ownership, and supported optional mod combinations.
 
 ### CORE-REQ-001 — Freeze the polish baseline
 
@@ -229,11 +244,13 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 - Each of issues `#8`, `#10`, `#11`, `#16`, `#24`, and `#25` has an explicit reproduction, artifact verification, or evidence based stale classification
 - The matrix records source revision, installed artifact identity, test configuration, expected behavior, observed behavior, and assigned requirement
 - The audit identifies every public 3.0.3 capability gap proven by a shipped artifact inspection without promoting new features
+- The audit freezes the current interaction parser, compiled-rule, menu-transaction, target-catalog, editor serializer, and test seams that CORE-REQ-012 may change, without counting the owner-promoted feature as a seventh issue
 
 **Required evidence**
 
 - A versioned audit matrix tracing each baseline report to CORE-REQ-002 through CORE-REQ-007 or CORE-REQ-011
 - A final JAR inventory and public documentation comparison for advertised 3.0.3 capabilities
+- A current-state inventory insertion seam map covering legacy interactions, selector matching, destination identity, menu click paths, editor catalogs, and existing regression fixtures
 
 ### CORE-REQ-002 — Repair entity presence performance
 
@@ -387,12 +404,46 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 - A packaged-JAR operator workflow showing visual form to TOML to compiler to persisted file to reload to runtime recipe enforcement, with denied and eligible players and evidence that the served production bundle matches the built artifact
 - Before-and-after fixture digests proving a rejected or failed migration does not delete or alter the last valid recipe rule
 
+### CORE-REQ-012 — Gate player-initiated inventory insertion
+
+**Behavior:** Add a destination-aware interaction rule that restricts a selected source item from being placed into a selected target inventory while the initiating player lacks the owning stage, with priority-based allows and exclusions, server-authoritative transaction enforcement, complete Easy Builder and TOML round trips, and compatible modded-container coverage
+**Owner:** InventoryInsertionEnforcer
+**Contributors:** InteractionRuleCompiler, InventoryTargetResolverRegistry, EasyBuilder, EditorCatalogService, MenuTransactionTests
+**Dependencies:** CORE-REQ-001
+**Lifecycle stage:** change
+**Production verification:** nondestructive
+**Release impact:** stable release
+
+**Acceptance criteria**
+
+- The canonical `[[interactions]]` form accepts `type = "item_into_inventory"`, `held_item`, `target_kind`, `target`, `effect`, and `priority`; existing `block_right_click`, `item_on_block`, and `item_on_entity` entries load and behave unchanged
+- `held_item` and `target` independently support `all:*`, `id:`, `mod:`, `tag:`, `name:`, and `#` selectors through the existing matcher registry, while the compiler preserves the pair as one rule and never broadens either axis into an independent single-selector decision
+- `target_kind = "block"` resolves a block-backed inventory by registered block ID, `target_kind = "menu"` resolves its registered menu type, and `target_kind = "inventory"` resolves a stable built-in or registered inventory-owner identity and tags; unresolved or ambiguous destinations produce bounded diagnostics and never trust a client-supplied identity
+- A player missing the owning stage is denied when both selectors and the active condition match. Owning the stage restores access. A narrower higher-priority allow or exclude defeats a broad lock, `all:*` works on either selector axis, and equal-priority conflicts use the existing safe tie policy
+- The rule covers standard click placement, quick move or shift click, quick craft or drag across multiple slots, hotbar-number swap, and pickup-all or double-click. A removal-only operation is not misclassified as insertion, and a multi-slot transaction is accepted or denied as one coherent operation
+- A denied transaction leaves every source slot, destination slot, carried stack, hotbar stack, stack count, menu state ID, and synchronized client view equivalent to the pre-transaction state. It emits no crafting, trade, advancement, sound, statistic, callback, or external inventory side effect and cannot lose, duplicate, split, or ghost an item
+- Enforcement uses the authenticated initiating `ServerPlayer`, authoritative stage snapshot, authoritative menu, and server-resolved destination. Two players with different stage ownership may use the same open container concurrently and receive independent decisions without corrupting shared contents
+- Hopper, pipe, capability, machine, and other automation without an authenticated initiating player remain unaffected. An integration may pass a real player origin through the registered server-side extension contract, but the implementation never guesses a player from proximity, last opener, owner metadata, or client input
+- Chest and furnace inventories, the player inventory where explicitly selected, and a non-vanilla test container using supported `AbstractContainerMenu` and `Slot` contracts enforce consistently. Compatible modded targets can contribute stable inventory identities, tags, and editor catalog entries without a hard dependency
+- Rule reload is atomic. Existing open menus use the newly compiled decision on the next player transaction, an invalid rule keeps the last valid compiled snapshot and persisted files, and reconnect, dimension change, server restart, and integrated-server lifecycle do not create a bypass
+- Easy Builder exposes a plain-language “Put item into inventory” action with separate source-item and destination fields, target-kind choice, filtered item, block, menu, and inventory-owner autocomplete, selector mode, effect, priority, conditions, and priority exceptions. Create, edit, duplicate, remove, review, apply, reopen, TOML source, and packaged-bundle workflows preserve identical semantics
+- Validation and runtime diagnostics identify the invalid source field, destination kind, destination selector, unsupported resolver, or denied rule without leaking private state or spamming the player. The explain API and operator evidence show the winning rule, both matched selectors, priority, stage state, and destination identity
+
+**Required evidence**
+
+- Parser, compiler, selector-pair, resolver-registry, priority, safe-tie, legacy-interaction, validation, and normalized-rule round-trip tests for every source and destination selector mode
+- A server transaction matrix for standard click, shift click, drag, hotbar swap, and double click with accepted and denied cases, before-and-after slot and carried-stack snapshots, packet synchronization checks, and explicit item-conservation and no-side-effect assertions
+- Dedicated and integrated server scenarios covering chest, furnace, player inventory when selected, a compatible custom menu fixture, two players with different stages sharing one container, reload while a menu is open, reconnect, restart, and malformed-rule rollback
+- Automation proof showing hopper and playerless capability insertion remains unchanged, plus an authenticated player-origin integration test proving the server-side extension path enforces the rule
+- Browser tests and a final-JAR operator workflow covering Easy Builder creation through persisted TOML, confirmed apply, server reload, editor reopen, autocomplete catalogs, field-specific errors, runtime denial, eligible-player success, and production editor bundle identity
+- Documentation with canonical TOML, Easy Builder, chest, furnace, broad-lock with priority-exception, profession selling-bin, compatible modded-container resolver, automation boundary, diagnostics, migration, and troubleshooting examples
+
 ### CORE-REQ-008 — Preserve compatibility and security
 
 **Behavior:** Preserve supported configuration, stage schema, saved data, commands, APIs, and multiplayer compatibility
 **Owner:** CompatibilityHarness
 **Contributors:** NetworkValidation, ConfigurationSchema
-**Dependencies:** CORE-REQ-002, CORE-REQ-003, CORE-REQ-004, CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-011
+**Dependencies:** CORE-REQ-002, CORE-REQ-003, CORE-REQ-004, CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-011, CORE-REQ-012
 **Lifecycle stage:** continuous
 **Production verification:** nondestructive
 **Release impact:** stable release
@@ -401,13 +452,15 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 
 - Existing supported stage packs, configuration files, saved player stage data, commands, and public API calls remain loadable and behaviorally compatible
 - Existing canonical `[recipes].locked_ids` and `[recipes].locked_items` rules remain behaviorally distinct and survive editor inspection, apply, reload, and restart without data loss
+- Existing interaction rules remain source compatible, and the new inventory insertion form preserves unknown namespaced extension data, priorities, comments where the established preservation layer supports them, and the last valid compiled snapshot across editor apply and reload
+- Playerless automation and container behavior without an inventory insertion rule remain byte-for-byte or behaviorally equivalent at the public boundary, while mixed-stage multiplayer decisions remain isolated to the initiating player
 - Editor and client packets require operator authorization and schema validation before a server mutation
 - Integrated server, dedicated server, reconnect, reload, optional integration, and multiplayer ownership paths pass the compatibility matrix
 
 **Required evidence**
 
 - Formatter, static analysis, unit test, GameTest, build, dedicated server, client, multiplayer, and JAR inspection results
-- Configuration compatibility fixtures and packet authorization regression tests
+- Configuration compatibility fixtures, legacy and new interaction fixtures, menu transaction conservation tests, and packet authorization regression tests
 
 ### CORE-REQ-009 — Repair shared attestation verification
 
@@ -444,11 +497,12 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 
 - The verified 3.0.4 patch is merged into master with a signed integration commit and signed annotated release tag
 - The publication preview matches the final JAR SHA-256, SHA-512, source commit, metadata, release notes, platforms, and dependencies
+- The final artifact contains the verified CORE-REQ-012 schema, editor bundle, target catalogs, resolver extension point, server enforcement, tests, and documentation, and its downloaded platform copies preserve the same inventory insertion behavior
 - CurseForge and Modrinth downloads hash match the verified artifact and all six baseline issues close with merged revision acceptance evidence
 
 **Required evidence**
 
-- Pull request merge record, signed commit verification, signed tag verification, JAR listing, checksums, SBOM, source manifest, and attestation verification
+- Pull request merge record, signed commit verification, signed tag verification, JAR listing including CORE-REQ-012 resources and classes, checksums, SBOM, source manifest, and attestation verification
 - EXT-003 confirmation, platform URLs, downloaded artifact hash checks, and issue closure evidence
 
 ## 13. Phased Roadmap
@@ -457,11 +511,11 @@ The master owns the global order and concise phase catalog. Every required execu
 
 | Phase ID | Objective | Owner | Dependencies | Canonical requirements | Entry summary | Exit summary | Next transition | Blueprint path |
 |---|---|---|---|---|---|---|---|---|
-| CORE-PHASE-000 | Freeze the defect and artifact baseline | RepositoryAudit | none | CORE-REQ-001 | Baseline revision and six-issue set are pinned | Audit classifies every mandatory report and advertised capability claim | CORE-PHASE-001 | [phases/plan-phase-000.md](phases/plan-phase-000.md) |
+| CORE-PHASE-000 | Freeze the defect, inventory-interaction seam, and artifact baseline | RepositoryAudit | none | CORE-REQ-001 | Baseline revision, six-issue set, and SRC-009 feature request are pinned | Audit classifies every mandatory report and advertised capability claim and records the current CORE-REQ-012 implementation seams | CORE-PHASE-001 | [phases/plan-phase-000.md](phases/plan-phase-000.md) |
 | CORE-PHASE-001 | Repair entity presence performance | EntityPresenceEnforcer | CORE-PHASE-000 | CORE-REQ-002 | CORE-REQ-001 audit identifies the hot path fixture | Correctness and DEC-004 performance evidence pass | CORE-PHASE-002 | [phases/plan-phase-001.md](phases/plan-phase-001.md) |
-| CORE-PHASE-002 | Restore optional integration behavior | CuriosBridge | CORE-PHASE-000, EXT-001 | CORE-REQ-003, CORE-REQ-004 | EXT-001 artifact contract is complete | Curios, JEI, and EMI compatibility matrix passes | CORE-PHASE-003 | [phases/plan-phase-002.md](phases/plan-phase-002.md) |
-| CORE-PHASE-003 | Verify editor serialization, client UI, and artifact parity | EasyBuilder | CORE-PHASE-000 | CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-011 | Audit assigns only source owned corrections | Editor controls and recipe serialization, UI, and proven artifact parity evidence pass | CORE-PHASE-004 | [phases/plan-phase-003.md](phases/plan-phase-003.md) |
-| CORE-PHASE-004 | Prove compatibility and regression safety | CompatibilityHarness | CORE-PHASE-001, CORE-PHASE-002, CORE-PHASE-003 | CORE-REQ-008 | Component changes are complete | Full compatibility and security verification passes | CORE-PHASE-005 | [phases/plan-phase-004.md](phases/plan-phase-004.md) |
+| CORE-PHASE-002 | Restore optional integration behavior | OptionalIntegrations | CORE-PHASE-000, EXT-001 | CORE-REQ-003, CORE-REQ-004 | EXT-001 artifact contract is complete | Curios, JEI, and EMI compatibility matrix passes | CORE-PHASE-003 | [phases/plan-phase-002.md](phases/plan-phase-002.md) |
+| CORE-PHASE-003 | Complete editor serialization, inventory insertion gating, client UI, and artifact parity | EasyBuilder | CORE-PHASE-000 | CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-011, CORE-REQ-012 | Audit assigns source-owned corrections and freezes the inventory interaction seams | Editor controls, recipe serialization, two-selector inventory rules, transaction enforcement, UI, and proven artifact parity evidence pass | CORE-PHASE-004 | [phases/plan-phase-003.md](phases/plan-phase-003.md) |
+| CORE-PHASE-004 | Prove compatibility and regression safety | CompatibilityHarness | CORE-PHASE-001, CORE-PHASE-002, CORE-PHASE-003 | CORE-REQ-008 | All component changes, including CORE-REQ-012, are complete | Full compatibility, inventory-conservation, automation, multiplayer, and security verification passes | CORE-PHASE-005 | [phases/plan-phase-004.md](phases/plan-phase-004.md) |
 | CORE-PHASE-005 | Integrate and validate the release artifact | ReleaseValidation | CORE-PHASE-004, EXT-002 | CORE-REQ-009 | Shared verifier repair is merged and pinned | Signed master artifact and release validation evidence pass | CORE-PHASE-006 | [phases/plan-phase-005.md](phases/plan-phase-005.md) |
 | CORE-PHASE-006 | Publish the verified patch and close issues | ReleaseBroker | CORE-PHASE-005, EXT-003 | CORE-REQ-010 | Broker preview matches final signed artifact | The six-issue completion endpoint and Definition of Done pass with no known mandatory phase owned defect remaining | final completion | [phases/plan-phase-006.md](phases/plan-phase-006.md) |
 
@@ -477,7 +531,8 @@ The master owns the global order and concise phase catalog. Every required execu
 | CORE-REQ-006 | Render order and input routing tests | Populated stage map | GUI scale client smoke | Client side only class boundary | Screenshots and procedure |
 | CORE-REQ-007 | Per gap regression tests | JAR resource inspection | Documented user workflow | Scope trace to SRC-001 | Artifact parity matrix |
 | CORE-REQ-011 | Canonical-field, serializer, parser, compiler, and atomicity tests | Visual form to TOML to persisted file to reload and editor reopen | Packaged-JAR operator apply plus denied and eligible player crafting workflow | Unknown alias, ambiguous legacy draft, failed reload, rollback, and valid-rule preservation | Issue #25 browser, file-digest, compiler, reload, and runtime packet |
-| CORE-REQ-008 | Existing and targeted regression suite | Reconnect, reload, multiplayer, optional mod matrix | Dedicated and integrated server smoke | Packet and editor authorization review | Build and final diff inspection |
+| CORE-REQ-012 | Two-selector parser, compiler, priority, resolver, and transaction tests | Chest, furnace, player inventory, custom menu, mixed-player, reload, and automation matrix | Packaged-JAR Easy Builder to TOML to live menu workflow for denied and eligible players | Server-only destination identity, authenticated player origin, atomic denial, no side effects, and item conservation | Browser bundle, dedicated and integrated server logs, slot-state snapshots, packet traces, and JAR inspection |
+| CORE-REQ-008 | Existing and targeted regression suite | Reconnect, reload, multiplayer, optional mod, legacy interaction, and inventory-transfer matrix | Dedicated and integrated server smoke | Packet, editor authorization, destination identity, and transaction review | Build and final diff inspection |
 | CORE-REQ-009 | Checksum and metadata checks | Shared reusable workflow | Disposable release candidate verification | Attestation success and tamper failure | Signed JAR, SBOM, and source manifest |
 | CORE-REQ-010 | Release manifest and six-issue equivalence checks | Broker preview validation | Download each platform artifact and verify six closure packets | EXT-003 authorization binding | Platform URLs, hashes, and issue closure evidence |
 
@@ -485,13 +540,13 @@ All changed Java, Gradle, resource, configuration, networking, client, and optio
 
 ## 15. Compatibility, Migration, Rollout, and Recovery
 
-3.0.4 is a compatible patch. Existing stage identifiers, `pack:stage` parsing, canonical TOML schema, configuration keys, commands, persisted player stage data, packets, public APIs, editor drafts, and default behavior remain supported. The new independent JEI setting must default enabled when absent so existing configurations retain their expected recipe viewer behavior. EMI configuration must remain readable. Canonical recipe-output locks continue to use `[recipes].locked_items`, while exact recipe-identifier locks continue to use `[recipes].locked_ids`.
+3.0.4 is a compatible patch. Existing stage identifiers, `pack:stage` parsing, canonical TOML schema, configuration keys, commands, persisted player stage data, packets, public APIs, editor drafts, and default behavior remain supported. The new independent JEI setting must default enabled when absent so existing configurations retain their expected recipe viewer behavior. EMI configuration must remain readable. Canonical recipe-output locks continue to use `[recipes].locked_items`, while exact recipe-identifier locks continue to use `[recipes].locked_ids`. Existing `[[interactions]]` entries retain their fields and behavior. The additive `item_into_inventory` form has no effect until configured, and a pack that does not use it retains existing player and automation transfer behavior.
 
-The editor-produced generic `[recipes].locked` form is not promoted into the public schema. On draft load, save, review, or apply, an unambiguous legacy value whose editor intent is recipe-output locking may migrate to `[recipes].locked_items` while preserving selectors, priorities, comments where the established preservation layer supports them, and the last valid rule. An ambiguous value must be rejected with a field-specific correction message before any live-file mutation. Validation, backup, atomic write, reload, compiler activation, and synchronization form one transaction: a failure restores the prior persisted file, compiled snapshot, and player-visible state. No Minecraft, NeoForge, Java, Gradle, mappings, persistence format, or unrelated schema upgrade is in scope.
+The editor-produced generic `[recipes].locked` form is not promoted into the public schema. On draft load, save, review, or apply, an unambiguous legacy value whose editor intent is recipe-output locking may migrate to `[recipes].locked_items` while preserving selectors, priorities, comments where the established preservation layer supports them, and the last valid rule. An ambiguous value must be rejected with a field-specific correction message before any live-file mutation. Validation, backup, atomic write, reload, compiler activation, and synchronization form one transaction: a failure restores the prior persisted file, compiled snapshot, and player-visible state. Inventory insertion rules use the additive canonical form in §11 and CORE-REQ-012; no legacy interaction is auto-converted, and invalid two-selector entries are rejected before live mutation. No Minecraft, NeoForge, Java, Gradle, mappings, persistence format, or unrelated schema upgrade is in scope.
 
 Entity presence snapshots are transient server state and never enter persistent player data. A snapshot invalidates and rebuilds from authoritative server state after every relevant state revision, reload, reconnect, dimension change, or restart. Curios transitions must conserve inventory contents. A failed optional adapter must disable only its adapter boundary and not alter core rule decisions.
 
-Rollout order is Phase 000 audit, sequential source changes including the issue `#25` editor transaction, compatibility proof, signed master integration, release validation, broker preview, EXT-003 confirmation, dual platform publication, and downloaded hash verification. Before publication, recovery is a corrective change on the appropriate sequential phase branch followed by the complete verification set. A failed editor migration or apply restores the last valid recipe rule and requires the full visual-form-to-runtime workflow to be rerun. After publication, recovery follows the rollback or unpublish policy bound by EXT-003 and requires a new verified artifact for any replacement.
+Rollout order is Phase 000 audit, sequential source changes including the issue `#25` editor transaction and CORE-REQ-012 inventory insertion feature, compatibility proof, signed master integration, release validation, broker preview, EXT-003 confirmation, dual platform publication, and downloaded hash verification. Before publication, recovery is a corrective change on the appropriate sequential phase branch followed by the complete verification set. A failed editor migration or apply restores the last valid recipe rule and inventory rule snapshot and requires the full visual-form-to-runtime workflow to be rerun. A failed denied inventory transaction must resynchronize from the authoritative pre-transaction state before the player continues using the menu. After publication, recovery follows the rollback or unpublish policy bound by EXT-003 and requires a new verified artifact for any replacement.
 
 ## 16. Documentation, Operations, and Release Gates
 
@@ -500,6 +555,8 @@ Rollout order is Phase 000 audit, sequential source changes including the issue 
 - Document entity presence snapshot invalidation, profiling fixture, performance thresholds, and diagnostic collection procedure
 - Document Easy Builder enchantment controls, TOML equivalence, category overlay behavior, and troubleshooting workflows
 - Document the recipe-lock choice between `locked_items` and `locked_ids`, the canonical Easy Builder output, legacy draft handling, atomic rejection and recovery, reload expectations, and an end-to-end worked example
+- Document the canonical `item_into_inventory` interaction, both selector axes, target kinds and resolver IDs, `all:*`, priority allows and exclusions, stage ownership behavior, click and transfer coverage, playerless automation boundary, multiplayer behavior, live reload, diagnostics, and item-conservation guarantees
+- Include Easy Builder and TOML examples for a miner stage controlling ore insertion into a profession selling bin, broad chest restrictions with a higher-priority exception, furnace input gating, menu-type targeting, and a compatible modded inventory resolver
 - Produce issue closure evidence that references the merged revision and user visible verification for each baseline issue
 - Require a clean final diff, signed master integration, signed tag, JAR inspection, SHA-256, SHA-512, SBOM, source manifest, and verified attestations
 - Require EXT-002 before release validation is accepted and EXT-003 before platform publication begins
@@ -514,6 +571,10 @@ Rollout order is Phase 000 audit, sequential source changes including the issue 
 | JEI and EMI conflict in combined clients | Incorrect recipe display | Independent adapters and settings | Full recipe viewer matrix | Restore isolated adapter behavior and add regression test |
 | Editor source diverges from Easy Builder | Invalid or surprising saved rules | Shared normalized schema and round trips | Operator apply and compiler equivalence test | Reject invalid draft and repair serializer |
 | Recipe lock serializes to a noncanonical alias | Rule disappears, compiles as no lock, or overwrites valid intent | One field mapping for recipe-output locks plus server-side canonical-key validation | Visual-to-TOML-to-file-to-reload-to-runtime fixture and persisted-file inspection | Migrate only unambiguous editor drafts or reject atomically while restoring the prior valid file and compiled snapshot |
+| Inventory insertion checks only the clicked slot | Shift click, drag, hotbar swap, or modded menu path bypasses the rule | Direction-aware transaction classification across every supported click path | Transfer matrix and custom-menu fixture | Correct the shared transaction boundary and rerun all CORE-REQ-012 conservation evidence |
+| Denied transaction mutates or rolls back incompletely | Item loss, duplication, ghost stacks, or irreversible callbacks | Pre-mutation denial and whole-transaction snapshots where fallback is proven safe | Slot, carried-stack, packet, side-effect, and total-count assertions | Restore authoritative state, remove unsafe fallback, and block Phase 004 until conservation proof passes |
+| Destination identity is unstable or client controlled | Rules miss modded containers or can be bypassed | Server-side block, menu, and registered inventory-owner resolvers with stable IDs | Resolver tests, malformed payload tests, and explain traces | Reject ambiguous rules or targets without mutating state and add a stable resolver contract |
+| Playerless automation is attributed to a player | Hoppers, pipes, or machines stop unpredictably | Require an authenticated player transaction origin | Automation matrix with nearby staged and unstaged players | Remove inferred identity and preserve the playerless path |
 | Category overlay regresses at another GUI scale | Icons appear over menu or clicks leak | Render depth and input capture tests | Scale screenshot procedure | Correct client render order and rerun CORE-REQ-006 |
 | Shared verifier remains incompatible | Release cannot be attestation verified | EXT-002 blocks Phase 005 | Release workflow failure | Remain NOT COMPLETE — EXTERNALLY BLOCKED and do not bypass validation |
 | Broker confirmation becomes stale | Wrong artifact publication | EXT-003 binds artifact identities and runbook digest | Preview hash mismatch | Stop publication and request a new scoped confirmation |
@@ -523,7 +584,7 @@ Rollout order is Phase 000 audit, sequential source changes including the issue 
 **Plan completion status:** NOT COMPLETE — EXTERNALLY BLOCKED
 
 - A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all six baseline GitHub issues are closed with merged-revision acceptance evidence.
-- Every CORE-REQ-001 through CORE-REQ-011 acceptance criterion and required evidence gate passes at the defined fidelity
+- Every CORE-REQ-001 through CORE-REQ-012 acceptance criterion and required evidence gate passes at the defined fidelity
 - The final JAR, SHA-256, SHA-512, SBOM, source manifest, signed integration, signed tag, and attestation evidence identify the same release artifact
 - `Corrected MCEnvision shared release-validation workflow revision` is complete and demonstrates compatible attestation verification under EXT-002
 - `Owner-approved platform publication confirmation for the final 3.0.4 artifact` is complete and binds the final publication under EXT-003
@@ -532,12 +593,12 @@ Rollout order is Phase 000 audit, sequential source changes including the issue 
 
 ## 19. Goal Creator Handoff
 
-Mandatory boundary: Resolve only issues #8, #10, #11, #16, #24, and #25 plus previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit
+Mandatory boundary: Resolve issues #8, #10, #11, #16, #24, and #25, implement the explicit CORE-REQ-012 inventory insertion feature, and correct previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit. Do not count CORE-REQ-012 as a seventh issue.
 Optional/future disposition: excluded
-Locked owner decisions: DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006
+Locked owner decisions: DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007
 Active phase: CORE-PHASE-000
-Next executable action: Freeze the six issue reproductions and advertised capability audit against commit 6ff75bb9479bb69f4c38a459e4ee6fe2e8aae79e
+Next executable action: Freeze the six issue reproductions, advertised capability audit, and CORE-REQ-012 interaction, menu, editor, catalog, and test seams against commit f6ceb9b49fda8b3cf764706bb1e5113b75383ebb
 Known failing checks: GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined; issue #25 reports that the Easy Builder emits `[recipes].locked`, which does not activate the intended canonical `[recipes].locked_items` rule
 Known external blockers: Corrected MCEnvision shared release-validation workflow revision under EXT-002 and Owner-approved platform publication confirmation for the final 3.0.4 artifact under EXT-003
 Completion endpoint: A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all six baseline GitHub issues are closed with merged-revision acceptance evidence.
-Required evidence gates: CORE-REQ-001 audit matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-011 visual-form-to-runtime recipe-lock proof with preservation and rollback evidence, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, downloaded artifact hashes, and six issue closure packets
+Required evidence gates: CORE-REQ-001 audit and inventory-interaction seam matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-011 visual-form-to-runtime recipe-lock proof with preservation and rollback evidence, CORE-REQ-012 two-selector schema, Easy Builder, destination resolver, click-path, transaction-conservation, automation, multiplayer, reload, custom-menu, diagnostics, documentation, and final-JAR proof, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, downloaded artifact hashes, and six issue closure packets

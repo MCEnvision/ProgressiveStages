@@ -162,6 +162,10 @@ public final class Schema4StageCompiler {
             int selectorIndex = 0;
             for (Map.Entry<String, Object> target : targets.entrySet()) {
                 String category = singularCategory(target.getKey());
+                String action = String.valueOf(entry.getOrDefault("action", defaultAction(category)));
+                if ("recipes".equals(category) && "craft".equals(action)) {
+                    throw new IllegalArgumentException("rules.targets.recipes cannot create recipe output locks. Use [recipes].locked_items for output items or [recipes].locked_ids for exact recipe identifiers.");
+                }
                 for (String raw : strings(target.getValue())) {
                     SelectorSpec selector = SelectorSpec.parse(raw).orElseThrow(() ->
                         new IllegalArgumentException("Invalid rule selector. " + raw));
@@ -170,7 +174,7 @@ public final class Schema4StageCompiler {
                     ResourceLocation id = selectorIndex == 0 && totalTargetCount(targets) == 1
                         ? baseId : childId(baseId, "target/" + selectorIndex);
                     output.add(new CompiledRule(id, stage.getId(), category,
-                        String.valueOf(entry.getOrDefault("action", defaultAction(category))), effect,
+                        action, effect,
                         selector, priority.value(), lifetime, condition, parent,
                         viewerPolicy(entry), settings(entry), provenance(stage, key, Integer.toString(ruleIndex))));
                     selectorIndex++;

@@ -32,6 +32,7 @@ interface RuleDraft {
   count: number;
   exception: string;
   exceptionPriority: number;
+  recipeKind: "output" | "identifier";
 }
 
 function effectLabel(category: string, effect: string, action = ""): string {
@@ -76,6 +77,17 @@ function replaceRuleGroup(text: string, table: "rules" | "temporary_rules", inde
 }
 
 function removeClassicRule(text: string, rule: RuleModel): string {
+  if (rule.table === "recipe_items" || rule.table === "recipe_ids") {
+    const field = rule.table === "recipe_items" ? "locked_items" : "locked_ids";
+    const path = `recipes.${field}`;
+    const values = parseSimpleArray(readTomlValue(text, path));
+    const index = values.findIndex(value => value.replace(/\|priority=-?\d+$/, "") === rule.selector);
+    if (index >= 0) {
+      values.splice(index, 1);
+      return upsertToml(text, path, values);
+    }
+    return text;
+  }
   for (const field of ["locked", "allowed", "always_unlocked"]) {
     const path = `${rule.category}.${field}`;
     const values = parseSimpleArray(readTomlValue(text, path));
@@ -86,6 +98,31 @@ function removeClassicRule(text: string, rule: RuleModel): string {
     }
   }
   return text;
+}
+
+function canonicalRecipeField(recipeKind: RuleDraft["recipeKind"]): "locked_items" | "locked_ids" {
+  return recipeKind === "output" ? "locked_items" : "locked_ids";
+}
+
+function canonicalRecipeSelector(draft: RuleDraft): string {
+  const selector = draft.recipeKind === "identifier" ? draft.selector.replace(/^id:/, "").trim() : draft.selector.trim();
+  return `${selector}|priority=${draft.priority}`;
+}
+
+function saveCanonicalRecipeRule(text: string, draft: RuleDraft, previous?: RuleModel): string {
+  let updated = text;
+  if (previous) {
+    if (previous.table === "recipe_items" || previous.table === "recipe_ids" || previous.table === "classic") {
+      updated = removeClassicRule(updated, previous);
+    } else {
+      updated = replaceRuleGroup(updated, previous.table, previous.tableIndex, null);
+    }
+  }
+  const path = `recipes.${canonicalRecipeField(draft.recipeKind)}`;
+  const values = parseSimpleArray(readTomlValue(updated, path));
+  const selector = canonicalRecipeSelector(draft);
+  if (!values.includes(selector)) values.push(selector);
+  return upsertToml(updated, path, values);
 }
 
 function serializeRule(stage: StagePackage, draft: RuleDraft, table: "rules" | "temporary_rules", previous?: RuleModel): string {
@@ -130,31 +167,44 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     conditionTarget: rule?.conditionTarget || "",
     count: rule?.count || 1,
     exception: rule?.exception || "",
-    exceptionPriority: rule?.exceptionPriority || (rule?.priority ?? 100) + 1
+    exceptionPriority: rule?.exceptionPriority || (rule?.priority ?? 100) + 1,
+    recipeKind: rule?.recipeKind || "output"
   });
   const update = <K extends keyof RuleDraft>(key: K, value: RuleDraft[K]) => setDraft(current => ({ ...current, [key]: value }));
   const category = CATEGORIES[draft.category];
   const condition = CONDITIONS.find(entry => entry.id === draft.conditionType);
   const temporary = draft.lifetime !== "permanent" || draft.conditionType !== "none";
   const selectsEverything = draft.mode === "all";
+  const canonicalRecipe = draft.category === "recipes" && draft.action === "craft"
+    && draft.effect === "lock" && !temporary;
+  const targetCatalog = canonicalRecipe
+    ? draft.recipeKind === "output" ? "items" : "recipes"
+    : category.catalog;
+  const targetLabel = canonicalRecipe
+    ? draft.recipeKind === "output" ? "Recipe output item" : "Exact recipe identifier"
+    : "Selected target";
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!draft.selector) return;
     let content = boot?.draft.files[stage.rulesPath] || "";
-    const table: "rules" | "temporary_rules" = temporary ? "temporary_rules" : "rules";
-    const block = serializeRule(stage, draft, table, rule);
-    if (rule?.table === "classic") content = removeClassicRule(content, rule);
-    else if (rule && rule.table !== table) {
-      content = replaceRuleGroup(content, rule.table as "rules" | "temporary_rules", rule.tableIndex, null);
-      content = appendTomlBlock(content, block);
-    } else if (rule) content = replaceRuleGroup(content, table, rule.tableIndex, block);
-    else if (stage.legacy) {
-      if (temporary) throw new Error("Temporary rules need a three file stage package.");
-      const field = ["allow", "unlock"].includes(draft.effect) ? "always_unlocked" : "locked";
-      const values = parseSimpleArray(readTomlValue(content, `${draft.category}.${field}`));
-      values.push(`${draft.selector}${draft.priority ? `|priority=${draft.priority}` : ""}`);
-      content = upsertToml(content, `${draft.category}.${field}`, values);
-    } else content = appendTomlBlock(content, block);
+    if (canonicalRecipe) {
+      content = saveCanonicalRecipeRule(content, draft, rule);
+    } else {
+      const table: "rules" | "temporary_rules" = temporary ? "temporary_rules" : "rules";
+      const block = serializeRule(stage, draft, table, rule);
+      if (rule?.table === "classic" || rule?.table === "recipe_items" || rule?.table === "recipe_ids") content = removeClassicRule(content, rule);
+      else if (rule && rule.table !== table) {
+        content = replaceRuleGroup(content, rule.table as "rules" | "temporary_rules", rule.tableIndex, null);
+        content = appendTomlBlock(content, block);
+      } else if (rule) content = replaceRuleGroup(content, table, rule.tableIndex, block);
+      else if (stage.legacy) {
+        if (temporary) throw new Error("Temporary rules need a three file stage package.");
+        const field = ["allow", "unlock"].includes(draft.effect) ? "always_unlocked" : "locked";
+        const values = parseSimpleArray(readTomlValue(content, `${draft.category}.${field}`));
+        values.push(`${draft.selector}${draft.priority ? `|priority=${draft.priority}` : ""}`);
+        content = upsertToml(content, `${draft.category}.${field}`, values);
+      } else content = appendTomlBlock(content, block);
+    }
     await mutateFile(stage.rulesPath, content, "Rule saved to the draft");
     closeDialog();
   };
@@ -163,19 +213,20 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     <div className="form-grid">
       <Field label="Rule category"><select value={draft.category} onChange={event => {
         const next = event.target.value;
-        setDraft(current => ({ ...current, category: next, action: CATEGORIES[next].actions[0], selector: current.mode === "all" ? "all:*" : "" }));
+        setDraft(current => ({ ...current, category: next, action: CATEGORIES[next].actions[0], effect: next === "recipes" ? "lock" : current.effect, selector: current.mode === "all" ? "all:*" : "" }));
       }}>{Object.entries(CATEGORIES).map(([id, value]) => <option key={id} value={id}>{value.label}</option>)}</select></Field>
       <Field label="Player action"><select value={draft.action} onChange={event => update("action", event.target.value)}>{category.actions.map(action => <option key={action} value={action}>{ACTION_LABELS[action] || title(action)}</option>)}</select></Field>
-      <Field label="Result"><select value={draft.effect} onChange={event => update("effect", event.target.value)}>{EFFECTS.filter(effect => effect.value !== "replace" || ["mobs", "ores"].includes(draft.category)).filter(effect => effect.value !== "present" || ["recipes", "advancements", "ores"].includes(draft.category)).map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
+      <Field label="Result"><select value={draft.effect} onChange={event => update("effect", event.target.value)}>{(draft.category === "recipes" && draft.action === "craft" ? EFFECTS.filter(effect => effect.value === "lock") : EFFECTS.filter(effect => effect.value !== "replace" || ["mobs", "ores"].includes(draft.category)).filter(effect => effect.value !== "present" || ["recipes", "advancements", "ores"].includes(draft.category))).map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
       <Field label="Priority" help="A larger number wins when rules overlap."><input type="number" value={draft.priority} onChange={event => update("priority", Number(event.target.value))}/></Field>
     </div>
     <section className="dialog-section"><header><span className="step-number">1</span><div><h3>Choose the target</h3><p>The registry only shows content valid for {category.label.toLowerCase()}.</p></div></header><div className="form-grid">
-      <Field label="Selection method"><select value={draft.mode} onChange={event => {
+      {canonicalRecipe ? <Field label="Recipe lock kind" help="Output locks use item selectors. Identifier locks name one exact recipe."><select value={draft.recipeKind} onChange={event => setDraft(current => ({ ...current, recipeKind: event.target.value as RuleDraft["recipeKind"], mode: event.target.value === "identifier" ? "id" : current.mode, selector: "" }))}><option value="output">Recipe output item</option><option value="identifier">Exact recipe identifier</option></select></Field> : null}
+      {canonicalRecipe && draft.recipeKind === "identifier" ? null : <Field label="Selection method"><select value={draft.mode} onChange={event => {
         const mode = event.target.value;
         setDraft(current => ({ ...current, mode, selector: mode === "all" ? "all:*" : current.mode === "all" ? "" : current.selector }));
-      }}><option value="all">Everything in this category</option><option value="id">One exact identifier</option><option value="mod">Everything from a mod</option><option value="tag">Everything in a tag</option><option value="name">Anything with a matching name</option></select></Field>
-      <Field label="Selected target" help={selectsEverything ? `This matches every registered ${category.label.toLowerCase()}. Add a higher priority exception to allow selected content.` : undefined}><input value={draft.selector} onChange={event => update("selector", event.target.value)} placeholder="id:minecraft:diamond_sword" readOnly={selectsEverything} required/></Field>
-      {!selectsEverything ? <div className="field-wide"><InlineCatalogSearch catalogId={category.catalog} mode={draft.mode} onPick={value => update("selector", value)}/></div> : null}
+      }}><option value="all">Everything in this category</option><option value="id">One exact identifier</option><option value="mod">Everything from a mod</option><option value="tag">Everything in a tag</option><option value="name">Anything with a matching name</option></select></Field>}
+      <Field label={targetLabel} help={selectsEverything ? `This matches every registered ${canonicalRecipe && draft.recipeKind === "output" ? "recipe output item" : category.label.toLowerCase()}. Add a higher priority exception to allow selected content.` : undefined}><input value={draft.selector} onChange={event => update("selector", event.target.value)} placeholder={canonicalRecipe && draft.recipeKind === "identifier" ? "minecraft:diamond_sword" : "id:minecraft:diamond_sword"} readOnly={selectsEverything} required/></Field>
+      {!selectsEverything ? <div className="field-wide"><InlineCatalogSearch catalogId={targetCatalog} mode={canonicalRecipe && draft.recipeKind === "identifier" ? "id" : draft.mode} onPick={value => update("selector", canonicalRecipe && draft.recipeKind === "identifier" ? value.replace(/^id:/, "") : value)}/></div> : null}
     </div></section>
     <section className="dialog-section"><header><span className="step-number">2</span><div><h3>Choose when it participates</h3><p>Permanent rules follow stage ownership. Conditional rules can follow locations, events, sessions, and scripts.</p></div></header><div className="form-grid">
       <Field label="Activation condition"><select value={draft.conditionType} onChange={event => update("conditionType", event.target.value)}>{CONDITIONS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></Field>
@@ -287,12 +338,12 @@ export function RulesPanel({ stage }: { stage: StagePackage }) {
   });
   const remove = (rule: RuleModel) => openDialog({ title: "Remove rule", description: "This change remains undoable until it is applied.", content: <div className="confirmation"><p>Remove the rule for <code>{rule.selector}</code> from this stage.</p><footer className="dialog-actions"><Button tone="quiet" onClick={closeDialog}>Keep rule</Button><Button tone="danger" onClick={async () => {
     let updated = content;
-    if (rule.table === "classic") updated = removeClassicRule(content, rule);
+    if (rule.table === "classic" || rule.table === "recipe_items" || rule.table === "recipe_ids") updated = removeClassicRule(content, rule);
     else updated = replaceRuleGroup(content, rule.table, rule.tableIndex, null);
     await mutateFile(stage.rulesPath, updated, "The rule was removed"); closeDialog();
   }}>Remove rule</Button></footer></div>, width: "compact" });
   const move = async (rule: RuleModel, direction: number) => {
-    if (rule.table === "classic") return;
+    if (rule.table === "classic" || rule.table === "recipe_items" || rule.table === "recipe_ids") return;
     const groups = ruleGroups(content, rule.table);
     const target = rule.tableIndex + direction;
     if (target < 0 || target >= groups.length) return;

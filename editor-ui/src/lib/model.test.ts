@@ -33,6 +33,12 @@ describe("react editor stage models", () => {
     expect(progressionModels(files["stages/mage/progression.toml"])[0]).toMatchObject({ kind: "grants", conditionType: "advancement", conditionTarget: "minecraft:story/enchant_item" });
   });
 
+  it("keeps recipe outputs and exact recipe identifiers as separate canonical rules", () => {
+    const rules = ruleModels(`[recipes]\nlocked_items = ["id:minecraft:diamond_sword|priority=120"]\nlocked_ids = ["minecraft:diamond_sword|priority=240"]\n`);
+    expect(rules).toContainEqual(expect.objectContaining({ table: "recipe_items", recipeKind: "output", selector: "id:minecraft:diamond_sword", priority: 120 }));
+    expect(rules).toContainEqual(expect.objectContaining({ table: "recipe_ids", recipeKind: "identifier", selector: "minecraft:diamond_sword", priority: 240 }));
+  });
+
   it("creates interchangeable namespaces without a forced pack prefix", () => {
     expect(stageIdentity("Warlock", "wizard")).toMatchObject({ id: "wizard:warlock", path: "warlock" });
   });

@@ -138,6 +138,34 @@ export function ruleModels(text: string): RuleModel[] {
       });
     }
   }
+  for (const [field, table, recipeKind] of [
+    ["locked_items", "recipe_items", "output"],
+    ["locked_ids", "recipe_ids", "identifier"]
+  ] as const) {
+    const selectors = parseSimpleArray(readTomlValue(text, `recipes.${field}`));
+    selectors.forEach((selector, selectorIndex) => {
+      const priorityMatch = selector.match(/\|priority=(-?\d+)$/);
+      models.push({
+        table,
+        tableIndex: selectorIndex,
+        category: "recipes",
+        action: "craft",
+        effect: "lock",
+        selector: selector.replace(/\|priority=-?\d+$/, ""),
+        priority: priorityMatch ? Number(priorityMatch[1]) : numberValue(readTomlValue(text, "recipes.priority")),
+        viewer: "inherit",
+        lifetime: "permanent",
+        duration: "",
+        conditionType: "none",
+        conditionTarget: "",
+        count: 1,
+        exception: "",
+        exceptionPriority: 0,
+        sourceText: selector,
+        recipeKind
+      });
+    });
+  }
   return models;
 }
 

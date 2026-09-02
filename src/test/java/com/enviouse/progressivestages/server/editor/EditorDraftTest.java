@@ -61,4 +61,32 @@ class EditorDraftTest {
         assertTrue(validation.valid(), String.join(". ", validation.errors()));
         assertEquals(1, validation.stages());
     }
+
+    @Test
+    void rejectsTheLegacyGenericRecipeRuleBeforeAnyDraftCanApply() {
+        Map<String, String> files = Map.of(
+            "stages/test/stage.toml", "[schema]\nversion = 4\n[stage]\nid = \"test:editor\"\ndisplay_name = \"Editor\"\n",
+            "stages/test/rules.toml", "[[rules]]\naction = \"craft\"\ntargets.recipes = [\"minecraft:diamond_sword\"]\n",
+            "stages/test/progression.toml", "# Progression may be empty.\n");
+
+        DraftValidation validation = EditorDraftValidator.validate(files, 3);
+
+        assertTrue(!validation.valid());
+        assertTrue(validation.errors().stream().anyMatch(error -> error.contains("[recipes].locked_items")),
+            String.join(". ", validation.errors()));
+    }
+
+    @Test
+    void rejectsTheAmbiguousRecipesLockedAliasBeforeAnyDraftCanApply() {
+        Map<String, String> files = Map.of(
+            "stages/test/stage.toml", "[schema]\nversion = 4\n[stage]\nid = \"test:editor\"\ndisplay_name = \"Editor\"\n",
+            "stages/test/rules.toml", "[recipes]\nlocked = [\"minecraft:diamond_sword\"]\n",
+            "stages/test/progression.toml", "# Progression may be empty.\n");
+
+        DraftValidation validation = EditorDraftValidator.validate(files, 3);
+
+        assertTrue(!validation.valid());
+        assertTrue(validation.errors().stream().anyMatch(error -> error.contains("[recipes].locked is ambiguous")),
+            String.join(". ", validation.errors()));
+    }
 }

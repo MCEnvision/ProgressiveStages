@@ -1074,6 +1074,9 @@ public final class StageFileParser {
 
         // recipes: two named lists
         Config recipesSection = config.get("recipes");
+        if (recipesSection != null && recipesSection.contains("locked")) {
+            throw new IllegalArgumentException("[recipes].locked is ambiguous. Use [recipes].locked_items for output items or [recipes].locked_ids for exact recipe identifiers.");
+        }
         b.recipeIds(recipesSection == null ? CategoryLocks.EMPTY
             : parseCategoryLists(recipesSection, "locked_ids", null));
         b.recipeOutputs(recipesSection == null ? CategoryLocks.EMPTY

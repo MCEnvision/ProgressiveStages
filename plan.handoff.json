@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "74e78825a3bcfd222dec37553e1a738cf22fb038e67a69c5ebc4b9320c86ecd7",
+  "planSetSha256": "015e518ba06cd6390a1e001bbc67485b68b1cc9dd369a64faf5b3f4fa59c44ee",
   "planningSubject": {
     "name": "ProgressiveStages 3.0.4 polish and stable release closure",
     "requestedArtifact": "authoritative_plan",

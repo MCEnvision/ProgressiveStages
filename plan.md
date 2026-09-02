@@ -13,16 +13,16 @@ Project: ProgressiveStages NeoForge mod
 Requested artifact: authoritative_plan
 Repository root: /tmp/ProgressiveStages-polish-plan
 Starting branch: envy/3.0.4-phase-002
-Starting commit: 244a707e4f6881118db1b72b4823fadd0486bc72
+Starting commit: 706e5cb02c4d5ffec5c51dda4749eeb1ced323a6
 Plan-authoring branch: envy/3.0.4-phase-002
-Plan-authoring commit: 244a707e4f6881118db1b72b4823fadd0486bc72
+Plan-authoring commit: 706e5cb02c4d5ffec5c51dda4749eeb1ced323a6
 Saved-goal creation checkout: envy/polish-3.0.4-plan at 5b3077764907249b3711886cca538794f6139acf
 Saved-goal checkout role: immutable creation-time provenance only; it does not select or freeze a live phase execution baseline
 Authoritative remote:
 origin
 https://github.com/MCEnvision/ProgressiveStages.git
 Remote ref: origin/envy/3.0.4-phase-002
-Remote commit: 244a707e4f6881118db1b72b4823fadd0486bc72
+Remote commit: 706e5cb02c4d5ffec5c51dda4749eeb1ced323a6
 Package metadata: mod_id progressivestages, version 3.0.3, Minecraft 1.21.1, NeoForge 21.1.219
 Target release: 3.0.4
 ```

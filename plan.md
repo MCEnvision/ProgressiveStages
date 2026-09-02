@@ -13,16 +13,16 @@ Project: ProgressiveStages NeoForge mod
 Requested artifact: authoritative_plan
 Repository root: /tmp/ProgressiveStages-polish-plan
 Starting branch: envy/3.0.4-phase-002
-Starting commit: 09b18ad5b91a8c5b59faf1d35821f5c786427b80
+Starting commit: 244a707e4f6881118db1b72b4823fadd0486bc72
 Plan-authoring branch: envy/3.0.4-phase-002
-Plan-authoring commit: 09b18ad5b91a8c5b59faf1d35821f5c786427b80
+Plan-authoring commit: 244a707e4f6881118db1b72b4823fadd0486bc72
 Saved-goal creation checkout: envy/polish-3.0.4-plan at 5b3077764907249b3711886cca538794f6139acf
 Saved-goal checkout role: immutable creation-time provenance only; it does not select or freeze a live phase execution baseline
 Authoritative remote:
 origin
 https://github.com/MCEnvision/ProgressiveStages.git
-Remote ref: untracked
-Remote commit: unavailable
+Remote ref: origin/envy/3.0.4-phase-002
+Remote commit: 244a707e4f6881118db1b72b4823fadd0486bc72
 Package metadata: mod_id progressivestages, version 3.0.3, Minecraft 1.21.1, NeoForge 21.1.219
 Target release: 3.0.4
 ```
@@ -54,7 +54,7 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 | Area | Evidence class | Finding | Evidence |
 |---|---|---|---|
 | Goal creation provenance | VERIFIED | The saved goal was created from checkout `5b3077764907249b3711886cca538794f6139acf` on `envy/polish-3.0.4-plan`. This identity is immutable provenance for goal-integrity verification, not the live Phase 000 branch or execution baseline | Saved goal and Git revision inspection recorded in §1 |
-| Phase 000 execution baseline | VERIFIED | Phase 000 completed through merge commit `dc9e154871781de262ffd5eb401d65d0fa44cefb` on `master`, with signed annotated tag `3.0.4-phase-000` verified by `git tag -v` at source revision `dc9e154871781de262ffd5eb401d65d0fa44cefb`. This frozen execution identity remains separate from saved-goal creation provenance. | Phase 000 merge record, signed tag verification, and completion evidence |
+| Phase 000 execution baseline | VERIFIED | Phase 000 completed through merge commit `dc9e154871781de262ffd5eb401d65d0fa44cefb` on `master`, with signed annotated tag `3.0.4-phase-000` verified by `git tag -v` at source revision `dc9e154871781de262ffd5eb401d65d0fa44cefb`. This frozen execution identity remains separate from saved-goal creation provenance. | Executed tag inspection for named commit `dc9e154871781de262ffd5eb401d65d0fa44cefb`, signed tag verification, and completion evidence |
 | Runtime contract | VERIFIED | The supported release target is ProgressiveStages for Minecraft 1.21.1 on NeoForge 21.1.219 | Gradle metadata and mod metadata inspection described by SRC-003 |
 | Issue baseline | VERIFIED | The active issue baseline is exactly `#8`, `#10`, `#11`, `#16`, `#24`, and `#25` | GitHub issue inspection in SRC-004 and SRC-008 |
 | Entity presence cost | OBSERVED | The reported hotspot constructs Minecraft rule context through the entity tracking decision path | Spark profile and configuration in SRC-006 |

@@ -1,0 +1,541 @@
+{
+  "schemaVersion": 2,
+  "planId": "PLAN-MASTER",
+  "planSetSha256": "f3208a4e2579fe04efde5ded1b5d31e3397bff5d90ca3e52eb0e8fc4d0c92b72",
+  "planningSubject": {
+    "name": "ProgressiveStages 3.0.4 polish and release closure",
+    "requestedArtifact": "authoritative_plan",
+    "planProfile": "software_product",
+    "sources": [
+      {
+        "id": "SRC-001",
+        "role": "owner_request",
+        "subject": "bounded 3.0.4 polish plan for active issues and missing advertised capabilities",
+        "source": "EnVy direct Plan Creator invocation and locked answers on 2026-09-01",
+        "use": "defines completion endpoint, issue scope, feature-completeness boundary, recipe-viewer behavior, and performance gate"
+      },
+      {
+        "id": "SRC-002",
+        "role": "existing_plan",
+        "subject": "legacy ProgressiveStages roadmap",
+        "source": "/tmp/ProgressiveStages-polish-plan/plan.md at origin/master ab4ad138e1f74eec82cf0392a47ac1e54dd66d01",
+        "use": "migration source and deferred historical scope"
+      },
+      {
+        "id": "SRC-003",
+        "role": "repository_evidence",
+        "subject": "current ProgressiveStages implementation, documented 3.0.3 contract, build metadata, tests, and workflows",
+        "source": "README.md, DOCUMENTATION.md, ARCHITECTURE.md, TESTING.md, Gradle metadata, source, tests, and workflows on origin/master",
+        "use": "establishes supported platform, public behavior, architecture, and verification boundaries"
+      },
+      {
+        "id": "SRC-004",
+        "role": "review_feedback",
+        "subject": "open defect reports",
+        "source": "GitHub issues #8, #10, #11, #16, and #24 on MCEnvision/ProgressiveStages",
+        "use": "defines mandatory defect outcomes and reproduction evidence"
+      },
+      {
+        "id": "SRC-005",
+        "role": "status",
+        "subject": "release and continuous integration state",
+        "source": "origin/master, v3.0.3 release history, open Dependabot PR #19, and successful master quality workflow",
+        "use": "distinguishes release quality evidence from optional dependency maintenance"
+      },
+      {
+        "id": "SRC-006",
+        "role": "audit_evidence",
+        "subject": "issue #24 Spark profile and configuration",
+        "source": "GitHub issue #24 attachment and report",
+        "use": "establishes entity-presence context construction as the performance hotspot"
+      },
+      {
+        "id": "SRC-007",
+        "role": "audit_evidence",
+        "subject": "failed v3.0.3 release validation",
+        "source": "GitHub Actions run 31453460136, job 93662356066",
+        "use": "establishes the shared attestation-verification workflow as a release prerequisite"
+      }
+    ]
+  },
+  "profileContract": [
+    {
+      "area": "Component architecture",
+      "status": "covered",
+      "source": "SRC-003",
+      "plan_section": "Architecture and Ownership Boundaries",
+      "rationale": "The plan must preserve server-authoritative rules, client presentation, optional integration isolation, and editor bundle boundaries."
+    },
+    {
+      "area": "Determinism",
+      "status": "covered",
+      "source": "SRC-006",
+      "plan_section": "Architecture and Ownership Boundaries",
+      "rationale": "Rule snapshot revision and player-relevant state must determine cached presence decisions and invalidation."
+    },
+    {
+      "area": "Failure taxonomy",
+      "status": "covered",
+      "source": "SRC-004",
+      "plan_section": "Risks and Failure Boundaries",
+      "rationale": "Reported defects span performance, optional integration absence, artifact drift, GUI depth, and release automation failure."
+    },
+    {
+      "area": "Generalization",
+      "status": "covered",
+      "source": "SRC-003",
+      "plan_section": "Compatibility, Migration, Rollout, and Recovery",
+      "rationale": "Fixes must work for integrated and dedicated servers, solo and mixed multiplayer ownership, and optional-mod combinations."
+    },
+    {
+      "area": "Inputs and outputs",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Product Contract and Requirements",
+      "rationale": "Stage files, commands, APIs, GUI, editor, optional integrations, and release artifacts are public product surfaces."
+    },
+    {
+      "area": "Release lifecycle",
+      "status": "external_prerequisite",
+      "source": "EXT-002",
+      "plan_section": "Documentation, Operations, and Release Gates",
+      "rationale": "The current shared attestation verifier fails and must be repaired upstream before 3.0.4 publication."
+    },
+    {
+      "area": "Security",
+      "status": "covered",
+      "source": "SRC-003",
+      "plan_section": "Architecture and Ownership Boundaries",
+      "rationale": "Editor authority, client packets, optional reflection, release provenance, and no-secret handling remain mandatory."
+    },
+    {
+      "area": "State and persistence",
+      "status": "covered",
+      "source": "SRC-003",
+      "plan_section": "Architecture and Ownership Boundaries",
+      "rationale": "Stage ownership, condition contexts, caches, server snapshots, and configuration must remain compatible."
+    },
+    {
+      "area": "Test system",
+      "status": "covered",
+      "source": "SRC-004",
+      "plan_section": "Verification Strategy",
+      "rationale": "Every issue requires focused regression evidence plus integrated, multiplayer, optional-mod, performance, and artifact proof."
+    },
+    {
+      "area": "Versioning",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Compatibility, Migration, Rollout, and Recovery",
+      "rationale": "The endpoint is a compatible 3.0.4 patch without platform or schema upgrades."
+    }
+  ],
+  "mandatoryRequirements": [
+    {
+      "id": "CORE-REQ-001",
+      "summary": "Freeze and reproduce or artifact-verify the five baseline reports, including stale tracking reports.",
+      "source": "SRC-004",
+      "owner": "RepositoryAudit",
+      "contributors": "IssueTracker",
+      "dependencies": [],
+      "lifecycleStage": "readiness",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-000"
+    },
+    {
+      "id": "CORE-REQ-002",
+      "summary": "Repair entity-presence performance without changing multiplayer visibility, spawning, targeting, or lifecycle semantics.",
+      "source": "SRC-006",
+      "owner": "EntityPresenceEnforcer",
+      "contributors": "CompiledRuleEngine, MinecraftConditionContextFactory",
+      "dependencies": [
+        "CORE-REQ-001"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-001"
+    },
+    {
+      "id": "CORE-REQ-003",
+      "summary": "Restore Curios slot gating with version-tolerant API resolution and absent-mod safety.",
+      "source": "SRC-004",
+      "owner": "CuriosBridge",
+      "contributors": "InventoryEnforcement",
+      "dependencies": [
+        "CORE-REQ-001",
+        "EXT-001"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-002"
+    },
+    {
+      "id": "CORE-REQ-004",
+      "summary": "Make JEI and EMI independently configurable, optional, and simultaneously functional.",
+      "source": "SRC-004",
+      "owner": "RecipeViewerBridge",
+      "contributors": "JeIAdapter, EmiAdapter",
+      "dependencies": [
+        "CORE-REQ-001",
+        "EXT-001"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-002"
+    },
+    {
+      "id": "CORE-REQ-005",
+      "summary": "Verify or repair published Easy Builder enchantment controls in the production editor bundle and final JAR.",
+      "source": "SRC-004",
+      "owner": "EasyBuilder",
+      "contributors": "EnchantmentCompiler",
+      "dependencies": [
+        "CORE-REQ-001"
+      ],
+      "lifecycleStage": "post_change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-003"
+    },
+    {
+      "id": "CORE-REQ-006",
+      "summary": "Verify or repair category menu depth in the in-game progression map without regressions to navigation and inspector behavior.",
+      "source": "SRC-004",
+      "owner": "StageTreeScreen",
+      "contributors": "ClientRenderTests",
+      "dependencies": [
+        "CORE-REQ-001"
+      ],
+      "lifecycleStage": "post_change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-003"
+    },
+    {
+      "id": "CORE-REQ-007",
+      "summary": "Implement any previously advertised 3.0.3 user-visible capability that the polish matrix proves missing from a shipped artifact.",
+      "source": "SRC-001",
+      "owner": "ArtifactParity",
+      "contributors": "Documentation",
+      "dependencies": [
+        "CORE-REQ-001"
+      ],
+      "lifecycleStage": "post_change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-003"
+    },
+    {
+      "id": "CORE-REQ-008",
+      "summary": "Preserve supported configuration, stage schema, saved data, commands, APIs, and multiplayer compatibility.",
+      "source": "SRC-003",
+      "owner": "CompatibilityHarness",
+      "contributors": "NetworkValidation, ConfigurationSchema",
+      "dependencies": [
+        "CORE-REQ-002",
+        "CORE-REQ-003",
+        "CORE-REQ-004",
+        "CORE-REQ-005",
+        "CORE-REQ-006",
+        "CORE-REQ-007"
+      ],
+      "lifecycleStage": "continuous",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-004"
+    },
+    {
+      "id": "CORE-REQ-009",
+      "summary": "Repair and prove the shared release attestation verifier for the 3.0.4 release artifact.",
+      "source": "SRC-007",
+      "owner": "ReleaseValidation",
+      "contributors": "SharedWorkflow",
+      "dependencies": [
+        "CORE-REQ-008",
+        "EXT-002"
+      ],
+      "lifecycleStage": "post_change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-005"
+    },
+    {
+      "id": "CORE-REQ-010",
+      "summary": "Build, integrate, attest, document, publish, and verify 3.0.4, then close the five baseline issues with evidence.",
+      "source": "SRC-001",
+      "owner": "ReleaseBroker",
+      "contributors": "ReleaseDocumentation",
+      "dependencies": [
+        "CORE-REQ-009",
+        "EXT-003"
+      ],
+      "lifecycleStage": "post_change",
+      "productionVerification": "nondestructive",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-006"
+    }
+  ],
+  "optionalFutureScope": [
+    {
+      "id": "FUT-001",
+      "summary": "The legacy roadmap's unimplemented feature phases beyond advertised 3.0.3 behavior.",
+      "source": "SRC-002",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-002",
+      "summary": "Dependabot pull request #19 unless it becomes security or compatibility blocking evidence.",
+      "source": "SRC-005",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-003",
+      "summary": "New feature requests opened after the five-issue audit baseline.",
+      "source": "SRC-001",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-004",
+      "summary": "Minecraft, NeoForge, Java, Gradle, or mapping upgrades.",
+      "source": "SRC-003",
+      "disposition": "excluded"
+    }
+  ],
+  "nonGoals": [
+    {
+      "id": "NG-001",
+      "summary": "No unscoped progression redesign, schema overhaul, or new lock category.",
+      "source": "SRC-001"
+    },
+    {
+      "id": "NG-002",
+      "summary": "No hard dependency on Curios, JEI, EMI, or another optional integration.",
+      "source": "SRC-003"
+    },
+    {
+      "id": "NG-003",
+      "summary": "No full registry, stage, or entity scan in server tick or render hot paths.",
+      "source": "SRC-006"
+    },
+    {
+      "id": "NG-004",
+      "summary": "No issue closure based only on source presence, prior release notes, or lower-fidelity checks.",
+      "source": "SRC-004"
+    }
+  ],
+  "ownerDecisions": [
+    {
+      "id": "DEC-001",
+      "question": "What completion endpoint closes this polish plan?",
+      "selectedChoice": "Publish ProgressiveStages 3.0.4 to CurseForge and Modrinth after verified master integration.",
+      "rationale": "The owner selected a public patch release with verified integration",
+      "affectedRequirements": [
+        "CORE-REQ-009",
+        "CORE-REQ-010"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-002",
+      "question": "What scope is mandatory beyond the five active issue reports?",
+      "selectedChoice": "Implement previously advertised or documented 3.0.3 capability if a polish audit proves it missing. Exclude novel unpromised product features.",
+      "rationale": "The polish matrix controls completeness without expanding the product roadmap",
+      "affectedRequirements": [
+        "CORE-REQ-001",
+        "CORE-REQ-007"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-003",
+      "question": "How do optional recipe viewers operate?",
+      "selectedChoice": "JEI and EMI have independent enabled settings, default enabled, and both work concurrently when installed.",
+      "rationale": "Mixed client installations require independent optional viewer controls",
+      "affectedRequirements": [
+        "CORE-REQ-004"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-004",
+      "question": "What performance gate protects entity presence rules?",
+      "selectedChoice": "Use the approved per-player-per-tick context, no per-entity rebuild, under-five-percent sampled work, and at-most-ten-percent p95 MSPT regression thresholds.",
+      "rationale": "The lag correction needs fixed correctness and performance limits",
+      "affectedRequirements": [
+        "CORE-REQ-002"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-005",
+      "question": "Does the shared release validation failure block the selected endpoint?",
+      "selectedChoice": "Yes. Repair and verification of the shared attestation workflow are mandatory before 3.0.4 publication.",
+      "rationale": "Release evidence must be verified by the supported shared workflow",
+      "affectedRequirements": [
+        "CORE-REQ-009",
+        "CORE-REQ-010"
+      ],
+      "supersedes": []
+    }
+  ],
+  "externalPrerequisites": [
+    {
+      "id": "EXT-001",
+      "name": "Public Curios, JEI, and EMI test artifacts for Minecraft 1.21.1 and NeoForge 21.1.219",
+      "affected_requirements": [
+        "CORE-REQ-003",
+        "CORE-REQ-004"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "not_required",
+      "blocked_plan_approved": false,
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ],
+      "required_evidence": [
+        "Resolved dependency coordinates, artifact checksums, compatibility evidence, license or provenance review, and runtime matrix execution."
+      ]
+    },
+    {
+      "id": "EXT-002",
+      "name": "Corrected MCEnvision shared release-validation workflow revision",
+      "affected_requirements": [
+        "CORE-REQ-009",
+        "CORE-REQ-010"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "other",
+      "availability": "unavailable",
+      "authorization": "unknown",
+      "blocked_plan_approved": true,
+      "required_evidence": [
+        "A merged shared-workflow revision that verifies both build provenance and SBOM attestations using compatible GitHub CLI flags, plus a successful reusable workflow run on a disposable release candidate."
+      ]
+    },
+    {
+      "id": "EXT-003",
+      "name": "Owner-approved platform publication confirmation for the final 3.0.4 artifact",
+      "affected_requirements": [
+        "CORE-REQ-010"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "authorization",
+      "availability": "unknown",
+      "authorization": "not_authorized",
+      "blocked_plan_approved": true,
+      "scope_binding": [
+        "artifact_identities",
+        "operations",
+        "operators",
+        "rollback",
+        "runbook_digest",
+        "systems",
+        "time_window"
+      ],
+      "required_evidence": [
+        "Confirmation bound to final artifact SHA-256 and SHA-512, source commit, target platforms, allowed publication operation, operator, time window, and rollback or unpublish policy."
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "CORE-PHASE-000",
+      "owner": "RepositoryAudit",
+      "dependencies": [],
+      "canonicalRequirements": [
+        "CORE-REQ-001"
+      ]
+    },
+    {
+      "id": "CORE-PHASE-001",
+      "owner": "EntityPresenceEnforcer",
+      "dependencies": [
+        "CORE-PHASE-000"
+      ],
+      "canonicalRequirements": [
+        "CORE-REQ-002"
+      ]
+    },
+    {
+      "id": "CORE-PHASE-002",
+      "owner": "OptionalIntegrations",
+      "dependencies": [
+        "CORE-PHASE-000",
+        "EXT-001"
+      ],
+      "canonicalRequirements": [
+        "CORE-REQ-003",
+        "CORE-REQ-004"
+      ]
+    },
+    {
+      "id": "CORE-PHASE-003",
+      "owner": "EasyBuilder",
+      "dependencies": [
+        "CORE-PHASE-000"
+      ],
+      "canonicalRequirements": [
+        "CORE-REQ-005",
+        "CORE-REQ-006",
+        "CORE-REQ-007"
+      ]
+    },
+    {
+      "id": "CORE-PHASE-004",
+      "owner": "CompatibilityHarness",
+      "dependencies": [
+        "CORE-PHASE-001",
+        "CORE-PHASE-002",
+        "CORE-PHASE-003"
+      ],
+      "canonicalRequirements": [
+        "CORE-REQ-008"
+      ]
+    },
+    {
+      "id": "CORE-PHASE-005",
+      "owner": "ReleaseValidation",
+      "dependencies": [
+        "CORE-PHASE-004",
+        "EXT-002"
+      ],
+      "canonicalRequirements": [
+        "CORE-REQ-009"
+      ]
+    },
+    {
+      "id": "CORE-PHASE-006",
+      "owner": "ReleaseBroker",
+      "dependencies": [
+        "CORE-PHASE-005",
+        "EXT-003"
+      ],
+      "canonicalRequirements": [
+        "CORE-REQ-010"
+      ]
+    }
+  ],
+  "completionEndpoint": "A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all five baseline GitHub issues are closed with merged-revision acceptance evidence.",
+  "goalCreator": {
+    "mandatoryBoundary": "Resolve only issues #8, #10, #11, #16, and #24 plus previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit",
+    "optionalFutureDisposition": "excluded",
+    "lockedOwnerDecisions": "DEC-001, DEC-002, DEC-003, DEC-004, DEC-005",
+    "activePhase": "CORE-PHASE-000",
+    "nextExecutableAction": "Author phases/plan-phase-000.md and freeze the five issue reproductions and advertised capability audit against commit ab4ad138e1f74eec82cf0392a47ac1e54dd66d01",
+    "knownFailingChecks": "GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined",
+    "knownExternalBlockers": "Corrected MCEnvision shared release-validation workflow revision under EXT-002 and Owner-approved platform publication confirmation for the final 3.0.4 artifact under EXT-003",
+    "requiredEvidenceGates": "CORE-REQ-001 audit matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, and downloaded artifact hashes"
+  }
+}

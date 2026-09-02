@@ -40,6 +40,13 @@ public class ClientLockCache {
     private static final Map<ResourceLocation, java.util.Set<StageId>> recipeItemMultiLocks = new ConcurrentHashMap<>();
     /** v3.0: entity id → gating stages (for the Jade/WTHIT overlay on locked mobs). */
     private static final Map<ResourceLocation, java.util.Set<StageId>> entityMultiLocks = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, java.util.Set<StageId>> emiViewerItemMultiLocks = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, java.util.Set<StageId>> jeiViewerItemMultiLocks = new ConcurrentHashMap<>();
+    /**
+     * Items that JEI has hidden during this client session. A later stage grant removes the
+     * active viewer lock, but JEI still needs the former item id to add the item back at runtime.
+     */
+    private static final java.util.Set<ResourceLocation> jeiViewerItemCandidates = ConcurrentHashMap.newKeySet();
 
     private static <K> Map<K, java.util.Set<StageId>> copyMultiLocks(
             Map<K, java.util.Set<StageId>> locks) {
@@ -130,6 +137,31 @@ public class ClientLockCache {
         Map<ResourceLocation, java.util.Set<StageId>> copy = copyMultiLocks(locks);
         itemMultiLocks.clear();
         itemMultiLocks.putAll(copy);
+    }
+
+    public static void setEmiViewerItemLocks(Map<ResourceLocation, java.util.Set<StageId>> locks) {
+        setViewerItemLocks(emiViewerItemMultiLocks, locks);
+    }
+
+    public static void setJeiViewerItemLocks(Map<ResourceLocation, java.util.Set<StageId>> locks) {
+        Map<ResourceLocation, java.util.Set<StageId>> copy = copyMultiLocks(locks);
+        boolean candidatesChanged = jeiViewerItemCandidates.addAll(copy.keySet());
+        setViewerItemLocks(jeiViewerItemMultiLocks, copy, candidatesChanged);
+    }
+
+    private static void setViewerItemLocks(Map<ResourceLocation, java.util.Set<StageId>> destination,
+                                           Map<ResourceLocation, java.util.Set<StageId>> locks) {
+        setViewerItemLocks(destination, locks, false);
+    }
+
+    private static void setViewerItemLocks(Map<ResourceLocation, java.util.Set<StageId>> destination,
+                                           Map<ResourceLocation, java.util.Set<StageId>> locks,
+                                           boolean candidatesChanged) {
+        Map<ResourceLocation, java.util.Set<StageId>> copy = copyMultiLocks(locks);
+        boolean changed = candidatesChanged || !destination.equals(copy);
+        destination.clear();
+        destination.putAll(copy);
+        if (changed) triggerEmiReload();
     }
 
     public static void setBlockMultiLocks(Map<ResourceLocation, java.util.Set<StageId>> locks) {
@@ -230,8 +262,71 @@ public class ClientLockCache {
     /** v2.0: true iff the player owns ALL gating stages for the item. */
     public static boolean playerOwnsAllStagesFor(ResourceLocation itemId) {
         java.util.Set<StageId> gating = getRequiredStagesForItem(itemId);
+        return playerOwnsAll(gating);
+    }
+
+    public static boolean isItemHiddenInEmi(ResourceLocation itemId) {
+        return !playerOwnsAllStagesFor(itemId) || !playerOwnsAll(emiViewerStages(itemId));
+    }
+
+    public static boolean isItemHiddenInJei(ResourceLocation itemId) {
+        return !playerOwnsAllStagesFor(itemId) || !playerOwnsAll(jeiViewerStages(itemId));
+    }
+
+    public static java.util.Set<ResourceLocation> getEmiViewerItemIds() {
+        return viewerItemIds(emiViewerItemMultiLocks);
+    }
+
+    public static java.util.Set<ResourceLocation> getJeiViewerItemIds() {
+        return viewerItemIds(jeiViewerItemMultiLocks);
+    }
+
+    /**
+     * Returns every item that can be affected by the JEI visibility decision.
+     */
+    public static java.util.Set<ResourceLocation> getJeiViewerCandidateItemIds() {
+        java.util.Set<ResourceLocation> candidates = new java.util.HashSet<>(itemLocks.keySet());
+        candidates.addAll(recipeItemLocks.keySet());
+        candidates.addAll(jeiViewerItemCandidates);
+        candidates.addAll(jeiViewerItemMultiLocks.keySet());
+        return java.util.Set.copyOf(candidates);
+    }
+
+    /**
+     * Returns every item that JEI must hide for the current synchronized player state.
+     */
+    public static java.util.Set<ResourceLocation> getJeiHiddenItemIds() {
+        java.util.Set<ResourceLocation> hidden = new java.util.HashSet<>(getRecipeOutputLockedItemIds());
+        for (ResourceLocation itemId : getJeiViewerCandidateItemIds()) {
+            if (isItemHiddenInJei(itemId)) {
+                hidden.add(itemId);
+            }
+        }
+        return java.util.Set.copyOf(hidden);
+    }
+
+    private static java.util.Set<StageId> emiViewerStages(ResourceLocation itemId) {
+        return viewerStages(emiViewerItemMultiLocks, itemId);
+    }
+
+    private static java.util.Set<StageId> jeiViewerStages(ResourceLocation itemId) {
+        return viewerStages(jeiViewerItemMultiLocks, itemId);
+    }
+
+    private static java.util.Set<StageId> viewerStages(Map<ResourceLocation, java.util.Set<StageId>> locks,
+                                                         ResourceLocation itemId) {
+        if (creativeBypass || itemId == null) return java.util.Set.of();
+        return locks.getOrDefault(itemId, java.util.Set.of());
+    }
+
+    private static java.util.Set<ResourceLocation> viewerItemIds(Map<ResourceLocation, java.util.Set<StageId>> locks) {
+        if (creativeBypass || locks.isEmpty()) return java.util.Set.of();
+        return java.util.Set.copyOf(locks.keySet());
+    }
+
+    private static boolean playerOwnsAll(java.util.Set<StageId> gating) {
         if (gating.isEmpty()) return true;
-        for (StageId s : gating) if (!ClientStageCache.hasStage(s)) return false;
+        for (StageId stage : gating) if (!ClientStageCache.hasStage(stage)) return false;
         return true;
     }
 
@@ -280,24 +375,28 @@ public class ClientLockCache {
      * Trigger EMI and JEI to reload
      */
     private static void triggerEmiReload() {
-        try {
-            com.enviouse.progressivestages.client.emi.ProgressiveStagesEMIPlugin.triggerEmiReload();
-        } catch (Throwable e) {
-            // Ignore — EMI may not be loaded. MUST catch Throwable, not just Exception: when EMI is
-            // absent, class-loading ProgressiveStagesEMIPlugin (it implements EmiPlugin) throws
-            // NoClassDefFoundError (an Error), which would otherwise crash the recipe-viewer reload
-            // and make EMI behave like a hard dependency.
+        if (StageConfig.isEmiEnabled()) {
+            try {
+                com.enviouse.progressivestages.client.emi.ProgressiveStagesEMIPlugin.triggerEmiReload();
+            } catch (Throwable e) {
+                // Ignore — EMI may not be loaded. MUST catch Throwable, not just Exception: when EMI is
+                // absent, class-loading ProgressiveStagesEMIPlugin (it implements EmiPlugin) throws
+                // NoClassDefFoundError (an Error), which would otherwise crash the recipe-viewer reload
+                // and make EMI behave like a hard dependency.
+            }
         }
-        try {
-            // Coalesce: scheduleRefresh() dedupes multiple calls fired during a single lock_sync
-            // packet (setItemLocks + setRecipeItemLocks + ... each call here) into ONE deferred
-            // two-pass refresh on the next client tick, instead of running the heavy synchronous
-            // refreshJei() N times back-to-back.
-            com.enviouse.progressivestages.client.jei.ProgressiveStagesJEIPlugin.scheduleRefresh();
-        } catch (NoClassDefFoundError e) {
-            // JEI not installed - ignore
-        } catch (Exception e) {
-            // Ignore
+        if (StageConfig.isJeiEnabled()) {
+            try {
+                // Coalesce: scheduleRefresh() dedupes multiple calls fired during a single lock_sync
+                // packet (setItemLocks + setRecipeItemLocks + ... each call here) into ONE deferred
+                // two-pass refresh on the next client tick, instead of running the heavy synchronous
+                // refreshJei() N times back-to-back.
+                com.enviouse.progressivestages.client.jei.ProgressiveStagesJEIPlugin.scheduleRefresh();
+            } catch (NoClassDefFoundError e) {
+                // JEI not installed - ignore
+            } catch (Exception e) {
+                // Ignore
+            }
         }
     }
 
@@ -459,7 +558,9 @@ public class ClientLockCache {
      */
     public static void clear() {
         boolean changed = creativeBypass || !itemLocks.isEmpty() || !recipeLocks.isEmpty()
-            || !recipeItemLocks.isEmpty() || !fluidMultiLocks.isEmpty() || !modMultiLocks.isEmpty();
+            || !recipeItemLocks.isEmpty() || !fluidMultiLocks.isEmpty() || !modMultiLocks.isEmpty()
+            || !emiViewerItemMultiLocks.isEmpty() || !jeiViewerItemMultiLocks.isEmpty()
+            || !jeiViewerItemCandidates.isEmpty();
         itemLocks.clear();
         blockLocks.clear();
         recipeLocks.clear();
@@ -471,6 +572,9 @@ public class ClientLockCache {
         recipeMultiLocks.clear();
         recipeItemMultiLocks.clear();
         entityMultiLocks.clear();
+        emiViewerItemMultiLocks.clear();
+        jeiViewerItemMultiLocks.clear();
+        jeiViewerItemCandidates.clear();
         creativeBypass = false;
 
         if (changed) triggerEmiReload();

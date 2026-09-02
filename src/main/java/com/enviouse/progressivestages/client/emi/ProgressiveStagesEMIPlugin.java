@@ -74,11 +74,16 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     private void hideLockedStacks(EmiRegistry registry) {
         // Get all locked items from the client cache (synced from server)
         Map<ResourceLocation, StageId> lockedItems = ClientLockCache.getAllItemLocks();
+        Set<ResourceLocation> candidateItemIds = new java.util.HashSet<>(lockedItems.keySet());
+        candidateItemIds.addAll(ClientLockCache.getEmiViewerItemIds());
+        boolean usingRegistryFallback = false;
 
         // If ClientLockCache is empty, try LockRegistry directly (singleplayer/integrated server)
-        if (lockedItems.isEmpty()) {
+        if (candidateItemIds.isEmpty()) {
+            usingRegistryFallback = true;
             LockRegistry reg = LockRegistry.getInstance();
             lockedItems = reg.getAllResolvedItemLocks();
+            candidateItemIds.addAll(lockedItems.keySet());
             if (!lockedItems.isEmpty()) {
                 LOGGER.info("[ProgressiveStages] ClientLockCache empty, using LockRegistry directly ({} items)", lockedItems.size());
             }
@@ -89,10 +94,11 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
         // Build a set of locked item IDs for fast lookup.
         // v2.0: multi-stage — locked iff player is missing ANY gating stage.
         Set<ResourceLocation> lockedItemIds = new java.util.HashSet<>();
-        for (var entry : lockedItems.entrySet()) {
-            ResourceLocation itemId = entry.getKey();
-
-            if (!ClientLockCache.playerOwnsAllStagesFor(itemId)) {
+        for (ResourceLocation itemId : candidateItemIds) {
+            boolean hidden = usingRegistryFallback
+                ? !playerStages.contains(lockedItems.get(itemId))
+                : ClientLockCache.isItemHiddenInEmi(itemId);
+            if (hidden) {
                 lockedItemIds.add(itemId);
             }
         }
@@ -372,6 +378,9 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
      * (not a server-driven tag+recipe resync), reload() bypasses that gate.
      */
     public static void triggerEmiReload() {
+        if (!StageConfig.isEmiEnabled()) {
+            return;
+        }
         if (!initialized) {
             LOGGER.debug("[ProgressiveStages] EMI not initialized yet, skipping reload");
             return;

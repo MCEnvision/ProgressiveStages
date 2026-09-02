@@ -6,6 +6,7 @@
 > **Classification:** MANDATORY
 > **Master plan:** [plan.md](../plan.md)
 > **Phase sequence:** 000 of 006
+> **Execution state:** COMPLETED through `dc9e154871781de262ffd5eb401d65d0fa44cefb` on `master`, with verified signed tag `3.0.4-phase-000`. The immutable saved-goal checkout `5b3077764907249b3711886cca538794f6139acf` is creation provenance only.
 
 ## Purpose and Ownership
 
@@ -14,6 +15,8 @@ This phase freezes the defect, inventory-interaction seam, and artifact baseline
 The saved-goal creation checkout is immutable provenance for verifying the unchanged goal. It is not the live Phase 000 execution baseline. P000-TASK-001 resolves the current authoritative default branch and any applicable Phase 000 branch under the repository workflow, then freezes the exact live execution revision used for source and implementation-seam observations. Historical report and shipped 3.0.3 artifact identities remain separately pinned evidence.
 
 Phase state is explicit. The phase is `incomplete` while a required identity, six-row classification, claim result, seam record, mapping, or consistency check is absent or unsupported. It is `blocked` only when a required Phase 000 evidence source cannot be accessed or attributed and no bounded artifact inspection can classify the row. It may complete with an issue row classified `blocked_by_missing_evidence` when the missing high-fidelity proof is named, assigned to its downstream owner, and is not required to establish the current baseline. Corrected candidate behavior never substitutes for or gates the historical baseline audit.
+
+The preceding state rules governed Phase 000 while it was active. They do not reopen this completed phase. The authoritative live state and required downstream evidence ownership are recorded in the master plan's Execution-State Precedence table.
 
 ## Evidence-Based Entry State
 

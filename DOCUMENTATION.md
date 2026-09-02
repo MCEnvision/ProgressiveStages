@@ -3301,7 +3301,7 @@ that enforcement path for every stage, regardless of stage file content.
 | `block_item_hotbar` | `true` | Locked items moved out of the hotbar (softer than `block_item_inventory`) |
 | `block_item_mouse_pickup` | `true` | Click-pickup of locked items in GUIs |
 | `block_item_inventory` | `true` | Strictest: auto-drop locked items from anywhere in inventory |
-| `inventory_scan_frequency` | `0` | Ticks between inventory scans. `0` = scanning OFF. Pickup blocking still prevents new locked items from entering. |
+| `inventory_scan_frequency` | `0` | Ticks between inventory scans. `0` = scanning OFF. Pickup blocking still prevents new locked items from entering. When Curios is installed, this same cadence controls the safe sweep that removes already-equipped locked curio contents. |
 | `block_crafting` | `true` | Locked recipes refuse to hand over outputs |
 | `hide_locked_recipe_output` | `true` | Recipe-book / crafting-table preview hides locked outputs |
 | `block_block_placement` | `true` | Placing locked blocks |
@@ -3335,11 +3335,26 @@ that enforcement path for every stage, regardless of stage file content.
 | `lock_sound_pitch` | `1.0` | 0.5 – 2.0 |
 | `show_creative_bypass_popup` | `true` | Warn a player on creative-mode entry that bypass is on |
 
-### 6.4 `[emi]` — recipe-viewer feedback
+### 6.4 `[jei]` and `[emi]` — recipe-viewer feedback
+
+JEI and EMI are separate optional integrations. Their `enabled` values are independent, both
+default to `true` when the key is missing, and either viewer can remain enabled while the other is
+disabled or absent. A setting controls only ProgressiveStages feedback and filtering. It does not
+disable the recipe-viewer mod itself.
+
+Change either `enabled` setting before launching the client. Restart the client after changing a
+viewer setting so a previously filtered index is rebuilt from a clean viewer runtime.
+
+| Section | Key | Default | Meaning |
+|-----|-----|---------|---------|
+| `[jei]` | `enabled` | `true` | Enable ProgressiveStages JEI filtering and refreshes. |
+| `[emi]` | `enabled` | `true` | Enable ProgressiveStages EMI filtering, overlays, and refreshes. |
+
+The remaining display controls are shared recipe-viewer policy and live in `[emi]` for backward
+compatibility with existing configurations.
 
 | Key | Default | Meaning |
 |-----|---------|---------|
-| `enabled` | `true` | Master toggle for EMI integration |
 | `show_lock_icon` | `true` | Overlay a lock icon on locked stacks |
 | `lock_icon_position` | `"top_left"` | Where to draw the icon: `top_left`, `top_right`, `bottom_left`, `bottom_right`, `center` |
 | `lock_icon_size` | `8` | Icon size in pixels (4–32) |
@@ -3559,8 +3574,8 @@ viewer is installed; plugins are loaded only when the corresponding mod is prese
 
 ### 8.1 Visual treatment
 
-Three layers, each independently configurable in the `[emi]` section of
-`progressivestages.toml`:
+The integrations are enabled independently with `[jei].enabled` and `[emi].enabled`. The three
+visual layers below are shared display policy and remain in `[emi]` for configuration compatibility:
 
 - **Lock icon overlay** — small lock graphic on every locked stack. Position
   + size configurable. Texture: `assets/progressivestages/textures/gui/lock_icon.png`.
@@ -3882,8 +3897,12 @@ Implementation:
 
 ## 13. Curios Integration
 
-Soft dependency. When Curios is installed, the per-player tick scan covers
-curio slots in addition to the main inventory:
+Soft dependency. Curios 9.5.1 for Minecraft 1.21.1 is supported through the public Curios API.
+The adapter resolves and caches that API only after Curios is detected. Without Curios, startup
+continues and only the Curios adapter is skipped.
+
+When Curios is installed, the periodic server inventory sweep also covers curio slots. Set
+`enforcement.inventory_scan_frequency` above `0` to enable this cleanup sweep:
 
 - **Locked items in curio slots** — ejected into the main inventory, dropped
   on the ground if main inventory is full.
@@ -4244,9 +4263,12 @@ To reset a stage's persisted one-shot trigger progress:
 
 ### 17.12 EMI locked items not hiding
 
-Set `emi.show_locked_recipes = false`. Re-open inventory to trigger EMI
-refresh. If they still appear, the lock registry may not have been synced;
-relog or `/progressivestages reload`.
+Set `emi.show_locked_recipes = false`. Re-open the inventory after changing a
+viewer setting. Stage grants and revokes automatically resend the authoritative
+per-player viewer snapshot before EMI and JEI refresh, so a stage change does
+not require relogging or `/pstages reload` to update visibility. If an item is
+still visible, confirm that the rule targets that item and that the selected
+viewer is enabled.
 
 ---
 

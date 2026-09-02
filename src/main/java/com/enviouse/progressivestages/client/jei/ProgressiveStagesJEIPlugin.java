@@ -59,6 +59,10 @@ public class ProgressiveStagesJEIPlugin implements IModPlugin {
     @Override
     public void onRuntimeAvailable(IJeiRuntime runtime) {
         LOGGER.info("[ProgressiveStages] JEI runtime available");
+        if (!StageConfig.isJeiEnabled()) {
+            LOGGER.info("[ProgressiveStages] JEI integration is disabled in config");
+            return;
+        }
         jeiRuntime = runtime;
         ingredientManager = runtime.getIngredientManager();
 
@@ -112,23 +116,7 @@ public class ProgressiveStagesJEIPlugin implements IModPlugin {
             return;
         }
 
-        // Build a set of locked item IDs for fast lookup
-        var lockedItems = ClientLockCache.getAllItemLocks();
-        Set<ResourceLocation> lockedItemIds = new java.util.HashSet<>();
-
-        for (var entry : lockedItems.entrySet()) {
-            ResourceLocation itemId = entry.getKey();
-
-            // v2.0 multi-stage: hidden if missing ANY gating stage (uses multi-stage view if synced)
-            if (!ClientLockCache.playerOwnsAllStagesFor(itemId)) {
-                lockedItemIds.add(itemId);
-            }
-        }
-
-        // Bug fix: also hide items whose crafting recipe is gated via [recipes].locked_items —
-        // removing the output item drops it AND its recipes from JEI. recipe-id locks
-        // (locked_ids) are handled separately in hideLockedRecipesJei().
-        lockedItemIds.addAll(ClientLockCache.getRecipeOutputLockedItemIds());
+        Set<ResourceLocation> lockedItemIds = ClientLockCache.getJeiHiddenItemIds();
 
         if (lockedItemIds.isEmpty()) {
             // Nothing to hide as items, but fluids may still be locked.
@@ -287,6 +275,9 @@ public class ProgressiveStagesJEIPlugin implements IModPlugin {
      * to properly handle NBT variants.
      */
     public static void refreshJei() {
+        if (!StageConfig.isJeiEnabled()) {
+            return;
+        }
         if (ingredientManager == null) {
             return;
         }
@@ -296,21 +287,12 @@ public class ProgressiveStagesJEIPlugin implements IModPlugin {
             // v2.0: multi-stage — locked iff player is missing ANY gating stage, considering BOTH
             // plain [items] locks AND [recipes].locked_items recipe-output locks (so a recipe-locked
             // item is hidden, and re-shown once unlocked).
-            Set<ResourceLocation> lockedItemIds = new java.util.HashSet<>();
-            Set<ResourceLocation> unlockedItemIds = new java.util.HashSet<>();
-
-            Set<ResourceLocation> candidateIds = new java.util.HashSet<>(ClientLockCache.getAllItemLocks().keySet());
-            candidateIds.addAll(ClientLockCache.getAllRecipeItemLocks().keySet());
-
-            for (ResourceLocation itemId : candidateIds) {
-                boolean owned = ClientLockCache.playerOwnsAllStagesFor(itemId)
-                             && ClientLockCache.playerOwnsAllStagesForRecipeOutput(itemId);
-                if (owned) {
-                    unlockedItemIds.add(itemId);
-                } else if (!StageConfig.isShowLockedRecipes()) {
-                    lockedItemIds.add(itemId);
-                }
-            }
+            Set<ResourceLocation> candidateIds = ClientLockCache.getJeiViewerCandidateItemIds();
+            Set<ResourceLocation> lockedItemIds = StageConfig.isShowLockedRecipes()
+                ? Set.of()
+                : ClientLockCache.getJeiHiddenItemIds();
+            Set<ResourceLocation> unlockedItemIds = new java.util.HashSet<>(candidateIds);
+            unlockedItemIds.removeAll(lockedItemIds);
 
             // Get ALL registered ItemStacks from JEI and filter
             var allStacks = ingredientManager.getAllIngredients(VanillaTypes.ITEM_STACK);
@@ -525,6 +507,9 @@ public class ProgressiveStagesJEIPlugin implements IModPlugin {
      * stacks, which would un-hide locked items added during the first pass.
      */
     public static void scheduleRefresh() {
+        if (!StageConfig.isJeiEnabled()) {
+            return;
+        }
         if (!refreshQueued.compareAndSet(false, true)) return;
         try {
             Minecraft mc = Minecraft.getInstance();

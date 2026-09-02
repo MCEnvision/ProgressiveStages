@@ -202,6 +202,7 @@ public class ItemEnforcer {
      * v2.0: shows the primary missing stage (first gating stage the player doesn't own).
      */
     public static void notifyLocked(ServerPlayer player, Item item) {
+        if (player.connection == null) return;
         Optional<StageId> requiredStage = LockRegistry.getInstance().primaryRestrictingStage(player, item);
         if (requiredStage.isEmpty()) {
             return;
@@ -237,6 +238,7 @@ public class ItemEnforcer {
      * Send lock message for a generic lock (not item-specific)
      */
     public static void notifyLocked(ServerPlayer player, StageId requiredStage, String type) {
+        if (player.connection == null) return;
         // Send message
         if (StageConfig.isShowLockMessage()) {
             Component message;
@@ -271,6 +273,7 @@ public class ItemEnforcer {
      * Play the lock notification sound
      */
     public static void playLockSound(ServerPlayer player) {
+        if (player.connection == null) return;
         try {
             String soundStr = StageConfig.getLockSound();
             ResourceLocation soundLoc = ResourceLocation.parse(soundStr);
@@ -293,6 +296,7 @@ public class ItemEnforcer {
      * Send lock notification with cooldown to prevent chat spam
      */
     public static void notifyLockedWithCooldown(ServerPlayer player, Item item) {
+        if (player.connection == null) return;
         UUID playerId = player.getUUID();
         String itemId = BuiltInRegistries.ITEM.getKey(item).toString();
         long currentTime = System.currentTimeMillis();
@@ -312,6 +316,7 @@ public class ItemEnforcer {
 
     public static void notifyLockedWithCooldown(ServerPlayer player, ItemUseDecision decision, Item item) {
         if (decision == null || decision.allowed()) return;
+        if (player.connection == null) return;
         UUID playerId = player.getUUID();
         String itemId = BuiltInRegistries.ITEM.getKey(item).toString();
         String key = decision.reason().name() + "." + itemId;
@@ -330,6 +335,7 @@ public class ItemEnforcer {
      * Send lock notification with cooldown for a generic locked thing (entity, block, etc.)
      */
     public static void notifyLockedWithCooldown(ServerPlayer player, StageId requiredStage, String type) {
+        if (player.connection == null) return;
         UUID playerId = player.getUUID();
         String key = type + ":" + requiredStage.toString();
         long currentTime = System.currentTimeMillis();

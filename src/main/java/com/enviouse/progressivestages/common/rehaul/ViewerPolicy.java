@@ -25,4 +25,17 @@ public record ViewerPolicy(
         emi = emi != null ? emi : Mode.INHERIT;
         jei = jei != null ? jei : Mode.INHERIT;
     }
+
+    public boolean hidesInEmi() {
+        return hides(emi);
+    }
+
+    public boolean hidesInJei() {
+        return hides(jei);
+    }
+
+    private boolean hides(Mode specific) {
+        Mode effective = specific != Mode.INHERIT ? specific : shared;
+        return effective == Mode.HIDE || !ingredientVisible;
+    }
 }

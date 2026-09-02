@@ -12,17 +12,17 @@
 Project: ProgressiveStages NeoForge mod
 Requested artifact: authoritative_plan
 Repository root: /tmp/ProgressiveStages-polish-plan
-Starting branch: envy/3.0.4-phase-001
-Starting commit: 4114e81d0e278907cf465579344b47105576b1ec
-Plan-authoring branch: envy/3.0.4-phase-001
-Plan-authoring commit: 4114e81d0e278907cf465579344b47105576b1ec
+Starting branch: envy/3.0.4-phase-002
+Starting commit: 6d4066d90c5cb034d527f60b114eae4ef0af6fad
+Plan-authoring branch: envy/3.0.4-phase-002
+Plan-authoring commit: 6d4066d90c5cb034d527f60b114eae4ef0af6fad
 Saved-goal creation checkout: envy/polish-3.0.4-plan at 5b3077764907249b3711886cca538794f6139acf
 Saved-goal checkout role: immutable creation-time provenance only; it does not select or freeze a live phase execution baseline
 Authoritative remote:
 origin
 https://github.com/MCEnvision/ProgressiveStages.git
-Remote ref: origin/envy/3.0.4-phase-001
-Remote commit: 4114e81d0e278907cf465579344b47105576b1ec
+Remote ref: origin/envy/3.0.4-phase-002
+Remote commit: 6d4066d90c5cb034d527f60b114eae4ef0af6fad
 Package metadata: mod_id progressivestages, version 3.0.3, Minecraft 1.21.1, NeoForge 21.1.219
 Target release: 3.0.4
 ```
@@ -54,10 +54,11 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 | Area | Evidence class | Finding | Evidence |
 |---|---|---|---|
 | Goal creation provenance | VERIFIED | The saved goal was created from checkout `5b3077764907249b3711886cca538794f6139acf` on `envy/polish-3.0.4-plan`. This identity is immutable provenance for goal-integrity verification, not the live Phase 000 branch or execution baseline | Saved goal and Git revision inspection recorded in §1 |
-| Phase 000 execution baseline | UNKNOWN | Phase 000 must resolve and freeze its live execution revision after reconciling the current authoritative default branch and any applicable Phase 000 branch. It records that revision separately from saved-goal creation provenance | CORE-PHASE-000 entry contract and P000-TASK-001 |
+| Phase 000 execution baseline | VERIFIED | Phase 000 completed through merge commit `dc9e154871781de262ffd5eb401d65d0fa44cefb` on `master`, with signed annotated tag `3.0.4-phase-000` verified by `git tag -v` at source revision `dc9e154871781de262ffd5eb401d65d0fa44cefb`. This frozen execution identity remains separate from saved-goal creation provenance. | Executed tag inspection for named commit `dc9e154871781de262ffd5eb401d65d0fa44cefb`, signed tag verification, and completion evidence |
 | Runtime contract | VERIFIED | The supported release target is ProgressiveStages for Minecraft 1.21.1 on NeoForge 21.1.219 | Gradle metadata and mod metadata inspection described by SRC-003 |
 | Issue baseline | VERIFIED | The active issue baseline is exactly `#8`, `#10`, `#11`, `#16`, `#24`, and `#25` | GitHub issue inspection in SRC-004 and SRC-008 |
 | Entity presence cost | OBSERVED | The reported hotspot constructs Minecraft rule context through the entity tracking decision path | Spark profile and configuration in SRC-006 |
+| Phase 001 completion | VERIFIED | The entity-presence repair completed through merge commit `09b18ad5b91a8c5b59faf1d35821f5c786427b80` on `master`, with signed annotated tag `3.0.4-phase-001`. Phase 002 begins only from that integrated and tagged revision. | Phase 001 merge record, signed tag verification, focused tests, dedicated-server fixture, and artifact inspection |
 | Curios integration | OBSERVED | The current slot gate needs version tolerant resolution for the Curios 9.5.1 API surface | Issue `#8` and implementation evidence in SRC-003 |
 | Recipe viewers | VERIFIED | Existing configuration exposes EMI controls but does not prove independent JEI and EMI behavior in combined installations | Configuration inspection and optional integration evidence in SRC-003 |
 | Easy Builder enchantments | UNKNOWN | Existing source and tests require final editor bundle and JAR workflow verification | Issue `#11`, SRC-003, and Phase 000 audit |
@@ -66,6 +67,17 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 | Category menu depth | UNKNOWN | Source ordering changes require production map verification at supported GUI scales | Issue `#16`, SRC-003, and Phase 000 audit |
 | Artifact parity | UNKNOWN | Published 3.0.3 documentation has not been fully reconciled with the shipped JAR | SRC-002 and CORE-REQ-007 |
 | Release validation | VERIFIED | The 3.0.3 release validation fails during shared attestation verification because its GitHub CLI signer flags are incompatible | Failed GitHub Actions run `31453460136`, job `93662356066` in SRC-007 |
+
+### Execution-State Precedence
+
+The immutable saved goal records the creation checkout `5b3077764907249b3711886cca538794f6139acf` and the original Phase 000 entry action as provenance only. It never reopens a completed phase, selects a live implementation branch, or requires a later phase to recreate the creation checkout. The current master plan and deterministic handoff own the live phase state. Historical phase blueprints retain their original task wording as an execution record and are not independent status authorities.
+
+- `CORE-PHASE-000` is completed through `dc9e154871781de262ffd5eb401d65d0fa44cefb` and signed tag `3.0.4-phase-000`. Its historical artifact audit remains an evidence input. It is not reopened by the saved goal and does not need a corrected 3.0.4 candidate JAR or corrected recipe-output runtime proof.
+- `CORE-PHASE-001` is completed through `09b18ad5b91a8c5b59faf1d35821f5c786427b80` and signed tag `3.0.4-phase-001`. Its player-tick context snapshot is a completed performance implementation, not a required build cache or mutable cache input for Phase 002.
+- `CORE-PHASE-002` is active on branch `envy/3.0.4-phase-002` from the Phase 001 merge. Its sole upstream phase dependency is Phase 001. `EXT-001` is a required public artifact input, not a phase dependency. The only Phase 002 cache is a one-time optional-adapter API-resolution cache scoped to an installed artifact identity.
+- `CORE-PHASE-003` is pending until signed Phase 002 integration. It owns the corrected Easy Builder recipe serialization, persisted reload, denied-and-eligible runtime proof, and corrected packaged candidate JAR. Those outputs are intentionally absent while Phase 002 is active.
+
+No phase may use a missing Phase 003 corrected JAR or recipe-output runtime result to block Phase 000, Phase 001, or Phase 002. Phase 000 owns the historical shipped 3.0.3 artifact baseline, Phase 003 owns corrected candidate evidence, Phase 004 owns the integrated compatibility rerun, and Phase 005 owns the final release candidate. Each artifact retains its own identity and hash.
 
 ## 5. Product Contract and Profile Coverage
 
@@ -636,8 +648,8 @@ Rollout order is Phase 000 audit, signed integration of Phase 001, Phase 002 opt
 Mandatory boundary: Resolve issues #8, #10, #11, #16, #24, and #25, implement the explicit CORE-REQ-012 inventory insertion feature, and correct previously advertised or documented 3.0.3 capabilities proven missing by the CORE-PHASE-000 artifact audit. Do not count CORE-REQ-012 as a seventh issue.
 Optional/future disposition: excluded
 Locked owner decisions: DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007
-Active phase: CORE-PHASE-001
-Next executable action: P001-TASK-001. Use the Phase 000 completion merged into `origin/master` as `dc9e154871781de262ffd5eb401d65d0fa44cefb` and signed tag `3.0.4-phase-000` to freeze the issue `#24` baseline, controlled fixture, measurements, mixed-player assertions, and failure interpretation for CORE-REQ-002. This records current plan progress only and does not modify immutable `docs/plan/goal.md`
+Active phase: CORE-PHASE-002
+Next executable action: P002-TASK-001. Verify the Phase 001 completion merged into `origin/master` as `09b18ad5b91a8c5b59faf1d35821f5c786427b80` and signed tag `3.0.4-phase-001`, preserve the separate Phase 000 audit identity, then validate and freeze the complete EXT-001 Curios, JEI, and EMI artifact contract before implementation. This records current plan progress only and does not modify immutable `docs/plan/goal.md`
 Known failing checks: GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined; issue #25 reports an ineffective visual recipe lock whose exact production-bundle representation must be recorded by CORE-PHASE-000 before CORE-PHASE-003 corrects it
 Known external blockers: Corrected MCEnvision shared release-validation workflow revision under EXT-002 and Owner-approved platform publication confirmation for the final 3.0.4 artifact under EXT-003
 Completion endpoint: A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all six baseline GitHub issues are closed with merged-revision acceptance evidence.

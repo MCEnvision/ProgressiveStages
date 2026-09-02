@@ -63,7 +63,7 @@
       "requirementPrefix": "PHASE004",
       "phaseId": "CORE-PHASE-004",
       "owner": "CompatibilityHarness",
-      "dependsOn": ["PLAN-PHASE-001", "PLAN-PHASE-002", "PLAN-PHASE-003"]
+      "dependsOn": ["PLAN-PHASE-003"]
     },
     {
       "id": "PLAN-PHASE-005",

@@ -6,12 +6,13 @@
 > **Classification:** MANDATORY
 > **Master plan:** [plan.md](../plan.md)
 > **Phase sequence:** 002 of 006
+> **Execution state:** ACTIVE on `envy/3.0.4-phase-002`, beginning from Phase 001 merge `09b18ad5b91a8c5b59faf1d35821f5c786427b80` and signed tag `3.0.4-phase-001`.
 
 ## Purpose and Ownership
 
 This phase restores the optional integration behavior owned by `CORE-REQ-003` and `CORE-REQ-004`. It exists to make Curios slot enforcement safe and functional against the supported public API, and to make JEI and EMI independently configurable and concurrently functional without turning any optional integration into a hard dependency. The master plan owns the product contract, the locked owner decisions, and the global phase order. This blueprint owns only the dependency ordered implementation and proof for Curios, JEI, and EMI behavior in Phase 002. It does not implement `CORE-REQ-012` or any inventory-target resolver.
 
-The sole upstream phase dependency is `CORE-PHASE-001`. The phase may begin only after Phase 001 is fully integrated into the authoritative `master`, its required checks and review are complete, and its signed annotated completion tag is verified against that merged commit. Separately, `EXT-001` is a required external artifact input and entry prerequisite, not a phase dependency, and must supply the complete public artifact evidence contract before implementation. The Phase 000 issue reproductions and artifact claims remain preserved upstream evidence through the Phase 001 sequential baseline, not an additional phase dependency. No Curios package correction may be selected from memory or an unverified private artifact. The resolved public artifacts, exact versions, compatibility evidence, license provenance, security review, and checksums are the authoritative compatibility inputs.
+The sole upstream phase dependency is `CORE-PHASE-001`. The phase may begin only after Phase 001 is fully integrated into the authoritative `master`, its required checks and review are complete, and its signed annotated completion tag is verified against that merged commit. Separately, `EXT-001` is a required external artifact input and entry prerequisite, not a phase dependency, and must supply the complete public artifact evidence contract before implementation. The Phase 000 issue reproductions and artifact claims remain preserved upstream evidence through the Phase 001 sequential baseline, not an additional phase dependency. Phase 002 does not require a corrected recipe-output workflow or corrected candidate JAR. Phase 000 owns only the historical shipped 3.0.3 artifact baseline, while corrected recipe serialization, runtime evidence, and the packaged candidate JAR belong to Phase 003. No Curios package correction may be selected from memory or an unverified private artifact. The resolved public artifacts, exact versions, compatibility evidence, license provenance, security review, and checksums are the authoritative compatibility inputs.
 
 ## Evidence-Based Entry State
 
@@ -70,6 +71,7 @@ The sole upstream phase dependency is `CORE-PHASE-001`. The phase may begin only
 
 - `CORE-REQ-003` resolves the supported Curios public API from the verified artifact set, confines all Curios linkage behind its optional adapter boundary, restores documented slot deny, ejection, or retention behavior, and proves inventory conservation through lifecycle transitions.
 - `CORE-REQ-004` separates the JEI and EMI enable decisions, defaults each missing setting to enabled, allows both adapters to receive the same normalized visibility decision when installed together, and prevents an absent or disabled adapter from affecting the other.
+- `CORE-REQ-003` and `CORE-REQ-004` may use a one-time optional-adapter API-resolution cache only for an exact installed artifact identity and lifecycle. It is distinct from, and must not consume, mutate, or invalidate the completed Phase 001 player-tick condition-context snapshot.
 - CORE-REQ-003 and CORE-REQ-004 receive deterministic configuration, class-loading, transition, runtime-matrix, negative-path, and artifact evidence suitable for the later compatibility phase.
 - If their implementation touches shared optional-integration discovery or lifecycle code, the change remains neutral to the inventory-target resolver registry owned by `CORE-PHASE-003`: it neither implements resolver behavior nor makes resolver discovery depend on Curios, JEI, or EMI presence.
 

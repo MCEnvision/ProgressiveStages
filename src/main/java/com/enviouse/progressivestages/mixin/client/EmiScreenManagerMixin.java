@@ -50,6 +50,7 @@ public abstract class EmiScreenManagerMixin {
             EmiDrawContext context, int mouseX, int mouseY,
             float delta, int startIndex, CallbackInfo ci) {
 
+        if (!StageConfig.isEmiEnabled()) return;
         if (ClientLockCache.isCreativeBypass()) return;
         if (!StageConfig.isShowLockIcon()) return;
         if (this.pageSize <= 0) return;

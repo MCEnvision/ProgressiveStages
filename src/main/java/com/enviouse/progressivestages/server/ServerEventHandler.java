@@ -608,6 +608,8 @@ public class ServerEventHandler {
     public static void onDimensionChanged(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             StructureSessionManager.getInstance().closeAll(player, StructureLeaveOutcome.DIMENSION_CHANGE);
+            com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get()
+                .invalidateEntityPresenceContext(player);
             DimensionEnforcer.handlePostTravelSafetyNet(player, event.getFrom(), event.getTo());
         }
     }
@@ -921,6 +923,8 @@ public class ServerEventHandler {
             OreSpoofManager.get().onPlayerLogout(player);
             ContextualModifierApplier.clear(player);
             EntityPresenceEnforcer.clearPlayer(player.getUUID());
+            com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get()
+                .clearEntityPresenceContext(player.getUUID());
             com.enviouse.progressivestages.server.editor.EditorSessionService.get().revokePlayer(player.getUUID());
         }
     }

@@ -643,6 +643,7 @@ public class StageManager {
                 com.enviouse.progressivestages.server.enforcement.StageAttributeApplier.reconcile(player);
                 // v2.5: re-send advancements so newly (un)gated ones (dis)appear without a relog.
                 com.enviouse.progressivestages.server.enforcement.AdvancementHider.resyncIfNeeded(player);
+                com.enviouse.progressivestages.server.enforcement.EntityPresenceEnforcer.syncClientState(player, true);
             }
         }
     }
@@ -654,6 +655,7 @@ public class StageManager {
             NetworkHandler.sendStageSync(player, getStages(player));
             com.enviouse.progressivestages.server.enforcement.StageAttributeApplier.reconcile(player);
             com.enviouse.progressivestages.server.enforcement.AdvancementHider.resyncIfNeeded(player);
+            com.enviouse.progressivestages.server.enforcement.EntityPresenceEnforcer.syncClientState(player, true);
         }
     }
 

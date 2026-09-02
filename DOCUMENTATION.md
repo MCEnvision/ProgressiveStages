@@ -1054,10 +1054,39 @@ update. Live and temporary conditions are checked again every ten ticks, and a p
 when the resolved concealed type set changes. Future clients receive the same resolved state after
 joining.
 
+Tracking suppression also covers projectiles owned by a denied mob. A denied player cannot receive
+or damage a skeleton arrow through the hidden owner, while an eligible player continues to receive
+the same shared skeleton and projectile normally. Target changes are cancelled before they can
+assign a denied player.
+
+#### Entity presence condition snapshots
+
+Entity presence uses one immutable condition snapshot for each player, server tick, and
+authoritative state revision. That revision combines the active compiled rule revision with the
+player relevant state sampled by the context. Every entity decision for the same snapshot reuses
+that context instead of rebuilding the full stage, team, scoreboard, metric, structure, and session
+map. The cache is server thread only and never persists or crosses players.
+
+The snapshot is replaced before the next decision when stage ownership changes, stage files reload,
+metrics or combat sessions change, a structure session changes, the player changes dimension, or the
+player disconnects. Server scoreboard updates invalidate the affected player before the next
+decision. The cache also compares the current team, online team size, health, food, position,
+dimension, and experience before reuse. This means a same tick stage, team, scoreboard, or metric
+change cannot keep using a stale allow or deny decision. See
+[`3.0.4-entity-presence-fixture.md`](docs/verification/3.0.4-entity-presence-fixture.md) for the
+repeatable mixed player and performance verification procedure.
+
 The implementations are
 [`EntityPresenceEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/EntityPresenceEnforcer.java),
 [`EntityEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/EntityEnforcer.java),
 and [`EntityRenderDispatcherMixin`](src/main/java/com/enviouse/progressivestages/mixin/client/EntityRenderDispatcherMixin.java).
+
+For a controlled operator performance capture only, start a dedicated server with
+`-Dprogressivestages.entityPresenceFixture=true`. The bounded diagnostic writes raw per-tick CSV
+samples on normal server shutdown and is disabled by default. It does not change stage rules,
+saved data, packets, or client behavior. See
+[`3.0.4-entity-presence-fixture.md`](docs/verification/3.0.4-entity-presence-fixture.md) for the
+fixture, command, sample-capacity property, calculation, and interpretation rules.
 
 ### 4.11 `[[interactions]]` — fine-grained "X-on-Y" rules
 

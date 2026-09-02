@@ -11,6 +11,8 @@
 
 This phase proves that the sequentially integrated and signed outputs of CORE-PHASE-001, CORE-PHASE-002, and CORE-PHASE-003 preserve ProgressiveStages compatibility and regression safety before release integration begins. Its sole canonical requirement is CORE-REQ-008. The phase owns the compatibility matrix, security and authority checks, client, integrated-server, dedicated-server, and multiplayer runtime exercises, optional-mod combinations, artifact inspection, failure routing, recovery rehearsal, and completion evidence for the supported ProgressiveStages 3.0.4 patch boundary. That matrix consumes the integrated CORE-REQ-011 recipe-lock result and CORE-REQ-012 inventory insertion result delivered by CORE-PHASE-003 without reassigning ownership or implementation of either upstream requirement.
 
+The sole upstream phase dependency is CORE-PHASE-003. CORE-PHASE-001 and CORE-PHASE-002 remain required transitive evidence inputs carried through the signed sequential integration chain, not additional phase dependencies.
+
 The master plan owns product scope, supported behavior, architecture, phase order, and the release endpoint. This blueprint owns only execution of CORE-PHASE-004. It does not reopen the individual fixes from earlier phases. Any failed check that points to an earlier phase-owned defect blocks this phase and routes a corrective change back to the owning component before the affected verification is rerun.
 
 ## Evidence-Based Entry State
@@ -51,7 +53,7 @@ The master plan owns product scope, supported behavior, architecture, phase orde
 
 **Objective:** Produce a complete, revision-bound compatibility, regression, and security evidence packet showing that the sequentially integrated 3.0.4 candidate preserves CORE-REQ-008 across Minecraft 1.21.1, NeoForge 21.1.219, Java 21, client, integrated-server, dedicated-server, multiplayer, reload, reconnect, optional-dependency, automation, inventory-conservation, and packaged-artifact boundaries
 **Owner:** CompatibilityHarness
-**Dependencies:** CORE-PHASE-001, CORE-PHASE-002, CORE-PHASE-003
+**Dependencies:** CORE-PHASE-003
 **Canonical requirements:** CORE-REQ-008
 **Documentation and release impact:** Update `README.md`, `DOCUMENTATION.md`, the documentation index, affected compatibility and testing references, and the 3.0.4 verification record only with behavior proven by this phase; provide the release-candidate evidence consumed by CORE-PHASE-005
 **Next transition:** CORE-PHASE-005

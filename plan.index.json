@@ -43,7 +43,7 @@
       "requirementPrefix": "PHASE002",
       "phaseId": "CORE-PHASE-002",
       "owner": "OptionalIntegrations",
-      "dependsOn": ["PLAN-PHASE-000"]
+      "dependsOn": ["PLAN-PHASE-001"]
     },
     {
       "id": "PLAN-PHASE-003",
@@ -53,7 +53,7 @@
       "requirementPrefix": "PHASE003",
       "phaseId": "CORE-PHASE-003",
       "owner": "EasyBuilder",
-      "dependsOn": ["PLAN-PHASE-000"]
+      "dependsOn": ["PLAN-PHASE-002"]
     },
     {
       "id": "PLAN-PHASE-004",

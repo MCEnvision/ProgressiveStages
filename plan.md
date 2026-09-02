@@ -3,7 +3,7 @@
 > **Plan ID:** PLAN-MASTER
 > **Plan status:** VALIDATED WITH KNOWN EXTERNAL BLOCKER
 > **Project state:** EXISTING
-> **Planning subject:** ProgressiveStages 3.0.4 polish and release closure
+> **Planning subject:** ProgressiveStages 3.0.4 polish and stable release closure
 > **Plan profile:** software_product
 
 ## 1. Project Identity
@@ -13,12 +13,12 @@ Project: ProgressiveStages NeoForge mod
 Requested artifact: authoritative_plan
 Repository root: /tmp/ProgressiveStages-polish-plan
 Starting branch: envy/polish-3.0.4-plan
-Starting commit: f6ceb9b49fda8b3cf764706bb1e5113b75383ebb
+Starting commit: bd462b2533c7776b91fae1e302d98151f1fb1b38
 Authoritative remote:
 origin
 https://github.com/MCEnvision/ProgressiveStages.git
 Remote ref: origin/envy/polish-3.0.4-plan
-Remote commit: f6ceb9b49fda8b3cf764706bb1e5113b75383ebb
+Remote commit: bd462b2533c7776b91fae1e302d98151f1fb1b38
 Package metadata: mod_id progressivestages, version 3.0.3, Minecraft 1.21.1, NeoForge 21.1.219
 Target release: 3.0.4
 ```
@@ -27,17 +27,17 @@ Target release: 3.0.4
 
 | ID | Role | Subject | Source | Intended use |
 |---|---|---|---|---|
-| SRC-001 | owner_request | bounded 3.0.4 polish plan for active issues and missing advertised capabilities | EnVy direct Plan Creator invocation and locked answers on 2026-09-01 | defines completion endpoint, issue scope, feature-completeness boundary, recipe-viewer behavior, and performance gate |
-| SRC-002 | existing_plan | legacy ProgressiveStages roadmap | /tmp/ProgressiveStages-polish-plan/plan.md at origin/master ab4ad138e1f74eec82cf0392a47ac1e54dd66d01 | migration source and deferred historical scope |
-| SRC-003 | repository_evidence | current ProgressiveStages implementation, documented 3.0.3 contract, build metadata, tests, and workflows | README.md, DOCUMENTATION.md, ARCHITECTURE.md, TESTING.md, Gradle metadata, source, tests, and workflows on origin/master | establishes supported platform, public behavior, architecture, and verification boundaries |
-| SRC-004 | review_feedback | open defect reports | GitHub issues #8, #10, #11, #16, and #24 on MCEnvision/ProgressiveStages | defines mandatory defect outcomes and reproduction evidence |
-| SRC-005 | status | release and continuous integration state | origin/master, v3.0.3 release history, open Dependabot PR #19, and successful master quality workflow | distinguishes release quality evidence from optional dependency maintenance |
-| SRC-006 | audit_evidence | issue #24 Spark profile and configuration | GitHub issue #24 attachment and report | establishes entity-presence context construction as the performance hotspot |
-| SRC-007 | audit_evidence | failed v3.0.3 release validation | GitHub Actions run 31453460136, job 93662356066 | establishes the shared attestation-verification workflow as a release prerequisite |
-| SRC-008 | owner_request | browser editor recipe-lock serialization defect | EnVy owner report and GitHub issue #25 on MCEnvision/ProgressiveStages | makes the reported recipe-lock round-trip defect mandatory for 3.0.4 and defines its canonical field, preservation, validation, reload, and runtime proof |
-| SRC-009 | owner_request | player-initiated inventory insertion locks | EnVy direct Plan Creator invocation and supplied SuperDevyn profession and selling-bin use case on 2026-09-01 | promotes destination-aware inventory insertion gating to mandatory 3.0.4 scope and defines source-item selectors, destination selectors, priority exceptions, transaction safety, automation boundaries, editor coverage, and compatibility proof |
+| SRC-001 | owner_request | 3.0.4 polish release objective and locked scope | EnVy owner request and direct Plan Creator invocation on 2026-09-02 | defines endpoint, six issue baseline, release scope, and owner decisions |
+| SRC-002 | existing_plan | existing ProgressiveStages 3.0.4 plan set | /tmp/ProgressiveStages-polish-plan/plan.md and phases | preserves stable requirements, decisions, phases, and completion endpoint |
+| SRC-003 | repository_evidence | ProgressiveStages implementation and supported platform | README.md, Gradle metadata, source, tests, and workflows | defines NeoForge 1.21.1 compatibility and implementation boundaries |
+| SRC-004 | review_feedback | six fixed issue reports | GitHub issues #8, #10, #11, #16, #24, and #25 | defines mandatory defect outcomes and evidence requirements |
+| SRC-005 | status | release and CI state | origin/master, release history, and Actions evidence | defines current release gate and known workflow blocker |
+| SRC-006 | audit_evidence | entity presence performance report | GitHub issue #24 profile and configuration | defines performance fixture and threshold evidence |
+| SRC-007 | audit_evidence | shared release validation failure | GitHub Actions run 31453460136 job 93662356066 | defines EXT-002 attestation prerequisite |
+| SRC-008 | owner_request | recipe lock serialization defect | EnVy report and GitHub issue #25 | defines canonical recipe fields, atomic recovery, and runtime proof |
+| SRC-009 | owner_request | player initiated inventory insertion locks | EnVy request and SuperDevyn profession selling bin use case | promotes CORE-REQ-012 without adding a seventh issue |
 
-The planning subject is the ProgressiveStages 3.0.4 polish and release closure. Source artifacts provide scope, current state, and evidence. They do not replace the authoritative plan or add scope beyond the locked intake.
+The planning subject is the ProgressiveStages 3.0.4 polish and stable release closure. Source artifacts provide scope, current state, and evidence. They do not replace the authoritative plan or add scope beyond the locked intake.
 
 ## 3. Purpose and Intended Outcome
 
@@ -49,14 +49,14 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 
 | Area | Evidence class | Finding | Evidence |
 |---|---|---|---|
-| Repository baseline | VERIFIED | The locked planning baseline is `origin/envy/polish-3.0.4-plan` at commit `f6ceb9b49fda8b3cf764706bb1e5113b75383ebb` | Git revision inspection recorded in §1 |
+| Repository baseline | VERIFIED | The locked audit baseline is the saved goal checkout `5b3077764907249b3711886cca538794f6139acf` on `origin/envy/polish-3.0.4-plan` | Saved goal provenance and Git revision inspection recorded in §1 |
 | Runtime contract | VERIFIED | The supported release target is ProgressiveStages for Minecraft 1.21.1 on NeoForge 21.1.219 | Gradle metadata and mod metadata inspection described by SRC-003 |
 | Issue baseline | VERIFIED | The active issue baseline is exactly `#8`, `#10`, `#11`, `#16`, `#24`, and `#25` | GitHub issue inspection in SRC-004 and SRC-008 |
 | Entity presence cost | OBSERVED | The reported hotspot constructs Minecraft rule context through the entity tracking decision path | Spark profile and configuration in SRC-006 |
 | Curios integration | OBSERVED | The current slot gate needs version tolerant resolution for the Curios 9.5.1 API surface | Issue `#8` and implementation evidence in SRC-003 |
 | Recipe viewers | VERIFIED | Existing configuration exposes EMI controls but does not prove independent JEI and EMI behavior in combined installations | Configuration inspection and optional integration evidence in SRC-003 |
 | Easy Builder enchantments | UNKNOWN | Existing source and tests require final editor bundle and JAR workflow verification | Issue `#11`, SRC-003, and Phase 000 audit |
-| Easy Builder recipe locks | OBSERVED | The classic visual-form path writes a generic `[recipes].locked` field, while the stage parser recognizes the distinct canonical `[recipes].locked_ids` and `[recipes].locked_items` fields; issue `#25` reports that the generated lock is ineffective or appears lost | `editor-ui/src/features/stages/RulesPanel.tsx`, `EditorSchemaRegistryTest`, `StageFileParser`, and SRC-008 |
+| Easy Builder recipe locks | OBSERVED | Issue `#25` reports an ineffective or lost visual recipe lock. The exact historical visual serializer representation remains unresolved until CORE-PHASE-000 records a production-bundle observation. The parser accepts the distinct canonical `[recipes].locked_ids` and `[recipes].locked_items` fields. | SRC-008 and the CORE-PHASE-000 evidence packet |
 | Inventory insertion locks | OBSERVED | Existing `[[interactions]]` entries cover item-on-block, block right-click, and item-on-entity with one held-item selector and one world target. The current container-menu hook gates locked-item movement and hotbar placement but does not resolve a destination inventory owner or compile a two-selector insertion decision. The Easy Builder currently serializes one category selector per rule. | `StageFileParser.parseInteractions`, `LockDefinition.InteractionLock`, `AbstractContainerMenuMixin`, `Schema4StageCompiler.addGenericRules`, `BuiltinEditorSchemas`, `RulesPanel.tsx`, and SRC-009 |
 | Category menu depth | UNKNOWN | Source ordering changes require production map verification at supported GUI scales | Issue `#16`, SRC-003, and Phase 000 audit |
 | Artifact parity | UNKNOWN | Published 3.0.3 documentation has not been fully reconciled with the shipped JAR | SRC-002 and CORE-REQ-007 |
@@ -66,16 +66,16 @@ The intended outcome is the exact completion endpoint recorded in §18 and §19.
 
 | Profile area | Status | Source | Contract location | Rationale |
 |---|---|---|---|---|
-| Inputs and outputs | covered | SRC-001, SRC-009 | Product Contract and Requirements | Stage files, commands, APIs, GUI, editor, destination-aware inventory transactions, optional integrations, and release artifacts are public product surfaces. |
-| Component architecture | covered | SRC-003 | Architecture and Ownership Boundaries | The plan must preserve server-authoritative rules, client presentation, optional integration isolation, and editor bundle boundaries. |
-| State and persistence | covered | SRC-003 | Architecture and Ownership Boundaries | Stage ownership, condition contexts, caches, server snapshots, and configuration must remain compatible. |
-| Failure taxonomy | covered | SRC-004, SRC-008, SRC-009 | Risks and Failure Boundaries | Reported defects and the promoted feature span performance, optional integration absence, editor serialization and data preservation, destination identity, item conservation, artifact drift, GUI depth, and release automation failure. |
-| Versioning | covered | SRC-001 | Compatibility, Migration, Rollout, and Recovery | The endpoint is a compatible 3.0.4 patch without platform or schema upgrades. |
-| Security | covered | SRC-003 | Architecture and Ownership Boundaries | Editor authority, client packets, optional reflection, release provenance, and no-secret handling remain mandatory. |
-| Test system | covered | SRC-004, SRC-008, SRC-009 | Verification Strategy | Every issue and CORE-REQ-012 require focused regression evidence plus integrated, multiplayer, optional-mod, performance, editor-transaction, inventory-conservation, and artifact proof. |
-| Release lifecycle | external_prerequisite | EXT-002 | Documentation, Operations, and Release Gates | The current shared attestation verifier fails and must be repaired upstream before 3.0.4 publication. |
-| Generalization | covered | SRC-003 | Compatibility, Migration, Rollout, and Recovery | Fixes must work for integrated and dedicated servers, solo and mixed multiplayer ownership, and optional-mod combinations. |
-| Determinism | covered | SRC-006 | Architecture and Ownership Boundaries | Rule snapshot revision and player-relevant state must determine cached presence decisions and invalidation. |
+| inputs and outputs | covered | SRC-001, SRC-003 | Public contract and architecture | The plan defines stage files, editor input, command input, runtime decisions, and release outputs. |
+| component architecture | covered | SRC-003 | Architecture and ownership | The plan assigns core engine, adapters, editor, client, enforcement, and release ownership. |
+| state and persistence | covered | SRC-003, SRC-008 | State, compatibility, migration, and recovery | The plan defines authoritative snapshots, persisted TOML, atomic editor state, and compatibility. |
+| failure taxonomy | covered | SRC-004, SRC-008 | Failure, recovery, and risk boundaries | The plan defines invalid drafts, optional dependency failures, transaction denial, and recovery. |
+| versioning | covered | SRC-001, SRC-003 | Compatibility, migration, rollout, and recovery | The plan pins 3.0.4, Minecraft 1.21.1, NeoForge 21.1.219, and compatible schemas. |
+| security | covered | SRC-003, SRC-009 | Security and trust boundaries | The plan preserves server authority, operator permission, destination resolution, and secret boundaries. |
+| test system | covered | SRC-004, SRC-006, SRC-008 | Verification strategy | The plan requires unit, integration, runtime, multiplayer, performance, artifact, and recovery proof. |
+| release lifecycle | external_prerequisite | EXT-002, EXT-003 | External prerequisites and release gates | The final signed release requires shared workflow repair and scoped owner publication authorization. |
+| generalization | covered | SRC-003, SRC-009 | Compatibility and architecture | Optional integrations, playerless automation, and modded target resolver behavior remain bounded. |
+| determinism | covered | SRC-008, SRC-009 | Architecture and verification strategy | The plan requires canonical rule normalization, deterministic priority, atomic state, and artifact hashes. |
 
 ## 6. Mandatory Scope
 
@@ -113,7 +113,7 @@ Every item in this section is excluded and non-blocking for this plan.
 ### DEC-001 — Completion endpoint
 
 **Status:** RESOLVED
-**Selected choice:** Publish ProgressiveStages 3.0.4 to CurseForge and Modrinth after verified master integration.
+**Selected choice:** Publish verified ProgressiveStages 3.0.4 to CurseForge and Modrinth after master integration.
 **Rationale:** The owner selected a public patch release with verified integration
 **Affected requirements:** CORE-REQ-009, CORE-REQ-010
 **Supersedes:** none
@@ -121,7 +121,7 @@ Every item in this section is excluded and non-blocking for this plan.
 ### DEC-002 — Mandatory scope boundary
 
 **Status:** RESOLVED
-**Selected choice:** Implement previously advertised or documented 3.0.3 capability if a polish audit proves it missing. Exclude novel unpromised product features.
+**Selected choice:** Correct promised 3.0.3 gaps proven by audit and exclude unpromised features except promoted CORE-REQ-012.
 **Rationale:** The polish matrix controls completeness without expanding the product roadmap
 **Affected requirements:** CORE-REQ-001, CORE-REQ-007
 **Supersedes:** none
@@ -129,7 +129,7 @@ Every item in this section is excluded and non-blocking for this plan.
 ### DEC-003 — Recipe viewer operation
 
 **Status:** RESOLVED
-**Selected choice:** JEI and EMI have independent enabled settings, default enabled, and both work concurrently when installed.
+**Selected choice:** JEI and EMI settings are independent, default enabled, and concurrent when installed.
 **Rationale:** Mixed client installations require independent optional viewer controls
 **Affected requirements:** CORE-REQ-004
 **Supersedes:** none
@@ -137,7 +137,7 @@ Every item in this section is excluded and non-blocking for this plan.
 ### DEC-004 — Entity presence performance gate
 
 **Status:** RESOLVED
-**Selected choice:** Use the approved per-player-per-tick context, no per-entity rebuild, under-five-percent sampled work, and at-most-ten-percent p95 MSPT regression thresholds.
+**Selected choice:** Use one context per player, server tick, and authoritative state revision, with no per entity rebuild, under five percent work, and at most ten percent p95 MSPT regression.
 **Rationale:** The lag correction needs fixed correctness and performance limits
 **Affected requirements:** CORE-REQ-002
 **Supersedes:** none
@@ -145,15 +145,15 @@ Every item in this section is excluded and non-blocking for this plan.
 ### DEC-005 — Shared workflow release gate
 
 **Status:** RESOLVED
-**Selected choice:** Yes. Repair and verification of the shared attestation workflow are mandatory before 3.0.4 publication.
+**Selected choice:** Shared attestation repair and verification are mandatory before publication.
 **Rationale:** Release evidence must be verified by the supported shared workflow
 **Affected requirements:** CORE-REQ-009, CORE-REQ-010
 **Supersedes:** none
 
-### DEC-006 — Issue #25 inclusion
+### DEC-006 — Issue 25 inclusion
 
 **Status:** RESOLVED
-**Selected choice:** Issue #25 is mandatory for 3.0.4 and increases the fixed issue baseline from five to six without changing the release endpoint.
+**Selected choice:** Issue 25 is mandatory and the fixed baseline contains exactly six issues.
 **Rationale:** The owner promoted the reported editor serialization defect into the current polish release before goal creation
 **Affected requirements:** CORE-REQ-001, CORE-REQ-008, CORE-REQ-010, CORE-REQ-011
 **Supersedes:** none
@@ -161,20 +161,24 @@ Every item in this section is excluded and non-blocking for this plan.
 ### DEC-007 — Inventory insertion lock inclusion
 
 **Status:** RESOLVED
-**Selected choice:** Add destination-aware player-initiated inventory insertion locks to 3.0.4. A rule selects both the item being inserted and the receiving block, menu, or inventory owner, uses the existing selector and priority system, and does not attribute playerless hopper or automation transfers to a nearby player.
+**Selected choice:** CORE-REQ-012 adds destination aware player initiated item_into_inventory locks without attributing automation to nearby players.
 **Rationale:** Profession packs need to deny ore insertion into a selling bin, chest, furnace, or compatible modded container until the player owns the required stage, without item loss, duplication, or automation regressions.
 **Affected requirements:** CORE-REQ-008, CORE-REQ-010, CORE-REQ-012
 **Supersedes:** DEC-002 only for the explicitly bounded CORE-REQ-012 feature. All other novel feature requests remain excluded by FUT-003.
 
 ## 10. External Prerequisites
 
+### External prerequisites and release gates
+
+The external contracts below gate their owning runtime or publication actions without authorizing lower-fidelity substitutes.
+
 | ID | Prerequisite | Affected requirements | Availability | Authorization | Required external action |
 |---|---|---|---|---|---|
-| EXT-001 | Public Curios, JEI, and EMI test artifacts for Minecraft 1.21.1 and NeoForge 21.1.219 | CORE-REQ-003, CORE-REQ-004 | available | not_required | Resolve the artifact set and execute the runtime matrix |
+| EXT-001 | Public Curios JEI and EMI test artifacts for Minecraft 1.21.1 and NeoForge 21.1.219 | CORE-REQ-003, CORE-REQ-004 | available | not_required | Resolve the artifact set and execute the runtime matrix |
 | EXT-002 | Corrected MCEnvision shared release-validation workflow revision | CORE-REQ-009, CORE-REQ-010 | unavailable | unknown | Merge and validate the compatible attestation verifier revision |
-| EXT-003 | Owner-approved platform publication confirmation for the final 3.0.4 artifact | CORE-REQ-010 | unknown | not_authorized | Confirm the final preview through the configured release broker |
+| EXT-003 | Owner-approved platform publication confirmation for the final 3.0.4 artifact | CORE-REQ-010 | unknown | unknown | Confirm the final preview through the configured release broker |
 
-### EXT-001 — Public Curios, JEI, and EMI test artifacts for Minecraft 1.21.1 and NeoForge 21.1.219
+### EXT-001 — Public Curios JEI and EMI test artifacts for Minecraft 1.21.1 and NeoForge 21.1.219
 
 **Kind:** artifact
 **Availability:** available
@@ -184,36 +188,55 @@ Every item in this section is excluded and non-blocking for this plan.
 
 **Required evidence**
 
-- Resolved dependency coordinates, artifact checksums, compatibility evidence, license or provenance review, and runtime matrix execution.
+- authoritative source
+- exact version
+- sha256
+- sha512
+- compatibility
+- license provenance
+- security review
 
 ### EXT-002 — Corrected MCEnvision shared release-validation workflow revision
 
-**Kind:** other
+**Kind:** service
 **Availability:** unavailable
 **Authorization:** unknown
 **Affected requirements:** CORE-REQ-009, CORE-REQ-010
 
 **Required evidence**
 
-- A merged shared-workflow revision that verifies both build provenance and SBOM attestations using compatible GitHub CLI flags, plus a successful reusable workflow run on a disposable release candidate.
+- merged workflow revision
+- successful disposable candidate verification
+- failed tampered candidate verification
+- attestation evidence
 
 ### EXT-003 — Owner-approved platform publication confirmation for the final 3.0.4 artifact
 
 **Kind:** authorization
 **Availability:** unknown
-**Authorization:** not_authorized
+**Authorization:** unknown
 **Affected requirements:** CORE-REQ-010
-**Authorization scope binding:** artifact_identities, operations, operators, rollback, runbook_digest, systems, time_window
+**Authorization scope binding:** runbook_digest, artifact_identities, systems, operations, operators, time_window, rollback
 
 **Required evidence**
 
-- Confirmation bound to final artifact SHA-256 and SHA-512, source commit, target platforms, allowed publication operation, operator, time window, and rollback or unpublish policy.
+- approval bound to final artifact hashes
+- runbook digest
+- platform targets
+- operator window
+- rollback contract
 
 ## 11. Architecture and Ownership Boundaries
 
+### Architecture and ownership
+
 The logical server owns stage membership, compiled rule decisions, configuration reload, permissions, and all access enforcement. Client code owns only presentation, interaction capture, and synchronized caches. A client may request an operator action through the editor but cannot authorize a stage mutation, condition decision, or rule bypass.
 
-`CompiledRuleEngine` owns normalized rule resolution. `MinecraftConditionContextFactory` owns a player relevant immutable condition context. `EntityPresenceEnforcer` owns tracking concealment, interaction denial, and pacification for player specific entity presence rules. CORE-REQ-002 must add a server thread confined snapshot boundary keyed by player identity, server tick, rule revision, and relevant state revision. It must invalidate on rule reload, stage mutation, team mutation, score or metric mutation, dimension transition, session transition, disconnect, and server stop. It must not share contexts across players, worlds, or rule revisions.
+### Security and trust boundaries
+
+Server authority, authenticated player origin, operator permission, stable destination identity, validation before mutation, optional dependency isolation, and secret exclusion are mandatory across every component described below.
+
+`CompiledRuleEngine` owns normalized rule resolution. `MinecraftConditionContextFactory` owns a player relevant immutable condition context. `EntityPresenceEnforcer` owns tracking concealment, interaction denial, and pacification for player specific entity presence rules. CORE-REQ-002 must add a server thread confined snapshot boundary keyed by player identity, server tick, rule revision, and relevant state revision. Exactly one context may exist for each player, tick, and authoritative state-revision tuple. A rule or relevant-state revision that changes during the same server tick invalidates the previous tuple before the next decision and creates at most one context for the new tuple. It must invalidate on rule reload, stage mutation, team mutation, score or metric mutation, dimension transition, session transition, disconnect, and server stop. It must not share contexts across players, worlds, or rule revisions.
 
 Curios, JEI, and EMI are optional adapter boundaries. Their classes must remain isolated from common startup and dedicated server class loading. The adapters translate a core decision into external API behavior but do not own stage policy. A missing or incompatible optional mod retains no integration behavior and emits a concise diagnostic rather than a crash or a permissive fallback.
 
@@ -226,6 +249,8 @@ The logical server owns inventory target resolution and the complete player tran
 Release tooling owns packaging, checksum generation, SBOM generation, source commit manifest creation, signed tag verification, and attestation validation. The shared MCEnvision workflow owns the attestation verifier implementation. The broker owns platform mutation and accepts only a release manifest authorized by EXT-003. No credentials, confirmation codes, or private release data may enter source, Git history, documentation, test fixtures, or logs.
 
 ## 12. Product Contract and Requirements
+
+### Public contract and architecture
 
 The public contract covers stage files, server configuration, commands, KubeJS and integration APIs, editor drafts, synchronized player state, in game UI, optional recipe viewers, Curios slots, player-initiated inventory transfers, and release artifacts. Inputs must be schema validated and authority checked before state changes. Identical stage state, rule revision, configuration revision, player relevant facts, source stack, destination kind, and destination identity must produce identical normalized rule decisions. Product fixes must generalize across integrated and dedicated servers, solo players, mixed multiplayer ownership, and supported optional mod combinations.
 
@@ -243,13 +268,13 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 
 - Each of issues `#8`, `#10`, `#11`, `#16`, `#24`, and `#25` has an explicit reproduction, artifact verification, or evidence based stale classification
 - The matrix records source revision, installed artifact identity, test configuration, expected behavior, observed behavior, and assigned requirement
-- The audit identifies every public 3.0.3 capability gap proven by a shipped artifact inspection without promoting new features
+- The audit identifies every public 3.0.3 capability gap proven by a shipped artifact inspection without promoting new features, and records the required downstream corrected-runtime proof without treating it as Phase 000 evidence
 - The audit freezes the current interaction parser, compiled-rule, menu-transaction, target-catalog, editor serializer, and test seams that CORE-REQ-012 may change, without counting the owner-promoted feature as a seventh issue
 
 **Required evidence**
 
 - A versioned audit matrix tracing each baseline report to CORE-REQ-002 through CORE-REQ-007 or CORE-REQ-011
-- A final JAR inventory and public documentation comparison for advertised 3.0.3 capabilities
+- A shipped 3.0.3 JAR inventory and public documentation comparison for advertised 3.0.3 capabilities, with no corrected candidate JAR or corrected-runtime assertion required before CORE-PHASE-003
 - A current-state inventory insertion seam map covering legacy interactions, selector matching, destination identity, menu click paths, editor catalogs, and existing regression fixtures
 
 ### CORE-REQ-002 — Repair entity presence performance
@@ -264,13 +289,13 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 
 **Acceptance criteria**
 
-- A player receives at most one immutable condition context per server tick and no tracked entity rebuilds that context
+- Each player receives at most one immutable condition context for each server tick and authoritative state revision. Every tracked-entity decision in that tuple reuses the same context, while a same-tick rule or relevant-state revision invalidates the prior tuple before the next decision and creates at most one context for the new tuple
 - A denied player cannot render, target, attack, or be targeted by a denied entity while an eligible nearby player retains normal entity behavior
 - The controlled entity presence fixture stays under five percent of sampled server thread work and p95 MSPT increases no more than ten percent versus disabled enforcement
 
 **Required evidence**
 
-- Cache revision and invalidation tests covering every architecture boundary in §11
+- Cache revision and invalidation tests covering every architecture boundary in §11, including a same-tick authoritative revision change that invalidates the prior context before the next decision
 - A multiplayer dedicated server scenario with eligible and denied players observing the same entity
 - Baseline and enabled server profile captures with p95 MSPT calculation instructions
 
@@ -322,7 +347,7 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 **Owner:** EasyBuilder
 **Contributors:** EnchantmentCompiler
 **Dependencies:** CORE-REQ-001
-**Lifecycle stage:** post_change
+**Lifecycle stage:** change
 **Production verification:** nondestructive
 **Release impact:** stable release
 
@@ -343,7 +368,7 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 **Owner:** StageTreeScreen
 **Contributors:** ClientRenderTests
 **Dependencies:** CORE-REQ-001
-**Lifecycle stage:** post_change
+**Lifecycle stage:** change
 **Production verification:** nondestructive
 **Release impact:** stable release
 
@@ -364,7 +389,7 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 **Owner:** ArtifactParity
 **Contributors:** Documentation
 **Dependencies:** CORE-REQ-001
-**Lifecycle stage:** post_change
+**Lifecycle stage:** change
 **Production verification:** nondestructive
 **Release impact:** stable release
 
@@ -444,7 +469,7 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 **Owner:** CompatibilityHarness
 **Contributors:** NetworkValidation, ConfigurationSchema
 **Dependencies:** CORE-REQ-002, CORE-REQ-003, CORE-REQ-004, CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-011, CORE-REQ-012
-**Lifecycle stage:** continuous
+**Lifecycle stage:** post_change
 **Production verification:** nondestructive
 **Release impact:** stable release
 
@@ -488,7 +513,7 @@ The public contract covers stage files, server configuration, commands, KubeJS a
 **Behavior:** Build, integrate, attest, document, publish, and verify 3.0.4, then close the six baseline issues with evidence
 **Owner:** ReleaseBroker
 **Contributors:** ReleaseDocumentation
-**Dependencies:** CORE-REQ-009, EXT-003
+**Dependencies:** CORE-REQ-009
 **Lifecycle stage:** post_change
 **Production verification:** nondestructive
 **Release impact:** stable release
@@ -512,19 +537,21 @@ The master owns the global order and concise phase catalog. Every required execu
 | Phase ID | Objective | Owner | Dependencies | Canonical requirements | Entry summary | Exit summary | Next transition | Blueprint path |
 |---|---|---|---|---|---|---|---|---|
 | CORE-PHASE-000 | Freeze the defect, inventory-interaction seam, and artifact baseline | RepositoryAudit | none | CORE-REQ-001 | Baseline revision, six-issue set, and SRC-009 feature request are pinned | Audit classifies every mandatory report and advertised capability claim and records the current CORE-REQ-012 implementation seams | CORE-PHASE-001 | [phases/plan-phase-000.md](phases/plan-phase-000.md) |
-| CORE-PHASE-001 | Repair entity presence performance | EntityPresenceEnforcer | CORE-PHASE-000 | CORE-REQ-002 | CORE-REQ-001 audit identifies the hot path fixture | Correctness and DEC-004 performance evidence pass | CORE-PHASE-002 | [phases/plan-phase-001.md](phases/plan-phase-001.md) |
-| CORE-PHASE-002 | Restore optional integration behavior | OptionalIntegrations | CORE-PHASE-000, EXT-001 | CORE-REQ-003, CORE-REQ-004 | EXT-001 artifact contract is complete | Curios, JEI, and EMI compatibility matrix passes | CORE-PHASE-003 | [phases/plan-phase-002.md](phases/plan-phase-002.md) |
-| CORE-PHASE-003 | Complete editor serialization, inventory insertion gating, client UI, and artifact parity | EasyBuilder | CORE-PHASE-000 | CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-011, CORE-REQ-012 | Audit assigns source-owned corrections and freezes the inventory interaction seams | Editor controls, recipe serialization, two-selector inventory rules, transaction enforcement, UI, and proven artifact parity evidence pass | CORE-PHASE-004 | [phases/plan-phase-003.md](phases/plan-phase-003.md) |
-| CORE-PHASE-004 | Prove compatibility and regression safety | CompatibilityHarness | CORE-PHASE-001, CORE-PHASE-002, CORE-PHASE-003 | CORE-REQ-008 | All component changes, including CORE-REQ-012, are complete | Full compatibility, inventory-conservation, automation, multiplayer, and security verification passes | CORE-PHASE-005 | [phases/plan-phase-004.md](phases/plan-phase-004.md) |
+| CORE-PHASE-001 | Repair entity presence performance | EntityPresenceEnforcer | CORE-PHASE-000 | CORE-REQ-002 | CORE-REQ-001 audit identifies the hot path fixture | CORE-REQ-002 correctness, same-tick revision invalidation, and DEC-004 performance evidence pass through signed integration | CORE-PHASE-002 | [phases/plan-phase-001.md](phases/plan-phase-001.md) |
+| CORE-PHASE-002 | Restore optional integration behavior | OptionalIntegrations | CORE-PHASE-001, EXT-001 | CORE-REQ-003, CORE-REQ-004 | CORE-PHASE-001 is integrated with signed completion evidence and EXT-001 artifact contract is complete | Curios, JEI, and EMI compatibility matrix passes | CORE-PHASE-003 | [phases/plan-phase-002.md](phases/plan-phase-002.md) |
+| CORE-PHASE-003 | Complete editor serialization, inventory insertion gating, client UI, and artifact parity | EasyBuilder | CORE-PHASE-002 | CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-011, CORE-REQ-012 | CORE-PHASE-002 is integrated with signed completion evidence, the audit assigns source-owned corrections, and the inventory interaction seams are frozen | Production-bundle, corrected-runtime, candidate-JAR, and signed Phase 003 integration evidence pass for editor controls, recipe serialization, two-selector `item_into_inventory` rules, transaction enforcement, UI, and proven artifact parity | CORE-PHASE-004 | [phases/plan-phase-003.md](phases/plan-phase-003.md) |
+| CORE-PHASE-004 | Prove compatibility and regression safety | CompatibilityHarness | CORE-PHASE-003 | CORE-REQ-008 | All sequential component changes, including CORE-REQ-012, are integrated with signed completion evidence | Full compatibility, inventory-conservation, automation, multiplayer, and security verification passes | CORE-PHASE-005 | [phases/plan-phase-004.md](phases/plan-phase-004.md) |
 | CORE-PHASE-005 | Integrate and validate the release artifact | ReleaseValidation | CORE-PHASE-004, EXT-002 | CORE-REQ-009 | Shared verifier repair is merged and pinned | Signed master artifact and release validation evidence pass | CORE-PHASE-006 | [phases/plan-phase-005.md](phases/plan-phase-005.md) |
-| CORE-PHASE-006 | Publish the verified patch and close issues | ReleaseBroker | CORE-PHASE-005, EXT-003 | CORE-REQ-010 | Broker preview matches final signed artifact | The six-issue completion endpoint and Definition of Done pass with no known mandatory phase owned defect remaining | final completion | [phases/plan-phase-006.md](phases/plan-phase-006.md) |
+| CORE-PHASE-006 | Publish the verified patch and close issues | ReleaseBroker | CORE-PHASE-005 | CORE-REQ-010 | The signed Phase 005 artifact is frozen; read-only preview work may begin while EXT-003 remains unresolved | EXT-003 authorizes only the exact preview, both platforms verify, and the six-issue completion endpoint and Definition of Done pass with no known mandatory phase owned defect remaining | final completion | [phases/plan-phase-006.md](phases/plan-phase-006.md) |
 
 ## 14. Verification Strategy
+
+### Architecture and verification strategy
 
 | Requirement | Unit | Integration | Real behavior | Security | Artifact or runtime |
 |---|---|---|---|---|---|
 | CORE-REQ-001 | Matrix consistency checks | Source, issue, documentation, and JAR reconciliation | Reproduce or artifact verify all six reports | Sanitized logs and screenshots | Versioned issue matrix |
-| CORE-REQ-002 | Snapshot, cache, and invalidation tests | Two player server scenario | Profiled entity tracking and p95 MSPT fixture | Player scoped cache isolation | Spark or equivalent profile capture |
+| CORE-REQ-002 | Snapshot, cache, and same-tick revision-invalidation tests | Two player server scenario | Profiled entity tracking and p95 MSPT fixture | Player, tick, and authoritative-state-revision cache isolation | Spark or equivalent profile capture |
 | CORE-REQ-003 | API resolver and inventory conservation tests | Curios present and absent server smoke tests | Grant, revoke, reconnect, and reload | Optional class loading isolation | EXT-001 artifact matrix |
 | CORE-REQ-004 | Independent configuration default tests | JEI only, EMI only, both, disabled, absent | Stage visibility update in each viewer | Optional class loading isolation | EXT-001 client runtime matrix |
 | CORE-REQ-005 | Form, serializer, and compiler round trip tests | Operator apply and client sync | Packaged editor bundle workflow | Operator authority and malformed draft rejection | Final JAR browser smoke |
@@ -540,13 +567,17 @@ All changed Java, Gradle, resource, configuration, networking, client, and optio
 
 ## 15. Compatibility, Migration, Rollout, and Recovery
 
+### State, compatibility, migration, and recovery
+
 3.0.4 is a compatible patch. Existing stage identifiers, `pack:stage` parsing, canonical TOML schema, configuration keys, commands, persisted player stage data, packets, public APIs, editor drafts, and default behavior remain supported. The new independent JEI setting must default enabled when absent so existing configurations retain their expected recipe viewer behavior. EMI configuration must remain readable. Canonical recipe-output locks continue to use `[recipes].locked_items`, while exact recipe-identifier locks continue to use `[recipes].locked_ids`. Existing `[[interactions]]` entries retain their fields and behavior. The additive `item_into_inventory` form has no effect until configured, and a pack that does not use it retains existing player and automation transfer behavior.
+
+### Compatibility and architecture
 
 The editor-produced generic `[recipes].locked` form is not promoted into the public schema. On draft load, save, review, or apply, an unambiguous legacy value whose editor intent is recipe-output locking may migrate to `[recipes].locked_items` while preserving selectors, priorities, comments where the established preservation layer supports them, and the last valid rule. An ambiguous value must be rejected with a field-specific correction message before any live-file mutation. Validation, backup, atomic write, reload, compiler activation, and synchronization form one transaction: a failure restores the prior persisted file, compiled snapshot, and player-visible state. Inventory insertion rules use the additive canonical form in §11 and CORE-REQ-012; no legacy interaction is auto-converted, and invalid two-selector entries are rejected before live mutation. No Minecraft, NeoForge, Java, Gradle, mappings, persistence format, or unrelated schema upgrade is in scope.
 
-Entity presence snapshots are transient server state and never enter persistent player data. A snapshot invalidates and rebuilds from authoritative server state after every relevant state revision, reload, reconnect, dimension change, or restart. Curios transitions must conserve inventory contents. A failed optional adapter must disable only its adapter boundary and not alter core rule decisions.
+Entity presence snapshots are transient server state and never enter persistent player data. A snapshot invalidates and rebuilds from authoritative server state after every relevant state revision, including a revision that occurs during the same server tick, plus reload, reconnect, dimension change, or restart. Curios transitions must conserve inventory contents. A failed optional adapter must disable only its adapter boundary and not alter core rule decisions.
 
-Rollout order is Phase 000 audit, sequential source changes including the issue `#25` editor transaction and CORE-REQ-012 inventory insertion feature, compatibility proof, signed master integration, release validation, broker preview, EXT-003 confirmation, dual platform publication, and downloaded hash verification. Before publication, recovery is a corrective change on the appropriate sequential phase branch followed by the complete verification set. A failed editor migration or apply restores the last valid recipe rule and inventory rule snapshot and requires the full visual-form-to-runtime workflow to be rerun. A failed denied inventory transaction must resynchronize from the authoritative pre-transaction state before the player continues using the menu. After publication, recovery follows the rollback or unpublish policy bound by EXT-003 and requires a new verified artifact for any replacement.
+Rollout order is Phase 000 audit, signed integration of Phase 001, Phase 002 optional-integration work, sequential remaining source changes including the issue `#25` editor transaction and CORE-REQ-012 inventory insertion feature, compatibility proof, signed master integration, release validation, broker preview, EXT-003 confirmation, dual platform publication, and downloaded hash verification. Before publication, recovery is a corrective change on the appropriate sequential phase branch followed by the complete verification set. A failed editor migration or apply restores the last valid recipe rule and inventory rule snapshot and requires the full visual-form-to-runtime workflow to be rerun. A failed denied inventory transaction must resynchronize from the authoritative pre-transaction state before the player continues using the menu. After publication, recovery follows the rollback or unpublish policy bound by EXT-003 and requires a new verified artifact for any replacement.
 
 ## 16. Documentation, Operations, and Release Gates
 
@@ -563,9 +594,11 @@ Rollout order is Phase 000 audit, sequential source changes including the issue 
 
 ## 17. Risks and Failure Boundaries
 
+### Failure, recovery, and risk boundaries
+
 | Risk | Impact | Prevention | Detection | Recovery |
 |---|---|---|---|---|
-| Snapshot invalidation omits a relevant player fact | Stale allow or deny decision | Revision keyed player snapshots and mutation tests | Direct decision comparison and multiplayer smoke | Invalidate snapshot, correct boundary, rerun CORE-REQ-002 evidence |
+| Snapshot invalidation omits a relevant player fact or same-tick revision | Stale allow or deny decision | Player, server-tick, and authoritative-state-revision keyed snapshots plus mutation tests | Direct decision comparison and multiplayer smoke | Invalidate the prior tuple before the next decision, correct the boundary, and rerun CORE-REQ-002 evidence |
 | Performance cache changes shared entity behavior | Incorrect visibility or targeting | Preserve core rule resolution and test mixed player ownership | Two player entity fixture | Revert semantic change and retain the profiling harness |
 | Curios API drift links optional classes | Startup failure or broken slots | Version tolerant bridge and absent mod boundary | Present and absent integration matrix | Correct adapter resolution without changing core rules |
 | JEI and EMI conflict in combined clients | Incorrect recipe display | Independent adapters and settings | Full recipe viewer matrix | Restore isolated adapter behavior and add regression test |
@@ -586,8 +619,8 @@ Rollout order is Phase 000 audit, sequential source changes including the issue 
 - A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all six baseline GitHub issues are closed with merged-revision acceptance evidence.
 - Every CORE-REQ-001 through CORE-REQ-012 acceptance criterion and required evidence gate passes at the defined fidelity
 - The final JAR, SHA-256, SHA-512, SBOM, source manifest, signed integration, signed tag, and attestation evidence identify the same release artifact
-- `Corrected MCEnvision shared release-validation workflow revision` is complete and demonstrates compatible attestation verification under EXT-002
-- `Owner-approved platform publication confirmation for the final 3.0.4 artifact` is complete and binds the final publication under EXT-003
+- Corrected MCEnvision shared release-validation workflow revision is complete and demonstrates compatible attestation verification under EXT-002
+- Owner-approved platform publication confirmation for the final 3.0.4 artifact is complete and binds the final publication under EXT-003
 - While EXT-002 or EXT-003 remains unsatisfied, the plan remains NOT COMPLETE — EXTERNALLY BLOCKED and no publication or issue closure may claim completion
 - FUT-001, FUT-002, FUT-003, and FUT-004 remain excluded
 
@@ -597,8 +630,8 @@ Mandatory boundary: Resolve issues #8, #10, #11, #16, #24, and #25, implement th
 Optional/future disposition: excluded
 Locked owner decisions: DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007
 Active phase: CORE-PHASE-000
-Next executable action: Freeze the six issue reproductions, advertised capability audit, and CORE-REQ-012 interaction, menu, editor, catalog, and test seams against commit f6ceb9b49fda8b3cf764706bb1e5113b75383ebb
-Known failing checks: GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined; issue #25 reports that the Easy Builder emits `[recipes].locked`, which does not activate the intended canonical `[recipes].locked_items` rule
+Next executable action: Freeze the six issue reproductions, advertised capability audit, and CORE-REQ-012 interaction, menu, editor, catalog, and test seams against saved goal checkout 5b3077764907249b3711886cca538794f6139acf
+Known failing checks: GitHub Actions run 31453460136 job 93662356066 fails shared attestation verification because incompatible GitHub CLI signer flags are combined; issue #25 reports an ineffective visual recipe lock whose exact production-bundle representation must be recorded by CORE-PHASE-000 before CORE-PHASE-003 corrects it
 Known external blockers: Corrected MCEnvision shared release-validation workflow revision under EXT-002 and Owner-approved platform publication confirmation for the final 3.0.4 artifact under EXT-003
 Completion endpoint: A signed and verified 3.0.4 patch is merged into master, published to CurseForge and Modrinth, and all six baseline GitHub issues are closed with merged-revision acceptance evidence.
 Required evidence gates: CORE-REQ-001 audit and inventory-interaction seam matrix, DEC-004 performance profile, EXT-001 compatibility matrix, CORE-REQ-005 editor bundle proof, CORE-REQ-006 client UI proof, CORE-REQ-011 visual-form-to-runtime recipe-lock proof with preservation and rollback evidence, CORE-REQ-012 two-selector schema, Easy Builder, destination resolver, click-path, transaction-conservation, automation, multiplayer, reload, custom-menu, diagnostics, documentation, and final-JAR proof, CORE-REQ-008 regression suite, EXT-002 reusable workflow proof, signed master integration and tag, checksums, SBOM, source manifest, attestation verification, EXT-003 confirmation, platform URLs, downloaded artifact hashes, and six issue closure packets

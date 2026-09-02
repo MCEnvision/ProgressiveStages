@@ -1054,6 +1054,11 @@ update. Live and temporary conditions are checked again every ten ticks, and a p
 when the resolved concealed type set changes. Future clients receive the same resolved state after
 joining.
 
+Tracking suppression also covers projectiles owned by a denied mob. A denied player cannot receive
+or damage a skeleton arrow through the hidden owner, while an eligible player continues to receive
+the same shared skeleton and projectile normally. Target changes are cancelled before they can
+assign a denied player.
+
 #### Entity presence condition snapshots
 
 Entity presence uses one immutable condition snapshot for each player, server tick, and
@@ -1075,6 +1080,13 @@ The implementations are
 [`EntityPresenceEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/EntityPresenceEnforcer.java),
 [`EntityEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/EntityEnforcer.java),
 and [`EntityRenderDispatcherMixin`](src/main/java/com/enviouse/progressivestages/mixin/client/EntityRenderDispatcherMixin.java).
+
+For a controlled operator performance capture only, start a dedicated server with
+`-Dprogressivestages.entityPresenceFixture=true`. The bounded diagnostic writes raw per-tick CSV
+samples on normal server shutdown and is disabled by default. It does not change stage rules,
+saved data, packets, or client behavior. See
+[`3.0.4-entity-presence-fixture.md`](docs/verification/3.0.4-entity-presence-fixture.md) for the
+fixture, command, sample-capacity property, calculation, and interpretation rules.
 
 ### 4.11 `[[interactions]]` — fine-grained "X-on-Y" rules
 

@@ -18,6 +18,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.AABB;
 
@@ -43,6 +44,15 @@ public final class EntityPresenceEnforcer {
     private EntityPresenceEnforcer() {}
 
     public static boolean isPresenceDenied(ServerPlayer player, EntityType<?> entityType) {
+        long startedAt = EntityPresenceFixtureProfiler.beginDecision();
+        try {
+            return isPresenceDeniedInternal(player, entityType);
+        } finally {
+            EntityPresenceFixtureProfiler.endDecision(startedAt);
+        }
+    }
+
+    private static boolean isPresenceDeniedInternal(ServerPlayer player, EntityType<?> entityType) {
         if (player == null || entityType == null) return false;
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) return false;
 
@@ -124,17 +134,31 @@ public final class EntityPresenceEnforcer {
         if (!(event.getNewAboutToBeSetTarget() instanceof ServerPlayer player)) return;
         if (isPresenceDenied(player, event.getEntity().getType())) {
             event.setNewAboutToBeSetTarget(null);
+            event.setCanceled(true);
         }
     }
 
     public static boolean blocksDamage(ServerPlayer player, DamageSource source) {
-        return player != null && source != null && source.getEntity() instanceof Mob attacker
-            && isPresenceDenied(player, attacker.getType());
+        Mob attacker = sourceMob(source);
+        return player != null && attacker != null && isPresenceDenied(player, attacker.getType());
     }
 
     public static boolean shouldConcealTracking(ServerPlayer player, Entity entity) {
         return player != null && entity != null && entity != player
-            && isPresenceDenied(player, entity.getType());
+            && isPresenceDenied(player, entity);
+    }
+
+    private static boolean isPresenceDenied(ServerPlayer player, Entity entity) {
+        if (isPresenceDenied(player, entity.getType())) return true;
+        return entity instanceof Projectile projectile && projectile.getOwner() instanceof Mob owner
+            && isPresenceDenied(player, owner.getType());
+    }
+
+    private static Mob sourceMob(DamageSource source) {
+        if (source == null) return null;
+        if (source.getEntity() instanceof Mob mob) return mob;
+        return source.getDirectEntity() instanceof Projectile projectile && projectile.getOwner() instanceof Mob mob
+            ? mob : null;
     }
 
     private static List<ServerPlayer> relevantPlayers(ServerLevel level, double x, double z) {

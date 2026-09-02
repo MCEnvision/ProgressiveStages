@@ -57,6 +57,10 @@ public abstract class EmiStackWidgetMixin {
     @Inject(method = "render", at = @At("TAIL"), require = 0)
     private void progressivestages$renderLockOverlay(GuiGraphics graphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         try {
+            if (!StageConfig.isEmiEnabled()) {
+                LockIconRenderer.exitSlotWidget();
+                return;
+            }
             progressivestages$renderCallCount++;
 
             // Creative bypass - skip all lock rendering

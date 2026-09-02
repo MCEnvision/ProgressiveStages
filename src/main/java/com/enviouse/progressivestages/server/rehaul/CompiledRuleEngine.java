@@ -5,6 +5,8 @@ import com.enviouse.progressivestages.common.rehaul.CompiledSnapshot;
 import com.enviouse.progressivestages.common.rehaul.ConditionNode;
 import com.enviouse.progressivestages.common.rehaul.RuleEffect;
 import com.enviouse.progressivestages.common.rehaul.RuleLifetime;
+import com.enviouse.progressivestages.common.rehaul.ViewerPolicy;
+import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.rehaul.condition.ConditionContext;
 import com.enviouse.progressivestages.common.rehaul.condition.ConditionEvaluator;
 import com.enviouse.progressivestages.common.rehaul.decision.DecisionCandidate;
@@ -20,8 +22,10 @@ import com.enviouse.progressivestages.common.rehaul.selector.SelectorMatcherRegi
 import com.enviouse.progressivestages.common.rehaul.selector.SelectorTarget;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Item;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -34,6 +38,11 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class CompiledRuleEngine {
+
+    public enum RecipeViewer {
+        EMI,
+        JEI
+    }
 
     private final SelectorMatcherRegistry selectors;
     private final ConditionEvaluator conditions;
@@ -123,7 +132,63 @@ public final class CompiledRuleEngine {
 
     public Optional<CompiledRule> findRule(ResourceLocation id) { return Optional.ofNullable(byId.get(id)); }
 
+    public Map<ResourceLocation, Set<StageId>> resolveViewerItemLocks(ServerPlayer player, RecipeViewer viewer) {
+        if (player == null || viewer == null) return Map.of();
+        List<CompiledRule> itemRules = rules("items");
+        if (itemRules.isEmpty()) return Map.of();
+
+        ConditionContext context = MinecraftConditionContextFactory.create(player, RehaulRuntime.get(), Set.of());
+        Map<ResourceLocation, Set<StageId>> resolved = new LinkedHashMap<>();
+        for (Item item : BuiltInRegistries.ITEM) {
+            ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+            if (itemId == null) continue;
+            Set<StageId> stages = resolveViewerItemLocks(player, viewer, itemId,
+                BuiltInRegistries.ITEM.wrapAsHolder(item), itemRules, context);
+            if (!stages.isEmpty()) resolved.put(itemId, stages);
+        }
+        return Map.copyOf(resolved);
+    }
+
     public synchronized List<DecisionTrace> history() { return List.copyOf(history); }
+
+    private Set<StageId> resolveViewerItemLocks(ServerPlayer player, RecipeViewer viewer,
+                                                ResourceLocation itemId, Holder<?> holder,
+                                                List<CompiledRule> itemRules, ConditionContext context) {
+        SelectorTarget target = target(itemId, holder);
+        Map<String, List<DecisionCandidate>> byAction = new LinkedHashMap<>();
+        int order = 0;
+        for (CompiledRule rule : itemRules) {
+            if (legacyContext(rule.condition())) continue;
+            SelectorMatch selectorMatch = selectors.match(rule.selector(), target);
+            if (!selectorMatch.matched()) continue;
+            PrioritySource source = parsePrioritySource(rule.settings().get("priority_source"));
+            byAction.computeIfAbsent(rule.action(), ignored -> new ArrayList<>()).add(new DecisionCandidate(
+                rule, selectorMatch, active(player, rule, context), order++,
+                new ResolvedPriority(rule.priority(), source)));
+        }
+
+        Set<StageId> stages = new LinkedHashSet<>();
+        for (Map.Entry<String, List<DecisionCandidate>> entry : byAction.entrySet()) {
+            DecisionTrace trace = DecisionResolver.resolve(itemId, "items", entry.getKey(), entry.getValue(), TiePolicy.SAFE);
+            if (trace.winningEffect() != RuleEffect.LOCK || trace.winner().isEmpty()) continue;
+            CompiledRule rule = byId.get(trace.winner().get());
+            if (rule != null && isViewerLock(rule, viewer)) stages.add(rule.ownerStage());
+        }
+        return Set.copyOf(stages);
+    }
+
+    private static boolean isViewerLock(CompiledRule rule, RecipeViewer viewer) {
+        if (rule.lifetime() != RuleLifetime.PERMANENT || !isMissingStageLock(rule)) return false;
+        ViewerPolicy policy = rule.viewerPolicy();
+        return viewer == RecipeViewer.EMI ? policy.hidesInEmi() : policy.hidesInJei();
+    }
+
+    private static boolean isMissingStageLock(CompiledRule rule) {
+        String state = String.valueOf(rule.settings().getOrDefault("stage_state", "")).toLowerCase(Locale.ROOT);
+        if (state.equals("missing") || state.equals("lacks")) return true;
+        if (!state.isEmpty()) return false;
+        return !rule.provenance().section().contains("temporary");
+    }
 
     public synchronized void setHistoryCapacity(int capacity) {
         if (capacity < 1 || capacity > 100_000) throw new IllegalArgumentException("Decision history capacity is outside the allowed range");

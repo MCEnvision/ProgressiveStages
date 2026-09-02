@@ -288,7 +288,11 @@ public class StageConfig {
         .comment("Stages persist when leaving team")
         .define("team.persist_stages_on_leave", true);
 
-    // ============ EMI Settings ============
+    // ============ Recipe Viewer Settings ============
+
+    private static final ModConfigSpec.BooleanValue JEI_ENABLED = BUILDER
+        .comment("Enable JEI integration")
+        .define("jei.enabled", true);
 
     private static final ModConfigSpec.BooleanValue EMI_ENABLED = BUILDER
         .comment("Enable EMI integration")
@@ -319,8 +323,8 @@ public class StageConfig {
         .define("emi.show_tooltip", true);
 
     private static final ModConfigSpec.BooleanValue SHOW_LOCKED_RECIPES = BUILDER
-        .comment("Show locked recipes in EMI",
-                 "If false, locked items and recipes will be hidden from EMI entirely",
+        .comment("Show locked recipes in installed recipe viewers",
+                 "If false, locked items and recipes will be hidden from recipe viewers entirely",
                  "If true, locked items will show with lock overlays")
         .define("emi.show_locked_recipes", false);
 
@@ -812,7 +816,8 @@ public class StageConfig {
     private static float lockSoundVolume;
     private static float lockSoundPitch;
     private static boolean persistStagesOnLeave;
-    private static boolean emiEnabled;
+    private static boolean jeiEnabled = true;
+    private static boolean emiEnabled = true;
     private static boolean showLockIcon;
     private static String lockIconPosition;
     private static int lockIconSize;
@@ -980,6 +985,7 @@ public class StageConfig {
         lockSoundVolume = LOCK_SOUND_VOLUME.get().floatValue();
         lockSoundPitch = LOCK_SOUND_PITCH.get().floatValue();
         persistStagesOnLeave = PERSIST_STAGES_ON_LEAVE.get();
+        jeiEnabled = JEI_ENABLED.get();
         emiEnabled = EMI_ENABLED.get();
         showLockIcon = SHOW_LOCK_ICON.get();
         lockIconPosition = LOCK_ICON_POSITION.get();
@@ -1164,6 +1170,7 @@ public class StageConfig {
     public static float getLockSoundVolume() { return lockSoundVolume; }
     public static float getLockSoundPitch() { return lockSoundPitch; }
     public static boolean isPersistStagesOnLeave() { return persistStagesOnLeave; }
+    public static boolean isJeiEnabled() { return jeiEnabled; }
     public static boolean isEmiEnabled() { return emiEnabled; }
     public static boolean isShowLockIcon() { return showLockIcon; }
     public static String getLockIconPosition() { return lockIconPosition; }

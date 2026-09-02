@@ -757,6 +757,7 @@ public class NetworkHandler {
             .map(StageId::getResourceLocation)
             .toList();
 
+        sendLockSync(player);
         PacketDistributor.sendToPlayer(player, new StageSyncPayload(stageList));
         // Also push reveal-policy so client knows whether to hide stage names
         sendRevealPolicy(player);
@@ -802,6 +803,11 @@ public class NetworkHandler {
                 itemLocks.add(new LockEntry(iid, s.getResourceLocation()));
             }
         }
+
+        List<LockEntry> emiViewerLocks = viewerLockEntries(player,
+            com.enviouse.progressivestages.server.rehaul.CompiledRuleEngine.RecipeViewer.EMI);
+        List<LockEntry> jeiViewerLocks = viewerLockEntries(player,
+            com.enviouse.progressivestages.server.rehaul.CompiledRuleEngine.RecipeViewer.JEI);
 
         // Recipes: only single-stage entries are tracked (recipeIdCat doesn't have a multi-stage public method by id),
         // but ship via the same emission. Multi-stage recipes will work because LockRegistry.recipeIdCat already
@@ -871,7 +877,21 @@ public class NetworkHandler {
         }
 
         PacketDistributor.sendToPlayer(player, new LockSyncPayload(
-            itemLocks, blockLocks, fluidLocks, recipeLocks, recipeItemLocks, entityLocks, modLocks));
+            itemLocks, blockLocks, fluidLocks, recipeLocks, recipeItemLocks, entityLocks, modLocks,
+            emiViewerLocks, jeiViewerLocks));
+    }
+
+    private static List<LockEntry> viewerLockEntries(ServerPlayer player,
+                                                       com.enviouse.progressivestages.server.rehaul.CompiledRuleEngine.RecipeViewer viewer) {
+        List<LockEntry> entries = new ArrayList<>();
+        var resolved = com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get().rules()
+            .resolveViewerItemLocks(player, viewer);
+        for (var entry : resolved.entrySet()) {
+            for (StageId stage : entry.getValue()) {
+                entries.add(new LockEntry(entry.getKey(), stage.getResourceLocation()));
+            }
+        }
+        return entries;
     }
 
     /**
@@ -989,6 +1009,9 @@ public class NetworkHandler {
             ClientLockCache.setItemLocks(itemLocks);
             ClientLockCache.setItemMultiLocks(itemMulti);
 
+            ClientLockCache.setEmiViewerItemLocks(toMultiLocks(payload.emiViewerLocks()));
+            ClientLockCache.setJeiViewerItemLocks(toMultiLocks(payload.jeiViewerLocks()));
+
             Map<ResourceLocation, StageId> blockLocks = new HashMap<>();
             Map<ResourceLocation, java.util.Set<StageId>> blockMulti = new HashMap<>();
             for (LockEntry entry : payload.blockLocks()) {
@@ -1043,6 +1066,15 @@ public class NetworkHandler {
             ClientLockCache.setRecipeItemMultiLocks(recipeItemMulti);
             ClientLockCache.setRecipeItemLocks(recipeItemLocks);
         });
+    }
+
+    private static Map<ResourceLocation, java.util.Set<StageId>> toMultiLocks(List<LockEntry> entries) {
+        Map<ResourceLocation, java.util.Set<StageId>> locks = new HashMap<>();
+        for (LockEntry entry : entries) {
+            locks.computeIfAbsent(entry.itemId(), ignored -> new java.util.LinkedHashSet<>())
+                .add(StageId.fromResourceLocation(entry.stageId()));
+        }
+        return locks;
     }
 
     private static void handleAbilityStateClient(AbilityStatePayload payload, IPayloadContext context) {
@@ -1174,7 +1206,8 @@ public class NetworkHandler {
     public record LockSyncPayload(List<LockEntry> itemLocks, List<LockEntry> blockLocks,
                                   List<LockEntry> fluidLocks, List<LockEntry> recipeLocks,
                                   List<LockEntry> recipeItemLocks, List<LockEntry> entityLocks,
-                                  List<LockEntry> modLocks) implements CustomPacketPayload {
+                                  List<LockEntry> modLocks, List<LockEntry> emiViewerLocks,
+                                  List<LockEntry> jeiViewerLocks) implements CustomPacketPayload {
         public static final Type<LockSyncPayload> TYPE = new Type<>(Constants.LOCK_SYNC_PACKET);
 
         private static final StreamCodec<FriendlyByteBuf, List<LockEntry>> LIST_CODEC =
@@ -1189,11 +1222,13 @@ public class NetworkHandler {
                 LIST_CODEC.encode(buf, payload.recipeItemLocks());
                 LIST_CODEC.encode(buf, payload.entityLocks());
                 LIST_CODEC.encode(buf, payload.modLocks());
+                LIST_CODEC.encode(buf, payload.emiViewerLocks());
+                LIST_CODEC.encode(buf, payload.jeiViewerLocks());
             },
             buf -> new LockSyncPayload(
                 LIST_CODEC.decode(buf), LIST_CODEC.decode(buf), LIST_CODEC.decode(buf),
                 LIST_CODEC.decode(buf), LIST_CODEC.decode(buf), LIST_CODEC.decode(buf),
-                LIST_CODEC.decode(buf))
+                LIST_CODEC.decode(buf), LIST_CODEC.decode(buf), LIST_CODEC.decode(buf))
         );
 
         @Override

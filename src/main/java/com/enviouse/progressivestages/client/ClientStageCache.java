@@ -289,22 +289,26 @@ public class ClientStageCache {
         LOGGER.info("[ProgressiveStages] Stage change detected, scheduling EMI/JEI reload...");
 
         // Trigger EMI reload (it will handle its own thread scheduling)
-        try {
-            ProgressiveStagesEMIPlugin.triggerEmiReload();
-        } catch (NoClassDefFoundError e) {
-            // EMI not installed - ignore
-        } catch (Exception e) {
-            // Ignore other errors
+        if (StageConfig.isEmiEnabled()) {
+            try {
+                ProgressiveStagesEMIPlugin.triggerEmiReload();
+            } catch (NoClassDefFoundError e) {
+                // EMI not installed - ignore
+            } catch (Exception e) {
+                // Ignore other errors
+            }
         }
 
         // Trigger JEI refresh (coalesced — scheduleRefresh dedupes rapid stage changes into one
         // deferred two-pass refresh on the next client tick instead of N synchronous refreshJei()).
-        try {
-            com.enviouse.progressivestages.client.jei.ProgressiveStagesJEIPlugin.scheduleRefresh();
-        } catch (NoClassDefFoundError e) {
-            // JEI not installed - ignore
-        } catch (Exception e) {
-            // Ignore other errors
+        if (StageConfig.isJeiEnabled()) {
+            try {
+                com.enviouse.progressivestages.client.jei.ProgressiveStagesJEIPlugin.scheduleRefresh();
+            } catch (NoClassDefFoundError e) {
+                // JEI not installed - ignore
+            } catch (Exception e) {
+                // Ignore other errors
+            }
         }
     }
 

@@ -14,7 +14,6 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,12 +42,7 @@ public final class CuriosCompat {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static Method getCuriosInventoryMethod;
-    private static Method getCuriosMethod;
-    private static Method getSlotsMethod;
-    private static Method getStackInSlotMethod;
-    private static Method setStackInSlotMethod;
-    private static Method getSlotIdentifierMethod;
+    private static CuriosApiAccess apiAccess;
     private static boolean apiAvailable;
 
     private CuriosCompat() {}
@@ -66,30 +60,10 @@ public final class CuriosCompat {
 
     private static void resolveApi() {
         try {
-            Class<?> api = Class.forName("top.theillusivec4.curios.api.CuriosApi");
-            // The method signature changed across Curios versions; try the two common shapes.
-            try {
-                getCuriosInventoryMethod = api.getMethod("getCuriosInventory", net.minecraft.world.entity.LivingEntity.class);
-            } catch (NoSuchMethodException e) {
-                getCuriosInventoryMethod = api.getMethod("getCuriosHelper");
-            }
-
-            // ICuriosItemHandler → Map<String, ICurioStacksHandler> getCurios()
-            Class<?> itemHandler = Class.forName("top.theillusivec4.curios.api.type.inventory.ICuriosItemHandler");
-            getCuriosMethod = itemHandler.getMethod("getCurios");
-
-            Class<?> stacksHandler = Class.forName("top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler");
-            getSlotsMethod = stacksHandler.getMethod("getSlots");
-            // ICurioStacksHandler → IDynamicStackHandler getStacks()
-            // IDynamicStackHandler extends IItemHandler
-            Method getStacks = stacksHandler.getMethod("getStacks");
-            Class<?> iItemHandler = Class.forName("net.neoforged.neoforge.items.IItemHandler");
-            getStackInSlotMethod = iItemHandler.getMethod("getStackInSlot", int.class);
-            Class<?> dynamicStacks = Class.forName("top.theillusivec4.curios.api.type.inventory.IDynamicStackHandler");
-            setStackInSlotMethod = dynamicStacks.getMethod("setStackInSlot", int.class, ItemStack.class);
-
+            apiAccess = CuriosApiAccess.resolve(CuriosCompat.class.getClassLoader());
             apiAvailable = true;
         } catch (Throwable t) {
+            apiAccess = null;
             apiAvailable = false;
             LOGGER.debug("[ProgressiveStages] Curios API not resolvable: {}", t.toString());
         }
@@ -116,20 +90,21 @@ public final class CuriosCompat {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static void scanAndEject(ServerPlayer player) throws Exception {
-        // CuriosApi.getCuriosInventory(player) returns Optional<ICuriosItemHandler> in modern versions
-        Object result = getCuriosInventoryMethod.invoke(null, player);
+    static void scanAndEject(ServerPlayer player) throws Exception {
+        CuriosApiAccess access = apiAccess;
+        if (access == null) return;
+
+        Object result = access.getCuriosInventory(player);
         Object inventory = unwrapOptional(result);
         if (inventory == null) return;
 
-        Map<String, Object> curios = (Map<String, Object>) getCuriosMethod.invoke(inventory);
-        if (curios == null || curios.isEmpty()) return;
+        Object curiosResult = access.getCurios(inventory);
+        if (!(curiosResult instanceof Map<?, ?> curios) || curios.isEmpty()) return;
 
         LockRegistry registry = LockRegistry.getInstance();
 
-        for (Map.Entry<String, Object> slotEntry : curios.entrySet()) {
-            String slotId = slotEntry.getKey();
+        for (Map.Entry<?, ?> slotEntry : curios.entrySet()) {
+            if (!(slotEntry.getKey() instanceof String slotId)) continue;
             Object stacksHandler = slotEntry.getValue();
             if (stacksHandler == null) continue;
 
@@ -137,12 +112,12 @@ public final class CuriosCompat {
             boolean slotBlocked = registry.isCurioSlotBlockedFor(player, slotId);
             Optional<StageId> slotPrimaryStage = registry.primaryRestrictingStageForCurioSlot(player, slotId);
 
-            int slots = (int) getSlotsMethod.invoke(stacksHandler);
-            Object stacksWrapper = stacksHandler.getClass().getMethod("getStacks").invoke(stacksHandler);
+            int slots = access.getSlots(stacksHandler);
+            Object stacksWrapper = access.getStacks(stacksHandler);
             if (stacksWrapper == null) continue;
 
             for (int i = 0; i < slots; i++) {
-                ItemStack stack = (ItemStack) getStackInSlotMethod.invoke(stacksWrapper, i);
+                ItemStack stack = access.getStackInSlot(stacksWrapper, i);
                 if (stack == null || stack.isEmpty()) continue;
 
                 boolean ejected = false;
@@ -155,7 +130,7 @@ public final class CuriosCompat {
 
                 if (ejected) {
                     ItemStack dropped = stack.copy();
-                    setStackInSlotMethod.invoke(stacksWrapper, i, ItemStack.EMPTY);
+                    access.setStackInSlot(stacksWrapper, i, ItemStack.EMPTY);
                     if (!player.getInventory().add(dropped)) {
                         player.drop(dropped, false);
                     }
@@ -169,7 +144,7 @@ public final class CuriosCompat {
 
                 // Enchant strip on curio-held items.
                 if (EnchantEnforcer.stripLockedEnchants(player, stack)) {
-                    setStackInSlotMethod.invoke(stacksWrapper, i, stack);
+                    access.setStackInSlot(stacksWrapper, i, stack);
                 }
             }
         }
@@ -180,7 +155,7 @@ public final class CuriosCompat {
         if (o instanceof java.util.Optional<?> opt) return opt.orElse(null);
         // Older Curios versions returned LazyOptional — resolve via reflection.
         try {
-            Method resolve = o.getClass().getMethod("resolve");
+            java.lang.reflect.Method resolve = o.getClass().getMethod("resolve");
             Object r = resolve.invoke(o);
             if (r instanceof java.util.Optional<?> opt) return opt.orElse(null);
             return r;

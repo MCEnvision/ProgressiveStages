@@ -4,6 +4,7 @@ import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.lock.EnforcementCategory;
 import com.enviouse.progressivestages.common.lock.LockRegistry;
 import com.enviouse.progressivestages.common.network.NetworkHandler;
+import com.enviouse.progressivestages.common.rehaul.condition.ConditionContext;
 import com.enviouse.progressivestages.common.rehaul.RuleEffect;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.server.rehaul.RehaulRuntime;
@@ -53,11 +54,16 @@ public final class EntityPresenceEnforcer {
         boolean staticEntityBlock = StageConfig.isBlockEntityAttack()
             && registry.getRequiredStagesForEntity(entityType).stream()
                 .anyMatch(stage -> !StageManager.getInstance().hasStage(player, stage));
-        GateDecision entity = decision(player, "entities", "presence", id, holder, staticEntityBlock,
-            EnforcementCategory.ENTITY_ATTACK);
+        RehaulRuntime runtime = RehaulRuntime.get();
+        boolean hasEntityRules = runtime.rules().hasRules("entities");
+        boolean hasMobRules = StageConfig.isBlockMobSpawns() && runtime.rules().hasRules("mobs");
+        ConditionContext context = hasEntityRules || hasMobRules
+            ? runtime.entityPresenceContext(player) : null;
+        GateDecision entity = decision(player, runtime, context, "entities", "presence", id, holder,
+            staticEntityBlock, EnforcementCategory.ENTITY_ATTACK);
 
         GateDecision spawn = StageConfig.isBlockMobSpawns()
-            ? decision(player, "mobs", "spawn", id, holder,
+            ? decision(player, runtime, context, "mobs", "spawn", id, holder,
                 registry.isEntitySpawnBlockedFor(player, entityType), null)
             : new GateDecision(false, Integer.MIN_VALUE);
 
@@ -180,11 +186,12 @@ public final class EntityPresenceEnforcer {
         }
     }
 
-    private static GateDecision decision(ServerPlayer player, String category, String action,
+    private static GateDecision decision(ServerPlayer player, RehaulRuntime runtime, ConditionContext context,
+                                         String category, String action,
                                          ResourceLocation id, Holder<?> holder, boolean staticBlocked,
                                          EnforcementCategory enforcementCategory) {
-        var engine = RehaulRuntime.get().rules();
-        var trace = engine.resolveUntracked(player, category, action, id, holder).orElse(null);
+        var engine = runtime.rules();
+        var trace = engine.resolveUntracked(player, category, action, id, holder, context).orElse(null);
         if (trace == null || trace.winningEffect() == null) return new GateDecision(staticBlocked, 0);
         RuleEffect effect = trace.winningEffect();
         if (effect != RuleEffect.LOCK && effect != RuleEffect.DENY

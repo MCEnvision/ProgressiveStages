@@ -1,6 +1,9 @@
 package com.enviouse.progressivestages.server.rehaul;
 
 import com.enviouse.progressivestages.common.api.StageId;
+import com.enviouse.progressivestages.common.api.StageChangeEvent;
+import com.enviouse.progressivestages.common.api.StagesBulkChangedEvent;
+import com.enviouse.progressivestages.common.api.structure.StructureSessionEnterEvent;
 import com.enviouse.progressivestages.common.api.structure.StructureSessionLeaveEvent;
 import com.enviouse.progressivestages.common.rehaul.condition.ConditionContext;
 import com.enviouse.progressivestages.common.stage.StageManager;
@@ -69,6 +72,7 @@ public final class RehaulRuntime {
     private final FormulaRegistry formulas = new FormulaRegistry();
     private final TemplateEngine templates = new TemplateEngine();
     private final AffinityResolver affinities = new AffinityResolver(SelectorMatcherRegistry.get());
+    private final EntityPresenceContextCache entityPresenceContexts = new EntityPresenceContextCache();
     private final Map<UUID, Float> lastHealth = new ConcurrentHashMap<>();
     private final Map<String, Long> lastDamageAt = new ConcurrentHashMap<>();
     private final Map<String, Long> activeSessions = new ConcurrentHashMap<>();
@@ -85,6 +89,7 @@ public final class RehaulRuntime {
     public static RehaulRuntime get() { return INSTANCE; }
 
     public synchronized void rebuild(CompiledSnapshot next, MinecraftServer server) {
+        entityPresenceContexts.invalidateAll();
         this.snapshot = next;
         this.server = server;
         rules.rebuild(next);
@@ -144,6 +149,7 @@ public final class RehaulRuntime {
         lastHealth.clear();
         lastDamageAt.clear();
         activeSessions.clear();
+        entityPresenceContexts.reset();
         persistenceServer = null;
         lastPersistGameTime = Long.MIN_VALUE;
     }
@@ -157,6 +163,36 @@ public final class RehaulRuntime {
     public ConditionEvaluator conditionEvaluator() { return conditions; }
     public TransitionHistory transitionHistory() { return transitionHistory; }
     public CompiledSnapshot snapshot() { return snapshot; }
+
+    public ConditionContext entityPresenceContext(ServerPlayer player) {
+        return entityPresenceContexts.contextFor(player, this, rules.revision());
+    }
+
+    public void invalidateEntityPresenceContext(ServerPlayer player) {
+        if (player != null) entityPresenceContexts.invalidate(player.getUUID());
+    }
+
+    public void clearEntityPresenceContext(UUID playerId) {
+        entityPresenceContexts.clear(playerId);
+    }
+
+    public void invalidateEntityPresenceScore(String scoreboardName) {
+        if (scoreboardName == null || scoreboardName.isBlank() || server == null) return;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (scoreboardName.equals(player.getScoreboardName())) {
+                invalidateEntityPresenceContext(player);
+                return;
+            }
+        }
+    }
+
+    public void invalidateAllEntityPresenceContexts() {
+        entityPresenceContexts.invalidateAll();
+    }
+
+    EntityPresenceContextCache.Stats entityPresenceContextStats() {
+        return entityPresenceContexts.stats();
+    }
 
     public java.util.Optional<AffinityDecision> affinity(ServerPlayer player, SelectorTarget target) {
         Map<String, Double> values = new LinkedHashMap<>(variables.numericValues(player.getUUID().toString()));
@@ -242,6 +278,7 @@ public final class RehaulRuntime {
                 || opponent instanceof net.minecraft.world.entity.boss.wither.WitherBoss) {
             activeSessions.put(subject + "|boss_session." + entity, expiry);
         }
+        invalidateEntityPresenceContext(player);
     }
 
     private void evaluate(ServerPlayer player, Set<String> dirty) {
@@ -269,6 +306,7 @@ public final class RehaulRuntime {
         String subject = player.getUUID().toString();
         counters.add(key(subject, metric), amount, now);
         if (metric.contains("damage") || metric.equals("hits_taken")) lastDamageAt.put(subject, now);
+        invalidateEntityPresenceContext(player);
         MinecraftActionSubject actionSubject = new MinecraftActionSubject(player, this);
         var changed = challenges.record(new ChallengeEvent(subject, id(metric), amount, now, properties),
             new ActionContext(actionSubject, now, Map.of(), Map.of()));
@@ -339,6 +377,25 @@ public final class RehaulRuntime {
     }
 
     @SubscribeEvent
+    public static void onStageChanged(StageChangeEvent event) {
+        if (StageManager.SERVER_TEAM.equals(event.getTeamId())) {
+            INSTANCE.entityPresenceContexts.invalidateAll();
+        } else {
+            INSTANCE.entityPresenceContexts.invalidateTeam(event.getTeamId());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onStagesBulkChanged(StagesBulkChangedEvent event) {
+        INSTANCE.entityPresenceContexts.invalidateAll();
+    }
+
+    @SubscribeEvent
+    public static void onStructureEnter(StructureSessionEnterEvent event) {
+        INSTANCE.invalidateEntityPresenceContext(event.getPlayer());
+    }
+
+    @SubscribeEvent
     public static void onStructureLeave(StructureSessionLeaveEvent event) {
         String structure = event.getSession().instance().structureId().toString();
         String outcome = event.getOutcome().name().toLowerCase(java.util.Locale.ROOT);
@@ -348,6 +405,7 @@ public final class RehaulRuntime {
         values.put("structure_leave_outcome", 1D);
         values.put("structure_leave_outcome." + outcome, 1D);
         INSTANCE.evaluate(event.getPlayer(), Set.of("leave_structure", "structure_leave_outcome"), values);
+        INSTANCE.invalidateEntityPresenceContext(event.getPlayer());
     }
 
     @SubscribeEvent
@@ -383,6 +441,7 @@ public final class RehaulRuntime {
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         INSTANCE.lastHealth.remove(player.getUUID());
+        INSTANCE.clearEntityPresenceContext(player.getUUID());
         com.enviouse.progressivestages.common.network.NetworkHandler.clearPlayerRuntimeState(player.getUUID());
         INSTANCE.persist();
     }

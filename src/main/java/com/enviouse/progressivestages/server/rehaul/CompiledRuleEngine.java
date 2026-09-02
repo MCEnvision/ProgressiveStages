@@ -76,13 +76,27 @@ public final class CompiledRuleEngine {
         return resolve(player, category, action, targetId, holder, false);
     }
 
+    public Optional<DecisionTrace> resolveUntracked(ServerPlayer player, String category, String action,
+                                                    ResourceLocation targetId, Holder<?> holder,
+                                                    ConditionContext context) {
+        return resolve(player, category, action, targetId, holder, false, context);
+    }
+
     private Optional<DecisionTrace> resolve(ServerPlayer player, String category, String action,
                                             ResourceLocation targetId, Holder<?> holder,
                                             boolean retainHistory) {
+        return resolve(player, category, action, targetId, holder, retainHistory, null);
+    }
+
+    private Optional<DecisionTrace> resolve(ServerPlayer player, String category, String action,
+                                            ResourceLocation targetId, Holder<?> holder,
+                                            boolean retainHistory, ConditionContext providedContext) {
         List<CompiledRule> rules = rules(category);
         if (player == null || targetId == null || rules.isEmpty()) return Optional.empty();
         SelectorTarget target = target(targetId, holder);
-        ConditionContext context = MinecraftConditionContextFactory.create(player, RehaulRuntime.get(), Set.of());
+        ConditionContext context = providedContext == null
+            ? MinecraftConditionContextFactory.create(player, RehaulRuntime.get(), Set.of())
+            : providedContext;
         List<DecisionCandidate> candidates = new ArrayList<>();
         int order = 0;
         for (CompiledRule rule : rules) {

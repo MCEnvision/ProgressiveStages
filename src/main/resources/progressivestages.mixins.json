@@ -26,6 +26,7 @@
     "LevelChunkSectionAccessor",
     "ServerCommonPacketListenerImplMixin",
     "ServerAdvancementHidingMixin",
+    "ServerScoreboardMixin",
     "BeaconBlockEntityMixin",
     "SlotBrewingPickupMixin",
     "BrewingStandBlockEntityMixin",

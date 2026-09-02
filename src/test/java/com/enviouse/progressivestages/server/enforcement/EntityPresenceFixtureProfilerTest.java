@@ -32,4 +32,14 @@ class EntityPresenceFixtureProfilerTest {
         assertEquals(0L, summary.p95TickNanos());
         assertEquals(0.0D, summary.presenceSharePercent());
     }
+
+    @Test
+    void fixtureLabelsCreateSafeDistinctReportNames() {
+        assertEquals("progressivestages-entity-presence-fixture-control.csv",
+            EntityPresenceFixtureProfiler.fixtureFileName("control"));
+        assertEquals("progressivestages-entity-presence-fixture-enabled.csv",
+            EntityPresenceFixtureProfiler.fixtureFileName(" Enabled "));
+        assertEquals("progressivestages-entity-presence-fixture-capture.csv",
+            EntityPresenceFixtureProfiler.fixtureFileName("../outside"));
+    }
 }

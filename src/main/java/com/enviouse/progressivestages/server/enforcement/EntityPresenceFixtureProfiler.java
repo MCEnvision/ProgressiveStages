@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Locale;
 
 @EventBusSubscriber(modid = Constants.MOD_ID)
 public final class EntityPresenceFixtureProfiler {
@@ -22,6 +23,8 @@ public final class EntityPresenceFixtureProfiler {
     private static final boolean ENABLED = Boolean.getBoolean("progressivestages.entityPresenceFixture");
     private static final int MAX_SAMPLES = Math.max(1, Integer.getInteger(
         "progressivestages.entityPresenceFixtureSamples", 20 * 60 * 5));
+    private static final String REPORT_FILE = fixtureFileName(
+        System.getProperty("progressivestages.entityPresenceFixtureLabel"));
     private static final long[] TICK_NANOS = new long[MAX_SAMPLES];
     private static final long[] PRESENCE_NANOS = new long[MAX_SAMPLES];
 
@@ -62,7 +65,7 @@ public final class EntityPresenceFixtureProfiler {
         if (!ENABLED) return;
         FixtureSummary summary = summarize(TICK_NANOS, PRESENCE_NANOS, sampleCount);
         Path output = event.getServer().getServerDirectory().resolve("debug")
-            .resolve("progressivestages-entity-presence-fixture.csv");
+            .resolve(REPORT_FILE);
         try {
             writeReport(output, summary, TICK_NANOS, PRESENCE_NANOS, sampleCount);
             LOGGER.info("ProgressiveStages entity presence fixture wrote {} samples to {}. p95 {} ms. share {} percent.",
@@ -113,6 +116,12 @@ public final class EntityPresenceFixtureProfiler {
 
     private static double nanosToMillis(long nanos) {
         return nanos / 1_000_000.0D;
+    }
+
+    static String fixtureFileName(String label) {
+        String normalized = label == null ? "capture" : label.trim().toLowerCase(Locale.ROOT);
+        if (!normalized.matches("[a-z0-9][a-z0-9_-]{0,63}")) normalized = "capture";
+        return "progressivestages-entity-presence-fixture-" + normalized + ".csv";
     }
 
     record FixtureSummary(int sampleCount, long p95TickNanos, long totalTickNanos, long totalPresenceNanos,

@@ -4,6 +4,7 @@
 > **Phase ID:** CORE-PHASE-005
 > **Owner:** ReleaseValidation
 > **Classification:** MANDATORY
+> **Observed state:** pending
 > **Master plan:** [plan.md](../plan.md)
 > **Phase sequence:** 005 of 006
 
@@ -49,7 +50,10 @@ The master plan owns the product scope, the 3.0.4 endpoint, and the global phase
 **Objective:** Pin and integrate the corrected shared verifier, then produce and nondestructively validate one 3.0.4 candidate whose source, binary, hashes, SBOM, manifest, and attestations have one proven identity
 **Owner:** ReleaseValidation
 **Dependencies:** CORE-PHASE-004, EXT-002
+**Immediate phase dependency:** CORE-PHASE-004
+**External prerequisite:** EXT-002
 **Canonical requirements:** CORE-REQ-009
+**Candidate freeze:** P005-TASK-004 creates the only candidate eligible for Phase 005 acceptance. P005-TASK-005 freezes its filename, size, SHA-256, SHA-512, signed source commit, packaged metadata, JAR inventory, SBOM, source manifest, attestation identities, and workflow revision as one release identity. Any change to that set invalidates the candidate and every downstream Phase 005 result. CORE-PHASE-006 must consume those exact bytes and records without rebuilding, re-signing, or changing metadata.
 **Documentation and release impact:** Update the existing release-validation and verification documentation with the pinned workflow identity, candidate identity procedure, expected success and tamper-failure behavior, evidence locations, rerun conditions, and the explicit no-publication boundary
 **Next transition:** CORE-PHASE-006
 

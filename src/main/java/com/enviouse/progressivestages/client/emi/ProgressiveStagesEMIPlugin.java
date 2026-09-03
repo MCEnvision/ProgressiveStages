@@ -42,8 +42,7 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static boolean initialized = false;
     // Prevent rapid-fire reloads while allowing a new client session to replace stale queued work.
-    private static final long NO_PENDING_GENERATION = -1L;
-    private static final AtomicLong reloadPendingGeneration = new AtomicLong(NO_PENDING_GENERATION);
+    private static final EmiReloadSessionGate reloadSessionGate = new EmiReloadSessionGate();
     private static final AtomicBoolean clientDisconnecting = new AtomicBoolean(false);
     private static final AtomicLong clientSessionGeneration = new AtomicLong();
 
@@ -439,7 +438,7 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     public static void beginClientDisconnect() {
         clientDisconnecting.set(true);
         clientSessionGeneration.incrementAndGet();
-        reloadPendingGeneration.set(NO_PENDING_GENERATION);
+        reloadSessionGate.clear();
     }
 
     /** Permit viewer refreshes for a new connected client session. */
@@ -457,15 +456,14 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     }
 
     private static boolean claimReloadSlot(long refreshGeneration) {
-        while (true) {
-            long pendingGeneration = reloadPendingGeneration.get();
-            if (pendingGeneration == refreshGeneration) return false;
-            if (reloadPendingGeneration.compareAndSet(pendingGeneration, refreshGeneration)) return true;
-        }
+        if (!reloadSessionGate.claim(refreshGeneration, clientSessionGeneration.get(), clientDisconnecting.get())) return false;
+        if (!clientDisconnecting.get() && clientSessionGeneration.get() == refreshGeneration) return true;
+        releaseReloadSlot(refreshGeneration);
+        return false;
     }
 
     private static void releaseReloadSlot(long refreshGeneration) {
-        reloadPendingGeneration.compareAndSet(refreshGeneration, NO_PENDING_GENERATION);
+        reloadSessionGate.release(refreshGeneration);
     }
 
     /**

@@ -31,6 +31,10 @@ class DefaultShowcaseStagesTest {
     void generatesFiftyValidInterconnectedStagePackages() throws Exception {
         assertEquals(50, DefaultShowcaseStages.stageCount());
         assertEquals(150, DefaultShowcaseStages.files().size());
+        String wizardRules = DefaultShowcaseStages.files().get("wizard/rules.toml");
+        assertTrue(wizardRules.contains("[recipes]"));
+        assertTrue(wizardRules.contains("locked_items = [\"minecraft:enchanting_table\"]"));
+        assertFalse(wizardRules.contains("targets.recipes"));
         assertFalse(DefaultShowcaseStages.stageIds().contains("stone_age"));
         assertFalse(DefaultShowcaseStages.stageIds().contains("iron_age"));
         assertFalse(DefaultShowcaseStages.stageIds().contains("diamond_age"));

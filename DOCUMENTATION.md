@@ -1,6 +1,6 @@
-# ProgressiveStages 3.0.3 — Complete Documentation
+# ProgressiveStages 3.0.4 — Complete Documentation
 
-> ProgressiveStages **3.0.3** for NeoForge 1.21.1, Java 21.
+> ProgressiveStages **3.0.4** for NeoForge 1.21.1, Java 21.
 > Mod id: `progressivestages`  Java package root: `com.enviouse.progressivestages`  
 > This document is exhaustive — every feature, every TOML field, every config key,
 > every command, every integration, every troubleshooting tip. If a section of
@@ -18,6 +18,12 @@
 > **3.0.3 maintenance release:** The open progression map category list now uses a dedicated
 > foreground depth. Stage item icons cannot appear through its panel, rows, text, active marker, or
 > scrollbar when a graph node is positioned beneath the list.
+
+> **3.0.4 maintenance release:** The Easy Builder now keeps recipe output-item locks and exact
+> recipe-identifier locks separate. It writes `locked_items` for an output item and `locked_ids`
+> for a recipe identifier, and rejects ambiguous generic recipe fields before server state changes.
+> It also adds `item_into_inventory` interaction rules for server-authoritative player insertion
+> gates with paired item and inventory selectors.
 
 > **New to stage mods?** Start with [GETTING_STARTED.md](GETTING_STARTED.md), copy the tested
 > [beginner pack](examples/beginner_pack/README.md), and return here when the beginner guide links
@@ -787,6 +793,24 @@ Two independent lists:
   hold it, and use it — but no craft anywhere produces it (crafting table,
   mechanical crafter, autocrafter).
 
+In the Easy Builder, choose **Recipes**, then choose **Craft the recipe**. The
+**Recipe output item** choice writes only `locked_items`. The **Exact recipe
+identifier** choice writes only `locked_ids`. The old `locked` field has no
+unambiguous meaning, so it is rejected before a stage is applied. A rejected
+draft leaves the current file and active server rules unchanged.
+
+ProgressiveStages 3.0.4 also recognizes the narrow, generated legacy Easy
+Builder shape that wrote one `[[rules]]` craft lock with one
+`targets.recipes` output selector. On first load, that known shape is validated
+and atomically rewritten as `locked_items`, with the original saved under
+`config/progressivestages/stages/.migration-backups/recipe-output-v3/`.
+Opening a matching editor draft presents that same normalized `locked_items`
+rule without changing files on disk. It is persisted only when the operator
+reviews and applies the valid draft.
+Hand-authored generic recipe rules and `[recipes].locked` remain rejected with
+the field-specific error because their intended recipe identifier or output
+item meaning cannot be determined safely.
+
 Both lists use the prefix system. Hidden side effect: locking an item in
 `[items]` also implicitly locks every recipe that produces it (because the
 output stack itself is locked).
@@ -1112,13 +1136,14 @@ target_entity = "minecraft:zombie"
 description = "Name a Zombie"
 ```
 
-Three shapes:
+Four shapes:
 
 | `type` | Required fields | Effect |
 |--------|-----------------|--------|
 | `block_right_click` | `target_block` | Cancel right-clicking the block (even empty-handed) |
 | `item_on_block` | `held_item`, `target_block` | Cancel right-click when held item + target block match |
 | `item_on_entity` | `held_item`, `target_entity` | Cancel right-click when held item + target entity match |
+| `item_into_inventory` | `held_item`, `target_kind`, `target`, `effect`, `priority` | Gate a player inserting one item into a receiving inventory. Optional `id`, `lifetime`, `duration`, `while`, and `reset_condition` make the paired rule situational. |
 
 The `held_item` / `target_block` / `target_entity` fields accept **single
 prefix entries** (e.g. `tag:minecraft:logs`, `mod:create`). The `description`
@@ -1126,6 +1151,89 @@ field is free text used in messages and `/stage info`.
 
 The implementation is
 [`InteractionEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/InteractionEnforcer.java).
+
+#### Item into inventory rules
+
+`item_into_inventory` is a separate, server-authoritative interaction shape.
+It has two selectors: one for the item leaving the player's cursor or inventory
+and one for the receiving inventory. Both selectors use the normal prefix
+grammar: `all:*`, `id:`, `mod:`, `tag:`, `name:`, or the `#namespace:tag`
+shorthand. A bare resource location is treated as an exact identifier.
+
+```toml
+# A player without this stage cannot put ores into the selling bin.
+[[interactions]]
+type = "item_into_inventory"
+held_item = "tag:c:ores"
+target_kind = "block"
+target = "id:example:selling_bin"
+effect = "lock"
+priority = 100
+
+# A more specific rule can carve out one pairing.
+[[interactions]]
+type = "item_into_inventory"
+held_item = "id:minecraft:raw_iron"
+target_kind = "block"
+target = "id:example:selling_bin"
+effect = "exclude"
+priority = 200
+```
+
+Use `target_kind = "block"` for inventories backed by a block entity, such as
+a chest, furnace, or modded machine. Use `target_kind = "menu"` to match the
+registered open menu type. Use `target_kind = "inventory"` for a stable
+server-owned inventory identity. The built-in player inventory identity is
+`minecraft:player_inventory`. Compatible mods can contribute more identities
+and tags through
+[`ProgressiveStagesAPI.registerInventoryTargetResolver`](src/main/java/com/enviouse/progressivestages/common/api/ProgressiveStagesAPI.java).
+
+`lock` and `deny` block a matching insertion until the owning stage is earned.
+`allow` and `unlock` create an owned-stage allowance. `exclude` always removes
+one exact pairing from a broader rule. Higher `priority` wins. If an allow and
+a deny tie, deny wins safely.
+
+The optional `id` gives the rule a stable activation identity. Omit it to let
+the compiler derive one from the stage and interaction position. `lifetime`
+defaults to `permanent`; use a supported live, duration, session, latched, or
+scheduled lifetime only when the lock should be conditional. `duration` is for
+timed lifetimes, such as `"30s"` or `"5m"`. Put the active condition in
+`[interactions.while]`; `when` and `condition` are accepted aliases. An
+optional `[interactions.reset_condition]` clears a latched or session rule.
+These fields apply to the complete source and destination pair. They never
+turn either selector into a separate rule.
+
+```toml
+[[interactions]]
+id = "example:miner/nether_selling_bin"
+type = "item_into_inventory"
+held_item = "tag:c:ores"
+target_kind = "block"
+target = "id:example:selling_bin"
+effect = "lock"
+priority = 100
+lifetime = "live"
+
+[interactions.while]
+type = "dimension"
+id = "minecraft:the_nether"
+```
+
+Only a real server-side player transaction enters this check. Standard click,
+shift-click, drag, and hotbar swap paths are checked before the receiving slot
+changes. Double-click collection only removes items into the carried stack, so
+it has no receiving inventory to gate. Hoppers, pipes, capabilities, and
+machine automation do not infer a nearby player and remain unaffected.
+
+In the Easy Builder, choose **Interactions**, then **Insert an item into an
+inventory**. Pick the source item selector, destination type, destination
+selector, effect, and priority. For a situational rule, use **When is this
+rule active** to choose the lifetime, duration, activation condition, and
+optional reset condition. The item, block, menu, and inventory-owner pickers
+use the running server catalog. The TOML source tab always shows the
+same six canonical fields. See
+[Inventory insertion rules](docs/features/inventory-insertion.md) for complete
+examples and extension guidance.
 
 ### 4.12 `[loot]` — chest / fishing / archeology / mob / block drop filter
 

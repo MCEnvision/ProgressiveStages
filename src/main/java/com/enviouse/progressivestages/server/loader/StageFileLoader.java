@@ -188,6 +188,22 @@ public class StageFileLoader {
                 continue;
             }
             StageDefinition definition = result.getStageDefinition();
+            LegacyRecipeOutputRuleMigration.Result migration = LegacyRecipeOutputRuleMigration.migrate(source,
+                definition.getId());
+            if (migration.failed()) {
+                errors.add(relativeStagePath(source.root()) + ". " + migration.error());
+                continue;
+            }
+            if (migration.migrated()) {
+                LOGGER.info("[ProgressiveStages] Migrated legacy recipe output rule in {}. Backup: {}",
+                    relativeStagePath(source.root()), relativeStagePath(migration.backup()));
+                result = StagePackageParser.parse(source);
+                if (!result.isSuccess()) {
+                    errors.add(relativeStagePath(source.root()) + ". " + result.getErrorMessage());
+                    continue;
+                }
+                definition = result.getStageDefinition();
+            }
             try {
                 CompiledStage stage = Schema4StageCompiler.compile(definition, result.getSourceConfig(),
                     source.sourceId(), 0);

@@ -126,6 +126,118 @@ class StagePackageParserTest {
             () -> StagePackageParser.inspect(temporaryDirectory, packageRoot));
     }
 
+    @Test
+    void migratesRecognizableLegacyEditorRecipeOutputRulesAtomically() throws Exception {
+        Path packageRoot = temporaryDirectory.resolve("aquatic_blessing");
+        Files.createDirectories(packageRoot);
+        Files.writeString(packageRoot.resolve("stage.toml"), identity("showcase:aquatic_blessing"));
+        String legacyRules = """
+            [[rules]]
+            id = "showcase:aquatic_blessing/rule_mtjmf0xs"
+            effect = "lock"
+            priority = 100
+            action = "craft"
+            targets.recipes = ["minecraft:diamond_sword"]
+            """;
+        Files.writeString(packageRoot.resolve("rules.toml"), legacyRules);
+
+        StagePackageSource source = StagePackageParser.inspect(temporaryDirectory, packageRoot);
+        LegacyRecipeOutputRuleMigration.Result result = LegacyRecipeOutputRuleMigration.migrate(source,
+            com.enviouse.progressivestages.common.api.StageId.parse("showcase:aquatic_blessing"));
+
+        assertTrue(result.migrated(), result.error());
+        assertTrue(Files.isRegularFile(result.backup()));
+        assertEquals(legacyRules, Files.readString(result.backup()));
+        String migrated = Files.readString(packageRoot.resolve("rules.toml"));
+        assertTrue(migrated.contains("[recipes]"));
+        assertTrue(migrated.contains("locked_items = [\"minecraft:diamond_sword\"]"));
+        assertTrue(migrated.contains("priority = 100"));
+        assertFalse(migrated.contains("targets.recipes"));
+
+        StageFileParser.ParseResult parsed = StagePackageParser.parse(source);
+        assertTrue(parsed.isSuccess(), parsed::getErrorMessage);
+        assertEquals(1, parsed.getStageDefinition().getLocks().recipeOutputs().locked().size());
+        var compiled = Schema4StageCompiler.compile(parsed.getStageDefinition(), parsed.getSourceConfig(),
+            source.sourceId(), 0);
+        assertTrue(compiled.rules().stream().anyMatch(rule -> rule.priority() == 100));
+    }
+
+    @Test
+    void leavesAmbiguousHandAuthoredGenericRecipeRulesUntouched() throws Exception {
+        Path packageRoot = temporaryDirectory.resolve("custom");
+        Files.createDirectories(packageRoot);
+        Files.writeString(packageRoot.resolve("stage.toml"), identity("pack:custom"));
+        String genericRules = """
+            [[rules]]
+            id = "pack:custom/manual_recipe_rule"
+            effect = "lock"
+            priority = 100
+            action = "craft"
+            targets.recipes = ["minecraft:diamond_sword"]
+            """;
+        Files.writeString(packageRoot.resolve("rules.toml"), genericRules);
+
+        StagePackageSource source = StagePackageParser.inspect(temporaryDirectory, packageRoot);
+        LegacyRecipeOutputRuleMigration.Result result = LegacyRecipeOutputRuleMigration.migrate(source,
+            com.enviouse.progressivestages.common.api.StageId.parse("pack:custom"));
+
+        assertFalse(result.migrated());
+        assertFalse(result.failed(), result.error());
+        assertEquals(genericRules, Files.readString(packageRoot.resolve("rules.toml")));
+        StageFileParser.ParseResult parsed = StagePackageParser.parse(source);
+        assertTrue(parsed.isSuccess(), parsed::getErrorMessage);
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+            () -> Schema4StageCompiler.compile(parsed.getStageDefinition(), parsed.getSourceConfig(), source.sourceId(), 0));
+        assertTrue(error.getMessage().contains("locked_items"), error::getMessage);
+    }
+
+    @Test
+    void normalizesRecognizableLegacyRecipeOutputRulesInEditorDrafts() {
+        String legacyRules = """
+            [[rules]]
+            id = "showcase:aquatic_blessing/rule_mtjmf0xs"
+            effect = "lock"
+            priority = 100
+            action = "craft"
+            targets.recipes = ["minecraft:diamond_sword"]
+            """;
+
+        var result = LegacyRecipeOutputRuleMigration.normalizeDraftRules(
+            identity("showcase:aquatic_blessing"), legacyRules);
+
+        assertTrue(result.migrated());
+        assertTrue(result.rulesContent().contains("[recipes]"));
+        assertTrue(result.rulesContent().contains("locked_items = [\"minecraft:diamond_sword\"]"));
+        assertFalse(result.rulesContent().contains("targets.recipes"));
+    }
+
+    @Test
+    void leavesDraftRulesUntouchedWhenTheStageUsesIncludedRuleFiles() {
+        String stage = """
+            [schema]
+            version = 4
+
+            [package]
+            rules_includes = ["extra.toml"]
+
+            [stage]
+            id = "showcase:aquatic_blessing"
+            """;
+        String legacyRules = """
+            [[rules]]
+            id = "showcase:aquatic_blessing/rule_mtjmf0xs"
+            effect = "lock"
+            priority = 100
+            action = "craft"
+            targets.recipes = ["minecraft:diamond_sword"]
+            """;
+
+        var result = LegacyRecipeOutputRuleMigration.normalizeDraftRules(stage, legacyRules);
+
+        assertFalse(result.migrated());
+        assertEquals(legacyRules, result.rulesContent());
+    }
+
     private static String identity(String id) {
         return """
             [schema]

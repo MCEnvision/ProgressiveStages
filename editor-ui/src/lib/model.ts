@@ -4,6 +4,7 @@ import { enchantmentGenerationRules } from "./enchantments";
 import {
   booleanValue,
   extractArrayBlocks,
+  extractArrayGroups,
   inlineObjectValue,
   numberValue,
   parseSimpleArray,
@@ -112,6 +113,43 @@ export function ruleModels(text: string): RuleModel[] {
   for (const table of ["rules", "temporary_rules"] as const) {
     extractArrayBlocks(text, table).forEach(block => models.push(parseRuleBlock(block.text, table, block.index)));
   }
+  extractArrayGroups(text, "interactions").forEach(block => {
+    const type = stringValue(readBlockValue(block.text, "type"));
+    if (type !== "item_into_inventory") return;
+    const targetKind = stringValue(readBlockValue(block.text, "target_kind"));
+    const destination = stringValue(readBlockValue(block.text, "target"));
+    const heldItem = stringValue(readBlockValue(block.text, "held_item"));
+    const condition = interactionCondition(block.text, "while") || interactionCondition(block.text, "when")
+      || interactionCondition(block.text, "condition");
+    const resetCondition = interactionCondition(block.text, "reset_condition");
+    if (!heldItem || !destination || !["block", "menu", "inventory"].includes(targetKind)) return;
+    models.push({
+      table: "interactions",
+      tableIndex: block.index,
+      id: stringValue(readBlockValue(block.text, "id")),
+      category: "interactions",
+      action: type,
+      effect: stringValue(readBlockValue(block.text, "effect")) || "lock",
+      selector: heldItem,
+      priority: numberValue(readBlockValue(block.text, "priority")),
+      viewer: "inherit",
+      lifetime: stringValue(readBlockValue(block.text, "lifetime")) || "permanent",
+      duration: stringValue(readBlockValue(block.text, "duration")),
+      conditionType: inlineObjectValue(condition, "type") || "none",
+      conditionTarget: inlineObjectValue(condition, "id") || inlineObjectValue(condition, "value") || inlineObjectValue(condition, "callback"),
+      count: numberValue(inlineObjectValue(condition, "count"), 1),
+      exception: "",
+      exceptionPriority: 0,
+      sourceText: block.text,
+      targetKind: targetKind as "block" | "menu" | "inventory",
+      destination,
+      resetConditionType: inlineObjectValue(resetCondition, "type") || "none",
+      resetConditionTarget: inlineObjectValue(resetCondition, "id") || inlineObjectValue(resetCondition, "value") || inlineObjectValue(resetCondition, "callback"),
+      resetCount: numberValue(inlineObjectValue(resetCondition, "count"), 1),
+      conditionSource: condition,
+      resetConditionSource: resetCondition
+    });
+  });
   for (const [category, definition] of Object.entries(CATEGORIES)) {
     for (const [field, effect] of [["locked", "lock"], ["allowed", "allow"], ["always_unlocked", "allow"]] as const) {
       const selectors = parseSimpleArray(readTomlValue(text, `${category}.${field}`));
@@ -133,12 +171,58 @@ export function ruleModels(text: string): RuleModel[] {
           count: 1,
           exception: "",
           exceptionPriority: 0,
-          sourceText: selector
+          sourceText: selector,
+          ambiguous: category === "recipes"
         });
       });
     }
   }
+  for (const [field, table, recipeKind] of [
+    ["locked_items", "recipe_items", "output"],
+    ["locked_ids", "recipe_ids", "identifier"]
+  ] as const) {
+    const selectors = parseSimpleArray(readTomlValue(text, `recipes.${field}`));
+    selectors.forEach((selector, selectorIndex) => {
+      const priorityMatch = selector.match(/\|priority=(-?\d+)$/);
+      models.push({
+        table,
+        tableIndex: selectorIndex,
+        category: "recipes",
+        action: "craft",
+        effect: "lock",
+        selector: selector.replace(/\|priority=-?\d+$/, ""),
+        priority: priorityMatch ? Number(priorityMatch[1]) : numberValue(readTomlValue(text, "recipes.priority")),
+        viewer: "inherit",
+        lifetime: "permanent",
+        duration: "",
+        conditionType: "none",
+        conditionTarget: "",
+        count: 1,
+        exception: "",
+        exceptionPriority: 0,
+        sourceText: selector,
+        recipeKind
+      });
+    });
+  }
   return models;
+}
+
+function interactionCondition(text: string, key: "while" | "when" | "condition" | "reset_condition"): string {
+  const inline = readBlockValue(text, key);
+  if (inline) return inline;
+
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex(line => line.trim() === `[interactions.${key}]`);
+  if (start < 0) return "";
+
+  const entries: string[] = [];
+  for (let index = start + 1; index < lines.length; index++) {
+    if (/^\s*\[\[?[^\]]+\]\]?\s*(?:#.*)?$/.test(lines[index])) break;
+    const assignment = lines[index].match(/^\s*([A-Za-z0-9_.-]+)\s*=\s*(.+?)\s*(?:#.*)?$/);
+    if (assignment) entries.push(`${assignment[1]} = ${assignment[2]}`);
+  }
+  return entries.length ? `{ ${entries.join(", ")} }` : "";
 }
 
 function parseRuleBlock(text: string, table: "rules" | "temporary_rules", tableIndex: number): RuleModel {
@@ -147,6 +231,7 @@ function parseRuleBlock(text: string, table: "rules" | "temporary_rules", tableI
   const selectorRaw = targetMatch?.[2] || readBlockValue(text, "selector");
   const selector = parseSimpleArray(selectorRaw)[0] || stringValue(selectorRaw) || "id:minecraft:stone";
   const condition = readBlockValue(text, "while") || readBlockValue(text, "when") || readBlockValue(text, "condition");
+  const resetCondition = readBlockValue(text, "reset_condition") || "";
   const exceptionRaw = readBlockValue(text, "exceptions");
   return {
     table,
@@ -164,7 +249,11 @@ function parseRuleBlock(text: string, table: "rules" | "temporary_rules", tableI
     count: numberValue(inlineObjectValue(condition, "count"), 1),
     exception: parseSimpleArray(exceptionRaw)[0] || stringValue(exceptionRaw),
     exceptionPriority: numberValue(readBlockValue(text, "exception_priority")),
-    sourceText: text
+    sourceText: text,
+    id: stringValue(readBlockValue(text, "id")),
+    resetConditionType: inlineObjectValue(resetCondition, "type") || "none",
+    resetConditionTarget: inlineObjectValue(resetCondition, "id") || inlineObjectValue(resetCondition, "value") || inlineObjectValue(resetCondition, "callback"),
+    resetCount: numberValue(inlineObjectValue(resetCondition, "count"), 1)
   };
 }
 

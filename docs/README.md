@@ -15,8 +15,13 @@ Use this page to find the maintained project documentation.
 - [Editor rehaul phase 1](verification/REHAUL_PHASE_1.md)
 - [Editor rehaul phases 2 through 22](verification/REHAUL_PHASES_2_TO_22.md)
 
+## Features
+
+- [Inventory insertion rules](features/inventory-insertion.md)
+
 ## Release Notes
 
+- [ProgressiveStages 3.0.4 candidate](release/3.0.4.md)
 - [ProgressiveStages 3.0.3](release/3.0.3.md)
 
 The tracked repository documentation is the source of truth. Release pages and the project wiki

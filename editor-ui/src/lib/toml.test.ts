@@ -27,6 +27,17 @@ describe("preservation oriented toml helpers", () => {
     expect(updated).toContain("item_modifiers.effects");
   });
 
+  it("replaces an interaction without consuming the next top level table", () => {
+    const source = `[[interactions]]\ntype = "item_into_inventory"\n\n[interactions.while]\ntype = "dimension"\nid = "minecraft:the_end"\n\n[recipes]\nlocked_items = ["id:minecraft:diamond"]\n`;
+    const groups = extractArrayGroups(source, "interactions");
+    expect(groups).toHaveLength(1);
+    expect(groups[0].text).toContain("[interactions.while]");
+    expect(groups[0].text).not.toContain("[recipes]");
+    const updated = replaceArrayGroups(source, "interactions", [`[[interactions]]\ntype = "item_into_inventory"\neffect = "deny"`]);
+    expect(updated).toContain("[recipes]");
+    expect(updated).toContain('locked_items = ["id:minecraft:diamond"]');
+  });
+
   it("removes a guided section while preserving later sections", () => {
     const source = `[rewards]\nitems = ["minecraft:diamond:2"]\n\n[formulas]\nscore = "kills * 2"\n`;
     const updated = removeTomlSection(source, "rewards");

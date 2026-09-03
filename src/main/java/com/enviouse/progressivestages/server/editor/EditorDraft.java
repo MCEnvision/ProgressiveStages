@@ -61,6 +61,16 @@ public final class EditorDraft {
         return revision;
     }
 
+    synchronized boolean migrate(UUID actor, String path, String content) {
+        authorize(actor);
+        String normalized = EditorPaths.normalize(path);
+        if (java.util.Objects.equals(files.get(normalized), content)) return false;
+        files.put(normalized, content);
+        revision++;
+        updatedAt = System.currentTimeMillis();
+        return true;
+    }
+
     public synchronized long undo(UUID actor, long expectedRevision) {
         authorize(actor);
         if (expectedRevision != revision) throw new DraftConflictException(revision);

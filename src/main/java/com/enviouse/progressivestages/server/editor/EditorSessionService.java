@@ -6,6 +6,7 @@ import com.enviouse.progressivestages.common.rehaul.catalog.CatalogQuery;
 import com.enviouse.progressivestages.common.rehaul.extension.ExtensionMetadataRegistry;
 import com.enviouse.progressivestages.common.rehaul.schema.EditorSchemaRegistry;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
+import com.enviouse.progressivestages.server.loader.LegacyRecipeOutputRuleMigration;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -54,6 +55,7 @@ public final class EditorSessionService {
         long catalog = com.enviouse.progressivestages.common.rehaul.catalog.EditorCatalogService.get().snapshot().revision();
         UUID draftId = UUID.randomUUID();
         EditorDraft draft = new EditorDraft(draftId, operator.getUUID(), configuration, catalog, loadFiles());
+        normalizeLegacyRecipeRules(operator.getUUID(), draft);
         drafts.put(draftId, draft);
         persist(draft);
         return openSession(operator, draft);
@@ -67,6 +69,7 @@ public final class EditorSessionService {
         if (!draft.owner().equals(operator.getUUID()) && !draft.collaborators().contains(operator.getUUID())) {
             throw new SecurityException("The operator cannot resume this draft");
         }
+        if (normalizeLegacyRecipeRules(operator.getUUID(), draft)) persist(draft);
         return openSession(operator, draft);
     }
 
@@ -98,6 +101,7 @@ public final class EditorSessionService {
         EditorDraft draft = drafts.get(session.draftId);
         if (draft == null) return error("missing_draft", "The editor draft no longer exists");
         try {
+            if (normalizeLegacyRecipeRules(operator.getUUID(), draft)) persist(draft);
             Object response = switch (action) {
                 case "bootstrap" -> bootstrap(session, draft);
                 case "catalog" -> catalog(request);
@@ -208,8 +212,26 @@ public final class EditorSessionService {
             ? request.get("content").getAsString() : null;
         long revision = draft.mutate(operator.getUUID(), number(request, "revision", -1),
             string(request, "path", ""), content);
+        normalizeLegacyRecipeRules(operator.getUUID(), draft);
+        revision = draft.revision();
         persist(draft);
         return Map.of("revision", revision, "diff", draft.diff(), "canUndo", draft.canUndo(), "canRedo", draft.canRedo());
+    }
+
+    static boolean normalizeLegacyRecipeRules(UUID actor, EditorDraft draft) {
+        Map<String, String> files = draft.files();
+        boolean migrated = false;
+        for (Map.Entry<String, String> entry : files.entrySet()) {
+            String path = entry.getKey();
+            if (!path.startsWith("stages/") || !path.endsWith("/rules.toml")) continue;
+            String stagePath = path.substring(0, path.length() - "rules.toml".length()) + "stage.toml";
+            var normalization = LegacyRecipeOutputRuleMigration.normalizeDraftRules(files.get(stagePath), entry.getValue());
+            if (normalization.migrated()) {
+                draft.migrate(actor, path, normalization.rulesContent());
+                migrated = true;
+            }
+        }
+        return migrated;
     }
 
     private Object scaffold(ServerPlayer operator, EditorDraft draft, JsonObject request) {

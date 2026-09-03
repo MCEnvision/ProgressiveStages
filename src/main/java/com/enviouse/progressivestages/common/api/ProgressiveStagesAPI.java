@@ -10,6 +10,7 @@ import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.common.stage.StageOrder;
 import com.enviouse.progressivestages.common.stage.StageSlotResolver;
 import com.enviouse.progressivestages.server.enforcement.ConditionalLockEngine;
+import com.enviouse.progressivestages.server.enforcement.InventoryTargetResolverRegistry;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
 import com.enviouse.progressivestages.server.triggers.StageCounterData;
 import com.enviouse.progressivestages.server.triggers.StageTriggerEvaluator;
@@ -301,6 +302,27 @@ public final class ProgressiveStagesAPI {
 
     public static boolean unregisterStructureContextProvider(ResourceLocation id) {
         return StructureContextRegistry.getInstance().unregister(id);
+    }
+
+    /**
+     * Register a server-side identity resolver for inventories that are not represented by a block or menu.
+     *
+     * <p>The resolver is invoked only while the server processes a transaction for the supplied player. It must
+     * return an identity only when the receiving inventory is known unambiguously. Persisted rules match the
+     * returned resource location and tags, never a player name, coordinates, or client supplied value.
+     */
+    public static void registerInventoryTargetResolver(ResourceLocation id,
+            InventoryTargetResolverRegistry.InventoryTargetResolver resolver) {
+        InventoryTargetResolverRegistry.get().register(id, resolver);
+    }
+
+    /**
+     * Register a server-side inventory resolver together with stable editor catalog entries.
+     */
+    public static void registerInventoryTargetResolver(ResourceLocation id,
+            InventoryTargetResolverRegistry.InventoryTargetResolver resolver,
+            List<InventoryTargetResolverRegistry.InventoryTargetDescriptor> targets) {
+        InventoryTargetResolverRegistry.get().register(id, resolver, targets);
     }
 
     public static boolean markStructureSessionComplete(ServerPlayer player,

@@ -1,6 +1,7 @@
 package com.enviouse.progressivestages.common.rehaul.catalog;
 
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
+import com.enviouse.progressivestages.server.enforcement.InventoryTargetResolverRegistry;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -54,6 +55,7 @@ final class BuiltinCatalogContributor implements CatalogContributor {
             addAdvancements(context, collector, modNames);
             addReloadResources(context, collector, modNames);
             addScoreboard(context, collector);
+            addInventoryTargets(collector);
             addStages(collector);
             addExtensions(collector);
         }
@@ -146,6 +148,18 @@ final class BuiltinCatalogContributor implements CatalogContributor {
         for (String name : context.server().getScoreboard().getObjectiveNames()) {
             collector.add(catalog, new CatalogEntry(catalog, name, null, "", name, "", "scoreboard",
                 "", "", List.of(), Set.of(), Map.of()));
+        }
+    }
+
+    private static void addInventoryTargets(CatalogCollector collector) {
+        ResourceLocation catalog = catalog("inventory_targets");
+        for (InventoryTargetResolverRegistry.InventoryTargetDescriptor target :
+                InventoryTargetResolverRegistry.get().catalogTargets()) {
+            collector.add(catalog, new CatalogEntry(catalog, target.id().toString(), null,
+                target.id().getNamespace(), target.label(), "", "inventory_target",
+                target.id().getNamespace(), "", target.tags().stream().sorted().toList(),
+                Set.of(PREFIX_ID, PREFIX_MOD, PREFIX_NAME, PREFIX_TAG), Map.of(
+                    "resolver", target.resolver().toString())));
         }
     }
 

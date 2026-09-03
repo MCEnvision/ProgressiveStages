@@ -119,6 +119,17 @@ export const EFFECTS = [
   { value: "present", label: "Only change presentation" }
 ];
 
+export function ruleEffects(category: string, action: string) {
+  if (category === "interactions" && action === "item_into_inventory") {
+    return EFFECTS.filter(effect => ["lock", "allow", "exclude"].includes(effect.value));
+  }
+  if (category === "recipes" && action === "craft") return EFFECTS.filter(effect => effect.value === "lock");
+  return EFFECTS
+    .filter(effect => effect.value !== "exclude")
+    .filter(effect => effect.value !== "replace" || ["mobs", "ores"].includes(category))
+    .filter(effect => effect.value !== "present" || ["recipes", "advancements", "ores"].includes(category));
+}
+
 export const NAVIGATION = [
   { id: "stages", label: "Stages", icon: "stages" },
   { id: "layout", label: "Player UI", icon: "layout" },

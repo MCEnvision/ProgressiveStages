@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { serializeInventoryInsertionRule } from "./inventoryInsertion";
+import { serializeInventoryCondition, serializeInventoryInsertionRule } from "./inventoryInsertion";
 
 describe("inventory insertion rule serializer", () => {
   it("writes the canonical paired interaction fields", () => {
@@ -42,5 +42,10 @@ lifetime = "duration"
 duration = "30s"
 while = { type = "dimension", id = "minecraft:the_end" }
 reset_condition = { type = "boolean", expected = false }`);
+  });
+
+  it("preserves supported nested condition values when another field is edited", () => {
+    expect(serializeInventoryCondition('{ type = "boolean", expected = false }', "boolean", "", 1))
+      .toBe('{ type = "boolean", expected = false }');
   });
 });

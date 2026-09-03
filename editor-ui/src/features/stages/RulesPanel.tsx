@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ACTION_LABELS, CATEGORIES, CONDITIONS, EFFECTS } from "../../data";
+import { ACTION_LABELS, CATEGORIES, CONDITIONS, EFFECTS, ruleEffects } from "../../data";
 import { InlineCatalogSearch } from "../../components/CatalogPicker";
 import { Badge, Button, EmptyState, Field, Section } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -11,9 +11,9 @@ import {
   validateEnchantmentGenerationRule,
   writeEnchantmentGenerationRules
 } from "../../lib/enchantments";
-import { serializeInventoryInsertionRule } from "../../lib/inventoryInsertion";
+import { serializeInventoryCondition, serializeInventoryInsertionRule } from "../../lib/inventoryInsertion";
 import { ruleModels, selectorMode, title } from "../../lib/model";
-import { appendTomlBlock, conditionToml, encodeToml, extractArrayBlocks, parseSimpleArray, readTomlValue, upsertToml } from "../../lib/toml";
+import { appendTomlBlock, conditionToml, encodeToml, extractArrayGroups, parseSimpleArray, readTomlValue, replaceArrayGroups, upsertToml } from "../../lib/toml";
 import { useEditor } from "../../store/EditorContext";
 import type { EnchantmentGenerationRule } from "../../lib/enchantments";
 import type { RuleModel, StagePackage } from "../../types";
@@ -35,6 +35,8 @@ interface RuleDraft {
   resetConditionType: string;
   resetConditionTarget: string;
   resetCount: number;
+  conditionSource: string;
+  resetConditionSource: string;
   exception: string;
   exceptionPriority: number;
   recipeKind: "output" | "identifier";
@@ -90,18 +92,12 @@ function replaceRuleGroup(text: string, table: "rules" | "temporary_rules", inde
 }
 
 function replaceInteractionGroup(text: string, index: number, replacement: string | null): string {
-  const lines = text.split(/\r?\n/);
-  const group = extractArrayBlocks(text, "interactions")[index];
+  const groups = extractArrayGroups(text, "interactions");
+  const group = groups[index];
   if (!group) throw new Error("The interaction changed in another edit. Reopen it and try again.");
-  const starts = lines.findIndex((line, lineIndex) => lineIndex >= 0 && line.trim() === "[[interactions]]"
-    && lines.slice(0, lineIndex + 1).filter(value => value.trim() === "[[interactions]]").length === index + 1);
-  if (starts < 0) throw new Error("The interaction changed in another edit. Reopen it and try again.");
-  let end = lines.length;
-  for (let cursor = starts + 1; cursor < lines.length; cursor++) {
-    if (/^\s*\[\[/.test(lines[cursor])) { end = cursor; break; }
-  }
-  lines.splice(starts, end - starts, ...(replacement ? replacement.trim().split("\n") : []));
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+  const replacements = groups.map(entry => entry.text);
+  replacements[index] = replacement || "";
+  return replaceArrayGroups(text, "interactions", replacements);
 }
 
 function removeClassicRule(text: string, rule: RuleModel): string {
@@ -165,8 +161,8 @@ function saveInventoryInsertionRule(text: string, draft: RuleDraft, previous?: R
     priority: draft.priority,
     lifetime: draft.lifetime,
     duration: draft.duration,
-    condition: draft.conditionType === "none" ? "" : conditionToml(draft.conditionType, draft.conditionTarget, draft.count),
-    resetCondition: draft.resetConditionType === "none" ? "" : conditionToml(draft.resetConditionType, draft.resetConditionTarget, draft.resetCount)
+    condition: serializeInventoryCondition(draft.conditionSource, draft.conditionType, draft.conditionTarget, draft.count),
+    resetCondition: serializeInventoryCondition(draft.resetConditionSource, draft.resetConditionType, draft.resetConditionTarget, draft.resetCount)
   });
   if (previous?.table === "interactions") return replaceInteractionGroup(text, previous.tableIndex, block);
   if (previous) {
@@ -226,6 +222,8 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     resetConditionType: rule?.resetConditionType || "none",
     resetConditionTarget: rule?.resetConditionTarget || "",
     resetCount: rule?.resetCount || 1,
+    conditionSource: rule?.conditionSource || "",
+    resetConditionSource: rule?.resetConditionSource || "",
     exception: rule?.exception || "",
     exceptionPriority: rule?.exceptionPriority || (rule?.priority ?? 100) + 1,
     recipeKind: rule?.recipeKind || "output",
@@ -241,6 +239,7 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const canonicalRecipe = draft.category === "recipes" && draft.action === "craft"
     && draft.effect === "lock" && !temporary;
   const inventoryInsertion = draft.category === "interactions" && draft.action === "item_into_inventory";
+  const ambiguousRecipe = Boolean(rule?.ambiguous);
   const targetCatalog = canonicalRecipe
     ? draft.recipeKind === "output" ? "items" : "recipes"
     : category.catalog;
@@ -249,6 +248,7 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     : "Selected target";
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (ambiguousRecipe) throw new Error("[recipes].locked is ambiguous. Remove it, then create either a recipe output item or exact recipe identifier lock.");
     if (!draft.selector || inventoryInsertion && !draft.destination) return;
     let content = boot?.draft.files[stage.rulesPath] || "";
     if (inventoryInsertion) {
@@ -292,10 +292,7 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
             : current.effect
         }));
       }}>{category.actions.map(action => <option key={action} value={action}>{ACTION_LABELS[action] || title(action)}</option>)}</select></Field>
-      <Field label="Result"><select value={draft.effect} onChange={event => update("effect", event.target.value)}>{(inventoryInsertion
-        ? EFFECTS.filter(effect => ["lock", "allow", "exclude"].includes(effect.value))
-        : draft.category === "recipes" && draft.action === "craft" ? EFFECTS.filter(effect => effect.value === "lock")
-          : EFFECTS.filter(effect => effect.value !== "replace" || ["mobs", "ores"].includes(draft.category)).filter(effect => effect.value !== "present" || ["recipes", "advancements", "ores"].includes(draft.category))).map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
+      <Field label="Result"><select value={draft.effect} onChange={event => update("effect", event.target.value)}>{ruleEffects(draft.category, draft.action).map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
       <Field label="Priority" help="A larger number wins when rules overlap."><input type="number" value={draft.priority} onChange={event => update("priority", Number(event.target.value))}/></Field>
     </div>
     <section className="dialog-section"><header><span className="step-number">1</span><div><h3>{inventoryInsertion ? "Choose what moves where" : "Choose the target"}</h3><p>{inventoryInsertion ? "The server checks the inserted item and destination together before it changes any slot." : `The registry only shows content valid for ${category.label.toLowerCase()}.`}</p></div></header><div className="form-grid">
@@ -339,7 +336,8 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
       <Field label="Optional exception selector"><input value={draft.exception} onChange={event => update("exception", event.target.value)} placeholder="tag:c:swords"/></Field>
       <Field label="Exception priority"><input type="number" value={draft.exceptionPriority} onChange={event => update("exceptionPriority", Number(event.target.value))}/></Field>
     </div></section> : null}
-    <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={closeDialog}>Cancel</Button><Button type="submit" tone="primary" disabled={!draft.selector || inventoryInsertion && !draft.destination}>{rule ? "Update rule" : "Add rule"}</Button></footer>
+    {ambiguousRecipe ? <div className="form-errors" role="alert"><strong>This legacy recipe field is ambiguous.</strong><p>Remove it, then create a recipe output item or exact recipe identifier lock.</p></div> : null}
+    <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={closeDialog}>Cancel</Button><Button type="submit" tone="primary" disabled={ambiguousRecipe || !draft.selector || inventoryInsertion && !draft.destination}>{rule ? "Update rule" : "Add rule"}</Button></footer>
   </form>;
 }
 
@@ -352,8 +350,8 @@ function RuleCard({ stage, rule, index, total, onEdit, onDelete, onMove }:
     : rule.selector;
   return <article className="rule-card-new">
     <div className="rule-card-icon"><Icon name="rules" size={19}/></div>
-    <div className="rule-card-main"><div className="rule-card-title"><strong>{category?.label || title(rule.category)}</strong><Badge tone={rule.effect === "allow" || rule.effect === "unlock" || rule.effect === "exclude" ? "success" : "danger"}>{title(rule.effect)}</Badge><Badge>Priority {rule.priority}</Badge></div><code>{selector}</code><p>{ACTION_LABELS[rule.action] || title(rule.action)}. {rule.table === "interactions" && rule.conditionType === "none" ? "The server checks both selectors before changing the inventory." : rule.conditionType === "none" ? "Follows stage ownership." : `Active during ${CONDITIONS.find(value => value.id === rule.conditionType)?.label.toLowerCase() || title(rule.conditionType)}.`}</p></div>
-    <div className="rule-card-actions"><button aria-label="Move rule up" disabled={index === 0 || !movable} onClick={() => onMove(-1)}>↑</button><button aria-label="Move rule down" disabled={index === total - 1 || !movable} onClick={() => onMove(1)}>↓</button><Button tone="quiet" onClick={onEdit}>Edit</Button><Button tone="danger" onClick={onDelete}>Remove</Button></div>
+    <div className="rule-card-main"><div className="rule-card-title"><strong>{category?.label || title(rule.category)}</strong><Badge tone={rule.effect === "allow" || rule.effect === "unlock" || rule.effect === "exclude" ? "success" : "danger"}>{title(rule.effect)}</Badge><Badge>Priority {rule.priority}</Badge></div><code>{selector}</code><p>{rule.ambiguous ? "This legacy recipe field is ambiguous. Remove it, then create an output item or exact recipe identifier lock." : rule.table === "interactions" && rule.conditionType === "none" ? "The server checks both selectors before changing the inventory." : rule.conditionType === "none" ? "Follows stage ownership." : `Active during ${CONDITIONS.find(value => value.id === rule.conditionType)?.label.toLowerCase() || title(rule.conditionType)}.`}</p></div>
+    <div className="rule-card-actions"><button aria-label="Move rule up" disabled={index === 0 || !movable} onClick={() => onMove(-1)}>↑</button><button aria-label="Move rule down" disabled={index === total - 1 || !movable} onClick={() => onMove(1)}>↓</button><Button tone="quiet" disabled={rule.ambiguous} onClick={onEdit}>Edit</Button><Button tone="danger" onClick={onDelete}>Remove</Button></div>
   </article>;
 }
 

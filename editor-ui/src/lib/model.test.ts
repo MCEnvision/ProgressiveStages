@@ -39,8 +39,14 @@ describe("react editor stage models", () => {
     expect(rules).toContainEqual(expect.objectContaining({ table: "recipe_ids", recipeKind: "identifier", selector: "minecraft:diamond_sword", priority: 240 }));
   });
 
-  it("keeps inventory insertion source and destination selectors paired", () => {
-    const rules = ruleModels(`[[interactions]]\nid = "example:ore_bin_window"\ntype = "item_into_inventory"\nheld_item = "tag:c:ores"\ntarget_kind = "block"\ntarget = "id:example:selling_bin"\neffect = "deny"\npriority = 250\nlifetime = "duration"\nduration = "30s"\nwhile = { type = "dimension", id = "minecraft:the_end" }\nreset_condition = { type = "boolean", expected = false }\n`);
+  it("marks the legacy generic recipe field as ambiguous instead of treating it as an output item", () => {
+    const [rule] = ruleModels(`[recipes]\nlocked = ["minecraft:diamond_sword"]\n`);
+    expect(rule).toMatchObject({ table: "classic", category: "recipes", ambiguous: true });
+    expect(rule.recipeKind).toBeUndefined();
+  });
+
+  it("keeps inventory insertion source and destination selectors paired through nested conditions", () => {
+    const rules = ruleModels(`[[interactions]]\nid = "example:ore_bin_window"\ntype = "item_into_inventory"\nheld_item = "tag:c:ores"\ntarget_kind = "block"\ntarget = "id:example:selling_bin"\neffect = "deny"\npriority = 250\nlifetime = "duration"\nduration = "30s"\n\n[interactions.while]\ntype = "dimension"\nid = "minecraft:the_end"\n\n[interactions.reset_condition]\ntype = "boolean"\nexpected = false\n`);
     expect(rules).toContainEqual(expect.objectContaining({
       table: "interactions",
       action: "item_into_inventory",
@@ -56,6 +62,7 @@ describe("react editor stage models", () => {
       conditionTarget: "minecraft:the_end",
       resetConditionType: "boolean"
     }));
+    expect(rules[0].resetConditionSource).toContain("expected = false");
   });
 
   it("creates interchangeable namespaces without a forced pack prefix", () => {

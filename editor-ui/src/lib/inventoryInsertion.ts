@@ -1,4 +1,4 @@
-import { encodeToml } from "./toml";
+import { conditionToml, encodeToml, inlineObjectValue } from "./toml";
 
 export interface InventoryInsertionRuleDraft {
   id?: string;
@@ -11,6 +11,15 @@ export interface InventoryInsertionRuleDraft {
   duration?: string;
   condition?: string;
   resetCondition?: string;
+}
+
+export function serializeInventoryCondition(source: string, type: string, target: string, count: number): string {
+  if (type === "none") return "";
+  const sourceType = inlineObjectValue(source, "type");
+  const sourceTarget = inlineObjectValue(source, "id") || inlineObjectValue(source, "value") || inlineObjectValue(source, "callback");
+  const sourceCount = Number(inlineObjectValue(source, "count") || "1");
+  if (source && sourceType === type && sourceTarget === target && sourceCount === count) return source;
+  return conditionToml(type, target, count);
 }
 
 export function serializeInventoryInsertionRule(draft: InventoryInsertionRuleDraft): string {

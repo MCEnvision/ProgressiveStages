@@ -4,6 +4,7 @@ import { enchantmentGenerationRules } from "./enchantments";
 import {
   booleanValue,
   extractArrayBlocks,
+  extractArrayGroups,
   inlineObjectValue,
   numberValue,
   parseSimpleArray,
@@ -112,15 +113,15 @@ export function ruleModels(text: string): RuleModel[] {
   for (const table of ["rules", "temporary_rules"] as const) {
     extractArrayBlocks(text, table).forEach(block => models.push(parseRuleBlock(block.text, table, block.index)));
   }
-  extractArrayBlocks(text, "interactions").forEach(block => {
+  extractArrayGroups(text, "interactions").forEach(block => {
     const type = stringValue(readBlockValue(block.text, "type"));
     if (type !== "item_into_inventory") return;
     const targetKind = stringValue(readBlockValue(block.text, "target_kind"));
     const destination = stringValue(readBlockValue(block.text, "target"));
     const heldItem = stringValue(readBlockValue(block.text, "held_item"));
-    const condition = readBlockValue(block.text, "while") || readBlockValue(block.text, "when")
-      || readBlockValue(block.text, "condition") || "";
-    const resetCondition = readBlockValue(block.text, "reset_condition") || "";
+    const condition = interactionCondition(block.text, "while") || interactionCondition(block.text, "when")
+      || interactionCondition(block.text, "condition");
+    const resetCondition = interactionCondition(block.text, "reset_condition");
     if (!heldItem || !destination || !["block", "menu", "inventory"].includes(targetKind)) return;
     models.push({
       table: "interactions",
@@ -144,7 +145,9 @@ export function ruleModels(text: string): RuleModel[] {
       destination,
       resetConditionType: inlineObjectValue(resetCondition, "type") || "none",
       resetConditionTarget: inlineObjectValue(resetCondition, "id") || inlineObjectValue(resetCondition, "value") || inlineObjectValue(resetCondition, "callback"),
-      resetCount: numberValue(inlineObjectValue(resetCondition, "count"), 1)
+      resetCount: numberValue(inlineObjectValue(resetCondition, "count"), 1),
+      conditionSource: condition,
+      resetConditionSource: resetCondition
     });
   });
   for (const [category, definition] of Object.entries(CATEGORIES)) {
@@ -168,7 +171,8 @@ export function ruleModels(text: string): RuleModel[] {
           count: 1,
           exception: "",
           exceptionPriority: 0,
-          sourceText: selector
+          sourceText: selector,
+          ambiguous: category === "recipes"
         });
       });
     }
@@ -202,6 +206,23 @@ export function ruleModels(text: string): RuleModel[] {
     });
   }
   return models;
+}
+
+function interactionCondition(text: string, key: "while" | "when" | "condition" | "reset_condition"): string {
+  const inline = readBlockValue(text, key);
+  if (inline) return inline;
+
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex(line => line.trim() === `[interactions.${key}]`);
+  if (start < 0) return "";
+
+  const entries: string[] = [];
+  for (let index = start + 1; index < lines.length; index++) {
+    if (/^\s*\[\[?[^\]]+\]\]?\s*(?:#.*)?$/.test(lines[index])) break;
+    const assignment = lines[index].match(/^\s*([A-Za-z0-9_.-]+)\s*=\s*(.+?)\s*(?:#.*)?$/);
+    if (assignment) entries.push(`${assignment[1]} = ${assignment[2]}`);
+  }
+  return entries.length ? `{ ${entries.join(", ")} }` : "";
 }
 
 function parseRuleBlock(text: string, table: "rules" | "temporary_rules", tableIndex: number): RuleModel {

@@ -177,6 +177,9 @@ export interface RuleModel {
   resetConditionType?: string;
   resetConditionTarget?: string;
   resetCount?: number;
+  conditionSource?: string;
+  resetConditionSource?: string;
+  ambiguous?: boolean;
 }
 
 export interface ProgressionModel {

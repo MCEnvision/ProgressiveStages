@@ -2,11 +2,15 @@ package com.enviouse.progressivestages.server.editor;
 
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.StageDefinition;
+import com.enviouse.progressivestages.common.lock.LockDefinition;
+import com.enviouse.progressivestages.common.rehaul.SelectorSpec;
 import com.enviouse.progressivestages.common.stage.StageOrder;
+import com.enviouse.progressivestages.server.enforcement.InventoryTargetResolverRegistry;
 import com.enviouse.progressivestages.server.loader.Schema4StageCompiler;
 import com.enviouse.progressivestages.server.loader.StageFileParser;
 import com.enviouse.progressivestages.server.loader.StagePackageDiscovery;
 import com.enviouse.progressivestages.server.loader.StagePackageParser;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -44,6 +48,7 @@ final class EditorDraftValidator {
                 StageDefinition definition = parsed.getStageDefinition();
                 try { Schema4StageCompiler.compile(definition, parsed.getSourceConfig(), source.sourceId(), 0); }
                 catch (RuntimeException error) { errors.add(definition.getId() + ". " + error.getMessage()); }
+                validateInventoryTargets(definition, errors);
                 if (definitions.putIfAbsent(definition.getId(), definition) != null) errors.add("Duplicate stage id. " + definition.getId());
             }
             for (Path source : discovery.legacyFiles()) {
@@ -64,6 +69,26 @@ final class EditorDraftValidator {
                 try (var paths = Files.walk(temporary)) {
                     for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
                 } catch (IOException ignored) {}
+            }
+        }
+    }
+
+    private static void validateInventoryTargets(StageDefinition definition, List<String> errors) {
+        for (LockDefinition.InteractionLock lock : definition.getLocks().interactions()) {
+            if (!"item_into_inventory".equals(lock.type())) continue;
+            var selector = SelectorSpec.parse(lock.target());
+            if (selector.isEmpty() || !selector.get().matcherId().equals(SelectorSpec.ID)) continue;
+            var target = selector.get().resourceId();
+            boolean valid = switch (lock.targetKind()) {
+                case "block" -> BuiltInRegistries.BLOCK.containsKey(target);
+                case "menu" -> BuiltInRegistries.MENU.containsKey(target);
+                case "inventory" -> InventoryTargetResolverRegistry.get().catalogTargets().stream()
+                    .anyMatch(descriptor -> descriptor.id().equals(target));
+                default -> false;
+            };
+            if (!valid) {
+                errors.add(definition.getId() + ". interactions.item_into_inventory.target is not a registered "
+                    + lock.targetKind() + " target. " + target);
             }
         }
     }

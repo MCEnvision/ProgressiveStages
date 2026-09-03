@@ -14,7 +14,7 @@ export const CATEGORIES: Record<string, CategoryDefinition> = {
   dimensions: { label: "Dimensions", catalog: "dimensions", actions: ["enter", "portal", "teleport"], description: "Dimension travel and portal access." },
   enchants: { label: "Enchantments", catalog: "enchantments", actions: ["table", "anvil", "trade", "hold"], description: "Enchanting, anvils, trades, and owned enchantments." },
   entities: { label: "Mobs and entities", catalog: "entities", actions: ["presence", "attack", "interact", "mount"], description: "Per player presence, combat, interaction, and riding." },
-  interactions: { label: "Interactions", catalog: "items", actions: ["block_right_click", "item_on_block", "item_on_entity"], description: "Detailed item and target combinations." },
+  interactions: { label: "Interactions", catalog: "items", actions: ["block_right_click", "item_on_block", "item_on_entity", "item_into_inventory"], description: "Detailed item and target combinations." },
   loot: { label: "Loot", catalog: "loot_tables", actions: ["generate", "open", "drop"], description: "Chests, drops, fishing, and loot tables." },
   mobs: { label: "Mob spawning", catalog: "entities", actions: ["spawn", "replace"], description: "Spawn cancellation and replacement." },
   pets: { label: "Pets", catalog: "entities", actions: ["tame", "breed", "command", "ride"], description: "Taming, breeding, commands, and riding." },
@@ -42,7 +42,7 @@ export const ACTION_LABELS: Record<string, string> = {
   portal: "Use a portal", teleport: "Teleport there", table: "Use at an enchanting table",
   anvil: "Use in an anvil", trade: "Trade for the target", hold: "Keep the enchantment",
   presence: "Have the entity nearby", attack: "Attack the entity", mount: "Mount the entity", block_right_click: "Right click a block",
-  item_on_block: "Use an item on a block", item_on_entity: "Use an item on an entity",
+  item_on_block: "Use an item on a block", item_on_entity: "Use an item on an entity", item_into_inventory: "Insert an item into an inventory",
   generate: "Generate the loot", open: "Open the target", spawn: "Spawn the entity",
   replace: "Replace the entity", tame: "Tame the pet", breed: "Breed the pet",
   command: "Command the pet", ride: "Ride the pet", purchase: "Purchase the trade",
@@ -114,6 +114,7 @@ export const EFFECTS = [
   { value: "deny", label: "Deny while this rule is active" },
   { value: "allow", label: "Allow while this stage is owned" },
   { value: "unlock", label: "Allow while this rule is active" },
+  { value: "exclude", label: "Always allow this exact match" },
   { value: "replace", label: "Replace the selected target" },
   { value: "present", label: "Only change presentation" }
 ];

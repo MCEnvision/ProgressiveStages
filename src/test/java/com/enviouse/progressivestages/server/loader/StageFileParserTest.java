@@ -1,6 +1,7 @@
 package com.enviouse.progressivestages.server.loader;
 
 import com.enviouse.progressivestages.common.lock.ConditionalRule;
+import com.enviouse.progressivestages.common.lock.LockRegistry;
 import com.enviouse.progressivestages.common.api.structure.StructureLeaveOutcome;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -394,6 +395,146 @@ class StageFileParserTest {
         assertEquals(2, result.getStageDefinition().getSlotLimit());
         assertEquals(com.enviouse.progressivestages.common.config.StageSlotPolicy.REPLACE_OLDEST,
             result.getStageDefinition().getSlotPolicy());
+    }
+
+    @Test
+    void parsesInventoryInsertionInteractionsWithoutChangingLegacyInteractions() throws IOException {
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(write("inventory_interaction.toml", """
+            [stage]
+            id = "inventory_interaction"
+
+            [[interactions]]
+            type = "item_on_block"
+            held_item = "minecraft:stick"
+            target_block = "minecraft:crafting_table"
+
+            [[interactions]]
+            type = "item_into_inventory"
+            held_item = "tag:c:ores"
+            target_kind = "block"
+            target = "minecraft:chest"
+            effect = "lock"
+            priority = 250
+            """));
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        var interactions = result.getStageDefinition().getLocks().interactions();
+        assertEquals(2, interactions.size());
+        assertEquals("item_on_block", interactions.getFirst().type());
+        assertEquals("", interactions.getFirst().targetKind());
+        var inventory = interactions.getLast();
+        assertEquals("item_into_inventory", inventory.type());
+        assertEquals("tag:c:ores", inventory.heldItem());
+        assertEquals("block", inventory.targetKind());
+        assertEquals("minecraft:chest", inventory.target());
+        assertEquals("lock", inventory.effect());
+        assertEquals(250, inventory.priority());
+
+        LockRegistry registry = LockRegistry.getInstance();
+        registry.clear();
+        try {
+            registry.registerStage(result.getStageDefinition());
+            var compiled = registry.getAllInteractionLocksOfType("item_into_inventory");
+            assertEquals(1, compiled.size());
+            var entry = compiled.iterator().next();
+            assertEquals("tag:c:ores", entry.heldItem);
+            assertEquals("minecraft:chest", entry.targetBlock);
+            assertEquals("block", entry.targetKind);
+            assertEquals(250, entry.priority);
+        } finally {
+            registry.clear();
+        }
+    }
+
+    @Test
+    void supportsEverySelectorPrefixForInventoryInsertion() throws IOException {
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(write("inventory_selectors.toml", """
+            [stage]
+            id = "inventory_selectors"
+
+            [[interactions]]
+            type = "item_into_inventory"
+            held_item = "all:*"
+            target_kind = "menu"
+            target = "#example:workstations"
+
+            [[interactions]]
+            type = "item_into_inventory"
+            held_item = "mod:minecraft"
+            target_kind = "block"
+            target = "name:selling"
+
+            [[interactions]]
+            type = "item_into_inventory"
+            held_item = "tag:c:ores"
+            target_kind = "inventory"
+            target = "id:minecraft:player_inventory"
+            """));
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        assertEquals(3, result.getStageDefinition().getLocks().interactions().size());
+    }
+
+    @Test
+    void rejectsIncompleteInventoryInsertionInteractions() throws IOException {
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(write("invalid_inventory_interaction.toml", """
+            [stage]
+            id = "invalid_inventory_interaction"
+
+            [[interactions]]
+            type = "item_into_inventory"
+            held_item = "minecraft:iron_ore"
+            target_kind = "missing"
+            """));
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getErrorMessage().contains("target_kind"), result.getErrorMessage());
+    }
+
+    @Test
+    void rejectsInvalidInventoryInsertionEffectsAndPriorities() throws IOException {
+        StageFileParser.ParseResult effect = StageFileParser.parseWithErrors(write("invalid_inventory_effect.toml", """
+            [stage]
+            id = "invalid_inventory_effect"
+
+            [[interactions]]
+            type = "item_into_inventory"
+            held_item = "id:minecraft:iron_ore"
+            target_kind = "block"
+            target = "id:minecraft:chest"
+            effect = "replace"
+            """));
+        assertFalse(effect.isSuccess());
+        assertTrue(effect.getErrorMessage().contains("effect"), effect.getErrorMessage());
+
+        StageFileParser.ParseResult priority = StageFileParser.parseWithErrors(write("invalid_inventory_priority.toml", """
+            [stage]
+            id = "invalid_inventory_priority"
+
+            [[interactions]]
+            type = "item_into_inventory"
+            held_item = "id:minecraft:iron_ore"
+            target_kind = "block"
+            target = "id:minecraft:chest"
+            priority = 1000001
+            """));
+        assertFalse(priority.isSuccess());
+        assertTrue(priority.getErrorMessage().contains("priority"), priority.getErrorMessage());
+    }
+
+    @Test
+    void rejectsAmbiguousGenericRecipeLocksWithoutReplacingTheCanonicalFields() throws IOException {
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(write("ambiguous_recipe_lock.toml", """
+            [stage]
+            id = "ambiguous_recipe_lock"
+
+            [recipes]
+            locked = ["id:minecraft:diamond_sword"]
+            """));
+
+        assertFalse(result.isSuccess());
+        assertTrue(result.getErrorMessage().contains("locked_items"), result.getErrorMessage());
+        assertTrue(result.getErrorMessage().contains("locked_ids"), result.getErrorMessage());
     }
 
     private Path write(String name, String contents) throws IOException {

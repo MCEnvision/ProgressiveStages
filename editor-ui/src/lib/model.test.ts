@@ -39,6 +39,19 @@ describe("react editor stage models", () => {
     expect(rules).toContainEqual(expect.objectContaining({ table: "recipe_ids", recipeKind: "identifier", selector: "minecraft:diamond_sword", priority: 240 }));
   });
 
+  it("keeps inventory insertion source and destination selectors paired", () => {
+    const rules = ruleModels(`[[interactions]]\ntype = "item_into_inventory"\nheld_item = "tag:c:ores"\ntarget_kind = "block"\ntarget = "id:example:selling_bin"\neffect = "deny"\npriority = 250\n`);
+    expect(rules).toContainEqual(expect.objectContaining({
+      table: "interactions",
+      action: "item_into_inventory",
+      selector: "tag:c:ores",
+      targetKind: "block",
+      destination: "id:example:selling_bin",
+      effect: "deny",
+      priority: 250
+    }));
+  });
+
   it("creates interchangeable namespaces without a forced pack prefix", () => {
     expect(stageIdentity("Warlock", "wizard")).toMatchObject({ id: "wizard:warlock", path: "warlock" });
   });

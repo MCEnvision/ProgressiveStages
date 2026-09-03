@@ -86,7 +86,7 @@ class StageTreeScreenRenderOrderTest {
 
         String categoryMenu = source.substring(start, end);
         int push = categoryMenu.indexOf("g.pose().pushPose()");
-        int foreground = categoryMenu.indexOf("g.pose().translate(0.0F, 0.0F, 400.0F)");
+        int foreground = categoryMenu.indexOf("g.pose().translate(0.0F, 0.0F, 1200.0F)");
         int panel = categoryMenu.indexOf("fillPixelRounded(g, categoryMenuX, categoryMenuY");
         int pop = categoryMenu.indexOf("g.pose().popPose()");
 
@@ -96,6 +96,21 @@ class StageTreeScreenRenderOrderTest {
         assertTrue(panel < pop);
         assertEquals(1, occurrences(categoryMenu, "g.pose().pushPose()"));
         assertEquals(1, occurrences(categoryMenu, "g.pose().popPose()"));
+    }
+
+    @Test
+    void openCategoryOverlayConsumesMapClickAndScrollInput() throws IOException {
+        String source = Files.readString(SCREEN);
+        int clickStart = source.indexOf("public boolean mouseClicked(double mouseX, double mouseY, int button)");
+        int clickEnd = source.indexOf("public boolean mouseDragged", clickStart);
+        int scrollStart = source.indexOf("public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY)");
+        int scrollEnd = source.indexOf("public boolean keyPressed", scrollStart);
+
+        String click = source.substring(clickStart, clickEnd);
+        String scroll = source.substring(scrollStart, scrollEnd);
+        assertTrue(click.contains("categoryOpen = false;\n                return true;"));
+        assertTrue(scroll.contains("if (categoryOpen) {"));
+        assertTrue(scroll.contains("return true;"));
     }
 
     private static int occurrences(String value, String target) {

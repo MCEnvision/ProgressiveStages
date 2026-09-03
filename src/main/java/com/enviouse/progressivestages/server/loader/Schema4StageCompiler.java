@@ -517,6 +517,7 @@ public final class Schema4StageCompiler {
         String[] parts = category.split("\\.");
         Config current = source.get(parts[0]);
         for (int index = 1; current != null && index < parts.length; index++) current = current.get(parts[index]);
+        if (current == null && category.startsWith("recipes.")) return source.get("recipes");
         return current;
     }
 

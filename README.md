@@ -4,7 +4,7 @@
 
 A NeoForge mod for Minecraft 1.21.1 that gives modpack developers complete control over stage-based progression. Define stages as TOML files; ProgressiveStages locks items, blocks, entities, fluids, dimensions, recipes, enchantments, crops, mob spawns, pets, regions, structures, screens, and player interactions until the player has earned the right stage(s).
 
-**ProgressiveStages 3.0.3** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
+**ProgressiveStages 3.0.4** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
 
 ---
 
@@ -48,7 +48,7 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 
 ---
 
-## What's new in 3.0.3
+## What's new in 3.0.4
 
 - **Stage aware enchantment generation.** `[enchants].max_levels` and
   `[enchants].selection_weights` now shape enchanting table choices and player aware enchanted loot
@@ -76,6 +76,13 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **Clearer player layout toolbar.** The redundant `Arrange and save` action is gone. Dragged stage
   positions still save to the draft, `Use automatic layout` still removes manual coordinates, and
   `Apply changes` remains the single server publication flow.
+- **Correct recipe choices in the Easy Builder.** Choose **Recipe output item** to write
+  `[recipes].locked_items`, or **Exact recipe identifier** to write `[recipes].locked_ids`. The
+  editor rejects ambiguous generic recipe fields before they can change a live stage.
+- **Player inventory insertion rules.** A stage can now gate one item selector entering a block,
+  menu, or stable inventory-owner target. The new Easy Builder flow writes paired
+  `[[interactions]]` rules, supports the complete prefix system on both selectors, and keeps
+  playerless automation outside player-stage enforcement.
 
 ---
 
@@ -287,6 +294,7 @@ Each category lives in its own TOML section. Lists accept the unified prefix syn
 | `[mobs]` | `locked_spawns` | Cancel only when every relevant player inside server simulation distance is denied. Mixed access preserves the mob for allowed players and conceals it from denied players. |
 | `[[mobs.replacements]]` | `target`, `replace_with` | Substitute one mob type for another at spawn |
 | `[[interactions]]` | `type`, `held_item`, `target_block` / `target_entity`, `description` | Block right-click / item-on-block / item-on-entity combos |
+| `[[interactions]]` | `type = "item_into_inventory"`, `held_item`, `target_kind`, `target`, `effect`, `priority` | Gate player item insertion into block, menu, or registered inventory targets. See [inventory insertion rules](docs/features/inventory-insertion.md). |
 | `[[regions]]` | `dimension`, `pos1`, `pos2`, `prevent_entry`, `prevent_explosions`, ... | 3D bounding-box gates |
 | `[structures]` | `locked_entry` + `[structures.rules]` (`prevent_block_break`, `prevent_block_place`, `prevent_explosions`, `disable_mob_spawning`, **`entry_padding`** — new in 2.5) | Block entry into specific generated structures. **New in 2.5:** breaching players teleport back to their last safe position; `entry_padding` (blocks) keeps the fallback push clear of the boundary. |
 | `[enforcement]` | `allowed_use`, `allowed_pickup`, `allowed_hotbar`, `allowed_mouse_pickup`, `allowed_inventory` | Per-stage exception lists for in-inventory enforcement |

@@ -19,6 +19,7 @@ import com.enviouse.progressivestages.common.lock.EnforcementCategory;
 import com.enviouse.progressivestages.common.lock.LockDefinition;
 import com.enviouse.progressivestages.common.lock.PrefixEntry;
 import com.enviouse.progressivestages.common.rehaul.ConfigProvenance;
+import com.enviouse.progressivestages.common.rehaul.SelectorSpec;
 import com.enviouse.progressivestages.common.trigger.TriggerCondition;
 import com.enviouse.progressivestages.common.trigger.TriggerConditionType;
 import com.enviouse.progressivestages.common.trigger.TriggerMode;
@@ -58,6 +59,7 @@ import java.util.Objects;
  * [recipes]       locked_ids, locked_items
  * [dimensions]    locked
  * [[interactions]] type, held_item, target_block | target_entity, description
+ * [[interactions]] type = "item_into_inventory", held_item, target_kind, target, effect, priority
  * [[regions]]     dimension, pos1, pos2, prevent_entry, ...
  * [structures]    locked_entry
  *   [structures.rules]      prevent_block_break, ... disable_mob_spawning
@@ -1262,11 +1264,41 @@ public final class StageFileParser {
         for (Config c : entries) {
             String type = c.getOrElse("type", "item_on_block");
             type = type.trim().toLowerCase(java.util.Locale.ROOT);
-            if (!java.util.Set.of("item_on_block", "block_right_click", "item_on_entity").contains(type)) {
+            if (!java.util.Set.of("item_on_block", "block_right_click", "item_on_entity", "item_into_inventory").contains(type)) {
                 throw new IllegalArgumentException("Invalid interaction type. " + type);
             }
             String heldItem = c.get("held_item");
             String description = c.get("description");
+            if ("item_into_inventory".equals(type)) {
+                String targetKind = c.get("target_kind");
+                String target = c.get("target");
+                String effect = c.getOrElse("effect", "lock").trim().toLowerCase(java.util.Locale.ROOT);
+                int priority = (int) readLong(c, "priority", 0L);
+                if (heldItem == null || heldItem.isBlank()) {
+                    throw new IllegalArgumentException("An item_into_inventory interaction is missing held_item");
+                }
+                if (targetKind == null || !java.util.Set.of("block", "menu", "inventory").contains(targetKind.trim().toLowerCase(java.util.Locale.ROOT))) {
+                    throw new IllegalArgumentException("An item_into_inventory interaction has an invalid target_kind. Use block, menu, or inventory");
+                }
+                if (target == null || target.isBlank()) {
+                    throw new IllegalArgumentException("An item_into_inventory interaction is missing target");
+                }
+                if (SelectorSpec.parse(heldItem).isEmpty()) {
+                    throw new IllegalArgumentException("An item_into_inventory interaction has an invalid held_item selector. " + heldItem);
+                }
+                if (SelectorSpec.parse(target).isEmpty()) {
+                    throw new IllegalArgumentException("An item_into_inventory interaction has an invalid target selector. " + target);
+                }
+                if (!java.util.Set.of("lock", "deny", "allow", "unlock", "exclude").contains(effect)) {
+                    throw new IllegalArgumentException("An item_into_inventory interaction has an invalid effect. " + effect);
+                }
+                if (priority < -1_000_000 || priority > 1_000_000) {
+                    throw new IllegalArgumentException("An item_into_inventory interaction priority is outside the supported range");
+                }
+                out.add(new LockDefinition.InteractionLock(type, heldItem, target,
+                    targetKind.trim().toLowerCase(java.util.Locale.ROOT), effect, priority, description));
+                continue;
+            }
             String target = "item_on_entity".equals(type) ? c.get("target_entity") : c.get("target_block");
             if (target == null || target.isBlank()) {
                 throw new IllegalArgumentException("An interaction entry is missing its target");

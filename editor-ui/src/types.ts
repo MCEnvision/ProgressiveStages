@@ -154,7 +154,7 @@ export interface StagePackage {
 }
 
 export interface RuleModel {
-  table: "rules" | "temporary_rules" | "classic" | "recipe_items" | "recipe_ids";
+  table: "rules" | "temporary_rules" | "classic" | "recipe_items" | "recipe_ids" | "interactions";
   tableIndex: number;
   category: string;
   action: string;
@@ -171,6 +171,8 @@ export interface RuleModel {
   exceptionPriority: number;
   sourceText: string;
   recipeKind?: "output" | "identifier";
+  targetKind?: "block" | "menu" | "inventory";
+  destination?: string;
 }
 
 export interface ProgressionModel {

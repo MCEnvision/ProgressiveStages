@@ -92,6 +92,7 @@ public final class LockRegistry {
     // ------- other lockable structures -------
     private final Map<ResourceLocation, Set<StageId>>       dimensionLocks   = new ConcurrentHashMap<>();
     private final Map<String, List<InteractionLockEntry>>   interactionLocks = new ConcurrentHashMap<>();
+    private final Map<String, List<InteractionLockEntry>>   interactionLocksByType = new ConcurrentHashMap<>();
     private final List<MobReplacementEntry>                 mobReplacements  = Collections.synchronizedList(new ArrayList<>());
     private final List<RegionLockEntry>                     regions          = Collections.synchronizedList(new ArrayList<>());
     private final List<OreOverrideEntry>                    oreOverrides     = Collections.synchronizedList(new ArrayList<>());
@@ -170,6 +171,7 @@ public final class LockRegistry {
         recipeIdCat.clear(); recipeOutputCat.clear();
         dimensionLocks.clear();
         interactionLocks.clear();
+        interactionLocksByType.clear();
         mobReplacements.clear();
         regions.clear();
         oreOverrides.clear();
@@ -245,8 +247,11 @@ public final class LockRegistry {
 
         for (LockDefinition.InteractionLock i : locks.interactions()) {
             String key = interactionKey(i.type(), i.heldItem(), i.targetBlock());
-            interactionLocks.computeIfAbsent(key, k -> new java.util.concurrent.CopyOnWriteArrayList<>())
-                .add(new InteractionLockEntry(i.type(), i.heldItem(), i.targetBlock(), i.description(), id));
+            InteractionLockEntry entry = new InteractionLockEntry(i.type(), i.heldItem(), i.targetBlock(),
+                i.targetKind(), i.effect(), i.priority(), i.description(), id);
+            interactionLocks.computeIfAbsent(key, k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(entry);
+            interactionLocksByType.computeIfAbsent(i.type(), k -> new java.util.concurrent.CopyOnWriteArrayList<>())
+                .add(entry);
         }
 
         for (LockDefinition.MobReplacement m : locks.mobReplacements()) {
@@ -616,11 +621,8 @@ public final class LockRegistry {
     }
 
     public java.util.Collection<InteractionLockEntry> getAllInteractionLocksOfType(String type) {
-        List<InteractionLockEntry> out = new ArrayList<>();
-        for (List<InteractionLockEntry> entries : interactionLocks.values()) {
-            for (InteractionLockEntry e : entries) if (type.equals(e.type)) out.add(e);
-        }
-        return out;
+        if (type == null || type.isBlank()) return List.of();
+        return interactionLocksByType.getOrDefault(type, List.of());
     }
 
     private static String interactionKey(String type, String heldItem, String target) {
@@ -1673,14 +1675,25 @@ public final class LockRegistry {
         public final String type;
         public final String heldItem;
         public final String targetBlock;
+        public final String targetKind;
+        public final String effect;
+        public final int priority;
         public final String description;
         public final StageId requiredStage;
 
         public InteractionLockEntry(String type, String heldItem, String targetBlock,
                                     String description, StageId requiredStage) {
+            this(type, heldItem, targetBlock, "", "lock", 0, description, requiredStage);
+        }
+
+        public InteractionLockEntry(String type, String heldItem, String targetBlock, String targetKind,
+                                    String effect, int priority, String description, StageId requiredStage) {
             this.type = type;
             this.heldItem = heldItem;
             this.targetBlock = targetBlock;
+            this.targetKind = targetKind;
+            this.effect = effect;
+            this.priority = priority;
             this.description = description;
             this.requiredStage = requiredStage;
         }

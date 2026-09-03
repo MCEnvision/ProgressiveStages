@@ -589,7 +589,7 @@ public final class StageTreeScreen extends Screen {
     private void renderCategoryMenu(GuiGraphics g, int mouseX, int mouseY) {
         if (!categoryOpen) return;
         g.pose().pushPose();
-        g.pose().translate(0.0F, 0.0F, 400.0F);
+        g.pose().translate(0.0F, 0.0F, 1200.0F);
         int rows = Math.min(CATEGORY_VISIBLE_ROWS, categoryOptionCount());
         categoryMenuX = categoryX;
         categoryMenuY = categoryY + categoryH + 2;
@@ -1304,6 +1304,7 @@ public final class StageTreeScreen extends Screen {
             }
             if (!inside(mouseX, mouseY, categoryX, categoryY, categoryW, categoryH)) {
                 categoryOpen = false;
+                return true;
             }
         }
         if (button == 0 && !categories.isEmpty()
@@ -1375,12 +1376,13 @@ public final class StageTreeScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (categoryOpen && inside(mouseX, mouseY, categoryMenuX, categoryMenuY,
-                categoryMenuW, categoryMenuH)) {
-            int rows = Math.min(CATEGORY_VISIBLE_ROWS, categoryOptionCount());
-            int maximumScroll = Math.max(0, categoryOptionCount() - rows);
-            categoryScroll = Math.max(0, Math.min(maximumScroll,
-                categoryScroll - (int) Math.signum(scrollY)));
+        if (categoryOpen) {
+            if (inside(mouseX, mouseY, categoryMenuX, categoryMenuY, categoryMenuW, categoryMenuH)) {
+                int rows = Math.min(CATEGORY_VISIBLE_ROWS, categoryOptionCount());
+                int maximumScroll = Math.max(0, categoryOptionCount() - rows);
+                categoryScroll = Math.max(0, Math.min(maximumScroll,
+                    categoryScroll - (int) Math.signum(scrollY)));
+            }
             return true;
         }
         if (selected != null && insideInspector(mouseX, mouseY) && panelMax > 0) {

@@ -87,7 +87,7 @@ final class BuiltinEditorSchemas {
             "Exact enchantment IDs and roll weights used until this stage is owned. Zero prevents generation.",
             SchemaValueType.LIST, List.of(), false, catalog("enchantments"), Set.of(), List.of());
         category(sink, "entities", "entities", List.of("presence", "attack", "interact", "mount"));
-        category(sink, "interactions", "items", List.of("block_right_click", "item_on_block", "item_on_entity"));
+        category(sink, "interactions", "items", List.of("block_right_click", "item_on_block", "item_on_entity", "item_into_inventory"));
         category(sink, "loot", "loot_tables", List.of("generate", "open", "drop"));
         category(sink, "mobs", "entities", List.of("spawn", "replace"));
         category(sink, "pets", "entities", List.of("tame", "breed", "command", "ride"));

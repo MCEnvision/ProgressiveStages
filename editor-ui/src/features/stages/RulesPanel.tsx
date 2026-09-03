@@ -11,8 +11,9 @@ import {
   validateEnchantmentGenerationRule,
   writeEnchantmentGenerationRules
 } from "../../lib/enchantments";
+import { serializeInventoryInsertionRule } from "../../lib/inventoryInsertion";
 import { ruleModels, selectorMode, title } from "../../lib/model";
-import { appendTomlBlock, conditionToml, encodeToml, parseSimpleArray, readTomlValue, upsertToml } from "../../lib/toml";
+import { appendTomlBlock, conditionToml, encodeToml, extractArrayBlocks, parseSimpleArray, readTomlValue, upsertToml } from "../../lib/toml";
 import { useEditor } from "../../store/EditorContext";
 import type { EnchantmentGenerationRule } from "../../lib/enchantments";
 import type { RuleModel, StagePackage } from "../../types";
@@ -33,9 +34,17 @@ interface RuleDraft {
   exception: string;
   exceptionPriority: number;
   recipeKind: "output" | "identifier";
+  targetKind: "block" | "menu" | "inventory";
+  destination: string;
+  destinationMode: string;
 }
 
 function effectLabel(category: string, effect: string, action = ""): string {
+  if (category === "interactions" && action === "item_into_inventory") {
+    if (effect === "lock" || effect === "deny") return "Deny insertion until this stage is owned";
+    if (effect === "allow" || effect === "unlock") return "Allow insertion after this stage is owned";
+    if (effect === "exclude") return "Always allow this exact item and destination";
+  }
   if (category === "structures") {
     if (effect === "allow" || effect === "unlock") return "Allow access to structure";
     if (effect === "lock" || effect === "deny") return "Deny access to structure";
@@ -73,6 +82,21 @@ function replaceRuleGroup(text: string, table: "rules" | "temporary_rules", inde
   const group = ruleGroups(text, table)[index];
   if (!group) throw new Error("The rule changed in another edit. Reopen it and try again.");
   lines.splice(group.start, group.end - group.start, ...(replacement ? replacement.trim().split("\n") : []));
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+}
+
+function replaceInteractionGroup(text: string, index: number, replacement: string | null): string {
+  const lines = text.split(/\r?\n/);
+  const group = extractArrayBlocks(text, "interactions")[index];
+  if (!group) throw new Error("The interaction changed in another edit. Reopen it and try again.");
+  const starts = lines.findIndex((line, lineIndex) => lineIndex >= 0 && line.trim() === "[[interactions]]"
+    && lines.slice(0, lineIndex + 1).filter(value => value.trim() === "[[interactions]]").length === index + 1);
+  if (starts < 0) throw new Error("The interaction changed in another edit. Reopen it and try again.");
+  let end = lines.length;
+  for (let cursor = starts + 1; cursor < lines.length; cursor++) {
+    if (/^\s*\[\[/.test(lines[cursor])) { end = cursor; break; }
+  }
+  lines.splice(starts, end - starts, ...(replacement ? replacement.trim().split("\n") : []));
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
 }
 
@@ -114,6 +138,8 @@ function saveCanonicalRecipeRule(text: string, draft: RuleDraft, previous?: Rule
   if (previous) {
     if (previous.table === "recipe_items" || previous.table === "recipe_ids" || previous.table === "classic") {
       updated = removeClassicRule(updated, previous);
+    } else if (previous.table === "interactions") {
+      updated = replaceInteractionGroup(updated, previous.tableIndex, null);
     } else {
       updated = replaceRuleGroup(updated, previous.table, previous.tableIndex, null);
     }
@@ -123,6 +149,24 @@ function saveCanonicalRecipeRule(text: string, draft: RuleDraft, previous?: Rule
   const selector = canonicalRecipeSelector(draft);
   if (!values.includes(selector)) values.push(selector);
   return upsertToml(updated, path, values);
+}
+
+function saveInventoryInsertionRule(text: string, draft: RuleDraft, previous?: RuleModel): string {
+  const block = serializeInventoryInsertionRule({
+    selector: draft.selector,
+    targetKind: draft.targetKind,
+    destination: draft.destination,
+    effect: draft.effect as "lock" | "deny" | "allow" | "unlock" | "exclude",
+    priority: draft.priority
+  });
+  if (previous?.table === "interactions") return replaceInteractionGroup(text, previous.tableIndex, block);
+  if (previous) {
+    const withoutPrevious = previous.table === "classic" || previous.table === "recipe_items" || previous.table === "recipe_ids"
+      ? removeClassicRule(text, previous)
+      : replaceRuleGroup(text, previous.table as "rules" | "temporary_rules", previous.tableIndex, null);
+    return appendTomlBlock(withoutPrevious, block);
+  }
+  return appendTomlBlock(text, block);
 }
 
 function serializeRule(stage: StagePackage, draft: RuleDraft, table: "rules" | "temporary_rules", previous?: RuleModel): string {
@@ -156,7 +200,9 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const [draft, setDraft] = useState<RuleDraft>({
     category: initialCategory,
     action: rule?.action || CATEGORIES[initialCategory].actions[0],
-    effect: rule?.effect || "lock",
+    effect: rule?.action === "item_into_inventory"
+      ? rule.effect === "deny" ? "lock" : rule.effect === "unlock" ? "allow" : rule.effect || "lock"
+      : rule?.effect || "lock",
     selector: rule?.selector || "",
     mode: selectorMode(rule?.selector || ""),
     priority: rule?.priority ?? 100,
@@ -168,7 +214,10 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     count: rule?.count || 1,
     exception: rule?.exception || "",
     exceptionPriority: rule?.exceptionPriority || (rule?.priority ?? 100) + 1,
-    recipeKind: rule?.recipeKind || "output"
+    recipeKind: rule?.recipeKind || "output",
+    targetKind: rule?.targetKind || "block",
+    destination: rule?.destination || "",
+    destinationMode: selectorMode(rule?.destination || "")
   });
   const update = <K extends keyof RuleDraft>(key: K, value: RuleDraft[K]) => setDraft(current => ({ ...current, [key]: value }));
   const category = CATEGORIES[draft.category];
@@ -177,6 +226,7 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const selectsEverything = draft.mode === "all";
   const canonicalRecipe = draft.category === "recipes" && draft.action === "craft"
     && draft.effect === "lock" && !temporary;
+  const inventoryInsertion = draft.category === "interactions" && draft.action === "item_into_inventory";
   const targetCatalog = canonicalRecipe
     ? draft.recipeKind === "output" ? "items" : "recipes"
     : category.catalog;
@@ -185,14 +235,17 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     : "Selected target";
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!draft.selector) return;
+    if (!draft.selector || inventoryInsertion && !draft.destination) return;
     let content = boot?.draft.files[stage.rulesPath] || "";
-    if (canonicalRecipe) {
+    if (inventoryInsertion) {
+      content = saveInventoryInsertionRule(content, draft, rule);
+    } else if (canonicalRecipe) {
       content = saveCanonicalRecipeRule(content, draft, rule);
     } else {
       const table: "rules" | "temporary_rules" = temporary ? "temporary_rules" : "rules";
       const block = serializeRule(stage, draft, table, rule);
-      if (rule?.table === "classic" || rule?.table === "recipe_items" || rule?.table === "recipe_ids") content = removeClassicRule(content, rule);
+      if (rule?.table === "interactions") content = replaceInteractionGroup(content, rule.tableIndex, null);
+      else if (rule?.table === "classic" || rule?.table === "recipe_items" || rule?.table === "recipe_ids") content = removeClassicRule(content, rule);
       else if (rule && rule.table !== table) {
         content = replaceRuleGroup(content, rule.table as "rules" | "temporary_rules", rule.tableIndex, null);
         content = appendTomlBlock(content, block);
@@ -213,13 +266,40 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     <div className="form-grid">
       <Field label="Rule category"><select value={draft.category} onChange={event => {
         const next = event.target.value;
-        setDraft(current => ({ ...current, category: next, action: CATEGORIES[next].actions[0], effect: next === "recipes" ? "lock" : current.effect, selector: current.mode === "all" ? "all:*" : "" }));
+        setDraft(current => ({ ...current, category: next, action: CATEGORIES[next].actions[0], effect: ["recipes", "interactions"].includes(next) ? "lock" : current.effect, selector: current.mode === "all" ? "all:*" : "", destination: "" }));
       }}>{Object.entries(CATEGORIES).map(([id, value]) => <option key={id} value={id}>{value.label}</option>)}</select></Field>
-      <Field label="Player action"><select value={draft.action} onChange={event => update("action", event.target.value)}>{category.actions.map(action => <option key={action} value={action}>{ACTION_LABELS[action] || title(action)}</option>)}</select></Field>
-      <Field label="Result"><select value={draft.effect} onChange={event => update("effect", event.target.value)}>{(draft.category === "recipes" && draft.action === "craft" ? EFFECTS.filter(effect => effect.value === "lock") : EFFECTS.filter(effect => effect.value !== "replace" || ["mobs", "ores"].includes(draft.category)).filter(effect => effect.value !== "present" || ["recipes", "advancements", "ores"].includes(draft.category))).map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
+      <Field label="Player action"><select value={draft.action} onChange={event => {
+        const action = event.target.value;
+        setDraft(current => ({
+          ...current,
+          action,
+          effect: action === "item_into_inventory" || current.category === "recipes" && action === "craft"
+            ? "lock"
+            : current.effect
+        }));
+      }}>{category.actions.map(action => <option key={action} value={action}>{ACTION_LABELS[action] || title(action)}</option>)}</select></Field>
+      <Field label="Result"><select value={draft.effect} onChange={event => update("effect", event.target.value)}>{(inventoryInsertion
+        ? EFFECTS.filter(effect => ["lock", "allow", "exclude"].includes(effect.value))
+        : draft.category === "recipes" && draft.action === "craft" ? EFFECTS.filter(effect => effect.value === "lock")
+          : EFFECTS.filter(effect => effect.value !== "replace" || ["mobs", "ores"].includes(draft.category)).filter(effect => effect.value !== "present" || ["recipes", "advancements", "ores"].includes(draft.category))).map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
       <Field label="Priority" help="A larger number wins when rules overlap."><input type="number" value={draft.priority} onChange={event => update("priority", Number(event.target.value))}/></Field>
     </div>
-    <section className="dialog-section"><header><span className="step-number">1</span><div><h3>Choose the target</h3><p>The registry only shows content valid for {category.label.toLowerCase()}.</p></div></header><div className="form-grid">
+    <section className="dialog-section"><header><span className="step-number">1</span><div><h3>{inventoryInsertion ? "Choose what moves where" : "Choose the target"}</h3><p>{inventoryInsertion ? "The server checks the inserted item and destination together before it changes any slot." : `The registry only shows content valid for ${category.label.toLowerCase()}.`}</p></div></header><div className="form-grid">
+      {inventoryInsertion ? <>
+        <Field label="Item selection method"><select value={draft.mode} onChange={event => {
+          const mode = event.target.value;
+          setDraft(current => ({ ...current, mode, selector: mode === "all" ? "all:*" : current.mode === "all" ? "" : current.selector }));
+        }}><option value="all">Every item</option><option value="id">One exact item</option><option value="mod">Everything from a mod</option><option value="tag">Everything in a tag</option><option value="name">Anything with a matching name</option></select></Field>
+        <Field label="Inserted item" help={draft.mode === "all" ? "This matches every registered item." : "Choose the item the player is trying to insert."}><input value={draft.selector} onChange={event => update("selector", event.target.value)} placeholder="id:minecraft:diamond" readOnly={draft.mode === "all"} required/></Field>
+        {draft.mode !== "all" ? <div className="field-wide"><InlineCatalogSearch catalogId="items" mode={draft.mode} onPick={value => update("selector", value)}/></div> : null}
+        <Field label="Destination type" help="Block uses the container block. Menu uses the open menu type. Inventory uses a stable server owner identity."><select value={draft.targetKind} onChange={event => setDraft(current => ({ ...current, targetKind: event.target.value as RuleDraft["targetKind"], destination: "", destinationMode: "id" }))}><option value="block">Container block</option><option value="menu">Open menu type</option><option value="inventory">Inventory owner</option></select></Field>
+        <Field label="Destination selection method"><select value={draft.destinationMode} onChange={event => {
+          const mode = event.target.value;
+          setDraft(current => ({ ...current, destinationMode: mode, destination: mode === "all" ? "all:*" : current.destinationMode === "all" ? "" : current.destination }));
+        }}><option value="all">Every matching destination</option><option value="id">One exact identifier</option><option value="mod">Everything from a mod</option><option value="tag">Everything in a tag</option><option value="name">Anything with a matching name</option></select></Field>
+        <Field label="Destination" help={draft.destinationMode === "all" ? "This matches every destination of the selected type." : "Choose the receiving inventory identity."}><input value={draft.destination} onChange={event => update("destination", event.target.value)} placeholder={draft.targetKind === "inventory" ? "id:minecraft:player_inventory" : "id:minecraft:chest"} readOnly={draft.destinationMode === "all"} required/></Field>
+        {draft.destinationMode !== "all" ? <div className="field-wide"><InlineCatalogSearch catalogId={draft.targetKind === "block" ? "blocks" : draft.targetKind === "menu" ? "menus" : "inventory_targets"} mode={draft.destinationMode} onPick={value => update("destination", value)}/></div> : null}
+      </> : <>
       {canonicalRecipe ? <Field label="Recipe lock kind" help="Output locks use item selectors. Identifier locks name one exact recipe."><select value={draft.recipeKind} onChange={event => setDraft(current => ({ ...current, recipeKind: event.target.value as RuleDraft["recipeKind"], mode: event.target.value === "identifier" ? "id" : current.mode, selector: "" }))}><option value="output">Recipe output item</option><option value="identifier">Exact recipe identifier</option></select></Field> : null}
       {canonicalRecipe && draft.recipeKind === "identifier" ? null : <Field label="Selection method"><select value={draft.mode} onChange={event => {
         const mode = event.target.value;
@@ -227,31 +307,36 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
       }}><option value="all">Everything in this category</option><option value="id">One exact identifier</option><option value="mod">Everything from a mod</option><option value="tag">Everything in a tag</option><option value="name">Anything with a matching name</option></select></Field>}
       <Field label={targetLabel} help={selectsEverything ? `This matches every registered ${canonicalRecipe && draft.recipeKind === "output" ? "recipe output item" : category.label.toLowerCase()}. Add a higher priority exception to allow selected content.` : undefined}><input value={draft.selector} onChange={event => update("selector", event.target.value)} placeholder={canonicalRecipe && draft.recipeKind === "identifier" ? "minecraft:diamond_sword" : "id:minecraft:diamond_sword"} readOnly={selectsEverything} required/></Field>
       {!selectsEverything ? <div className="field-wide"><InlineCatalogSearch catalogId={targetCatalog} mode={canonicalRecipe && draft.recipeKind === "identifier" ? "id" : draft.mode} onPick={value => update("selector", canonicalRecipe && draft.recipeKind === "identifier" ? value.replace(/^id:/, "") : value)}/></div> : null}
+      </>}
     </div></section>
-    <section className="dialog-section"><header><span className="step-number">2</span><div><h3>Choose when it participates</h3><p>Permanent rules follow stage ownership. Conditional rules can follow locations, events, sessions, and scripts.</p></div></header><div className="form-grid">
+    {!inventoryInsertion ? <section className="dialog-section"><header><span className="step-number">2</span><div><h3>Choose when it participates</h3><p>Permanent rules follow stage ownership. Conditional rules can follow locations, events, sessions, and scripts.</p></div></header><div className="form-grid">
       <Field label="Activation condition"><select value={draft.conditionType} onChange={event => update("conditionType", event.target.value)}>{CONDITIONS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></Field>
       <Field label="Condition target" help={condition?.help}><input value={draft.conditionTarget} onChange={event => update("conditionTarget", event.target.value)} placeholder={condition?.catalog ? "Choose a registered identifier" : "Optional value"}/></Field>
       {condition?.catalog ? <div className="field-wide"><InlineCatalogSearch catalogId={condition.catalog} mode="id" onPick={value => update("conditionTarget", value.replace(/^id:/, ""))}/></div> : null}
       <Field label="Required amount"><input type="number" min={1} value={draft.count} onChange={event => update("count", Number(event.target.value))}/></Field>
       <Field label="Lifetime"><select value={draft.lifetime} onChange={event => update("lifetime", event.target.value)}><option value="permanent">Permanent stage rule</option><option value="live">Only while the condition is true</option><option value="duration">Timed after the trigger</option><option value="session">Current session</option><option value="latched">Active until reset</option><option value="schedule">Scheduled lifetime</option></select></Field>
       {draft.lifetime === "duration" || draft.lifetime === "schedule" ? <Field label="Duration or schedule"><input value={draft.duration} onChange={event => update("duration", event.target.value)} placeholder="30s or 5m"/></Field> : null}
-    </div></section>
-    <section className="dialog-section"><header><span className="step-number">3</span><div><h3>Presentation and exception</h3><p>An exception normally needs a larger priority than the broader rule.</p></div></header><div className="form-grid">
+    </div></section> : null}
+    {!inventoryInsertion ? <section className="dialog-section"><header><span className="step-number">3</span><div><h3>Presentation and exception</h3><p>An exception normally needs a larger priority than the broader rule.</p></div></header><div className="form-grid">
       <Field label="JEI and EMI"><select value={draft.viewer} onChange={event => update("viewer", event.target.value)}><option value="inherit">Follow normal policy</option><option value="show">Always show</option><option value="hide">Hide</option><option value="overlay">Show with a locked overlay</option></select></Field>
       <Field label="Optional exception selector"><input value={draft.exception} onChange={event => update("exception", event.target.value)} placeholder="tag:c:swords"/></Field>
       <Field label="Exception priority"><input type="number" value={draft.exceptionPriority} onChange={event => update("exceptionPriority", Number(event.target.value))}/></Field>
-    </div></section>
-    <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={closeDialog}>Cancel</Button><Button type="submit" tone="primary" disabled={!draft.selector}>{rule ? "Update rule" : "Add rule"}</Button></footer>
+    </div></section> : null}
+    <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={closeDialog}>Cancel</Button><Button type="submit" tone="primary" disabled={!draft.selector || inventoryInsertion && !draft.destination}>{rule ? "Update rule" : "Add rule"}</Button></footer>
   </form>;
 }
 
 function RuleCard({ stage, rule, index, total, onEdit, onDelete, onMove }:
   { stage: StagePackage; rule: RuleModel; index: number; total: number; onEdit: () => void; onDelete: () => void; onMove: (direction: number) => void }) {
   const category = CATEGORIES[rule.category];
+  const movable = rule.table === "rules" || rule.table === "temporary_rules";
+  const selector = rule.table === "interactions"
+    ? `${rule.selector} into ${title(rule.targetKind || "inventory")} ${rule.destination || ""}`.trim()
+    : rule.selector;
   return <article className="rule-card-new">
     <div className="rule-card-icon"><Icon name="rules" size={19}/></div>
-    <div className="rule-card-main"><div className="rule-card-title"><strong>{category?.label || title(rule.category)}</strong><Badge tone={rule.effect === "allow" || rule.effect === "unlock" ? "success" : "danger"}>{title(rule.effect)}</Badge><Badge>Priority {rule.priority}</Badge></div><code>{rule.selector}</code><p>{ACTION_LABELS[rule.action] || title(rule.action)}. {rule.conditionType === "none" ? "Follows stage ownership." : `Active during ${CONDITIONS.find(value => value.id === rule.conditionType)?.label.toLowerCase() || title(rule.conditionType)}.`}</p></div>
-    <div className="rule-card-actions"><button aria-label="Move rule up" disabled={index === 0 || rule.table === "classic"} onClick={() => onMove(-1)}>↑</button><button aria-label="Move rule down" disabled={index === total - 1 || rule.table === "classic"} onClick={() => onMove(1)}>↓</button><Button tone="quiet" onClick={onEdit}>Edit</Button><Button tone="danger" onClick={onDelete}>Remove</Button></div>
+    <div className="rule-card-main"><div className="rule-card-title"><strong>{category?.label || title(rule.category)}</strong><Badge tone={rule.effect === "allow" || rule.effect === "unlock" || rule.effect === "exclude" ? "success" : "danger"}>{title(rule.effect)}</Badge><Badge>Priority {rule.priority}</Badge></div><code>{selector}</code><p>{ACTION_LABELS[rule.action] || title(rule.action)}. {rule.table === "interactions" ? "The server checks both selectors before changing the inventory." : rule.conditionType === "none" ? "Follows stage ownership." : `Active during ${CONDITIONS.find(value => value.id === rule.conditionType)?.label.toLowerCase() || title(rule.conditionType)}.`}</p></div>
+    <div className="rule-card-actions"><button aria-label="Move rule up" disabled={index === 0 || !movable} onClick={() => onMove(-1)}>↑</button><button aria-label="Move rule down" disabled={index === total - 1 || !movable} onClick={() => onMove(1)}>↓</button><Button tone="quiet" onClick={onEdit}>Edit</Button><Button tone="danger" onClick={onDelete}>Remove</Button></div>
   </article>;
 }
 
@@ -339,11 +424,12 @@ export function RulesPanel({ stage }: { stage: StagePackage }) {
   const remove = (rule: RuleModel) => openDialog({ title: "Remove rule", description: "This change remains undoable until it is applied.", content: <div className="confirmation"><p>Remove the rule for <code>{rule.selector}</code> from this stage.</p><footer className="dialog-actions"><Button tone="quiet" onClick={closeDialog}>Keep rule</Button><Button tone="danger" onClick={async () => {
     let updated = content;
     if (rule.table === "classic" || rule.table === "recipe_items" || rule.table === "recipe_ids") updated = removeClassicRule(content, rule);
+    else if (rule.table === "interactions") updated = replaceInteractionGroup(content, rule.tableIndex, null);
     else updated = replaceRuleGroup(content, rule.table, rule.tableIndex, null);
     await mutateFile(stage.rulesPath, updated, "The rule was removed"); closeDialog();
   }}>Remove rule</Button></footer></div>, width: "compact" });
   const move = async (rule: RuleModel, direction: number) => {
-    if (rule.table === "classic" || rule.table === "recipe_items" || rule.table === "recipe_ids") return;
+    if (rule.table === "classic" || rule.table === "recipe_items" || rule.table === "recipe_ids" || rule.table === "interactions") return;
     const groups = ruleGroups(content, rule.table);
     const target = rule.tableIndex + direction;
     if (target < 0 || target >= groups.length) return;

@@ -5,6 +5,7 @@ import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.lock.LockRegistry;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.server.enforcement.ItemEnforcer;
+import com.enviouse.progressivestages.server.enforcement.InventoryInsertionEnforcer;
 import net.minecraft.core.NonNullList;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -21,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Mixin to prevent moving locked items in containers.
@@ -37,6 +39,7 @@ import java.util.Optional;
 public abstract class AbstractContainerMenuMixin {
 
     @Shadow @Final public NonNullList<Slot> slots;
+    @Shadow @Final private Set<Slot> quickcraftSlots;
 
     @Inject(method = "doClick", at = @At("HEAD"), cancellable = true)
     private void progressivestages$blockLockedItemMove(int slotId, int button, ClickType clickType, Player player, CallbackInfo ci) {
@@ -45,6 +48,16 @@ public abstract class AbstractContainerMenuMixin {
         }
 
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) {
+            return;
+        }
+
+        Optional<InventoryInsertionEnforcer.Decision> insertion =
+            progressivestages$deniedInventoryInsertion(slotId, button, clickType, serverPlayer);
+        if (insertion.isPresent()) {
+            ci.cancel();
+            ((AbstractContainerMenu) (Object) this).broadcastChanges();
+            ItemEnforcer.notifyLocked(serverPlayer, insertion.get().stage(),
+                StageConfig.getMsgTypeLabelInteraction());
             return;
         }
 
@@ -166,5 +179,104 @@ public abstract class AbstractContainerMenuMixin {
         }
 
         return false;
+    }
+
+    @Unique
+    private Optional<InventoryInsertionEnforcer.Decision> progressivestages$deniedInventoryInsertion(
+            int slotId, int button, ClickType clickType, ServerPlayer player) {
+        AbstractContainerMenu menu = (AbstractContainerMenu) (Object) this;
+        if (clickType == ClickType.PICKUP_ALL || clickType == ClickType.THROW || clickType == ClickType.CLONE) {
+            return Optional.empty();
+        }
+        if (clickType == ClickType.QUICK_CRAFT) {
+            for (Slot destination : quickcraftSlots) {
+                if (progressivestages$canReceive(destination, menu.getCarried())) {
+                    Optional<InventoryInsertionEnforcer.Decision> denied = InventoryInsertionEnforcer.denied(
+                        player, menu, destination, menu.getCarried());
+                    if (denied.isPresent()) return denied;
+                }
+            }
+            return progressivestages$checkDestination(slotId, player, menu.getCarried(), clickType);
+        }
+        if (clickType == ClickType.SWAP) {
+            return progressivestages$checkSwapDestinations(slotId, button, player);
+        }
+        if (clickType == ClickType.QUICK_MOVE) {
+            if (slotId < 0 || slotId >= slots.size()) return Optional.empty();
+            Slot source = slots.get(slotId);
+            if (!source.hasItem() || !source.mayPickup(player)) return Optional.empty();
+            ItemStack stack = source.getItem();
+            boolean sourceIsPlayerInventory = source.container == player.getInventory();
+            for (Slot destination : slots) {
+                if (destination == source || sourceIsPlayerInventory == (destination.container == player.getInventory())
+                        || !progressivestages$canReceive(destination, stack)) continue;
+                Optional<InventoryInsertionEnforcer.Decision> denied = InventoryInsertionEnforcer.denied(
+                    player, menu, destination, stack);
+                if (denied.isPresent()) return denied;
+            }
+            return Optional.empty();
+        }
+        return progressivestages$checkDestination(slotId, player, menu.getCarried(), clickType);
+    }
+
+    @Unique
+    private Optional<InventoryInsertionEnforcer.Decision> progressivestages$checkSwapDestinations(
+            int slotId, int button, ServerPlayer player) {
+        if (slotId < 0 || slotId >= slots.size() || button < 0 || button >= player.getInventory().getContainerSize()) {
+            return Optional.empty();
+        }
+        Slot destination = slots.get(slotId);
+        ItemStack hotbarStack = player.getInventory().getItem(button);
+        ItemStack destinationStack = destination.getItem();
+        boolean hotbarCanEnter = !hotbarStack.isEmpty() && destination.mayPlace(hotbarStack);
+        if (hotbarCanEnter) {
+            Optional<InventoryInsertionEnforcer.Decision> denied = InventoryInsertionEnforcer.denied(
+                player, (AbstractContainerMenu) (Object) this, destination, hotbarStack);
+            if (denied.isPresent()) return denied;
+        }
+        if (destinationStack.isEmpty() || !destination.mayPickup(player)
+                || !hotbarStack.isEmpty() && !hotbarCanEnter) return Optional.empty();
+        return progressivestages$checkPlayerInventoryDestination(button, player, destinationStack);
+    }
+
+    @Unique
+    private Optional<InventoryInsertionEnforcer.Decision> progressivestages$checkPlayerInventoryDestination(
+            int inventorySlot, ServerPlayer player, ItemStack source) {
+        for (Slot destination : slots) {
+            if (destination.container == player.getInventory() && destination.getContainerSlot() == inventorySlot) {
+                return InventoryInsertionEnforcer.denied(player, (AbstractContainerMenu) (Object) this, destination, source);
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Unique
+    private Optional<InventoryInsertionEnforcer.Decision> progressivestages$checkDestination(
+            int slotId, ServerPlayer player, ItemStack source, ClickType clickType) {
+        if (slotId < 0 || slotId >= slots.size() || source == null || source.isEmpty()) return Optional.empty();
+        Slot destination = slots.get(slotId);
+        boolean canInsert = clickType == ClickType.PICKUP
+            ? progressivestages$canReceiveByPickup(destination, source, player)
+            : progressivestages$canReceive(destination, source);
+        if (!canInsert) return Optional.empty();
+        return InventoryInsertionEnforcer.denied(player, (AbstractContainerMenu) (Object) this, destination, source);
+    }
+
+    @Unique
+    private boolean progressivestages$canReceiveByPickup(Slot destination, ItemStack source, ServerPlayer player) {
+        if (destination == null || source == null || source.isEmpty() || !destination.mayPlace(source)) return false;
+        ItemStack existing = destination.getItem();
+        if (existing.isEmpty() || ItemStack.isSameItemSameComponents(existing, source)) {
+            return existing.isEmpty() || existing.getCount() < destination.getMaxStackSize(source);
+        }
+        return destination.mayPickup(player) && source.getCount() <= destination.getMaxStackSize(source);
+    }
+
+    @Unique
+    private boolean progressivestages$canReceive(Slot destination, ItemStack source) {
+        if (destination == null || source == null || source.isEmpty() || !destination.mayPlace(source)) return false;
+        ItemStack existing = destination.getItem();
+        return existing.isEmpty() || ItemStack.isSameItemSameComponents(existing, source)
+            && existing.getCount() < destination.getMaxStackSize(source);
     }
 }

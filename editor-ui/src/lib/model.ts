@@ -112,6 +112,34 @@ export function ruleModels(text: string): RuleModel[] {
   for (const table of ["rules", "temporary_rules"] as const) {
     extractArrayBlocks(text, table).forEach(block => models.push(parseRuleBlock(block.text, table, block.index)));
   }
+  extractArrayBlocks(text, "interactions").forEach(block => {
+    const type = stringValue(readBlockValue(block.text, "type"));
+    if (type !== "item_into_inventory") return;
+    const targetKind = stringValue(readBlockValue(block.text, "target_kind"));
+    const destination = stringValue(readBlockValue(block.text, "target"));
+    const heldItem = stringValue(readBlockValue(block.text, "held_item"));
+    if (!heldItem || !destination || !["block", "menu", "inventory"].includes(targetKind)) return;
+    models.push({
+      table: "interactions",
+      tableIndex: block.index,
+      category: "interactions",
+      action: type,
+      effect: stringValue(readBlockValue(block.text, "effect")) || "lock",
+      selector: heldItem,
+      priority: numberValue(readBlockValue(block.text, "priority")),
+      viewer: "inherit",
+      lifetime: "permanent",
+      duration: "",
+      conditionType: "none",
+      conditionTarget: "",
+      count: 1,
+      exception: "",
+      exceptionPriority: 0,
+      sourceText: block.text,
+      targetKind: targetKind as "block" | "menu" | "inventory",
+      destination
+    });
+  });
   for (const [category, definition] of Object.entries(CATEGORIES)) {
     for (const [field, effect] of [["locked", "lock"], ["allowed", "allow"], ["always_unlocked", "allow"]] as const) {
       const selectors = parseSimpleArray(readTomlValue(text, `${category}.${field}`));

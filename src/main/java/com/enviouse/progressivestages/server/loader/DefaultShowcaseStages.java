@@ -35,7 +35,7 @@ public final class DefaultShowcaseStages {
             slottedStage("showcase:warrior", "Warrior", "A beginner path for armor direct combat and defensive abilities.", "minecraft:iron_sword", List.of(), "all", 1, "Core paths", "#d65c4a", "task", "beginner_paths", 2, "deny", lockWithException("showcase:warrior/swords", "items", "use", "tag:minecraft:swords", "minecraft:wooden_sword", 211), purchase(0, "minecraft:iron_ingot:16") + reward("minecraft:iron_sword:1", 0)),
             slottedStage("showcase:ranger", "Ranger", "A beginner path earned by taming a wolf for ranged combat pets travel and survival.", "minecraft:bow", List.of(), "all", 1, "Core paths", "#69b86b", "task", "beginner_paths", 2, "deny", lock("items", "use", "minecraft:bow", 212), grant("tame", "minecraft:wolf", 1) + reward("minecraft:bow:1", 0)),
 
-            stage("showcase:wizard", "Wizard", "Evolve Mage through disciplined enchanting and spell tools.", "minecraft:enchanted_book", List.of("showcase:mage"), "all", 1, "Core paths", "#9e70ff", "goal", lock("blocks", "interact", "minecraft:enchanting_table", 260) + lock("recipes", "craft", "minecraft:enchanting_table", 261), purchase(8, "minecraft:lapis_lazuli:24", "minecraft:book:8")),
+            stage("showcase:wizard", "Wizard", "Evolve Mage through disciplined enchanting and spell tools.", "minecraft:enchanted_book", List.of("showcase:mage"), "all", 1, "Core paths", "#9e70ff", "goal", lock("blocks", "interact", "minecraft:enchanting_table", 260) + recipeOutputLock("minecraft:enchanting_table"), purchase(8, "minecraft:lapis_lazuli:24", "minecraft:book:8")),
             stage("showcase:warlock", "Warlock", "Evolve Mage through dangerous Nether knowledge.", "minecraft:ender_eye", List.of("showcase:mage"), "all", 1, "Core paths", "#70428f", "goal", temporaryRule("showcase:warlock/nether_focus", "allow", "items", "use", "minecraft:ender_pearl", "dimension", "minecraft:the_nether", 450), grant("kill", "minecraft:evoker", 1) + reward("minecraft:ender_pearl:8", 3)),
             stage("showcase:cleric", "Cleric", "Evolve Mage into healing brewing and team support.", "minecraft:brewing_stand", List.of("showcase:mage"), "all", 1, "Core paths", "#ef78a7", "goal", lock("brewing", "brew", "minecraft:strong_healing", 261), grant("craft", "minecraft:brewing_stand", 1) + reward("minecraft:glistering_melon_slice:8", 4)),
             stage("showcase:knight", "Knight", "Evolve Warrior into an armored protector.", "minecraft:iron_chestplate", List.of("showcase:warrior"), "all", 1, "Core paths", "#b9bec6", "goal", itemEquipmentAttribute("showcase:knight/armor", "tag:minecraft:chest_armor", "minecraft:generic.armor", 2.0, 262) + lock("curios", "equip", "minecraft:body", 263), grant("item_possession", "minecraft:iron_chestplate", 1) + reward("minecraft:shield:1", 2)),
@@ -235,6 +235,13 @@ public final class DefaultShowcaseStages {
             targets.%s = [%s]
             """.formatted(quote("showcase:lock_" + category + "_" + Math.abs(selector.hashCode())),
                 quote(action), priority, category, quote(selector));
+    }
+
+    private static String recipeOutputLock(String selector) {
+        return """
+            [recipes]
+            locked_items = [%s]
+            """.formatted(quote(selector));
     }
 
     private static String lockWithException(String id, String category, String action, String selector,

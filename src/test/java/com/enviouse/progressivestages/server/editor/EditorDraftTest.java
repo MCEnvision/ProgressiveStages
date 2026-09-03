@@ -52,6 +52,41 @@ class EditorDraftTest {
     }
 
     @Test
+    void migrationChangesTheDraftWithoutCreatingAnUndoStep() {
+        UUID owner = UUID.randomUUID();
+        EditorDraft draft = new EditorDraft(UUID.randomUUID(), owner, 5, 8,
+            Map.of("stages/test/rules.toml", "legacy"));
+
+        assertTrue(draft.migrate(owner, "stages/test/rules.toml", "canonical"));
+
+        assertEquals(1, draft.revision());
+        assertEquals("canonical", draft.files().get("stages/test/rules.toml"));
+        assertEquals(DraftDiffEntry.ChangeType.MODIFIED, draft.diff().getFirst().change());
+        assertTrue(!draft.canUndo());
+    }
+
+    @Test
+    void sessionNormalizesRecognizableLegacyRecipeRulesBeforeValidation() {
+        UUID owner = UUID.randomUUID();
+        String legacyRules = """
+            [[rules]]
+            id = "showcase:aquatic_blessing/rule_mtjmf0xs"
+            effect = "lock"
+            priority = 100
+            action = "craft"
+            targets.recipes = ["minecraft:diamond_sword"]
+            """;
+        EditorDraft draft = new EditorDraft(UUID.randomUUID(), owner, 5, 8, Map.of(
+            "stages/showcase_aquatic_blessing/stage.toml", "[schema]\nversion = 4\n[stage]\nid = \"showcase:aquatic_blessing\"\n",
+            "stages/showcase_aquatic_blessing/rules.toml", legacyRules));
+
+        assertTrue(EditorSessionService.normalizeLegacyRecipeRules(owner, draft));
+        assertTrue(EditorDraftValidator.validate(draft.files(), draft.revision()).valid());
+        assertTrue(draft.files().get("stages/showcase_aquatic_blessing/rules.toml")
+            .contains("locked_items = [\"minecraft:diamond_sword\"]"));
+    }
+
+    @Test
     void validatesACompleteThreeFileDraft() {
         Map<String, String> files = Map.of(
             "stages/test/stage.toml", "[schema]\nversion = 4\n[stage]\nid = \"test:editor\"\ndisplay_name = \"Editor\"\n",
@@ -87,6 +122,28 @@ class EditorDraftTest {
 
         assertTrue(!validation.valid());
         assertTrue(validation.errors().stream().anyMatch(error -> error.contains("[recipes].locked is ambiguous")),
+            String.join(". ", validation.errors()));
+    }
+
+    @Test
+    void rejectsAnExactInventoryTargetThatTheEditorCannotResolve() {
+        Map<String, String> files = Map.of(
+            "stages/test/stage.toml", "[schema]\nversion = 4\n[stage]\nid = \"test:editor\"\ndisplay_name = \"Editor\"\n",
+            "stages/test/rules.toml", """
+                [[interactions]]
+                type = "item_into_inventory"
+                held_item = "id:minecraft:diamond"
+                target_kind = "inventory"
+                target = "id:test:missing_inventory"
+                effect = "lock"
+                priority = 100
+                """,
+            "stages/test/progression.toml", "# Progression may be empty.\n");
+
+        DraftValidation validation = EditorDraftValidator.validate(files, 3);
+
+        assertTrue(!validation.valid());
+        assertTrue(validation.errors().stream().anyMatch(error -> error.contains("registered inventory target")),
             String.join(". ", validation.errors()));
     }
 }

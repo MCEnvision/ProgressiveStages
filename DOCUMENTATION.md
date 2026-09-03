@@ -3680,6 +3680,11 @@ viewer is installed; plugins are loaded only when the corresponding mod is prese
 > JEI side already guards `NoClassDefFoundError`. See
 > [`ClientLockCache`](src/main/java/com/enviouse/progressivestages/client/ClientLockCache.java).
 
+> **Fixed in 3.0.4:** an EMI visibility refresh is cancelled when the client begins disconnecting.
+> This prevents a stage or lock cache clear during world exit from starting an EMI worker after the
+> client level has been released. The guard is reset for the next server connection, so normal
+> stage grants, revokes, and lock snapshot changes still refresh EMI during active play.
+
 ### 8.1 Visual treatment
 
 The integrations are enabled independently with `[jei].enabled` and `[emi].enabled`. The three

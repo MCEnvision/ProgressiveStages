@@ -67,6 +67,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **Category menu foreground repair.** The open progression map category list now renders above
   every stage frame and item icon, including nodes positioned directly beneath the menu. Category
   selection, scrolling, filtering, graph movement, zoom, and the pinned inspector are unchanged.
+- **Safe EMI world exit.** An EMI refresh now stops at the client disconnect boundary. Leaving a
+  world with EMI installed cannot start a reload after the client level has closed.
 - **World generation safe structure rules.** Structure aware entity decisions use an immutable
   server published session snapshot during asynchronous chunk generation. Ocean ruins and similar
   structures no longer call server thread only session state from a chunk worker.

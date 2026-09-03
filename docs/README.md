@@ -12,6 +12,7 @@ Use this page to find the maintained project documentation.
 
 - [3.0.4 entity presence fixture](verification/3.0.4-entity-presence-fixture.md)
 - [3.0.4 optional integration artifact and runtime evidence](verification/3.0.4-optional-integration-artifacts.md)
+- [3.0.4 phase 004 compatibility candidate](verification/3.0.4-phase-004-compatibility.md)
 - [Editor rehaul phase 1](verification/REHAUL_PHASE_1.md)
 - [Editor rehaul phases 2 through 22](verification/REHAUL_PHASES_2_TO_22.md)
 

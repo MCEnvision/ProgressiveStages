@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * EMI plugin entrypoint for ProgressiveStages
@@ -42,6 +43,8 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     private static boolean initialized = false;
     // Prevent rapid-fire reloads; only allow one pending reload at a time
     private static final AtomicBoolean reloadPending = new AtomicBoolean(false);
+    private static final AtomicBoolean clientDisconnecting = new AtomicBoolean(false);
+    private static final AtomicLong clientSessionGeneration = new AtomicLong();
 
     @Override
     public void register(EmiRegistry registry) {
@@ -378,13 +381,17 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
      * (not a server-driven tag+recipe resync), reload() bypasses that gate.
      */
     public static void triggerEmiReload() {
+        long refreshGeneration = clientSessionGeneration.get();
         if (!StageConfig.isEmiEnabled()) {
             return;
         }
-        if (!initialized) {
+        if (!initialized || clientDisconnecting.get()) {
             LOGGER.debug("[ProgressiveStages] EMI not initialized yet, skipping reload");
             return;
         }
+
+        var minecraft = net.minecraft.client.Minecraft.getInstance();
+        if (!isReloadableClient(minecraft)) return;
 
         // Debounce: if a reload is already pending, don't queue another
         if (!reloadPending.compareAndSet(false, true)) {
@@ -395,12 +402,12 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
         try {
             LOGGER.info("[ProgressiveStages] Scheduling EMI reload due to stage/lock change...");
 
-            var minecraft = net.minecraft.client.Minecraft.getInstance();
-
             // Schedule on the main render thread with a small delay to let data settle
             minecraft.execute(() -> {
                 try {
+                    if (!isCurrentSession(refreshGeneration, minecraft)) return;
                     reloadPending.set(false);
+                    if (!isCurrentSession(refreshGeneration, minecraft)) return;
                     LOGGER.info("[ProgressiveStages] Triggering EMI reload. Current stages: {}", ClientStageCache.getStages());
 
                     // Use EmiReloadManager.reload() directly to force a full EMI reload.
@@ -414,14 +421,39 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
 
                     LOGGER.info("[ProgressiveStages] EMI reload triggered successfully");
                 } catch (Exception e) {
-                    reloadPending.set(false);
+                    clearPendingForCurrentSession(refreshGeneration);
                     LOGGER.error("[ProgressiveStages] Failed to trigger EMI reload: {}", e.getMessage());
                 }
             });
         } catch (Exception e) {
-            reloadPending.set(false);
+            clearPendingForCurrentSession(refreshGeneration);
             LOGGER.error("[ProgressiveStages] Failed to schedule EMI reload: {}", e.getMessage());
         }
+    }
+
+    /** Mark the client shutdown boundary before lock caches are cleared. */
+    public static void beginClientDisconnect() {
+        clientDisconnecting.set(true);
+        clientSessionGeneration.incrementAndGet();
+        reloadPending.set(false);
+    }
+
+    /** Permit viewer refreshes for a new connected client session. */
+    public static void endClientDisconnect() {
+        clientDisconnecting.set(false);
+    }
+
+    private static boolean isReloadableClient(net.minecraft.client.Minecraft minecraft) {
+        return minecraft != null && minecraft.level != null && minecraft.player != null;
+    }
+
+    private static boolean isCurrentSession(long refreshGeneration, net.minecraft.client.Minecraft minecraft) {
+        return !clientDisconnecting.get() && clientSessionGeneration.get() == refreshGeneration
+            && isReloadableClient(minecraft);
+    }
+
+    private static void clearPendingForCurrentSession(long refreshGeneration) {
+        if (clientSessionGeneration.get() == refreshGeneration) reloadPending.set(false);
     }
 
     /**

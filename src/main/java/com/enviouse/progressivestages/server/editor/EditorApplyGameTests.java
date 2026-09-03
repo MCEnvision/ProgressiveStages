@@ -68,6 +68,48 @@ public final class EditorApplyGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void invalidRecipeAliasDoesNotMutateLiveConfiguration(GameTestHelper helper) {
+        StageFileLoader loader = StageFileLoader.getInstance();
+        Path root = ConfigPaths.rootDirectory();
+        Path stageDirectory = root.resolve(FOLDER);
+        Path knownValidRules = root.resolve("stages/aquatic_blessing/rules.toml");
+        UUID operator = UUID.randomUUID();
+
+        try {
+            long baselineRevision = loader.getCompiledSnapshot().revision();
+            String baselineRules = Files.readString(knownValidRules);
+            EditorDraft draft = new EditorDraft(UUID.randomUUID(), operator, baselineRevision, 0, Map.of());
+            long draftRevision = draft.mutate(operator, 0, FOLDER + "/stage.toml", stageToml());
+            draftRevision = draft.mutate(operator, draftRevision, FOLDER + "/rules.toml", invalidRulesToml());
+            draft.mutate(operator, draftRevision, FOLDER + "/progression.toml", "# Progression is optional.\n");
+
+            EditorApplyResult result = new EditorApplyService(root).apply(helper.getLevel().getServer(), operator,
+                draft, baselineRevision, true);
+
+            helper.assertFalse(result.success(), "the ambiguous recipe alias must reject the editor apply");
+            helper.assertTrue("validation_failed".equals(result.code()),
+                "an invalid draft must fail validation before the apply transaction begins");
+            helper.assertTrue(result.validation().errors().stream()
+                    .anyMatch(error -> error.contains("[recipes].locked is ambiguous")),
+                "the rejected draft must identify the ambiguous recipe field");
+            helper.assertTrue(!Files.exists(stageDirectory),
+                "validation must not write an invalid stage package to the live configuration");
+            helper.assertTrue(Files.readString(knownValidRules).equals(baselineRules),
+                "validation must preserve the last valid live stage file");
+            helper.assertTrue(loader.getCompiledSnapshot().revision() == baselineRevision,
+                "validation must preserve the active compiled snapshot");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Invalid editor apply changed live configuration: " + failure.getMessage());
+        } finally {
+            try {
+                deleteTree(stageDirectory);
+                loader.reload();
+            } catch (IOException ignored) {}
+        }
+    }
+
     private static String stageToml() {
         return """
             [schema]
@@ -92,6 +134,13 @@ public final class EditorApplyGameTests {
             target = "id:minecraft:furnace"
             effect = "lock"
             priority = 100
+            """;
+    }
+
+    private static String invalidRulesToml() {
+        return """
+            [recipes]
+            locked = ["id:minecraft:diamond"]
             """;
     }
 

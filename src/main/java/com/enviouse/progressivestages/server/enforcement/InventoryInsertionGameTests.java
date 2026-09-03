@@ -306,6 +306,94 @@ public final class InventoryInsertionGameTests {
     }
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void sharedContainerKeepsEachPlayersStageDecisionIndependent(GameTestHelper helper) {
+        TestServerPlayer deniedPlayer = detachedPlayer(helper);
+        TestServerPlayer eligiblePlayer = detachedPlayer(helper);
+        SimpleContainer destination = new SimpleContainer(27);
+        ChestMenu deniedMenu = ChestMenu.threeRows(9, deniedPlayer.getInventory(), destination);
+        ChestMenu eligibleMenu = ChestMenu.threeRows(10, eligiblePlayer.getInventory(), destination);
+        StageDefinition definition = insertionDefinition("menu", "id:minecraft:generic_9x3");
+        LockRegistry registry = LockRegistry.getInstance();
+        StageOrder order = StageOrder.getInstance();
+        TeamStageData stages = helper.getLevel().getData(StageAttachments.TEAM_STAGES);
+        UUID eligibleTeam = TeamProvider.getInstance().getTeamId(eligiblePlayer);
+        int deniedHotbar = menuSlot(deniedMenu, deniedPlayer, 0);
+        int eligibleHotbar = menuSlot(eligibleMenu, eligiblePlayer, 0);
+
+        order.registerStage(definition);
+        registry.registerStage(definition);
+        deniedPlayer.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 3));
+        eligiblePlayer.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 2));
+        stages.grantStage(eligibleTeam, STAGE);
+
+        try {
+            deniedMenu.clicked(deniedHotbar, 0, ClickType.PICKUP, deniedPlayer);
+            deniedMenu.clicked(0, 0, ClickType.PICKUP, deniedPlayer);
+            helper.assertTrue(destination.getItem(0).isEmpty(),
+                "a player without the stage must not insert into the shared container");
+            helper.assertTrue(deniedMenu.getCarried().is(Items.DIAMOND),
+                "a denied player must retain the carried stack in the shared container");
+
+            eligibleMenu.clicked(eligibleHotbar, 0, ClickType.PICKUP, eligiblePlayer);
+            eligibleMenu.clicked(0, 0, ClickType.PICKUP, eligiblePlayer);
+            helper.assertTrue(destination.getItem(0).is(Items.DIAMOND) && destination.getItem(0).getCount() == 2,
+                "an eligible player must insert into the same shared container");
+            helper.assertTrue(eligibleMenu.getCarried().isEmpty(),
+                "the eligible transaction must complete without inheriting another player's stage state");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Shared inventory transaction failed: " + failure.getMessage());
+        } finally {
+            registry.clear();
+            order.clear();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void alreadyOpenMenuUsesTheCurrentRuleSnapshotOnItsNextTransaction(GameTestHelper helper) {
+        TestServerPlayer player = detachedPlayer(helper);
+        SimpleContainer destination = new SimpleContainer(27);
+        ChestMenu menu = ChestMenu.threeRows(11, player.getInventory(), destination);
+        StageDefinition definition = insertionDefinition("menu", "id:minecraft:generic_9x3");
+        LockRegistry registry = LockRegistry.getInstance();
+        StageOrder order = StageOrder.getInstance();
+        int firstHotbar = menuSlot(menu, player, 0);
+        int secondHotbar = menuSlot(menu, player, 1);
+
+        order.registerStage(definition);
+        registry.registerStage(definition);
+        player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 3));
+        player.getInventory().setItem(1, new ItemStack(Items.DIAMOND, 2));
+
+        try {
+            menu.clicked(firstHotbar, 0, ClickType.PICKUP, player);
+            registry.clear();
+            order.clear();
+            menu.clicked(0, 0, ClickType.PICKUP, player);
+            helper.assertTrue(destination.getItem(0).is(Items.DIAMOND) && destination.getItem(0).getCount() == 3,
+                "removing the live rule must allow the next transaction in an already-open menu");
+
+            menu.clicked(secondHotbar, 0, ClickType.PICKUP, player);
+            order.registerStage(definition);
+            registry.registerStage(definition);
+            int deniedStateId = menu.getStateId();
+            menu.clicked(1, 0, ClickType.PICKUP, player);
+            helper.assertTrue(destination.getItem(1).isEmpty(),
+                "adding the live rule must deny the next transaction in the same open menu");
+            helper.assertTrue(menu.getCarried().is(Items.DIAMOND) && menu.getCarried().getCount() == 2,
+                "a newly denied transaction must preserve the carried stack");
+            helper.assertTrue(menu.getStateId() == deniedStateId,
+                "a newly denied transaction must not advance the menu state");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Open menu rule refresh failed: " + failure.getMessage());
+        } finally {
+            registry.clear();
+            order.clear();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void registeredInventoryOwnerUsesItsStableServerResolver(GameTestHelper helper) {
         TestServerPlayer player = detachedPlayer(helper);
         SimpleContainer destination = new SimpleContainer(27);

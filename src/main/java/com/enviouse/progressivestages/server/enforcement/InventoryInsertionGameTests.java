@@ -131,6 +131,51 @@ public final class InventoryInsertionGameTests {
     }
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void partialStackDenialAndEligibleTransferConserveEveryItem(GameTestHelper helper) {
+        TestServerPlayer player = detachedPlayer(helper);
+        SimpleContainer destination = new SimpleContainer(27);
+        ChestMenu menu = ChestMenu.threeRows(13, player.getInventory(), destination);
+        StageDefinition definition = insertionDefinition("menu", "id:minecraft:generic_9x3");
+        LockRegistry registry = LockRegistry.getInstance();
+        StageOrder order = StageOrder.getInstance();
+        TeamStageData stages = helper.getLevel().getData(StageAttachments.TEAM_STAGES);
+        UUID teamId = TeamProvider.getInstance().getTeamId(player);
+        int hotbarSlot = menuSlot(menu, player, 0);
+
+        order.registerStage(definition);
+        registry.registerStage(definition);
+        player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 3));
+        destination.setItem(0, new ItemStack(Items.DIAMOND, 62));
+
+        try {
+            menu.clicked(hotbarSlot, 0, ClickType.PICKUP, player);
+            int deniedStateId = menu.getStateId();
+            menu.clicked(0, 0, ClickType.PICKUP, player);
+            helper.assertTrue(destination.getItem(0).is(Items.DIAMOND) && destination.getItem(0).getCount() == 62,
+                "a denied partial-stack insertion must retain the destination count");
+            helper.assertTrue(menu.getCarried().is(Items.DIAMOND) && menu.getCarried().getCount() == 3,
+                "a denied partial-stack insertion must retain every carried item");
+            helper.assertTrue(menu.getStateId() == deniedStateId,
+                "a denied partial-stack insertion must not advance the authoritative menu state");
+
+            stages.grantStage(teamId, STAGE);
+            menu.clicked(0, 0, ClickType.PICKUP, player);
+            helper.assertTrue(destination.getItem(0).is(Items.DIAMOND) && destination.getItem(0).getCount() == 64,
+                "an eligible partial-stack insertion must fill only the available destination space");
+            helper.assertTrue(menu.getCarried().is(Items.DIAMOND) && menu.getCarried().getCount() == 1,
+                "an eligible partial-stack insertion must retain the uninserted item on the cursor");
+            helper.assertTrue(destination.getItem(0).getCount() + menu.getCarried().getCount() == 65,
+                "the accepted partial-stack transfer must conserve the complete item count");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Partial-stack inventory transaction failed: " + failure.getMessage());
+        } finally {
+            registry.clear();
+            order.clear();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void quickMoveDenialLeavesSourceAndDestinationUntouched(GameTestHelper helper) {
         TestServerPlayer player = detachedPlayer(helper);
         SimpleContainer destination = new SimpleContainer(27);

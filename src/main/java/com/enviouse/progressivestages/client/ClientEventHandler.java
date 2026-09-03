@@ -158,7 +158,7 @@ public class ClientEventHandler {
     /** Prevent lock and progression snapshots from leaking between multiplayer servers/worlds. */
     @SubscribeEvent
     public static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
-        com.enviouse.progressivestages.client.emi.ProgressiveStagesEMIPlugin.beginClientDisconnect();
+        EmiLifecycleBridge.beginClientDisconnect();
         ClientStageCache.clear();
         ClientTriggerProgress.clear();
         ClientUnlockJuice.clear();
@@ -173,7 +173,7 @@ public class ClientEventHandler {
     /** Re-enable recipe-viewer refreshes after a previous server disconnect. */
     @SubscribeEvent
     public static void onClientLogin(ClientPlayerNetworkEvent.LoggingIn event) {
-        com.enviouse.progressivestages.client.emi.ProgressiveStagesEMIPlugin.endClientDisconnect();
+        EmiLifecycleBridge.endClientDisconnect();
     }
 
     /** v2.3: poll the stage-tree keybind; request a progress snapshot, which opens the GUI. */

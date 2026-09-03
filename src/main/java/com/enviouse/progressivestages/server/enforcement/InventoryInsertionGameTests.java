@@ -21,11 +21,14 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.FurnaceMenu;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -524,6 +527,45 @@ public final class InventoryInsertionGameTests {
     }
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void furnaceInputUsesItsBlockIdentity(GameTestHelper helper) {
+        TestServerPlayer player = detachedPlayer(helper);
+        BlockPos furnacePos = new BlockPos(2, 2, 1);
+        helper.setBlock(furnacePos, Blocks.FURNACE);
+        FurnaceBlockEntity furnace = (FurnaceBlockEntity) helper.getBlockEntity(furnacePos);
+        FurnaceMenu menu = new FurnaceMenu(14, player.getInventory(), furnace, new SimpleContainerData(4));
+        StageDefinition definition = insertionDefinition("block", "id:minecraft:furnace");
+        LockRegistry registry = LockRegistry.getInstance();
+        StageOrder order = StageOrder.getInstance();
+        TeamStageData stages = helper.getLevel().getData(StageAttachments.TEAM_STAGES);
+        UUID teamId = TeamProvider.getInstance().getTeamId(player);
+        int hotbarSlot = menuSlot(menu, player, 0);
+
+        order.registerStage(definition);
+        registry.registerStage(definition);
+        player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 3));
+
+        try {
+            menu.clicked(hotbarSlot, 0, ClickType.PICKUP, player);
+            menu.clicked(0, 0, ClickType.PICKUP, player);
+            helper.assertTrue(furnace.getItem(0).isEmpty(),
+                "a missing stage must deny a block targeted furnace input before mutation");
+            helper.assertTrue(menu.getCarried().is(Items.DIAMOND),
+                "a denied furnace input must retain the carried stack");
+
+            stages.grantStage(teamId, STAGE);
+            menu.clicked(0, 0, ClickType.PICKUP, player);
+            helper.assertTrue(furnace.getItem(0).is(Items.DIAMOND),
+                "owning the stage must restore insertion into the same furnace input");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Furnace inventory transaction failed: " + failure.getMessage());
+        } finally {
+            registry.clear();
+            order.clear();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void recipeOutputLockUsesTheSelectedOutputItem(GameTestHelper helper) {
         TestServerPlayer player = detachedPlayer(helper);
         StageDefinition definition = StageDefinition.builder(STAGE).locks(LockDefinition.builder()
@@ -594,7 +636,7 @@ public final class InventoryInsertionGameTests {
             .build()).build();
     }
 
-    private static int menuSlot(ChestMenu menu, ServerPlayer player, int inventorySlot) {
+    private static int menuSlot(AbstractContainerMenu menu, ServerPlayer player, int inventorySlot) {
         for (int index = 0; index < menu.slots.size(); index++) {
             Slot slot = menu.slots.get(index);
             if (slot.container == player.getInventory() && slot.getContainerSlot() == inventorySlot) return index;

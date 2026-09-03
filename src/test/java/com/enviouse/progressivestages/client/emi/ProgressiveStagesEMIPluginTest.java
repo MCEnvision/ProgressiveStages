@@ -19,8 +19,12 @@ class ProgressiveStagesEMIPluginTest {
             "src/main/java/com/enviouse/progressivestages/client/EmiLifecycleBridge.java"));
 
         assertTrue(source.contains("private static final AtomicBoolean clientDisconnecting"));
+        assertTrue(source.contains("private static final AtomicLong clientSessionGeneration"));
         assertTrue(source.contains("if (!initialized || clientDisconnecting.get())"));
-        assertTrue(source.contains("if (clientDisconnecting.get() || !isReloadableClient(minecraft)) return;"));
+        assertTrue(source.contains("long refreshGeneration = clientSessionGeneration.get();"));
+        assertTrue(source.contains("if (!isCurrentSession(refreshGeneration, minecraft)) return;"));
+        assertTrue(source.contains("clientSessionGeneration.incrementAndGet();"));
+        assertTrue(source.contains("clearPendingForCurrentSession(refreshGeneration);"));
         assertTrue(source.contains("minecraft.level != null && minecraft.player != null"));
         int disconnectBridge = eventHandler.indexOf("EmiLifecycleBridge.beginClientDisconnect()");
         int cacheClear = eventHandler.indexOf("ClientStageCache.clear()");

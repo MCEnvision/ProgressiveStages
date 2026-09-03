@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * EMI plugin entrypoint for ProgressiveStages
@@ -43,6 +44,7 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     // Prevent rapid-fire reloads; only allow one pending reload at a time
     private static final AtomicBoolean reloadPending = new AtomicBoolean(false);
     private static final AtomicBoolean clientDisconnecting = new AtomicBoolean(false);
+    private static final AtomicLong clientSessionGeneration = new AtomicLong();
 
     @Override
     public void register(EmiRegistry registry) {
@@ -379,6 +381,7 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
      * (not a server-driven tag+recipe resync), reload() bypasses that gate.
      */
     public static void triggerEmiReload() {
+        long refreshGeneration = clientSessionGeneration.get();
         if (!StageConfig.isEmiEnabled()) {
             return;
         }
@@ -402,8 +405,9 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
             // Schedule on the main render thread with a small delay to let data settle
             minecraft.execute(() -> {
                 try {
+                    if (!isCurrentSession(refreshGeneration, minecraft)) return;
                     reloadPending.set(false);
-                    if (clientDisconnecting.get() || !isReloadableClient(minecraft)) return;
+                    if (!isCurrentSession(refreshGeneration, minecraft)) return;
                     LOGGER.info("[ProgressiveStages] Triggering EMI reload. Current stages: {}", ClientStageCache.getStages());
 
                     // Use EmiReloadManager.reload() directly to force a full EMI reload.
@@ -417,12 +421,12 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
 
                     LOGGER.info("[ProgressiveStages] EMI reload triggered successfully");
                 } catch (Exception e) {
-                    reloadPending.set(false);
+                    clearPendingForCurrentSession(refreshGeneration);
                     LOGGER.error("[ProgressiveStages] Failed to trigger EMI reload: {}", e.getMessage());
                 }
             });
         } catch (Exception e) {
-            reloadPending.set(false);
+            clearPendingForCurrentSession(refreshGeneration);
             LOGGER.error("[ProgressiveStages] Failed to schedule EMI reload: {}", e.getMessage());
         }
     }
@@ -430,6 +434,7 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     /** Mark the client shutdown boundary before lock caches are cleared. */
     public static void beginClientDisconnect() {
         clientDisconnecting.set(true);
+        clientSessionGeneration.incrementAndGet();
         reloadPending.set(false);
     }
 
@@ -440,6 +445,15 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
 
     private static boolean isReloadableClient(net.minecraft.client.Minecraft minecraft) {
         return minecraft != null && minecraft.level != null && minecraft.player != null;
+    }
+
+    private static boolean isCurrentSession(long refreshGeneration, net.minecraft.client.Minecraft minecraft) {
+        return !clientDisconnecting.get() && clientSessionGeneration.get() == refreshGeneration
+            && isReloadableClient(minecraft);
+    }
+
+    private static void clearPendingForCurrentSession(long refreshGeneration) {
+        if (clientSessionGeneration.get() == refreshGeneration) reloadPending.set(false);
     }
 
     /**

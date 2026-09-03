@@ -17,6 +17,6 @@ permissions:
 
 jobs:
   validate:
-    uses: MCEnvision/.github/.github/workflows/release-validation.yml@d731214d860ad2422ab8956a5d337dfaec51f64a
+    uses: MCEnvision/.github/.github/workflows/release-validation.yml@2b264b7f1b1f2c6e94f36921f5c13a3713ece48b
     with:
-      shared-ref: "d731214d860ad2422ab8956a5d337dfaec51f64a"
+      shared-ref: "2b264b7f1b1f2c6e94f36921f5c13a3713ece48b"

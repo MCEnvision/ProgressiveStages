@@ -42,6 +42,7 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     private static boolean initialized = false;
     // Prevent rapid-fire reloads; only allow one pending reload at a time
     private static final AtomicBoolean reloadPending = new AtomicBoolean(false);
+    private static final AtomicBoolean clientDisconnecting = new AtomicBoolean(false);
 
     @Override
     public void register(EmiRegistry registry) {
@@ -381,10 +382,13 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
         if (!StageConfig.isEmiEnabled()) {
             return;
         }
-        if (!initialized) {
+        if (!initialized || clientDisconnecting.get()) {
             LOGGER.debug("[ProgressiveStages] EMI not initialized yet, skipping reload");
             return;
         }
+
+        var minecraft = net.minecraft.client.Minecraft.getInstance();
+        if (!isReloadableClient(minecraft)) return;
 
         // Debounce: if a reload is already pending, don't queue another
         if (!reloadPending.compareAndSet(false, true)) {
@@ -395,12 +399,11 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
         try {
             LOGGER.info("[ProgressiveStages] Scheduling EMI reload due to stage/lock change...");
 
-            var minecraft = net.minecraft.client.Minecraft.getInstance();
-
             // Schedule on the main render thread with a small delay to let data settle
             minecraft.execute(() -> {
                 try {
                     reloadPending.set(false);
+                    if (clientDisconnecting.get() || !isReloadableClient(minecraft)) return;
                     LOGGER.info("[ProgressiveStages] Triggering EMI reload. Current stages: {}", ClientStageCache.getStages());
 
                     // Use EmiReloadManager.reload() directly to force a full EMI reload.
@@ -422,6 +425,21 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
             reloadPending.set(false);
             LOGGER.error("[ProgressiveStages] Failed to schedule EMI reload: {}", e.getMessage());
         }
+    }
+
+    /** Mark the client shutdown boundary before lock caches are cleared. */
+    public static void beginClientDisconnect() {
+        clientDisconnecting.set(true);
+        reloadPending.set(false);
+    }
+
+    /** Permit viewer refreshes for a new connected client session. */
+    public static void endClientDisconnect() {
+        clientDisconnecting.set(false);
+    }
+
+    private static boolean isReloadableClient(net.minecraft.client.Minecraft minecraft) {
+        return minecraft != null && minecraft.level != null && minecraft.player != null;
     }
 
     /**

@@ -1143,7 +1143,7 @@ Four shapes:
 | `block_right_click` | `target_block` | Cancel right-clicking the block (even empty-handed) |
 | `item_on_block` | `held_item`, `target_block` | Cancel right-click when held item + target block match |
 | `item_on_entity` | `held_item`, `target_entity` | Cancel right-click when held item + target entity match |
-| `item_into_inventory` | `held_item`, `target_kind`, `target`, `effect`, `priority` | Gate a player inserting one item into a receiving inventory |
+| `item_into_inventory` | `held_item`, `target_kind`, `target`, `effect`, `priority` | Gate a player inserting one item into a receiving inventory. Optional `id`, `lifetime`, `duration`, `while`, and `reset_condition` make the paired rule situational. |
 
 The `held_item` / `target_block` / `target_entity` fields accept **single
 prefix entries** (e.g. `tag:minecraft:logs`, `mod:create`). The `description`
@@ -1193,6 +1193,32 @@ and tags through
 one exact pairing from a broader rule. Higher `priority` wins. If an allow and
 a deny tie, deny wins safely.
 
+The optional `id` gives the rule a stable activation identity. Omit it to let
+the compiler derive one from the stage and interaction position. `lifetime`
+defaults to `permanent`; use a supported live, duration, session, latched, or
+scheduled lifetime only when the lock should be conditional. `duration` is for
+timed lifetimes, such as `"30s"` or `"5m"`. Put the active condition in
+`[interactions.while]`; `when` and `condition` are accepted aliases. An
+optional `[interactions.reset_condition]` clears a latched or session rule.
+These fields apply to the complete source and destination pair. They never
+turn either selector into a separate rule.
+
+```toml
+[[interactions]]
+id = "example:miner/nether_selling_bin"
+type = "item_into_inventory"
+held_item = "tag:c:ores"
+target_kind = "block"
+target = "id:example:selling_bin"
+effect = "lock"
+priority = 100
+lifetime = "live"
+
+[interactions.while]
+type = "dimension"
+id = "minecraft:the_nether"
+```
+
 Only a real server-side player transaction enters this check. Standard click,
 shift-click, drag, and hotbar swap paths are checked before the receiving slot
 changes. Double-click collection only removes items into the carried stack, so
@@ -1201,8 +1227,10 @@ machine automation do not infer a nearby player and remain unaffected.
 
 In the Easy Builder, choose **Interactions**, then **Insert an item into an
 inventory**. Pick the source item selector, destination type, destination
-selector, effect, and priority. The item, block, menu, and inventory-owner
-pickers use the running server catalog. The TOML source tab always shows the
+selector, effect, and priority. For a situational rule, use **When is this
+rule active** to choose the lifetime, duration, activation condition, and
+optional reset condition. The item, block, menu, and inventory-owner pickers
+use the running server catalog. The TOML source tab always shows the
 same six canonical fields. See
 [Inventory insertion rules](docs/features/inventory-insertion.md) for complete
 examples and extension guidance.

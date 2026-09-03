@@ -7,6 +7,8 @@ import com.enviouse.progressivestages.common.data.TeamStageData;
 import com.enviouse.progressivestages.common.lock.CategoryLocks;
 import com.enviouse.progressivestages.common.lock.LockDefinition;
 import com.enviouse.progressivestages.common.lock.LockRegistry;
+import com.enviouse.progressivestages.common.rehaul.ConditionNode;
+import com.enviouse.progressivestages.common.rehaul.RuleLifetime;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.common.stage.StageOrder;
 import com.enviouse.progressivestages.common.team.TeamProvider;
@@ -34,6 +36,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -84,6 +87,77 @@ public final class InventoryInsertionGameTests {
             helper.succeed();
         } catch (Throwable failure) {
             helper.fail("Inventory insertion transaction failed: " + failure.getMessage());
+        } finally {
+            registry.clear();
+            order.clear();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void inactiveTemporaryInsertionRuleDoesNotBlock(GameTestHelper helper) {
+        TestServerPlayer player = detachedPlayer(helper);
+        SimpleContainer destination = new SimpleContainer(27);
+        ChestMenu menu = ChestMenu.threeRows(1, player.getInventory(), destination);
+        LockDefinition.InteractionLock interaction = new LockDefinition.InteractionLock("item_into_inventory",
+            "id:minecraft:diamond", "id:minecraft:generic_9x3", "menu", "lock", 100,
+            "GameTest inactive temporary inventory insertion lock", ResourceLocation.parse("progressivestages:gametest/inactive_inventory"),
+            RuleLifetime.LIVE, new ConditionNode.Constant(false), null, Map.of());
+        StageDefinition definition = StageDefinition.builder(STAGE).locks(LockDefinition.builder()
+            .interactions(List.of(interaction)).build()).build();
+        LockRegistry registry = LockRegistry.getInstance();
+        StageOrder order = StageOrder.getInstance();
+        int hotbarSlot = menuSlot(menu, player, 0);
+
+        order.registerStage(definition);
+        registry.registerStage(definition);
+        player.getInventory().setItem(0, new ItemStack(Items.DIAMOND));
+
+        try {
+            menu.clicked(hotbarSlot, 0, ClickType.PICKUP, player);
+            menu.clicked(0, 0, ClickType.PICKUP, player);
+            helper.assertTrue(destination.getItem(0).is(Items.DIAMOND),
+                "an inactive temporary insertion rule must not block the destination");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Inactive temporary inventory insertion rule failed: " + failure.getMessage());
+        } finally {
+            registry.clear();
+            order.clear();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void activeLiveInsertionRuleBlocksBeforeMutation(GameTestHelper helper) {
+        TestServerPlayer player = detachedPlayer(helper);
+        SimpleContainer destination = new SimpleContainer(27);
+        ChestMenu menu = ChestMenu.threeRows(1, player.getInventory(), destination);
+        LockDefinition.InteractionLock interaction = new LockDefinition.InteractionLock("item_into_inventory",
+            "id:minecraft:diamond", "id:minecraft:generic_9x3", "menu", "lock", 100,
+            "GameTest active live inventory insertion lock", ResourceLocation.parse("progressivestages:gametest/active_inventory"),
+            RuleLifetime.LIVE, new ConditionNode.Constant(true), null, Map.of());
+        StageDefinition definition = StageDefinition.builder(STAGE).locks(LockDefinition.builder()
+            .interactions(List.of(interaction)).build()).build();
+        LockRegistry registry = LockRegistry.getInstance();
+        StageOrder order = StageOrder.getInstance();
+        int hotbarSlot = menuSlot(menu, player, 0);
+
+        order.registerStage(definition);
+        registry.registerStage(definition);
+        player.getInventory().setItem(0, new ItemStack(Items.DIAMOND));
+
+        try {
+            menu.clicked(hotbarSlot, 0, ClickType.PICKUP, player);
+            int deniedStateId = menu.getStateId();
+            menu.clicked(0, 0, ClickType.PICKUP, player);
+            helper.assertTrue(destination.getItem(0).isEmpty(),
+                "an active live insertion rule must deny the destination");
+            helper.assertTrue(menu.getCarried().is(Items.DIAMOND),
+                "an active live insertion rule must retain the carried source stack");
+            helper.assertTrue(menu.getStateId() == deniedStateId,
+                "an active live insertion rule must not advance the menu state");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Active live inventory insertion rule failed: " + failure.getMessage());
         } finally {
             registry.clear();
             order.clear();

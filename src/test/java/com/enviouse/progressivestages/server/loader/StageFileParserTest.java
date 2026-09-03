@@ -2,7 +2,10 @@ package com.enviouse.progressivestages.server.loader;
 
 import com.enviouse.progressivestages.common.lock.ConditionalRule;
 import com.enviouse.progressivestages.common.lock.LockRegistry;
+import com.enviouse.progressivestages.common.rehaul.ConditionNode;
+import com.enviouse.progressivestages.common.rehaul.RuleLifetime;
 import com.enviouse.progressivestages.common.api.structure.StructureLeaveOutcome;
+import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -441,6 +444,54 @@ class StageFileParserTest {
             assertEquals("minecraft:chest", entry.targetBlock);
             assertEquals("block", entry.targetKind);
             assertEquals(250, entry.priority);
+        } finally {
+            registry.clear();
+        }
+    }
+
+    @Test
+    void parsesInventoryInsertionActivationAndLifetimeMetadata() throws IOException {
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(write("conditional_inventory_interaction.toml", """
+            [stage]
+            id = "conditional_inventory_interaction"
+
+            [[interactions]]
+            id = "example:ore_bin_window"
+            type = "item_into_inventory"
+            held_item = "id:minecraft:diamond"
+            target_kind = "block"
+            target = "id:minecraft:chest"
+            effect = "lock"
+            lifetime = "duration"
+            duration = "30s"
+
+            [interactions.while]
+            type = "dimension"
+            id = "minecraft:the_end"
+
+            [interactions.reset_condition]
+            type = "boolean"
+            expected = true
+            """));
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        var interaction = result.getStageDefinition().getLocks().interactions().getFirst();
+        assertEquals(ResourceLocation.parse("example:ore_bin_window"), interaction.ruleId());
+        assertEquals(RuleLifetime.DURATION, interaction.lifetime());
+        assertTrue(interaction.condition() instanceof ConditionNode.Leaf);
+        assertTrue(interaction.resetCondition() instanceof ConditionNode.Leaf);
+        assertEquals("30s", interaction.activationSettings().get("duration"));
+
+        LockRegistry registry = LockRegistry.getInstance();
+        registry.clear();
+        try {
+            registry.registerStage(result.getStageDefinition());
+            var entry = registry.getAllInteractionLocksOfType("item_into_inventory").iterator().next();
+            assertEquals(ResourceLocation.parse("example:ore_bin_window"), entry.ruleId);
+            assertEquals(RuleLifetime.DURATION, entry.lifetime);
+            assertTrue(entry.condition instanceof ConditionNode.Leaf);
+            assertTrue(entry.resetCondition instanceof ConditionNode.Leaf);
+            assertEquals("30s", entry.activationSettings.get("duration"));
         } finally {
             registry.clear();
         }

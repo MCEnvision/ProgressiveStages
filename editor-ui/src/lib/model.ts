@@ -118,26 +118,33 @@ export function ruleModels(text: string): RuleModel[] {
     const targetKind = stringValue(readBlockValue(block.text, "target_kind"));
     const destination = stringValue(readBlockValue(block.text, "target"));
     const heldItem = stringValue(readBlockValue(block.text, "held_item"));
+    const condition = readBlockValue(block.text, "while") || readBlockValue(block.text, "when")
+      || readBlockValue(block.text, "condition") || "";
+    const resetCondition = readBlockValue(block.text, "reset_condition") || "";
     if (!heldItem || !destination || !["block", "menu", "inventory"].includes(targetKind)) return;
     models.push({
       table: "interactions",
       tableIndex: block.index,
+      id: stringValue(readBlockValue(block.text, "id")),
       category: "interactions",
       action: type,
       effect: stringValue(readBlockValue(block.text, "effect")) || "lock",
       selector: heldItem,
       priority: numberValue(readBlockValue(block.text, "priority")),
       viewer: "inherit",
-      lifetime: "permanent",
-      duration: "",
-      conditionType: "none",
-      conditionTarget: "",
-      count: 1,
+      lifetime: stringValue(readBlockValue(block.text, "lifetime")) || "permanent",
+      duration: stringValue(readBlockValue(block.text, "duration")),
+      conditionType: inlineObjectValue(condition, "type") || "none",
+      conditionTarget: inlineObjectValue(condition, "id") || inlineObjectValue(condition, "value") || inlineObjectValue(condition, "callback"),
+      count: numberValue(inlineObjectValue(condition, "count"), 1),
       exception: "",
       exceptionPriority: 0,
       sourceText: block.text,
       targetKind: targetKind as "block" | "menu" | "inventory",
-      destination
+      destination,
+      resetConditionType: inlineObjectValue(resetCondition, "type") || "none",
+      resetConditionTarget: inlineObjectValue(resetCondition, "id") || inlineObjectValue(resetCondition, "value") || inlineObjectValue(resetCondition, "callback"),
+      resetCount: numberValue(inlineObjectValue(resetCondition, "count"), 1)
     });
   });
   for (const [category, definition] of Object.entries(CATEGORIES)) {
@@ -203,6 +210,7 @@ function parseRuleBlock(text: string, table: "rules" | "temporary_rules", tableI
   const selectorRaw = targetMatch?.[2] || readBlockValue(text, "selector");
   const selector = parseSimpleArray(selectorRaw)[0] || stringValue(selectorRaw) || "id:minecraft:stone";
   const condition = readBlockValue(text, "while") || readBlockValue(text, "when") || readBlockValue(text, "condition");
+  const resetCondition = readBlockValue(text, "reset_condition") || "";
   const exceptionRaw = readBlockValue(text, "exceptions");
   return {
     table,
@@ -220,7 +228,11 @@ function parseRuleBlock(text: string, table: "rules" | "temporary_rules", tableI
     count: numberValue(inlineObjectValue(condition, "count"), 1),
     exception: parseSimpleArray(exceptionRaw)[0] || stringValue(exceptionRaw),
     exceptionPriority: numberValue(readBlockValue(text, "exception_priority")),
-    sourceText: text
+    sourceText: text,
+    id: stringValue(readBlockValue(text, "id")),
+    resetConditionType: inlineObjectValue(resetCondition, "type") || "none",
+    resetConditionTarget: inlineObjectValue(resetCondition, "id") || inlineObjectValue(resetCondition, "value") || inlineObjectValue(resetCondition, "callback"),
+    resetCount: numberValue(inlineObjectValue(resetCondition, "count"), 1)
   };
 }
 

@@ -40,7 +40,7 @@ describe("react editor stage models", () => {
   });
 
   it("keeps inventory insertion source and destination selectors paired", () => {
-    const rules = ruleModels(`[[interactions]]\ntype = "item_into_inventory"\nheld_item = "tag:c:ores"\ntarget_kind = "block"\ntarget = "id:example:selling_bin"\neffect = "deny"\npriority = 250\n`);
+    const rules = ruleModels(`[[interactions]]\nid = "example:ore_bin_window"\ntype = "item_into_inventory"\nheld_item = "tag:c:ores"\ntarget_kind = "block"\ntarget = "id:example:selling_bin"\neffect = "deny"\npriority = 250\nlifetime = "duration"\nduration = "30s"\nwhile = { type = "dimension", id = "minecraft:the_end" }\nreset_condition = { type = "boolean", expected = false }\n`);
     expect(rules).toContainEqual(expect.objectContaining({
       table: "interactions",
       action: "item_into_inventory",
@@ -48,7 +48,13 @@ describe("react editor stage models", () => {
       targetKind: "block",
       destination: "id:example:selling_bin",
       effect: "deny",
-      priority: 250
+      priority: 250,
+      id: "example:ore_bin_window",
+      lifetime: "duration",
+      duration: "30s",
+      conditionType: "dimension",
+      conditionTarget: "minecraft:the_end",
+      resetConditionType: "boolean"
     }));
   });
 

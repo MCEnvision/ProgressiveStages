@@ -3,6 +3,8 @@ package com.enviouse.progressivestages.common.lock;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.config.StageDefinition;
+import com.enviouse.progressivestages.common.rehaul.ConditionNode;
+import com.enviouse.progressivestages.common.rehaul.RuleLifetime;
 import com.enviouse.progressivestages.server.enforcement.ConditionalLockEngine;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.Holder;
@@ -245,13 +247,19 @@ public final class LockRegistry {
             dimensionLocks.computeIfAbsent(dim, k -> ConcurrentHashMap.newKeySet()).add(id);
         }
 
+        int interactionIndex = 0;
         for (LockDefinition.InteractionLock i : locks.interactions()) {
             String key = interactionKey(i.type(), i.heldItem(), i.targetBlock());
+            ResourceLocation interactionRuleId = i.ruleId() != null ? i.ruleId()
+                : ResourceLocation.fromNamespaceAndPath(id.getResourceLocation().getNamespace(),
+                    id.getResourceLocation().getPath() + "/interactions/" + interactionIndex);
             InteractionLockEntry entry = new InteractionLockEntry(i.type(), i.heldItem(), i.targetBlock(),
-                i.targetKind(), i.effect(), i.priority(), i.description(), id);
+                i.targetKind(), i.effect(), i.priority(), i.description(), id, interactionRuleId,
+                i.lifetime(), i.condition(), i.resetCondition(), i.activationSettings());
             interactionLocks.computeIfAbsent(key, k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(entry);
             interactionLocksByType.computeIfAbsent(i.type(), k -> new java.util.concurrent.CopyOnWriteArrayList<>())
                 .add(entry);
+            interactionIndex++;
         }
 
         for (LockDefinition.MobReplacement m : locks.mobReplacements()) {
@@ -1680,6 +1688,11 @@ public final class LockRegistry {
         public final int priority;
         public final String description;
         public final StageId requiredStage;
+        public final ResourceLocation ruleId;
+        public final RuleLifetime lifetime;
+        public final ConditionNode condition;
+        public final ConditionNode resetCondition;
+        public final Map<String, Object> activationSettings;
 
         public InteractionLockEntry(String type, String heldItem, String targetBlock,
                                     String description, StageId requiredStage) {
@@ -1688,6 +1701,14 @@ public final class LockRegistry {
 
         public InteractionLockEntry(String type, String heldItem, String targetBlock, String targetKind,
                                     String effect, int priority, String description, StageId requiredStage) {
+            this(type, heldItem, targetBlock, targetKind, effect, priority, description, requiredStage, null,
+                RuleLifetime.PERMANENT, new ConditionNode.Constant(true), null, Map.of());
+        }
+
+        public InteractionLockEntry(String type, String heldItem, String targetBlock, String targetKind,
+                                    String effect, int priority, String description, StageId requiredStage,
+                                    ResourceLocation ruleId, RuleLifetime lifetime, ConditionNode condition,
+                                    ConditionNode resetCondition, Map<String, Object> activationSettings) {
             this.type = type;
             this.heldItem = heldItem;
             this.targetBlock = targetBlock;
@@ -1696,6 +1717,11 @@ public final class LockRegistry {
             this.priority = priority;
             this.description = description;
             this.requiredStage = requiredStage;
+            this.ruleId = ruleId;
+            this.lifetime = lifetime != null ? lifetime : RuleLifetime.PERMANENT;
+            this.condition = condition != null ? condition : new ConditionNode.Constant(true);
+            this.resetCondition = resetCondition;
+            this.activationSettings = activationSettings == null ? Map.of() : Map.copyOf(activationSettings);
         }
 
         public boolean matches(String checkType, String checkHeldItem, String checkTargetBlock) {

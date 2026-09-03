@@ -1,10 +1,13 @@
 package com.enviouse.progressivestages.common.lock;
 
+import com.enviouse.progressivestages.common.rehaul.ConditionNode;
+import com.enviouse.progressivestages.common.rehaul.RuleLifetime;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -273,6 +276,11 @@ public final class LockDefinition {
         private final String effect;
         private final int priority;
         private final String description;
+        private final ResourceLocation ruleId;
+        private final RuleLifetime lifetime;
+        private final ConditionNode condition;
+        private final ConditionNode resetCondition;
+        private final Map<String, Object> activationSettings;
 
         public InteractionLock(String type, String heldItem, String target, String description) {
             this(type, heldItem, target, "", "lock", 0, description);
@@ -280,6 +288,14 @@ public final class LockDefinition {
 
         public InteractionLock(String type, String heldItem, String target, String targetKind,
                                String effect, int priority, String description) {
+            this(type, heldItem, target, targetKind, effect, priority, description, null,
+                RuleLifetime.PERMANENT, new ConditionNode.Constant(true), null, Map.of());
+        }
+
+        public InteractionLock(String type, String heldItem, String target, String targetKind,
+                               String effect, int priority, String description, ResourceLocation ruleId,
+                               RuleLifetime lifetime, ConditionNode condition, ConditionNode resetCondition,
+                               Map<String, Object> activationSettings) {
             this.type = type;
             this.heldItem = heldItem;
             this.target = target;
@@ -287,6 +303,11 @@ public final class LockDefinition {
             this.effect = effect;
             this.priority = priority;
             this.description = description;
+            this.ruleId = ruleId;
+            this.lifetime = lifetime != null ? lifetime : RuleLifetime.PERMANENT;
+            this.condition = condition != null ? condition : new ConditionNode.Constant(true);
+            this.resetCondition = resetCondition;
+            this.activationSettings = activationSettings == null ? Map.of() : Map.copyOf(activationSettings);
         }
 
         public String type()        { return type; }
@@ -295,6 +316,11 @@ public final class LockDefinition {
         public String targetKind()  { return targetKind; }
         public String effect()      { return effect; }
         public int priority()       { return priority; }
+        public ResourceLocation ruleId() { return ruleId; }
+        public RuleLifetime lifetime() { return lifetime; }
+        public ConditionNode condition() { return condition; }
+        public ConditionNode resetCondition() { return resetCondition; }
+        public Map<String, Object> activationSettings() { return activationSettings; }
         // Legacy alias — InteractionEnforcer historically called this field "targetBlock".
         public String targetBlock() { return target; }
         public String description() { return description; }

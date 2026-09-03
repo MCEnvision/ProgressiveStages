@@ -170,9 +170,13 @@ export interface RuleModel {
   exception: string;
   exceptionPriority: number;
   sourceText: string;
+  id?: string;
   recipeKind?: "output" | "identifier";
   targetKind?: "block" | "menu" | "inventory";
   destination?: string;
+  resetConditionType?: string;
+  resetConditionTarget?: string;
+  resetCount?: number;
 }
 
 export interface ProgressionModel {

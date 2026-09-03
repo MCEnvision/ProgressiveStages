@@ -132,6 +132,20 @@ public final class CompiledRuleEngine {
 
     public Optional<CompiledRule> findRule(ResourceLocation id) { return Optional.ofNullable(byId.get(id)); }
 
+    public boolean isActivationActive(ResourceLocation ruleId, RuleLifetime lifetime, ConditionNode condition,
+                                      ConditionNode resetCondition, Map<String, Object> settings,
+                                      ConditionContext context) {
+        if (ruleId == null || context == null) return false;
+        RuleLifetime resolvedLifetime = lifetime != null ? lifetime : RuleLifetime.PERMANENT;
+        ConditionNode resolvedCondition = condition != null ? condition : new ConditionNode.Constant(true);
+        Map<String, Object> resolvedSettings = settings != null ? settings : Map.of();
+        if (resolvedLifetime == RuleLifetime.PERMANENT) {
+            return conditions.evaluate(resolvedCondition, context).result().matched();
+        }
+        ActivationPolicy policy = activationPolicy(resolvedLifetime, resolvedSettings);
+        return temporary.evaluate(ruleId, policy, resolvedCondition, resetCondition, context).active();
+    }
+
     public Map<ResourceLocation, Set<StageId>> resolveViewerItemLocks(ServerPlayer player, RecipeViewer viewer) {
         if (player == null || viewer == null) return Map.of();
         List<CompiledRule> itemRules = rules("items");
@@ -198,19 +212,19 @@ public final class CompiledRuleEngine {
 
     private boolean active(ServerPlayer player, CompiledRule rule, ConditionContext context) {
         if (!stageStateMatches(player, rule)) return false;
-        if (rule.lifetime() == RuleLifetime.PERMANENT) {
-            return conditions.evaluate(rule.condition(), context).result().matched();
-        }
-        ActivationPolicy policy = new ActivationPolicy(rule.lifetime(),
-            duration(rule.settings().getOrDefault("duration_millis", rule.settings().get("duration"))),
-            duration(rule.settings().get("cooldown")), duration(rule.settings().get("debounce")),
-            duration(rule.settings().get("grace")), duration(rule.settings().get("minimum_active")),
-            duration(rule.settings().get("minimum_inactive")),
-            bool(rule.settings().getOrDefault("refresh_duration", rule.settings().get("refresh")), true),
-            bool(rule.settings().get("pause_offline"), false),
-            String.valueOf(rule.settings().getOrDefault("session", "")));
         ConditionNode reset = rule.settings().get("reset_condition") instanceof ConditionNode condition ? condition : null;
-        return temporary.evaluate(rule.id(), policy, rule.condition(), reset, context).active();
+        return isActivationActive(rule.id(), rule.lifetime(), rule.condition(), reset, rule.settings(), context);
+    }
+
+    private static ActivationPolicy activationPolicy(RuleLifetime lifetime, Map<String, Object> settings) {
+        return new ActivationPolicy(lifetime,
+            duration(settings.getOrDefault("duration_millis", settings.get("duration"))),
+            duration(settings.get("cooldown")), duration(settings.get("debounce")),
+            duration(settings.get("grace")), duration(settings.get("minimum_active")),
+            duration(settings.get("minimum_inactive")),
+            bool(settings.getOrDefault("refresh_duration", settings.get("refresh")), true),
+            bool(settings.get("pause_offline"), false),
+            String.valueOf(settings.getOrDefault("session", "")));
     }
 
     private static boolean stageStateMatches(ServerPlayer player, CompiledRule rule) {

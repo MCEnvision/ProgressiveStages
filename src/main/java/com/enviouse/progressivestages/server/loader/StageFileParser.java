@@ -19,7 +19,11 @@ import com.enviouse.progressivestages.common.lock.EnforcementCategory;
 import com.enviouse.progressivestages.common.lock.LockDefinition;
 import com.enviouse.progressivestages.common.lock.PrefixEntry;
 import com.enviouse.progressivestages.common.rehaul.ConfigProvenance;
+import com.enviouse.progressivestages.common.rehaul.ConditionNode;
+import com.enviouse.progressivestages.common.rehaul.RuleLifetime;
 import com.enviouse.progressivestages.common.rehaul.SelectorSpec;
+import com.enviouse.progressivestages.common.rehaul.condition.ConditionCompiler;
+import com.enviouse.progressivestages.common.rehaul.condition.ConditionRegistry;
 import com.enviouse.progressivestages.common.trigger.TriggerCondition;
 import com.enviouse.progressivestages.common.trigger.TriggerConditionType;
 import com.enviouse.progressivestages.common.trigger.TriggerMode;
@@ -35,6 +39,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Objects;
 
@@ -73,6 +79,7 @@ public final class StageFileParser {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final TomlParser PARSER = new TomlParser();
+    private static final ConditionCompiler CONDITIONS = new ConditionCompiler(ConditionRegistry.get());
 
     private StageFileParser() {}
 
@@ -1295,8 +1302,15 @@ public final class StageFileParser {
                 if (priority < -1_000_000 || priority > 1_000_000) {
                     throw new IllegalArgumentException("An item_into_inventory interaction priority is outside the supported range");
                 }
+                ResourceLocation ruleId = parseInteractionRuleId(c.get("id"));
+                RuleLifetime lifetime = parseInteractionLifetime(c.get("lifetime"));
+                ConditionNode condition = CONDITIONS.compile(normalizeInteractionCondition(firstInteractionCondition(c)));
+                Object resetSource = c.getRaw("reset_condition");
+                ConditionNode resetCondition = resetSource == null ? null
+                    : CONDITIONS.compile(normalizeInteractionCondition(resetSource));
                 out.add(new LockDefinition.InteractionLock(type, heldItem, target,
-                    targetKind.trim().toLowerCase(java.util.Locale.ROOT), effect, priority, description));
+                    targetKind.trim().toLowerCase(java.util.Locale.ROOT), effect, priority, description,
+                    ruleId, lifetime, condition, resetCondition, interactionActivationSettings(c, resetCondition)));
                 continue;
             }
             String target = "item_on_entity".equals(type) ? c.get("target_entity") : c.get("target_block");
@@ -1306,6 +1320,57 @@ public final class StageFileParser {
             out.add(new LockDefinition.InteractionLock(type, heldItem, target, description));
         }
         return out;
+    }
+
+    private static ResourceLocation parseInteractionRuleId(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) return null;
+        ResourceLocation id = ResourceLocation.tryParse(String.valueOf(value).trim().toLowerCase(java.util.Locale.ROOT));
+        if (id == null) throw new IllegalArgumentException("An item_into_inventory interaction has an invalid id. " + value);
+        return id;
+    }
+
+    private static RuleLifetime parseInteractionLifetime(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) return RuleLifetime.PERMANENT;
+        return switch (String.valueOf(value).trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "permanent" -> RuleLifetime.PERMANENT;
+            case "live", "temporary" -> RuleLifetime.LIVE;
+            case "duration", "timed" -> RuleLifetime.DURATION;
+            case "latched" -> RuleLifetime.LATCHED;
+            case "session" -> RuleLifetime.SESSION;
+            case "schedule", "scheduled" -> RuleLifetime.SCHEDULE;
+            default -> throw new IllegalArgumentException("An item_into_inventory interaction has an invalid lifetime. " + value);
+        };
+    }
+
+    private static Object firstInteractionCondition(Config entry) {
+        for (String key : List.of("while", "when", "condition", "conditions")) {
+            Object value = entry.getRaw(key);
+            if (value != null) return value;
+        }
+        return null;
+    }
+
+    private static Object normalizeInteractionCondition(Object value) {
+        if (value instanceof Config config) {
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            config.entrySet().forEach(entry -> normalized.put(entry.getKey(), normalizeInteractionCondition(entry.getValue())));
+            return Map.copyOf(normalized);
+        }
+        if (value instanceof List<?> values) {
+            return values.stream().map(StageFileParser::normalizeInteractionCondition).toList();
+        }
+        return value;
+    }
+
+    private static Map<String, Object> interactionActivationSettings(Config entry, ConditionNode resetCondition) {
+        Map<String, Object> settings = new LinkedHashMap<>();
+        for (String key : List.of("duration", "duration_millis", "cooldown", "debounce", "grace",
+                "minimum_active", "minimum_inactive", "refresh", "refresh_duration", "pause_offline", "session")) {
+            Object value = entry.getRaw(key);
+            if (value != null) settings.put(key, value);
+        }
+        if (resetCondition != null) settings.put("reset_condition", resetCondition);
+        return Map.copyOf(settings);
     }
 
     private static List<LockDefinition.MobReplacement> parseMobReplacements(Config config) {

@@ -5,7 +5,10 @@ import com.enviouse.progressivestages.common.lock.LockRegistry;
 import com.enviouse.progressivestages.common.rehaul.SelectorSpec;
 import com.enviouse.progressivestages.common.rehaul.selector.SelectorMatcherRegistry;
 import com.enviouse.progressivestages.common.rehaul.selector.SelectorTarget;
+import com.enviouse.progressivestages.common.rehaul.condition.ConditionContext;
 import com.enviouse.progressivestages.common.stage.StageManager;
+import com.enviouse.progressivestages.server.rehaul.MinecraftConditionContextFactory;
+import com.enviouse.progressivestages.server.rehaul.RehaulRuntime;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -41,10 +44,13 @@ public final class InventoryInsertionEnforcer {
             return Optional.empty();
         }
         SelectorTarget sourceTarget = itemTarget(source.getItem());
+        ConditionContext context = MinecraftConditionContextFactory.create(player, RehaulRuntime.get(), Set.of());
         return resolve(
             LockRegistry.getInstance().getAllInteractionLocksOfType(TYPE),
             stage -> StageManager.getInstance().hasStage(player, stage), sourceTarget,
-            destinationTargets(player, menu, destination))
+            destinationTargets(player, menu, destination),
+            entry -> RehaulRuntime.get().rules().isActivationActive(entry.ruleId, entry.lifetime,
+                entry.condition, entry.resetCondition, entry.activationSettings, context))
             .filter(Decision::denied);
     }
 
@@ -57,7 +63,14 @@ public final class InventoryInsertionEnforcer {
     public static Optional<Decision> resolve(Collection<LockRegistry.InteractionLockEntry> entries,
                                              Predicate<StageId> ownsStage, SelectorTarget source,
                                              Map<String, SelectorTarget> destinations) {
-        return explain(entries, ownsStage, source, destinations)
+        return resolve(entries, ownsStage, source, destinations, entry -> true);
+    }
+
+    private static Optional<Decision> resolve(Collection<LockRegistry.InteractionLockEntry> entries,
+                                              Predicate<StageId> ownsStage, SelectorTarget source,
+                                              Map<String, SelectorTarget> destinations,
+                                              Predicate<LockRegistry.InteractionLockEntry> activationActive) {
+        return explain(entries, ownsStage, source, destinations, activationActive)
             .flatMap(Explanation::winner);
     }
 
@@ -70,6 +83,13 @@ public final class InventoryInsertionEnforcer {
     public static Optional<Explanation> explain(Collection<LockRegistry.InteractionLockEntry> entries,
                                                 Predicate<StageId> ownsStage, SelectorTarget source,
                                                 Map<String, SelectorTarget> destinations) {
+        return explain(entries, ownsStage, source, destinations, entry -> true);
+    }
+
+    private static Optional<Explanation> explain(Collection<LockRegistry.InteractionLockEntry> entries,
+                                                 Predicate<StageId> ownsStage, SelectorTarget source,
+                                                 Map<String, SelectorTarget> destinations,
+                                                 Predicate<LockRegistry.InteractionLockEntry> activationActive) {
         if (entries == null || ownsStage == null || source == null || destinations == null) {
             return Optional.empty();
         }
@@ -79,7 +99,8 @@ public final class InventoryInsertionEnforcer {
             SelectorTarget destination = destinations.get(entry.targetKind);
             if (!TYPE.equals(entry.type) || destination == null) continue;
             if (!matches(entry.heldItem, source) || !matches(entry.targetBlock, destination)) continue;
-            Decision candidate = decision(entry, ownsStage.test(entry.requiredStage), source.id(), entry.targetKind, destination.id());
+            Decision candidate = decision(entry, ownsStage.test(entry.requiredStage), activationActive.test(entry),
+                source.id(), entry.targetKind, destination.id());
             if (matchedDecisions.size() < 32) matchedDecisions.add(candidate);
             if (!candidate.active()) continue;
             if (winner == null || candidate.priority() > winner.priority()
@@ -92,14 +113,15 @@ public final class InventoryInsertionEnforcer {
             Optional.ofNullable(winner)));
     }
 
-    private static Decision decision(LockRegistry.InteractionLockEntry entry, boolean owned,
+    private static Decision decision(LockRegistry.InteractionLockEntry entry, boolean owned, boolean activationActive,
                                      ResourceLocation source, String targetKind, ResourceLocation destination) {
-        boolean active = switch (entry.effect) {
+        boolean stageActive = switch (entry.effect) {
             case "lock", "deny" -> !owned;
             case "allow", "unlock" -> owned;
             case "exclude" -> true;
             default -> false;
         };
+        boolean active = stageActive && activationActive;
         boolean denied = active && ("lock".equals(entry.effect) || "deny".equals(entry.effect));
         return new Decision(entry.requiredStage, entry.effect, entry.priority, source, targetKind, destination,
             entry.description, active, denied);

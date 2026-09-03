@@ -19,6 +19,7 @@ import type { EnchantmentGenerationRule } from "../../lib/enchantments";
 import type { RuleModel, StagePackage } from "../../types";
 
 interface RuleDraft {
+  ruleId: string;
   category: string;
   action: string;
   effect: string;
@@ -31,6 +32,9 @@ interface RuleDraft {
   conditionType: string;
   conditionTarget: string;
   count: number;
+  resetConditionType: string;
+  resetConditionTarget: string;
+  resetCount: number;
   exception: string;
   exceptionPriority: number;
   recipeKind: "output" | "identifier";
@@ -153,11 +157,16 @@ function saveCanonicalRecipeRule(text: string, draft: RuleDraft, previous?: Rule
 
 function saveInventoryInsertionRule(text: string, draft: RuleDraft, previous?: RuleModel): string {
   const block = serializeInventoryInsertionRule({
+    id: draft.ruleId,
     selector: draft.selector,
     targetKind: draft.targetKind,
     destination: draft.destination,
     effect: draft.effect as "lock" | "deny" | "allow" | "unlock" | "exclude",
-    priority: draft.priority
+    priority: draft.priority,
+    lifetime: draft.lifetime,
+    duration: draft.duration,
+    condition: draft.conditionType === "none" ? "" : conditionToml(draft.conditionType, draft.conditionTarget, draft.count),
+    resetCondition: draft.resetConditionType === "none" ? "" : conditionToml(draft.resetConditionType, draft.resetConditionTarget, draft.resetCount)
   });
   if (previous?.table === "interactions") return replaceInteractionGroup(text, previous.tableIndex, block);
   if (previous) {
@@ -183,6 +192,7 @@ function serializeRule(stage: StagePackage, draft: RuleDraft, table: "rules" | "
   if (table === "temporary_rules") lines.push(`lifetime = ${encodeToml(draft.lifetime)}`);
   if (draft.duration) lines.push(`duration = ${encodeToml(draft.duration)}`);
   if (draft.conditionType !== "none") lines.push(`while = ${conditionToml(draft.conditionType, draft.conditionTarget, draft.count)}`);
+  if (draft.resetConditionType !== "none") lines.push(`reset_condition = ${conditionToml(draft.resetConditionType, draft.resetConditionTarget, draft.resetCount)}`);
   if (draft.viewer !== "inherit") {
     lines.push(`presentation.jei = ${encodeToml(draft.viewer)}`);
     lines.push(`presentation.emi = ${encodeToml(draft.viewer)}`);
@@ -198,6 +208,7 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const { boot, mutateFile, closeDialog } = useEditor();
   const initialCategory = rule?.category || "items";
   const [draft, setDraft] = useState<RuleDraft>({
+    ruleId: rule?.id || "",
     category: initialCategory,
     action: rule?.action || CATEGORIES[initialCategory].actions[0],
     effect: rule?.action === "item_into_inventory"
@@ -212,6 +223,9 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     conditionType: rule?.conditionType || "none",
     conditionTarget: rule?.conditionTarget || "",
     count: rule?.count || 1,
+    resetConditionType: rule?.resetConditionType || "none",
+    resetConditionTarget: rule?.resetConditionTarget || "",
+    resetCount: rule?.resetCount || 1,
     exception: rule?.exception || "",
     exceptionPriority: rule?.exceptionPriority || (rule?.priority ?? 100) + 1,
     recipeKind: rule?.recipeKind || "output",
@@ -309,14 +323,17 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
       {!selectsEverything ? <div className="field-wide"><InlineCatalogSearch catalogId={targetCatalog} mode={canonicalRecipe && draft.recipeKind === "identifier" ? "id" : draft.mode} onPick={value => update("selector", canonicalRecipe && draft.recipeKind === "identifier" ? value.replace(/^id:/, "") : value)}/></div> : null}
       </>}
     </div></section>
-    {!inventoryInsertion ? <section className="dialog-section"><header><span className="step-number">2</span><div><h3>Choose when it participates</h3><p>Permanent rules follow stage ownership. Conditional rules can follow locations, events, sessions, and scripts.</p></div></header><div className="form-grid">
+    <section className="dialog-section"><header><span className="step-number">2</span><div><h3>Choose when it participates</h3><p>Permanent rules follow stage ownership. Conditional rules can follow locations, events, sessions, and scripts.</p></div></header><div className="form-grid">
+      {inventoryInsertion ? <Field label="Rule identity" help="Optional. Set this when a timed rule must keep the same timer through reordering."><input value={draft.ruleId} onChange={event => update("ruleId", event.target.value)} placeholder="yourpack:ore_bin_window"/></Field> : null}
       <Field label="Activation condition"><select value={draft.conditionType} onChange={event => update("conditionType", event.target.value)}>{CONDITIONS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></Field>
       <Field label="Condition target" help={condition?.help}><input value={draft.conditionTarget} onChange={event => update("conditionTarget", event.target.value)} placeholder={condition?.catalog ? "Choose a registered identifier" : "Optional value"}/></Field>
       {condition?.catalog ? <div className="field-wide"><InlineCatalogSearch catalogId={condition.catalog} mode="id" onPick={value => update("conditionTarget", value.replace(/^id:/, ""))}/></div> : null}
       <Field label="Required amount"><input type="number" min={1} value={draft.count} onChange={event => update("count", Number(event.target.value))}/></Field>
       <Field label="Lifetime"><select value={draft.lifetime} onChange={event => update("lifetime", event.target.value)}><option value="permanent">Permanent stage rule</option><option value="live">Only while the condition is true</option><option value="duration">Timed after the trigger</option><option value="session">Current session</option><option value="latched">Active until reset</option><option value="schedule">Scheduled lifetime</option></select></Field>
       {draft.lifetime === "duration" || draft.lifetime === "schedule" ? <Field label="Duration or schedule"><input value={draft.duration} onChange={event => update("duration", event.target.value)} placeholder="30s or 5m"/></Field> : null}
-    </div></section> : null}
+      {draft.lifetime !== "permanent" ? <><Field label="Reset condition"><select value={draft.resetConditionType} onChange={event => update("resetConditionType", event.target.value)}>{CONDITIONS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></Field>
+      {draft.resetConditionType !== "none" ? <><Field label="Reset target"><input value={draft.resetConditionTarget} onChange={event => update("resetConditionTarget", event.target.value)} placeholder="Optional value or identifier"/></Field><Field label="Reset amount"><input type="number" min={1} value={draft.resetCount} onChange={event => update("resetCount", Number(event.target.value))}/></Field></> : null}</> : null}
+    </div></section>
     {!inventoryInsertion ? <section className="dialog-section"><header><span className="step-number">3</span><div><h3>Presentation and exception</h3><p>An exception normally needs a larger priority than the broader rule.</p></div></header><div className="form-grid">
       <Field label="JEI and EMI"><select value={draft.viewer} onChange={event => update("viewer", event.target.value)}><option value="inherit">Follow normal policy</option><option value="show">Always show</option><option value="hide">Hide</option><option value="overlay">Show with a locked overlay</option></select></Field>
       <Field label="Optional exception selector"><input value={draft.exception} onChange={event => update("exception", event.target.value)} placeholder="tag:c:swords"/></Field>
@@ -335,7 +352,7 @@ function RuleCard({ stage, rule, index, total, onEdit, onDelete, onMove }:
     : rule.selector;
   return <article className="rule-card-new">
     <div className="rule-card-icon"><Icon name="rules" size={19}/></div>
-    <div className="rule-card-main"><div className="rule-card-title"><strong>{category?.label || title(rule.category)}</strong><Badge tone={rule.effect === "allow" || rule.effect === "unlock" || rule.effect === "exclude" ? "success" : "danger"}>{title(rule.effect)}</Badge><Badge>Priority {rule.priority}</Badge></div><code>{selector}</code><p>{ACTION_LABELS[rule.action] || title(rule.action)}. {rule.table === "interactions" ? "The server checks both selectors before changing the inventory." : rule.conditionType === "none" ? "Follows stage ownership." : `Active during ${CONDITIONS.find(value => value.id === rule.conditionType)?.label.toLowerCase() || title(rule.conditionType)}.`}</p></div>
+    <div className="rule-card-main"><div className="rule-card-title"><strong>{category?.label || title(rule.category)}</strong><Badge tone={rule.effect === "allow" || rule.effect === "unlock" || rule.effect === "exclude" ? "success" : "danger"}>{title(rule.effect)}</Badge><Badge>Priority {rule.priority}</Badge></div><code>{selector}</code><p>{ACTION_LABELS[rule.action] || title(rule.action)}. {rule.table === "interactions" && rule.conditionType === "none" ? "The server checks both selectors before changing the inventory." : rule.conditionType === "none" ? "Follows stage ownership." : `Active during ${CONDITIONS.find(value => value.id === rule.conditionType)?.label.toLowerCase() || title(rule.conditionType)}.`}</p></div>
     <div className="rule-card-actions"><button aria-label="Move rule up" disabled={index === 0 || !movable} onClick={() => onMove(-1)}>↑</button><button aria-label="Move rule down" disabled={index === total - 1 || !movable} onClick={() => onMove(1)}>↓</button><Button tone="quiet" onClick={onEdit}>Edit</Button><Button tone="danger" onClick={onDelete}>Remove</Button></div>
   </article>;
 }

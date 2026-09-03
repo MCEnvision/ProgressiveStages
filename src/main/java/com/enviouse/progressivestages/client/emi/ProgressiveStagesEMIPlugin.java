@@ -41,8 +41,9 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static boolean initialized = false;
-    // Prevent rapid-fire reloads; only allow one pending reload at a time
-    private static final AtomicBoolean reloadPending = new AtomicBoolean(false);
+    // Prevent rapid-fire reloads while allowing a new client session to replace stale queued work.
+    private static final long NO_PENDING_GENERATION = -1L;
+    private static final AtomicLong reloadPendingGeneration = new AtomicLong(NO_PENDING_GENERATION);
     private static final AtomicBoolean clientDisconnecting = new AtomicBoolean(false);
     private static final AtomicLong clientSessionGeneration = new AtomicLong();
 
@@ -393,8 +394,8 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
         var minecraft = net.minecraft.client.Minecraft.getInstance();
         if (!isReloadableClient(minecraft)) return;
 
-        // Debounce: if a reload is already pending, don't queue another
-        if (!reloadPending.compareAndSet(false, true)) {
+        // Debounce within a client session. A later session can replace stale queued work.
+        if (!claimReloadSlot(refreshGeneration)) {
             LOGGER.debug("[ProgressiveStages] EMI reload already pending, skipping duplicate");
             return;
         }
@@ -405,8 +406,11 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
             // Schedule on the main render thread with a small delay to let data settle
             minecraft.execute(() -> {
                 try {
-                    if (!isCurrentSession(refreshGeneration, minecraft)) return;
-                    reloadPending.set(false);
+                    if (!isCurrentSession(refreshGeneration, minecraft)) {
+                        releaseReloadSlot(refreshGeneration);
+                        return;
+                    }
+                    releaseReloadSlot(refreshGeneration);
                     if (!isCurrentSession(refreshGeneration, minecraft)) return;
                     LOGGER.info("[ProgressiveStages] Triggering EMI reload. Current stages: {}", ClientStageCache.getStages());
 
@@ -421,12 +425,12 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
 
                     LOGGER.info("[ProgressiveStages] EMI reload triggered successfully");
                 } catch (Exception e) {
-                    clearPendingForCurrentSession(refreshGeneration);
+                    releaseReloadSlot(refreshGeneration);
                     LOGGER.error("[ProgressiveStages] Failed to trigger EMI reload: {}", e.getMessage());
                 }
             });
         } catch (Exception e) {
-            clearPendingForCurrentSession(refreshGeneration);
+            releaseReloadSlot(refreshGeneration);
             LOGGER.error("[ProgressiveStages] Failed to schedule EMI reload: {}", e.getMessage());
         }
     }
@@ -435,7 +439,7 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
     public static void beginClientDisconnect() {
         clientDisconnecting.set(true);
         clientSessionGeneration.incrementAndGet();
-        reloadPending.set(false);
+        reloadPendingGeneration.set(NO_PENDING_GENERATION);
     }
 
     /** Permit viewer refreshes for a new connected client session. */
@@ -452,8 +456,16 @@ public class ProgressiveStagesEMIPlugin implements EmiPlugin {
             && isReloadableClient(minecraft);
     }
 
-    private static void clearPendingForCurrentSession(long refreshGeneration) {
-        if (clientSessionGeneration.get() == refreshGeneration) reloadPending.set(false);
+    private static boolean claimReloadSlot(long refreshGeneration) {
+        while (true) {
+            long pendingGeneration = reloadPendingGeneration.get();
+            if (pendingGeneration == refreshGeneration) return false;
+            if (reloadPendingGeneration.compareAndSet(pendingGeneration, refreshGeneration)) return true;
+        }
+    }
+
+    private static void releaseReloadSlot(long refreshGeneration) {
+        reloadPendingGeneration.compareAndSet(refreshGeneration, NO_PENDING_GENERATION);
     }
 
     /**

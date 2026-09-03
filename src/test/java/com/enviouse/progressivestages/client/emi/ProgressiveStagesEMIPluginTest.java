@@ -22,8 +22,11 @@ class ProgressiveStagesEMIPluginTest {
         assertTrue(source.contains("if (!initialized || clientDisconnecting.get())"));
         assertTrue(source.contains("if (clientDisconnecting.get() || !isReloadableClient(minecraft)) return;"));
         assertTrue(source.contains("minecraft.level != null && minecraft.player != null"));
-        assertTrue(eventHandler.indexOf("EmiLifecycleBridge.beginClientDisconnect()")
-            < eventHandler.indexOf("ClientStageCache.clear()"));
+        int disconnectBridge = eventHandler.indexOf("EmiLifecycleBridge.beginClientDisconnect()");
+        int cacheClear = eventHandler.indexOf("ClientStageCache.clear()");
+        assertTrue(disconnectBridge >= 0);
+        assertTrue(cacheClear >= 0);
+        assertTrue(disconnectBridge < cacheClear);
         assertTrue(eventHandler.contains("EmiLifecycleBridge.endClientDisconnect()"));
         assertTrue(!eventHandler.contains("client.emi.ProgressiveStagesEMIPlugin"));
         assertTrue(bridge.contains("ModList.get().isLoaded(\"emi\")"));

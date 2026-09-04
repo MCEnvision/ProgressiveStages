@@ -43,10 +43,14 @@ public final class InventoryInsertionEnforcer {
         if (player == null || menu == null || destination == null || source == null || source.isEmpty()) {
             return Optional.empty();
         }
+        Collection<LockRegistry.InteractionLockEntry> entries = LockRegistry.getInstance()
+            .getAllInteractionLocksOfType(TYPE);
+        if (entries.isEmpty()) {
+            return Optional.empty();
+        }
         SelectorTarget sourceTarget = itemTarget(source.getItem());
         ConditionContext context = MinecraftConditionContextFactory.create(player, RehaulRuntime.get(), Set.of());
-        return resolve(
-            LockRegistry.getInstance().getAllInteractionLocksOfType(TYPE),
+        return resolve(entries,
             stage -> StageManager.getInstance().hasStage(player, stage), sourceTarget,
             destinationTargets(player, menu, destination),
             entry -> RehaulRuntime.get().rules().isActivationActive(entry.ruleId, entry.lifetime,
@@ -158,9 +162,14 @@ public final class InventoryInsertionEnforcer {
     }
 
     private static Optional<SelectorTarget> menuTarget(AbstractContainerMenu menu) {
-        ResourceLocation id = BuiltInRegistries.MENU.getKey(menu.getType());
-        return id == null ? Optional.empty() : Optional.of(new SelectorTarget(id, Registries.MENU.location(),
-            tags(BuiltInRegistries.MENU.wrapAsHolder(menu.getType())), java.util.Map.of()));
+        try {
+            var menuType = menu.getType();
+            ResourceLocation id = BuiltInRegistries.MENU.getKey(menuType);
+            return id == null ? Optional.empty() : Optional.of(new SelectorTarget(id, Registries.MENU.location(),
+                tags(BuiltInRegistries.MENU.wrapAsHolder(menuType)), java.util.Map.of()));
+        } catch (UnsupportedOperationException ignored) {
+            return Optional.empty();
+        }
     }
 
     private static Set<ResourceLocation> tags(Holder<?> holder) {

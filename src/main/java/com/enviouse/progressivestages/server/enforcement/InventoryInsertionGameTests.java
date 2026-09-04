@@ -24,6 +24,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.FurnaceMenu;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -427,6 +428,33 @@ public final class InventoryInsertionGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", batch = "armor_without_insertion_rule")
+    public static void survivalArmorPlacementStaysVanillaWithoutAnInsertionRule(GameTestHelper helper) {
+        TestServerPlayer player = detachedPlayer(helper);
+        InventoryMenu menu = new InventoryMenu(player.getInventory(), true, player);
+        LockRegistry registry = LockRegistry.getInstance();
+        StageOrder order = StageOrder.getInstance();
+        int helmetSlot = armorSlot(menu, new ItemStack(Items.LEATHER_HELMET));
+
+        registry.clear();
+        order.clear();
+        menu.setCarried(new ItemStack(Items.LEATHER_HELMET));
+
+        try {
+            menu.clicked(helmetSlot, 0, ClickType.PICKUP, player);
+            helper.assertTrue(menu.slots.get(helmetSlot).getItem().is(Items.LEATHER_HELMET),
+                "an armor slot must accept unrestricted armor when no insertion rule matches");
+            helper.assertTrue(menu.getCarried().isEmpty(),
+                "an accepted unrestricted armor placement must clear the carried stack");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Survival armor placement without an insertion rule failed. " + failure.getMessage());
+        } finally {
+            registry.clear();
+            order.clear();
+        }
+    }
+
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void sharedContainerKeepsEachPlayersStageDecisionIndependent(GameTestHelper helper) {
         TestServerPlayer deniedPlayer = detachedPlayer(helper);
@@ -716,6 +744,13 @@ public final class InventoryInsertionGameTests {
             if (slot.container == player.getInventory() && slot.getContainerSlot() == inventorySlot) return index;
         }
         throw new IllegalStateException("Player inventory slot is missing from the menu");
+    }
+
+    private static int armorSlot(InventoryMenu menu, ItemStack stack) {
+        for (int index = InventoryMenu.ARMOR_SLOT_START; index < InventoryMenu.ARMOR_SLOT_END; index++) {
+            if (menu.slots.get(index).mayPlace(stack)) return index;
+        }
+        throw new IllegalStateException("Armor destination slot is missing from the player inventory menu");
     }
 
     private static void quickCraft(ChestMenu menu, int destinationSlot, ServerPlayer player) {

@@ -25,6 +25,10 @@
 > It also adds `item_into_inventory` interaction rules for server-authoritative player insertion
 > gates with paired item and inventory selectors.
 
+> **3.0.4-fix maintenance release:** Survival players can place armor into armor slots when no
+> matching `item_into_inventory` rule applies. Menus without a registered menu type no longer
+> reject normal armor placement, while configured inventory insertion rules remain enforced.
+
 > **New to stage mods?** Start with [GETTING_STARTED.md](GETTING_STARTED.md), copy the tested
 > [beginner pack](examples/beginner_pack/README.md), and return here when the beginner guide links
 > to a specific advanced feature. Release maintainers should also follow

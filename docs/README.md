@@ -6,6 +6,7 @@ Use this page to find the maintained project documentation.
 
 - [Project overview and installation](../README.md)
 - [Complete configuration and technical documentation](../DOCUMENTATION.md)
+- [Project wiki](https://github.com/MCEnvision/ProgressiveStages/wiki)
 - [Active implementation plan](../plan.md)
 
 ## Verification
@@ -22,7 +23,7 @@ Use this page to find the maintained project documentation.
 
 ## Release Notes
 
-- [ProgressiveStages 3.0.4 candidate](release/3.0.4.md)
+- [ProgressiveStages 3.0.4 and 3.0.4-fix](release/3.0.4.md)
 - [ProgressiveStages 3.0.3](release/3.0.3.md)
 
 The tracked repository documentation is the source of truth. Release pages and the project wiki

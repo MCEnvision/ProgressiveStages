@@ -4,7 +4,7 @@
 
 A NeoForge mod for Minecraft 1.21.1 that gives modpack developers complete control over stage-based progression. Define stages as TOML files; ProgressiveStages locks items, blocks, entities, fluids, dimensions, recipes, enchantments, crops, mob spawns, pets, regions, structures, screens, and player interactions until the player has earned the right stage(s).
 
-**ProgressiveStages 3.0.4** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
+**ProgressiveStages 3.0.4-fix** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
 
 ---
 
@@ -48,7 +48,11 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 
 ---
 
-## What's new in 3.0.4
+## What's new in 3.0.4 and 3.0.4-fix
+
+- **Survival armor-slot correction.** Players can place armor into armor slots when no matching
+  `item_into_inventory` lock applies. Configured inventory insertion rules still enforce their
+  matching item and destination selectors.
 
 - **Stage aware enchantment generation.** `[enchants].max_levels` and
   `[enchants].selection_weights` now shape enchanting table choices and player aware enchanted loot

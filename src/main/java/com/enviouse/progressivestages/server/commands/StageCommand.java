@@ -389,7 +389,7 @@ public class StageCommand {
 
             .then(Commands.literal("debug")
                 .requires(source -> source.hasPermission(3))
-                .then(Commands.literal("interactions")
+                .then(Commands.literal("interactions").requires(source -> source.hasPermission(3))
                     .then(Commands.literal("on").requires(source -> source.hasPermission(3))
                         .then(Commands.argument("player", EntityArgument.player())
                             .executes(StageCommand::startInteractionCapture)))

@@ -109,7 +109,7 @@ class CaptureIdentityTest {
             directory.resolve("capture.log"), 100, identity);
         capture.recordLine(100, () -> "{}\n");
         capture.recordLine(101, () -> "x".repeat(InteractionCaptureManager.MAX_OUTPUT_BYTES));
-        assertEquals("output_limit", capture.status().stopReason());
+        assertEquals("byte_limit", capture.status().stopReason());
         capture.startWriter();
         assertTimeoutPreemptively(java.time.Duration.ofSeconds(5), () -> {
             while (!capture.canReplace()) Thread.sleep(5);

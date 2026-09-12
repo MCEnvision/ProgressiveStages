@@ -341,6 +341,7 @@ reloads the current source and asks for a new review before applying.
 
 Diagnostic capture status shows the category, remaining limits, and writer completion.
 Capture headers identify the candidate archives and captured effective configuration.
+`/stage debug editor` also records authenticated draft operations and apply outcomes.
 See the [capture procedure](docs/troubleshooting/interaction-locks.md) before collecting support logs.
 
 The selected LuckPerms 5.4.140 candidate fails player login on NeoForge 21.1.248 even without

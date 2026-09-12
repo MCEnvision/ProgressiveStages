@@ -29,7 +29,10 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 /**
@@ -113,6 +116,29 @@ public final class InteractionCaptureManager {
         stop(StopReason.RELOAD);
     }
 
+    public static EditorOperation beginEditor(ServerPlayer player) {
+        Capture capture = active;
+        if (capture == null || player == null || !capture.accepts("editor", player.getUUID())) return null;
+        return capture.beginEditor(player.getServer().getTickCount());
+    }
+
+    public static final class EditorOperation {
+        private final CompletableFuture<EditorCaptureRecord> observation = new CompletableFuture<>();
+        private final int sequence;
+        private final long tick;
+
+        private EditorOperation(int sequence, long tick) {
+            this.sequence = sequence;
+            this.tick = tick;
+        }
+
+        public void complete(EditorCaptureRecord record) { observation.complete(record); }
+
+        public void fail() { observation.completeExceptionally(new IllegalStateException("Editor observation failed")); }
+    }
+
+    private record QueuedRecord(String line, EditorOperation editor, int reservedBytes) {}
+
     public static void stopForShutdown() {
         stop(StopReason.SHUTDOWN);
     }
@@ -180,8 +206,8 @@ public final class InteractionCaptureManager {
     }
 
     public enum StopReason {
-        MANUAL("manual"), TIMEOUT("timeout"), DECISION_LIMIT("decision_limit"),
-        RATE_LIMIT("rate_limit"), OUTPUT_LIMIT("output_limit"), QUEUE_LIMIT("queue_limit"),
+        MANUAL("manual"), TIMEOUT("timeout"), DECISION_LIMIT("sample_limit"),
+        RATE_LIMIT("rate_limit"), OUTPUT_LIMIT("byte_limit"), QUEUE_LIMIT("queue_limit"),
         OUTPUT_ERROR("output_error"), TARGET_REMOVED("target_removed"), RELOAD("reload"),
         SHUTDOWN("shutdown"), RESTART("restart");
 
@@ -196,7 +222,7 @@ public final class InteractionCaptureManager {
         private final String category;
         private final Path output;
         private final long startedTick;
-        private final ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<>(MAX_QUEUE);
+        private final ArrayBlockingQueue<QueuedRecord> queue = new ArrayBlockingQueue<>(MAX_QUEUE);
         private volatile boolean active = true;
         private volatile StopReason stopReason;
         private volatile int records;
@@ -297,22 +323,38 @@ public final class InteractionCaptureManager {
         }
 
         synchronized void recordLine(long tick, Supplier<String> record) {
-            if (!active) return;
-            checkTimeout(tick);
-            if (!active) return;
-            if (records >= MAX_DECISIONS) { stop(StopReason.DECISION_LIMIT); return; }
-            if (tick - rateWindowStart >= 20L) { rateWindowStart = tick; rateWindowRecords = 0; }
-            if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) { stop(StopReason.RATE_LIMIT); return; }
+            if (!acceptRecord(tick)) return;
             String line = record.get();
-            int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
-            if (lineBytes > MAX_OUTPUT_BYTES - reservedHeaderBytes - bytes) { stop(StopReason.OUTPUT_LIMIT); return; }
-            if (!queue.offer(line)) { dropped++; stop(StopReason.QUEUE_LIMIT); return; }
+            enqueue(new QueuedRecord(line, null, line.getBytes(StandardCharsets.UTF_8).length));
+        }
+
+        synchronized EditorOperation beginEditor(long tick) {
+            if (!category.equals("editor") || !acceptRecord(tick)) return null;
+            EditorOperation operation = new EditorOperation(records + 1, tick);
+            return enqueue(new QueuedRecord(null, operation, EditorCaptureRecord.MAX_BYTES)) ? operation : null;
+        }
+
+        private boolean acceptRecord(long tick) {
+            if (!active) return false;
+            checkTimeout(tick);
+            if (!active) return false;
+            if (records >= MAX_DECISIONS) { stop(StopReason.DECISION_LIMIT); return false; }
+            if (tick - rateWindowStart >= 20L) { rateWindowStart = tick; rateWindowRecords = 0; }
+            if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) { stop(StopReason.RATE_LIMIT); return false; }
+            return true;
+        }
+
+        private boolean enqueue(QueuedRecord record) {
+            int lineBytes = record.reservedBytes();
+            if (lineBytes > MAX_OUTPUT_BYTES - reservedHeaderBytes - bytes) { stop(StopReason.OUTPUT_LIMIT); return false; }
+            if (!queue.offer(record)) { dropped++; stop(StopReason.QUEUE_LIMIT); return false; }
             records++;
             rateWindowRecords++;
             bytes += lineBytes;
             if (bytes == MAX_OUTPUT_BYTES) stop(StopReason.OUTPUT_LIMIT);
             else if (records == MAX_DECISIONS) stop(StopReason.DECISION_LIMIT);
             else if (rateWindowRecords == MAX_DECISIONS_PER_SECOND) stop(StopReason.RATE_LIMIT);
+            return true;
         }
 
         synchronized void stop(StopReason reason) {
@@ -395,6 +437,7 @@ public final class InteractionCaptureManager {
         }
 
         private void write() {
+            QueuedRecord current = null;
             try {
                 Files.createDirectories(output.getParent());
                 try (BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.UTF_8,
@@ -410,14 +453,32 @@ public final class InteractionCaptureManager {
                         writer.write(header);
                     }
                     while (active || !queue.isEmpty()) {
-                        String line = queue.poll(100, TimeUnit.MILLISECONDS);
-                        if (line != null && !line.isEmpty()) writer.write(line);
+                        QueuedRecord record = queue.poll(100, TimeUnit.MILLISECONDS);
+                        if (record == null) continue;
+                        current = record;
+                        String line = record.line();
+                        if (record.editor() != null) {
+                            EditorOperation operation = record.editor();
+                            try {
+                                line = operation.observation.get(MAX_SECONDS, TimeUnit.SECONDS)
+                                    .line(id, operation.sequence, operation.tick);
+                            } catch (ExecutionException | TimeoutException failure) {
+                                throw new IOException("Editor observation could not finish", failure);
+                            }
+                            int actualBytes = line.getBytes(StandardCharsets.UTF_8).length;
+                            if (actualBytes > record.reservedBytes()) throw new IOException("Editor observation exceeds its reserved limit");
+                            synchronized (this) { bytes += actualBytes - record.reservedBytes(); }
+                        }
+                        if (!line.isEmpty()) writer.write(line);
+                        current = null;
                     }
                 }
             } catch (IOException | RuntimeException exception) {
+                if (current != null) { synchronized (this) { dropped++; } }
                 failOutput();
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
+                if (current != null) { synchronized (this) { dropped++; } }
                 failOutput();
             } finally {
                 writerFinished = true;

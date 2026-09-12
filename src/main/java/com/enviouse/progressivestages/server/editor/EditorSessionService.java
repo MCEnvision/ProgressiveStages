@@ -100,9 +100,12 @@ public final class EditorSessionService {
         String action = string(request, "action", "bootstrap");
         EditorDraft draft = drafts.get(session.draftId);
         if (draft == null) return error("missing_draft", "The editor draft no longer exists");
+        EditorCapture capture = EditorCapture.begin(operator, draft, action, request);
+        Object response = null;
+        String failureCode = "";
         try {
             if (normalizeLegacyRecipeRules(operator.getUUID(), draft)) persist(draft);
-            Object response = switch (action) {
+            response = switch (action) {
                 case "bootstrap" -> bootstrap(session, draft);
                 case "catalog" -> catalog(request);
                 case "mutate" -> mutate(operator, draft, request);
@@ -131,10 +134,14 @@ public final class EditorSessionService {
             };
             return GSON.toJson(response);
         } catch (EditorDraft.DraftConflictException conflict) {
+            failureCode = "draft_conflict";
             return GSON.toJson(Map.of("error", "draft_conflict", "currentRevision", conflict.currentRevision(),
                 "explanation", "The draft changed. Review the current changes before trying again."));
         } catch (RuntimeException failure) {
+            failureCode = "request_failed";
             return error("request_failed", failure.getMessage());
+        } finally {
+            if (capture != null) capture.finish(operator, draft, response, failureCode);
         }
     }
 

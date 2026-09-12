@@ -21,7 +21,7 @@ public final class DiagnosticCaptureGameTests {
         var level = helper.getLevel();
         var server = level.getServer();
         var debug = server.getCommands().getDispatcher().getRoot().getChild("stage").getChild("debug");
-        for (String category : java.util.List.of("interactions", "progression", "permissions")) {
+        for (String category : java.util.List.of("interactions", "progression", "permissions", "editor")) {
             var command = debug.getChild(category);
             helper.assertTrue(command != null && command.getChild("status") != null
                     && command.getChild("on") != null && command.getChild("off") != null,

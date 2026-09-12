@@ -64,3 +64,36 @@ reviewed revision are also rejected; reopen the editor to load the matching pack
 
 If the tab reports `403 Forbidden`, close it and open `/pstages editor` again from a permission
 level 3 operator. The token belongs to one loopback session and cannot be reused in an older tab.
+
+
+## Editor operation capture
+
+An operator with permission level 3 or the server console can capture one online player's editor
+operations with `/stage debug editor on <player>`. Use `/stage debug editor status` for the
+server selected output path, limits and writer state, and `/stage debug editor off` to stop.
+This uses the same single capture as interactions, progression and permissions. A second capture
+is rejected while one is active or draining, and stopping an inactive capture is harmless.
+
+Authenticated draft operations record the action, requested and actual draft revisions, installed
+definition and apply revisions, validation outcome, and before and after source digests. These
+source digests cover the package file map, including comments and unknown fields, without emitting
+file paths, source text, session tokens or error messages. They differ from the header's effective
+configuration fingerprint. Current operation records identify the whole draft as their field;
+more specific validation rows and complete capability observations remain acceptance work.
+
+A record is reserved when an operation begins. A reload stops new observations immediately, while
+an already accepted apply record can finish with its result and installed revision. The writer
+waits at most 60 seconds for an accepted operation to complete and reports output failure if it
+cannot. No new operation is accepted after stop. Source hashing and record serialization run on
+the writer thread; the server supplies immutable before and after snapshots. Status bytes include
+up to 4096 reserved bytes for each pending editor operation until its actual output size is known.
+All reservations and the capture header share the 128 KiB limit. The usual 60 second, 200 sample,
+20 sample per second and 256 queued record limits still apply. Exhaustion reports `sample_limit`
+or `byte_limit`, with `rate_limit` and the existing lifecycle reasons where appropriate.
+
+Use `invalid_field` with `validation_failed` to identify a rejected apply, `stale_revision` for a
+revision conflict, and `applied` with matching apply and definition revisions for a successful
+transaction. A draft edit uses `draft_changed`; `source_preserved` and equal source digests identify
+an unchanged source observation. Provider state is `not_observed` unless the operation already
+produced an authoritative capability response. Do not interpret that value as provider readiness.
+Use the [capture privacy and lifecycle guide](interaction-locks.md) when collecting a support report.

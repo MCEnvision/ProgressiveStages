@@ -4789,3 +4789,25 @@ in the [3.0.5 verification record](docs/verification/3.0.5-acceptance.md).
 ---
 
 *End of document.*
+
+
+### Editor operation capture
+
+The `/stage debug editor on <player>`, `status`, and `off` controls share the existing manager,
+authority and output budgets. `EditorSessionService` observes authenticated operations after
+resolving the draft. The disabled path returns before snapshot allocation. Accepted operations
+reserve one queue entry and 4096 output bytes before mutation, validation or reload. The existing
+writer processes the immutable completion snapshot, hashes both source file maps and replaces the
+reservation with the actual UTF8 output size. Failure or timeout stops diagnostics without
+altering the editor response. No session secret, raw request, source path, source text or exception
+message enters the output.
+
+Reload prevents new observations while a previously accepted apply operation can finish its
+reserved record. This correlates the final apply and definition revisions without restarting
+capture or extending its authority to another operation. The manager drains accepted records
+within the shared output limit; an incomplete editor observation fails after 60 seconds. Stop
+reasons use `sample_limit` and `byte_limit` for the corresponding shared limits.
+
+Current editor records cover draft operation and apply outcomes. Owning field and row diagnostics,
+full capability detail, positive joined player controls and packaged browser acceptance remain
+separate gates. See the [editor capture procedure](docs/troubleshooting/easy-builder.md).

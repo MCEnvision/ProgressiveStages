@@ -73,7 +73,7 @@ class DiagnosticCaptureTest {
         var capture = capture();
         for (int i = 0; i < MAX_DECISIONS; i++) capture.recordLine(100 + (i / 19) * 20L, () -> "{}\n");
         assertEquals(200, capture.status().records());
-        assertEquals("decision_limit", capture.status().stopReason());
+        assertEquals("sample_limit", capture.status().stopReason());
         assertTrue(capture.status().queued() <= MAX_QUEUE);
     }
 
@@ -83,7 +83,7 @@ class DiagnosticCaptureTest {
         String first = "é".repeat(MAX_OUTPUT_BYTES / 2 - 1);
         capture.recordLine(100, () -> first);
         capture.recordLine(101, () -> "€");
-        assertEquals("output_limit", capture.status().stopReason());
+        assertEquals("byte_limit", capture.status().stopReason());
         assertEquals(MAX_OUTPUT_BYTES - 2, capture.status().bytes());
         assertEquals(1, capture.status().records());
         capture.startWriter();
@@ -96,7 +96,7 @@ class DiagnosticCaptureTest {
         var capture = capture();
         capture.recordLine(100, () -> "x".repeat(MAX_OUTPUT_BYTES));
         assertFalse(capture.status().active());
-        assertEquals("output_limit", capture.status().stopReason());
+        assertEquals("byte_limit", capture.status().stopReason());
         assertEquals(MAX_OUTPUT_BYTES, capture.status().bytes());
     }
 

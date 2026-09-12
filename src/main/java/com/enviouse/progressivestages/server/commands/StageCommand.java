@@ -424,7 +424,15 @@ public class StageCommand {
                     .then(Commands.literal("status").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::permissionsCaptureStatus))
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
-                        .executes(StageCommand::stopPermissionsCapture))))
+                        .executes(StageCommand::stopPermissionsCapture)))
+                .then(Commands.literal("editor").requires(source -> source.hasPermission(3))
+                    .then(Commands.literal("on").requires(source -> source.hasPermission(3))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(context -> startCapture(context, EntityArgument.getPlayer(context, "player"), "editor"))))
+                    .then(Commands.literal("status").requires(source -> source.hasPermission(3))
+                        .executes(context -> captureStatus(context, "editor")))
+                    .then(Commands.literal("off").requires(source -> source.hasPermission(3))
+                        .executes(context -> stopCapture(context, "editor")))))
         );
 
         // Friendly public command aliases.

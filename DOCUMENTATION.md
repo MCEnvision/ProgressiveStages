@@ -4282,6 +4282,7 @@ ProgressiveStages syncs three pieces of state to the client:
 | Stage definitions (id, display name, deps, icon) | (in `ClientStageCache`) | `STAGE_DEFINITIONS_SYNC_PACKET` |
 | Creative bypass flag | (in `ClientStageCache`) | `CREATIVE_BYPASS_PACKET` |
 | Reveal-stage-names policy | (in `ClientStageCache`) | `REVEAL_POLICY_PACKET` |
+| Direct interaction selector pairs and enforcement flag | `ClientCompiledSnapshotCache` | Existing compiled snapshot manifest and chunks |
 
 Sync strategy:
 
@@ -4297,6 +4298,30 @@ using NeoForge's `PayloadRegistrar`. Packets are bound to the mod's
 `Constants.STAGE_SYNC_PACKET` etc. resource locations.
 
 ---
+
+The compiled snapshot includes an optional `interaction_prediction` capability. Its bounded,
+checksummed payload carries the stage ID, held item selector, target block selector, and whether
+a nonempty item is required for each `item_on_block` or `block_right_click` rule. It also carries
+the server interaction enforcement flag. An additive framed section preserves protocol 2 and
+the existing stage presentation bytes. Older clients can retain the snapshot without reading
+this section. New clients receiving an older snapshot leave interaction prediction disabled.
+The existing 16 MiB snapshot limit and 24 KiB compressed chunks remain unchanged.
+
+Only a complete, checksum verified snapshot activates its interaction rules. A malformed section
+cannot replace the previous valid rules. Snapshot deltas require the exact acknowledged revision
+and checksum, including when an enforcement setting changes without a different stage revision.
+The cache clears on disconnect. Definition reloads replace the rules, while ordinary effective
+stage updates immediately change their missing stage checks. Creative bypass uses the existing
+server supplied bypass flag.
+
+The client `RightClickBlock` handler returns `FAIL` for a missing stage before local block or item
+prediction. The normal server use packet still runs the authoritative checks and feedback. This
+also ends the current click before item use or another hand can continue locally. Tag selectors
+use current client registry holders. Empty hands do not match item rules, unrelated items and
+blocks remain available, and independent `block_right_click` rules control whole block access.
+GUI insertion remains a separate server enforced `item_into_inventory` policy. See the
+[interaction verification record](docs/verification/selling-bin-interaction-repair.md) for the
+remaining physical client acceptance gates.
 
 ## 17. Troubleshooting
 

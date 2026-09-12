@@ -544,7 +544,8 @@ public class NetworkHandler {
     /** v3.0: per-player skill-tree purchase cooldown tracking (transient, in-memory). */
     private static final java.util.Map<java.util.UUID, Long> lastPurchase = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private static final java.util.Map<java.util.UUID, Long> acknowledgedClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
+    private record SnapshotAcknowledgement(long revision, String checksum) {}
+    private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> acknowledgedClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<java.util.UUID, Integer> challengeHudFingerprints = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<Long, byte[]> clientSnapshotHistory = java.util.Collections.synchronizedMap(
         new java.util.LinkedHashMap<>() {
@@ -566,16 +567,25 @@ public class NetworkHandler {
     }
 
     public static void sendCompiledSnapshot(ServerPlayer player) {
-        long base = acknowledgedClientSnapshots.getOrDefault(player.getUUID(), 0L);
+        var acknowledged = acknowledgedClientSnapshots.get(player.getUUID());
+        long base = acknowledged == null ? 0 : acknowledged.revision();
         sendCompiledSnapshot(player, base);
     }
 
     private static void sendCompiledSnapshot(ServerPlayer player, long base) {
         var snapshot = com.enviouse.progressivestages.server.loader.StageFileLoader.getInstance().getCompiledSnapshot();
         byte[] baseBytes = clientSnapshotHistory.get(base);
-        var prepared = com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.prepare(snapshot, base, baseBytes);
+        var acknowledged = acknowledgedClientSnapshots.get(player.getUUID());
+        if (acknowledged == null || acknowledged.revision() != base || baseBytes == null
+                || !acknowledged.checksum().equals(
+                    com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.checksum(baseBytes))) {
+            baseBytes = null;
+        }
+        boolean blockInteractions = com.enviouse.progressivestages.common.config.StageConfig.isBlockInteractions();
+        var prepared = com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.prepare(
+            snapshot, base, baseBytes, blockInteractions);
         clientSnapshotHistory.put(snapshot.revision(),
-            com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.encode(snapshot));
+            com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.encode(snapshot, blockInteractions));
         PacketDistributor.sendToPlayer(player, new ClientSnapshotManifestPayload(prepared.manifest()));
         for (var chunk : prepared.chunks()) {
             PacketDistributor.sendToPlayer(player, new ClientSnapshotChunkPayload(chunk));
@@ -606,9 +616,12 @@ public class NetworkHandler {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
                 var snapshot = com.enviouse.progressivestages.server.loader.StageFileLoader.getInstance().getCompiledSnapshot();
-                var expected = com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.prepare(snapshot, 0).manifest();
+                var expected = com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.prepare(
+                    snapshot, 0, null,
+                    com.enviouse.progressivestages.common.config.StageConfig.isBlockInteractions()).manifest();
                 if (payload.revision() == snapshot.revision() && payload.checksum().equals(expected.checksum())) {
-                    acknowledgedClientSnapshots.put(player.getUUID(), payload.revision());
+                    acknowledgedClientSnapshots.put(player.getUUID(),
+                        new SnapshotAcknowledgement(payload.revision(), payload.checksum()));
                 }
             }
         });

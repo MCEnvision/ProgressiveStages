@@ -3,6 +3,7 @@ package com.enviouse.progressivestages.client;
 import com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotAssembler;
 import com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotChunk;
 import com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotManifest;
+import com.enviouse.progressivestages.common.rehaul.client.InteractionPrediction;
 
 import java.util.Optional;
 
@@ -11,6 +12,7 @@ public final class ClientCompiledSnapshotCache {
     private static volatile long revision;
     private static volatile String checksum = "";
     private static volatile byte[] active = new byte[0];
+    private static volatile InteractionPrediction interactions = InteractionPrediction.EMPTY;
 
     private ClientCompiledSnapshotCache() {}
 
@@ -39,7 +41,10 @@ public final class ClientCompiledSnapshotCache {
             ASSEMBLER.clear();
             throw new IllegalArgumentException("Client snapshot activation checksum does not match");
         }
+        InteractionPrediction nextInteractions = manifest.capabilities().contains(InteractionPrediction.CAPABILITY)
+            ? InteractionPrediction.read(next) : InteractionPrediction.EMPTY;
         active = next.clone();
+        interactions = nextInteractions;
         revision = manifest.configurationRevision();
         checksum = manifest.checksum();
         pendingManifest = null;
@@ -49,6 +54,7 @@ public final class ClientCompiledSnapshotCache {
     public static long revision() { return revision; }
     public static String checksum() { return checksum; }
     public static byte[] activeBytes() { return active.clone(); }
+    public static InteractionPrediction interactions() { return interactions; }
 
     public static synchronized void clear() {
         ASSEMBLER.clear();
@@ -56,5 +62,6 @@ public final class ClientCompiledSnapshotCache {
         revision = 0;
         checksum = "";
         active = new byte[0];
+        interactions = InteractionPrediction.EMPTY;
     }
 }

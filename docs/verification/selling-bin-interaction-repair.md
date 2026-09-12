@@ -126,3 +126,72 @@ worlds. The 837 preexisting build entries, 26 preexisting local Gradle entries, 
 shared caches and preexisting investigation runtime were preserved. Temporary decompiled
 third party source, duplicate binary excerpts and scratch logs were removed after their final
 consumer. This suite created no laptop or browser resources.
+
+## Client prediction repair on NeoForge 21.1.248
+
+The followup based on `1f78561f4a95f0e280e5842cbe164223df1e1448` adds a client
+`RightClickBlock` guard and an additive `interaction_prediction` section to the existing compiled
+snapshot. It carries stage IDs and exact selector pairs, including whether a nonempty held
+stack is required, plus the server interaction enforcement flag. It uses the existing 16 MiB
+snapshot limit, 24 KiB compressed chunks, checksum, delta and atomic activation path. No new
+payload channel, public schema field, third party dependency or mixin is introduced.
+
+The client matches live registry holders and current effective stage ownership. A missing
+stage returns terminal `FAIL` before local block or item prediction. The ordinary server use
+request retains authority, denial feedback and inventory correction. Creative bypass uses the
+existing server supplied flag. Empty hands remain outside item rules, unrelated items and
+blocks remain usable, and whole block access remains independent. Older snapshot capabilities
+disable the new prediction guard, while older clients can retain the additive snapshot bytes.
+Definition reload replaces selector pairs only after checksum verification, and disconnect
+clears them. Snapshot delta selection also checks the exact acknowledged checksum so a reused
+revision with different enforcement state cannot select the wrong base.
+
+The NeoForge 21.1.248 userdev patch independently confirms that
+`MultiPlayerGameMode.performUseItemOn` calls the existing event before item and block prediction
+and returns its cancellation result. The inspected userdev JAR SHA256 is
+`9278d08154a82927391ed5257481f56d6d0fcb147822c6a79ec9b5129799e79a`.
+This revalidates the event boundary under the selected loader. It does not replace physical
+input, actual client continuation, visible reconciliation or reconnect acceptance.
+
+On September 12, 2026, the Java 21 wrapper command
+`./gradlew test build --no-configuration-cache --no-daemon --console=plain` passed
+253 tests across 88 suites, with zero failures, errors or skips. Seven new tests cover parsed
+bread pairs, unrelated items and blocks, empty hands, wildcard and independent whole block
+access, multiple gating stages, grant and revoke, modern and legacy armor tags with live
+holder membership changes, disabled enforcement, partial snapshot activation, delta replacement,
+legacy capabilities, disconnect clearing, and rejection of malformed counts, lengths and
+footers without replacing valid rules. The tag fixture restores the original holder tags.
+
+These tests establish selector and cache behavior. They do not establish the actual laptop
+click sequence, receipt of server feedback, client inventory or menu rendering, the game mode
+bypass transition, or the complete provider and Brave matrix. Those gates remain open.
+
+| Current implementation artifact | SHA256 |
+| --- | --- |
+| `InteractionPrediction.java` | `c6559dc85843ed5d36f3744ccb5a838538cf6bc296c72dbc73c744d42417fa2c` |
+| `ClientSnapshotCodec.java` | `65e226a81f0d9f9d972d8f1e91e083cb7e36a1eececdca1a5007dbfe4d26f71b` |
+| `ClientCompiledSnapshotCache.java` | `77643c390efdfe1000d64132035c35d49ef551306010aafb33e1e695d4c9e2ca` |
+| `ClientEventHandler.java` | `160f10b6440c4949d9a5837b9659076dfe4d7c45843ab126be9023b041efe4f6` |
+| `NetworkHandler.java` | `7075c3657bad83d0f3b6fe1c9c923b8d5003d2ccd3974239e4785ec8c6fac7aa` |
+| `progressivestages-3.0.5.jar` | `537b6484c662a709cd94bc27e186d38d3891c3aa0e1ac3b65d38e393ee7a0575` |
+
+The final headless regression run used the exact Selling Bin 1.6 artifact recorded above,
+NeoForge 21.1.248 and the unchanged controlled sale datapack. All eight registered actual bin
+cases passed individually with fresh server verified lime success glass. They cover armor and
+wildcard denial, selective bread direct and menu insertion, partial stacks, grant and revoke,
+and manual and automatic sale output. The initial fixture omitted flat world layers; its
+configuration was corrected and all eight cases passed again after restart. The known bundled
+`wdutils` missing access transformer error remains visible and its broader compatibility impact
+is unresolved. It did not prevent these specific server transactions.
+
+A final fresh core world without optional mod JARs reached dedicated server readiness with no
+error in the captured startup. The server task graph contains no client or renderer. All three
+owned server runs used the same loopback only `build/prediction-verification` runtime, verified
+`eula=true` before launch, and exited normally through `stop` with saved world confirmation.
+The four documentation reference checks and packaged editor asset comparisons also passed.
+
+Cleanup verified that no process retained the owned runtime. The runtime, worlds, copied bin
+artifact, scratch logs and scripts, and 475 additional build entries were removed. The 837
+preexisting build entries, 26 local Gradle entries, shared dependency caches, current candidate
+JAR, existing investigation runtime and source were preserved. No laptop client, browser or
+laptop resource was created by this suite.

@@ -24,6 +24,18 @@ import java.util.List;
 @EventBusSubscriber(modid = Constants.MOD_ID, value = Dist.CLIENT)
 public class ClientEventHandler {
 
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGH)
+    public static void onBlockInteract(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
+        if (!event.getLevel().isClientSide()
+                || event.getEntity() != net.minecraft.client.Minecraft.getInstance().player
+                || ClientLockCache.isCreativeBypass()) return;
+        if (ClientCompiledSnapshotCache.interactions().denies(event.getItemStack(),
+                event.getLevel().getBlockState(event.getPos()).getBlock(), ClientStageCache::hasStage)) {
+            event.setCanceled(true);
+            event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
+        }
+    }
+
     @SubscribeEvent
     public static void onInventoryScreenInit(ScreenEvent.Init.Post event) {
         if (StageConfig.isShowInventoryButton()

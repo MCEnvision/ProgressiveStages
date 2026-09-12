@@ -1,20 +1,25 @@
 package com.enviouse.progressivestages.server.enforcement;
 
+import com.enviouse.progressivestages.common.api.InteractionDecision;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.lock.LockRegistry;
+import com.enviouse.progressivestages.common.lock.PrefixEntry;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.TagKey;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 
 import net.minecraft.world.entity.EntityType;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -39,91 +44,58 @@ public class InteractionEnforcer {
      * @return true if allowed, false if blocked
      */
     public static boolean canInteract(ServerPlayer player, ItemStack heldItem, Block targetBlock) {
-        if (!StageConfig.isBlockInteractions()) {
-            return true;
-        }
-
-        // Creative bypass
-        if (StageConfig.isAllowCreativeBypass() && player.isCreative()) {
-            return true;
-        }
-
-        // Get IDs for lookup
-        String heldItemId = getItemId(heldItem);
-        String targetBlockId = getBlockId(targetBlock);
-
-        // Check item_on_block interactions
-        if (!heldItem.isEmpty()) {
-            java.util.Set<StageId> required = LockRegistry.getInstance().getRequiredStagesForInteraction(
-                TYPE_ITEM_ON_BLOCK, heldItemId, targetBlockId
-            );
-
-            if (firstMissing(player, required).isPresent()) {
-                return false;
-            }
-
-            // Also check with tag matching
-            if (isInteractionLockedByTag(player, TYPE_ITEM_ON_BLOCK, heldItem, targetBlock)) {
-                return false;
-            }
-        }
-
-        // Check block_right_click interactions
-        java.util.Set<StageId> blockClickRequired = LockRegistry.getInstance().getRequiredStagesForInteraction(
-            TYPE_BLOCK_RIGHT_CLICK, "*", targetBlockId
-        );
-
-        if (firstMissing(player, blockClickRequired).isPresent()) {
-            return false;
-        }
-
-        return true;
+        return evaluateInteraction(player, heldItem, targetBlock).allowed();
     }
 
     /**
-     * Check if an interaction is locked due to tag-pattern matching.
-     * Iterates all registered locks of the given type and uses runtime tag resolution
-     * via itemMatches() / blockMatches() to handle '#tag' patterns correctly.
+     * Evaluate item on block and block right click rules once for the actual
+     * player, stack, and block holders.
      */
-    private static boolean isInteractionLockedByTag(ServerPlayer player, String type, ItemStack heldItem, Block targetBlock) {
-        for (LockRegistry.InteractionLockEntry entry : LockRegistry.getInstance().getAllInteractionLocksOfType(type)) {
-            // Only process entries that actually use a tag pattern — exact IDs are
-            // already handled by getRequiredStageForInteraction() above.
-            boolean heldIsTag = entry.heldItem != null && entry.heldItem.startsWith("#");
-            boolean targetIsTag = entry.targetBlock != null && entry.targetBlock.startsWith("#");
-            if (!heldIsTag && !targetIsTag) {
-                continue;
-            }
-            if (itemMatches(heldItem, entry.heldItem) && blockMatches(targetBlock, entry.targetBlock)) {
-                if (!StageManager.getInstance().hasStage(player, entry.requiredStage)) {
-                    return true;
-                }
+    public static InteractionDecision evaluateInteraction(ServerPlayer player, ItemStack heldItem,
+                                                           Block targetBlock) {
+        if (!StageConfig.isBlockInteractions()
+                || (player != null && StageConfig.isAllowCreativeBypass() && player.isCreative())) {
+            return new InteractionDecision(List.of(), List.of(), InteractionDecision.Reason.BYPASS, true);
+        }
+
+        ItemStack stack = heldItem == null ? ItemStack.EMPTY : heldItem;
+        Collection<LockRegistry.InteractionLockEntry> itemRules =
+            LockRegistry.getInstance().getAllInteractionLocksOfType(TYPE_ITEM_ON_BLOCK);
+        Collection<LockRegistry.InteractionLockEntry> blockRules =
+            LockRegistry.getInstance().getAllInteractionLocksOfType(TYPE_BLOCK_RIGHT_CLICK);
+        boolean hasRules = !itemRules.isEmpty() || !blockRules.isEmpty();
+        LinkedHashSet<StageId> matched = new LinkedHashSet<>();
+
+        if (!stack.isEmpty()) {
+            for (LockRegistry.InteractionLockEntry entry : itemRules) {
+                if (matchesItemOnBlock(entry, stack, targetBlock)) matched.add(entry.requiredStage);
             }
         }
-        return false;
+        for (LockRegistry.InteractionLockEntry entry : blockRules) {
+            if (matchesBlockRule(entry, targetBlock)) matched.add(entry.requiredStage);
+        }
+
+        if (matched.isEmpty()) {
+            InteractionDecision.Reason reason = hasRules
+                ? InteractionDecision.Reason.SELECTOR_MISMATCH
+                : InteractionDecision.Reason.NO_RULE;
+            return new InteractionDecision(List.of(), List.of(), reason, true);
+        }
+
+        List<StageId> missing = new ArrayList<>();
+        for (StageId stage : matched) {
+            if (player == null || !StageManager.getInstance().hasStage(player, stage)) missing.add(stage);
+        }
+        InteractionDecision.Reason reason = missing.isEmpty()
+            ? InteractionDecision.Reason.STAGE_OWNED : InteractionDecision.Reason.STAGE_MISSING;
+        return new InteractionDecision(List.copyOf(matched), missing, reason, missing.isEmpty());
     }
 
     /**
      * Get the required stage for an interaction
      */
     public static Optional<StageId> getRequiredStage(ItemStack heldItem, Block targetBlock) {
-        String heldItemId = getItemId(heldItem);
-        String targetBlockId = getBlockId(targetBlock);
-
-        // Check item_on_block first
-        if (!heldItem.isEmpty()) {
-            Optional<StageId> required = LockRegistry.getInstance().getRequiredStageForInteraction(
-                TYPE_ITEM_ON_BLOCK, heldItemId, targetBlockId
-            );
-            if (required.isPresent()) {
-                return required;
-            }
-        }
-
-        // Check block_right_click
-        return LockRegistry.getInstance().getRequiredStageForInteraction(
-            TYPE_BLOCK_RIGHT_CLICK, "*", targetBlockId
-        );
+        return matchingStages(heldItem, targetBlock).stream().findFirst();
     }
 
     /**
@@ -131,26 +103,40 @@ public class InteractionEnforcer {
      * Checks exact-match locks first, then falls back to tag-pattern locks.
      */
     public static void notifyLocked(ServerPlayer player, ItemStack heldItem, Block targetBlock) {
-        String heldItemId = getItemId(heldItem);
-        String targetBlockId = getBlockId(targetBlock);
-        java.util.Set<StageId> stages = new java.util.LinkedHashSet<>();
-        if (!heldItem.isEmpty()) stages.addAll(LockRegistry.getInstance().getRequiredStagesForInteraction(
-            TYPE_ITEM_ON_BLOCK, heldItemId, targetBlockId));
-        stages.addAll(LockRegistry.getInstance().getRequiredStagesForInteraction(
-            TYPE_BLOCK_RIGHT_CLICK, "*", targetBlockId));
-        Optional<StageId> required = firstMissing(player, stages);
-        if (required.isPresent()) {
-            ItemEnforcer.notifyLocked(player, required.get(), com.enviouse.progressivestages.common.config.StageConfig.getMsgTypeLabelInteraction());
-            return;
+        InteractionDecision decision = evaluateInteraction(player, heldItem, targetBlock);
+        notifyLocked(player, decision);
+    }
+
+    public static void notifyLocked(ServerPlayer player, InteractionDecision decision) {
+        if (!decision.missingStages().isEmpty()) {
+            ItemEnforcer.notifyLocked(player, decision.missingStages().getFirst(),
+                StageConfig.getMsgTypeLabelInteraction());
         }
-        // Fall back to tag-pattern search for notification
-        for (LockRegistry.InteractionLockEntry entry : LockRegistry.getInstance().getAllInteractionLocksOfType(TYPE_ITEM_ON_BLOCK)) {
-            if (itemMatches(heldItem, entry.heldItem) && blockMatches(targetBlock, entry.targetBlock)
-                    && !StageManager.getInstance().hasStage(player, entry.requiredStage)) {
-                ItemEnforcer.notifyLocked(player, entry.requiredStage, com.enviouse.progressivestages.common.config.StageConfig.getMsgTypeLabelInteraction());
-                return;
+    }
+
+    private static List<StageId> matchingStages(ItemStack heldItem, Block targetBlock) {
+        ItemStack stack = heldItem == null ? ItemStack.EMPTY : heldItem;
+        LinkedHashSet<StageId> stages = new LinkedHashSet<>();
+        if (!stack.isEmpty()) {
+            for (LockRegistry.InteractionLockEntry entry : LockRegistry.getInstance()
+                    .getAllInteractionLocksOfType(TYPE_ITEM_ON_BLOCK)) {
+                if (matchesItemOnBlock(entry, stack, targetBlock)) stages.add(entry.requiredStage);
             }
         }
+        for (LockRegistry.InteractionLockEntry entry : LockRegistry.getInstance()
+                .getAllInteractionLocksOfType(TYPE_BLOCK_RIGHT_CLICK)) {
+            if (matchesBlockRule(entry, targetBlock)) stages.add(entry.requiredStage);
+        }
+        return List.copyOf(stages);
+    }
+
+    private static boolean matchesItemOnBlock(LockRegistry.InteractionLockEntry entry,
+                                               ItemStack stack, Block targetBlock) {
+        return itemMatches(stack, entry.heldItem) && blockMatches(targetBlock, entry.targetBlock);
+    }
+
+    private static boolean matchesBlockRule(LockRegistry.InteractionLockEntry entry, Block targetBlock) {
+        return blockMatches(targetBlock, entry.targetBlock);
     }
 
     private static String getItemId(ItemStack stack) {
@@ -170,29 +156,12 @@ public class InteractionEnforcer {
      * Check if an item matches a pattern (supports tags with #)
      */
     public static boolean itemMatches(ItemStack stack, String pattern) {
-        if (pattern == null || pattern.equals("*")) {
-            return true;
-        }
-
-        if (stack.isEmpty()) {
-            return false;
-        }
-
-        if (pattern.startsWith("#")) {
-            // Tag matching
-            String tagName = pattern.substring(1);
-            try {
-                ResourceLocation tagLoc = ResourceLocation.parse(tagName);
-                TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagLoc);
-                return stack.is(tagKey);
-            } catch (Exception e) {
-                return false;
-            }
-        } else {
-            // Direct ID matching
-            ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-            return itemId != null && itemId.toString().equals(pattern);
-        }
+        if (pattern == null || pattern.isBlank() || pattern.equals("*")) return true;
+        if (stack == null || stack.isEmpty()) return false;
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        Holder<Item> holder = BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem());
+        PrefixEntry selector = PrefixEntry.parse(pattern);
+        return selector != null && selector.matches(itemId, holder, PrefixEntry.Keys.ITEM);
     }
 
     /**
@@ -213,24 +182,7 @@ public class InteractionEnforcer {
             return true;
         }
 
-        String heldItemId = getItemId(heldItem);
-        String entityTypeId = getEntityTypeId(entityType);
-
-        // Check exact / wildcard match first
-        java.util.Set<StageId> required = LockRegistry.getInstance().getRequiredStagesForInteraction(
-            TYPE_ITEM_ON_ENTITY, heldItemId, entityTypeId
-        );
-        if (firstMissing(player, required).isPresent()) {
-            return false;
-        }
-
-        // Runtime tag-pattern matching
         for (LockRegistry.InteractionLockEntry entry : LockRegistry.getInstance().getAllInteractionLocksOfType(TYPE_ITEM_ON_ENTITY)) {
-            boolean heldIsTag = entry.heldItem != null && entry.heldItem.startsWith("#");
-            boolean targetIsTag = entry.targetBlock != null && entry.targetBlock.startsWith("#");
-            if (!heldIsTag && !targetIsTag) {
-                continue;
-            }
             if (itemMatches(heldItem, entry.heldItem) && entityTypeMatches(entityType, entry.targetBlock)) {
                 if (!StageManager.getInstance().hasStage(player, entry.requiredStage)) {
                     return false;
@@ -283,47 +235,22 @@ public class InteractionEnforcer {
      * Check if an entity type matches a pattern (supports tags with #)
      */
     public static boolean entityTypeMatches(EntityType<?> entityType, String pattern) {
-        if (pattern == null || pattern.equals("*")) {
-            return true;
-        }
-
-        if (pattern.startsWith("#")) {
-            String tagName = pattern.substring(1);
-            try {
-                ResourceLocation tagLoc = ResourceLocation.parse(tagName);
-                TagKey<EntityType<?>> tagKey = TagKey.create(Registries.ENTITY_TYPE, tagLoc);
-                return BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(entityType).is(tagKey);
-            } catch (Exception e) {
-                return false;
-            }
-        } else {
-            ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
-            return entityId != null && entityId.toString().equals(pattern);
-        }
+        if (pattern == null || pattern.isBlank() || pattern.equals("*")) return true;
+        if (entityType == null) return false;
+        PrefixEntry selector = PrefixEntry.parse(pattern);
+        return selector != null && selector.matches(BuiltInRegistries.ENTITY_TYPE.getKey(entityType),
+            BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(entityType), PrefixEntry.Keys.ENTITY_TYPE);
     }
 
     /**
      * Check if a block matches a pattern (supports tags with #)
      */
     public static boolean blockMatches(Block block, String pattern) {
-        if (pattern == null || pattern.equals("*")) {
-            return true;
-        }
-
-        if (pattern.startsWith("#")) {
-            // Tag matching
-            String tagName = pattern.substring(1);
-            try {
-                ResourceLocation tagLoc = ResourceLocation.parse(tagName);
-                TagKey<Block> tagKey = TagKey.create(Registries.BLOCK, tagLoc);
-                return BuiltInRegistries.BLOCK.wrapAsHolder(block).is(tagKey);
-            } catch (Exception e) {
-                return false;
-            }
-        } else {
-            // Direct ID matching
-            ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(block);
-            return blockId != null && blockId.toString().equals(pattern);
-        }
+        if (pattern == null || pattern.isBlank() || pattern.equals("*")) return true;
+        if (block == null) return false;
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(block);
+        PrefixEntry selector = PrefixEntry.parse(pattern);
+        return selector != null && selector.matches(blockId, BuiltInRegistries.BLOCK.wrapAsHolder(block),
+            PrefixEntry.Keys.BLOCK);
     }
 }

@@ -26,4 +26,16 @@ class PrefixEntryTest {
         assertFalse(PrefixEntry.parse("id:minecraft:skeleton").matchesIdOnly(
             ResourceLocation.parse("minecraft:zombie")));
     }
+
+    @Test
+    void modernAndLegacyTagSelectorsShareTheSameParsedKind() {
+        PrefixEntry modern = PrefixEntry.parse("tag:c:armors");
+        PrefixEntry legacy = PrefixEntry.parse("#c:armors");
+
+        assertNotNull(modern);
+        assertNotNull(legacy);
+        assertEquals(PrefixEntry.Kind.TAG, modern.kind());
+        assertEquals(PrefixEntry.Kind.TAG, legacy.kind());
+        assertEquals(modern.id(), legacy.id());
+    }
 }

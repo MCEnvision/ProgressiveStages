@@ -12,6 +12,7 @@ import com.enviouse.progressivestages.common.util.TextUtil;
 import com.enviouse.progressivestages.compat.ftbquests.FTBQuestsCompat;
 import com.enviouse.progressivestages.compat.ftbquests.FtbQuestsHooks;
 import com.enviouse.progressivestages.server.enforcement.ConditionalLockEngine;
+import com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
 import com.enviouse.progressivestages.common.config.ConfigPaths;
 import com.enviouse.progressivestages.server.editor.EditorSessionService;
@@ -385,6 +386,17 @@ public class StageCommand {
             // /stage gui — open the in-game stage-tree viewer for the calling player
             .then(Commands.literal("gui")
                 .executes(StageCommand::openGui))
+
+            .then(Commands.literal("debug")
+                .requires(source -> source.hasPermission(3))
+                .then(Commands.literal("interactions").requires(source -> source.hasPermission(3))
+                    .then(Commands.literal("on").requires(source -> source.hasPermission(3))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(StageCommand::startInteractionCapture)))
+                    .then(Commands.literal("status").requires(source -> source.hasPermission(3))
+                        .executes(StageCommand::interactionCaptureStatus))
+                    .then(Commands.literal("off").requires(source -> source.hasPermission(3))
+                        .executes(StageCommand::stopInteractionCapture))))
         );
 
         // Friendly public command aliases.
@@ -1706,6 +1718,7 @@ public class StageCommand {
     }
 
     private static int reloadStages(CommandContext<CommandSourceStack> context) {
+        InteractionCaptureManager.stopForReload();
         // StageFileLoader.reload() also rebuilds the per-stage [[triggers]] registry (v2.3).
         StageFileLoader loader = StageFileLoader.getInstance();
         if (!loader.reload()) {
@@ -1724,6 +1737,43 @@ public class StageCommand {
             StageConfig.getMsgCmdReloadSuccess()
                 .replace("{count}", String.valueOf(finalSyncedPlayers))), true);
 
+        return 1;
+    }
+
+    private static int startInteractionCapture(CommandContext<CommandSourceStack> context)
+        throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "player");
+        InteractionCaptureManager.StartResult result = InteractionCaptureManager.start(
+            context.getSource().getServer(), target);
+        if (result.invalidTarget()) {
+            context.getSource().sendFailure(Component.literal("An online target is required"));
+            return 0;
+        }
+        if (result.alreadyActive()) {
+            context.getSource().sendFailure(Component.literal("An interaction capture is already active"));
+            return 0;
+        }
+        InteractionCaptureManager.CaptureStatus status = result.status();
+        context.getSource().sendSuccess(() -> Component.literal("Interaction capture started for "
+            + status.target() + ". Output. " + status.output()), false);
+        return 1;
+    }
+
+    private static int interactionCaptureStatus(CommandContext<CommandSourceStack> context) {
+        InteractionCaptureManager.CaptureStatus status = InteractionCaptureManager.status();
+        context.getSource().sendSuccess(() -> Component.literal("Interaction capture. "
+            + (status.active() ? "active" : "off") + ". Target. " + status.target()
+            + ". Records. " + status.records() + ". Dropped. " + status.dropped()
+            + ". Bytes. " + status.bytes() + ". Stop reason. " + status.stopReason()
+            + (status.output() == null ? "" : ". Output. " + status.output())), false);
+        return 1;
+    }
+
+    private static int stopInteractionCapture(CommandContext<CommandSourceStack> context) {
+        boolean stopped = InteractionCaptureManager.stop(InteractionCaptureManager.StopReason.MANUAL);
+        context.getSource().sendSuccess(() -> Component.literal(stopped
+            ? "Interaction capture stopped"
+            : "Interaction capture was already off"), false);
         return 1;
     }
 

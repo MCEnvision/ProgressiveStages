@@ -621,7 +621,7 @@ public final class LockRegistry {
                 if (e.matches(type, heldItem, target)) out.add(e.requiredStage);
             }
         }
-        return out.isEmpty() ? Set.of() : Set.copyOf(out);
+        return out.isEmpty() ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(out));
     }
 
     public Optional<StageId> getRequiredStageForInteraction(String type, String heldItem, String target) {
@@ -1726,17 +1726,19 @@ public final class LockRegistry {
 
         public boolean matches(String checkType, String checkHeldItem, String checkTargetBlock) {
             if (!Objects.equals(type, checkType)) return false;
-            if (heldItem != null && !"*".equals(heldItem)) {
-                if (heldItem.startsWith("#")) {
-                    if (checkHeldItem == null || !checkHeldItem.contains(heldItem.substring(1))) return false;
-                } else if (!heldItem.equals(checkHeldItem)) return false;
+            return matchesSelector(heldItem, checkHeldItem) && matchesSelector(targetBlock, checkTargetBlock);
+        }
+
+        private static boolean matchesSelector(String selector, String value) {
+            if (selector == null || selector.isBlank() || "*".equals(selector)) return true;
+            if (value == null || value.isBlank() || "*".equals(value)) return false;
+            PrefixEntry parsed = PrefixEntry.parse(selector);
+            if (parsed == null) return false;
+            try {
+                return parsed.matchesIdOnly(ResourceLocation.parse(value));
+            } catch (RuntimeException ignored) {
+                return false;
             }
-            if (targetBlock != null && !"*".equals(targetBlock)) {
-                if (targetBlock.startsWith("#")) {
-                    if (checkTargetBlock == null || !checkTargetBlock.contains(targetBlock.substring(1))) return false;
-                } else if (!targetBlock.equals(checkTargetBlock)) return false;
-            }
-            return true;
         }
     }
 

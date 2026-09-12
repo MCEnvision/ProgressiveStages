@@ -35,3 +35,34 @@ test run deniedblockusecorrectspredictionbeforegrantandrevoke
 This proves the generic server correction and the listed container regressions. It does not establish client prediction suppression, actual Selling Bin selective sales or payouts, multiblock presentation, the paired Easy Builder workflow, or reconnect behavior. Those acceptance gates remain open. The exact candidate's bundled loader compatibility limitation above also remains open; this test does not change any platform pin.
 
 The five targeted documentation tests also passed after the guide updates. The owned dedicated server exited through `stop`, its process was verified absent, and the disposable runtime and 274 newly created verification output files were removed after inspection. Preexisting build artifacts and shared caches were preserved. This bounded suite created no laptop client or browser process.
+
+## Client continuation investigation
+
+At commit `d20a64604b75013605ff22c83deadf283f0b13c2`, `ClientEventHandler` has no block interaction
+prediction guard. `NetworkHandler.sendLockSync` does not transmit interaction selector pairs.
+The compiled presentation snapshot also lacks their held item and target pairing. A multiplayer
+client therefore cannot use those existing snapshots to make the corresponding local decision.
+
+Inspection of the pinned NeoForge 21.1.219 patched sources established the relevant client flow.
+`MultiPlayerGameMode.performUseItemOn` fires `RightClickBlock` before block or item prediction and
+returns the cancellation result when canceled. Its caller still creates the ordinary
+`ServerboundUseItemOnPacket`. `Minecraft.startUseItem` stops the current click on a returned
+`FAIL`, before item use or another hand. These observations identify an existing event boundary
+where local prediction can be suppressed while retaining the server request, authoritative
+denial, correction, and feedback. No additional mixin is justified by this dispatch path alone.
+
+This is source evidence, not a completed client repair or proof of the reported sale. A local
+guard needs a bounded, compatible projection of the relevant server rules and effective access,
+with grant, revoke, reload, bypass, and disconnect handling. It cannot read a server JVM registry
+as a substitute for synchronization, use a broad click cooldown, or authorize a server action.
+The next real bin trace must distinguish the first denied request, any subsequent request, and
+the separate GUI transfer path before accepting that correction.
+
+| Inspected source | SHA256 |
+| --- | --- |
+| Pinned patched NeoForge sources | `1b2646d74150e1d8f7c62489b9c2d54fe8dd3c94d4eb7074081c817ff7f60d0e` |
+| `ClientEventHandler.java` | `1f105d6175b4df48c38784a9a96b10f1a534735b22408640f577ec4467f03ac0` |
+| `NetworkHandler.java` | `8aa4113f6cb6296a5eb6f1a752a0227a6f6b0673ea04e1853d9058040ed88f84` |
+
+The audit read the existing source archive in memory and created no runtime, process, downloaded
+artifact, or scratch file. Platform pins and the saved goal remain unchanged.

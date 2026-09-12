@@ -390,12 +390,12 @@ public class StageCommand {
             .then(Commands.literal("debug")
                 .requires(source -> source.hasPermission(3))
                 .then(Commands.literal("interactions")
-                    .then(Commands.literal("on")
+                    .then(Commands.literal("on").requires(source -> source.hasPermission(3))
                         .then(Commands.argument("player", EntityArgument.player())
                             .executes(StageCommand::startInteractionCapture)))
-                    .then(Commands.literal("status")
+                    .then(Commands.literal("status").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::interactionCaptureStatus))
-                    .then(Commands.literal("off")
+                    .then(Commands.literal("off").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::stopInteractionCapture))))
         );
 

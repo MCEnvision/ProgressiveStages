@@ -66,3 +66,63 @@ the separate GUI transfer path before accepting that correction.
 
 The audit read the existing source archive in memory and created no runtime, process, downloaded
 artifact, or scratch file. Platform pins and the saved goal remain unchanged.
+
+## Actual Selling Bin transactions on NeoForge 21.1.248
+
+On September 12, 2026, the eight opt in [Selling Bin transaction GameTests](../test/selling-bin.md)
+passed individually on `node-1` with Minecraft 1.21.1, NeoForge 21.1.248 and Java 21. The source
+baseline was `73bd6b0cb225e5870d89f133f4c7524118f7a3fc` plus the new fixture tests. Selling Bin
+1.6 and its bundled runtime dependencies loaded through the ordinary loader. The exact
+[artifact manifest](selling-bin-artifacts.json) records hashes, sources, declared licenses,
+resolved versions and remaining dependency inspection limits.
+
+| Case family | Manual sale | Automatic sale |
+| --- | --- | --- |
+| Original armor tag rule | Passed | Passed |
+| Original standalone wildcard rule | Passed | Passed |
+| Paired selective bread insertion with allowed carrot control | Passed | Passed |
+| Previously accepted partial input and bounded merge | Passed | Passed twice |
+
+Each case placed the actual two block bin. Both physical parts rejected missing stage direct
+insertion. Grant allowed a real insertion and sale, and revoke denied the next offhand or
+already open menu attempt. The paired fixture blocked normal carried stack and shift click
+bread transfers while carrots remained usable without that stage. Denied held counts, input
+and total currency were checked after at least 20 ticks. Automatic cases used the real bin
+ticker; manual cases used the real sell all menu action. A preexisting accepted bread could
+still sell while a denied new stack remained unchanged. A 63 bread input accepted only one
+of three held bread after grant, preserved the remaining two, and sold exactly the accepted
+amount. Every case received a freshly cleared success beacon check through the server console.
+
+| Final tested source or artifact | SHA256 |
+| --- | --- |
+| `SellingBinGameTests.java` | `b21d94b69ca75f5b71267a2bb3bafd8c73c1634058fda5886cb38625261ed561` |
+| Candidate JAR | `fbb78556fa0b3193f33b290a1f26e60c88fdb2cd60bd2016f8e745dfefd1487f` |
+
+`./gradlew test build --no-configuration-cache --no-daemon --console=plain` passed with 246 tests
+in 87 suites, zero failures, errors or skips. No formatter/static task is configured and no data
+provider changed. A subsequent core only dedicated startup passed with the bin artifact absent
+and its explicit test option disabled. The bin tests were not counted as passing in that run.
+
+The owned runtime was `build/selling-bin-verification`, bound only to loopback. The final bin
+and core runs retained `online-mode=true`; no network player was connected. Two bin runs ended
+through their console `stop` command. The core startup process had no writable terminal input,
+so its exact identified server JVM received SIGTERM and completed the ordinary shutdown hook,
+including all world saves. Gradle reported the expected termination exit value 143 for that
+smoke run; this is not a successful Gradle task exit or a gameplay failure. Source build and
+unit test commands completed separately with successful exits.
+
+This proves the listed authoritative server routes for this exact artifact and fixture. It does
+not reproduce the owner's physical click sequence or prove client prediction suppression,
+client inventory correction, rendered GUI access, drag and hotbar swaps in the bin, multiple
+players, custom stack components, or reconnect. Those remaining matrix gates stay open. The
+reported apparent automatic sale can therefore still be a client prediction or separate request
+issue; these server tests alone cannot choose between those causes.
+
+The four documentation reference checks passed, fixture JSON parsed, and the three packaged
+editor assets matched their source resources. The JAR contains no fixture datapack or third
+party bin classes. All owned server processes exited. Cleanup removed 715 new build
+entries and 0 new local Gradle entries, including the disposable runtime and both
+worlds. The 837 preexisting build entries, 26 preexisting local Gradle entries, current candidate,
+shared caches and preexisting investigation runtime were preserved. Temporary decompiled
+third party source, duplicate binary excerpts and scratch logs were removed after their final
+consumer. This suite created no laptop or browser resources.

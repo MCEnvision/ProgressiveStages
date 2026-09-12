@@ -1,0 +1,16 @@
+{
+  "values": {
+    "minecraft:bread": {
+      "base_value": 10,
+      "processors": []
+    },
+    "minecraft:carrot": {
+      "base_value": 7,
+      "processors": []
+    },
+    "minecraft:iron_chestplate": {
+      "base_value": 30,
+      "processors": []
+    }
+  }
+}

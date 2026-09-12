@@ -1127,6 +1127,9 @@ fixture, command, sample-capacity property, calculation, and interpretation rule
 
 ### 4.11 `[[interactions]]` — fine-grained "X-on-Y" rules
 
+The [Selling Bin transaction GameTests](docs/test/selling-bin.md) exercise the real optional mod
+on a disposable server. Their fixture and coverage limits are separate from client acceptance.
+
 This is a **table-array** rather than a single table, so you can write as many
 entries as you want, each describing one specific interaction to gate.
 

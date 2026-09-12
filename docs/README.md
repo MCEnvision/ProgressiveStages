@@ -12,6 +12,8 @@ Use this page to find the maintained project documentation.
 ## Verification
 
 - [Selling Bin interaction repair](verification/selling-bin-interaction-repair.md)
+- [Selling Bin transaction GameTests](test/selling-bin.md)
+- [Selling Bin artifact manifest](verification/selling-bin-artifacts.json)
 - [Progression ownership](verification/progression-ownership.md)
 - [LuckPerms bridge](verification/luckperms-bridge.md)
 - [3.0.5 acceptance](verification/3.0.5-acceptance.md)

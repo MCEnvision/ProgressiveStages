@@ -9,3 +9,29 @@ The candidate reviewed for this work is wd's Selling Bin `1.6-NEOFORGE-1.21.1`. 
 The pinned project loader is NeoForge 21.1.219. The candidate metadata requires newer NeoForge for its bundled libraries, so the exact candidate was started only in an isolated NeoForge 21.1.233 runtime. That server reached readiness and loaded the candidate. The pinned candidate runtime was rejected by dependency validation before gameplay. This is an external compatibility limitation, not evidence that the reporter's exact environment was reproduced.
 
 Focused selector, parser, decision, and full build checks pass on the pinned project toolchain. A dedicated core startup smoke also remains independent of Selling Bin. The laptop presentation gate is not claimed here because the isolated client did not reach a responsive joined world and its application audio stream could not be verified over the available desktop connection. No release artifact is published by this work.
+
+## September 12 interaction correction regression
+
+The additional regression uses Minecraft 1.21.1, pinned NeoForge 21.1.219 and Java 21 on a disposable headless dedicated server on node-1. The source baseline is merged commit `1b5c6f00b25ae5c3bda410a2fa60402170f90368`. This correction is pending phase integration; the hashes below identify the tested source and artifact without treating the previous merge as proof of this change.
+
+The new `deniedBlockUseCorrectsPredictionBeforeGrantAndRevoke` GameTest invokes `ServerPlayerGameMode.useItemOn` against a real cauldron. On the production baseline, denial preserved the authoritative bucket and block but failed the assertion `Denied block use must resend unchanged inventory state to correct prediction.` The pinned loader returns immediately when the event is canceled, including when its result is `PASS`. A canceled request reaching the block dispatcher was therefore not the demonstrated failure.
+
+The correction explicitly resends inventory and open menu state, sends the clicked block entity's normal update packet when available, and returns `FAIL`. The same GameTest now passes inventory correction, terminal denial, a successful stage grant and bucket exchange, and offhand denial after revocation. The test passed twice. All 18 existing `InventoryInsertionGameTests` also passed individually, covering ordinary placement, swaps, dragging, partial stacks, quick movement, extraction, block targets, current rules, separate players, and playerless hopper behavior.
+
+The owned test runtime was `.phase-worktrees/phase-003/build/interaction-denial-verification`. A temporary Gradle init selected that directory, enabled both `progressivestages` and `minecraft` test namespaces, kept the launch target `forgeserverdev` with `--nogui`, and forwarded standard input. The latter namespace is necessary because these tests use `minecraft:igloo/top`. The task graph was inspected before launch. Console commands used `test run` with each exact registered method name in lowercase. Before each case the previous result glass was cleared, and after completion the standard GameTest success beacon was verified through the server console. The new test command is:
+
+```text
+test run deniedblockusecorrectspredictionbeforegrantandrevoke
+```
+
+`./gradlew test build --no-configuration-cache --console=plain` passed with 246 unit tests in 87 suites, zero failures, errors or skips. No formatter or static analysis task is configured in this Gradle build. Dedicated startup also passed with Selling Bin and LuckPerms absent. No data providers changed.
+
+| Tested source or artifact | SHA-256 |
+| --- | --- |
+| `src/main/java/com/enviouse/progressivestages/server/ServerEventHandler.java` | `67861060c4e6f7d203850ae0099b27d9778c9c6e2c31afd138b4cb2cf468e5c9` |
+| `src/main/java/com/enviouse/progressivestages/server/enforcement/InteractionDenialGameTests.java` | `0cad9729a3c56b931bd569cff708a65442c44e83bb66d67cd3661c4d65c28d4d` |
+| `build/libs/progressivestages-3.0.5.jar` | `472369e0b77f5d6a0f34531e9383e5d2582d8818f0b39a896ddf055598a89097` |
+
+This proves the generic server correction and the listed container regressions. It does not establish client prediction suppression, actual Selling Bin selective sales or payouts, multiblock presentation, the paired Easy Builder workflow, or reconnect behavior. Those acceptance gates remain open. The exact candidate's bundled loader compatibility limitation above also remains open; this test does not change any platform pin.
+
+The five targeted documentation tests also passed after the guide updates. The owned dedicated server exited through `stop`, its process was verified absent, and the disposable runtime and 274 newly created verification output files were removed after inspection. Preexisting build artifacts and shared caches were preserved. This bounded suite created no laptop client or browser process.

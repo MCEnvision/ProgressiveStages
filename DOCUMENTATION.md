@@ -1129,6 +1129,8 @@ fixture, command, sample-capacity property, calculation, and interpretation rule
 This is a **table-array** rather than a single table, so you can write as many
 entries as you want, each describing one specific interaction to gate.
 
+For denied `item_on_block` and `block_right_click` requests, the server event returns `InteractionResult.FAIL` and sends full inventory and open menu state even when no authoritative stack changed. It also sends the clicked block entity's normal update packet when available. Ordinary change broadcasts alone cannot repair every locally predicted change when the server's cached inventory already equals its current state. The server still checks every request independently; no cooldown converts a later permitted empty hand action into a denial. GUI insertion uses the separate `item_into_inventory` policy described in the [inventory insertion guide](docs/features/inventory-insertion.md).
+
 ```toml
 [[interactions]]
 type = "block_right_click"

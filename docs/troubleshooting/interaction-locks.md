@@ -6,6 +6,10 @@ Use either modern selectors such as `tag:c:armors`, `id:selling_bin:selling_bin`
 
 A missing required stage cancels the server interaction before the protected action continues. The client never decides whether an interaction is allowed. Creative bypass and unrelated interactions retain their existing behavior.
 
+A denied direct interaction returns a terminal failure and resends the authoritative player inventory, any open menu, and the clicked block entity's normal update packet when available. The correction is sent even when the server inventory did not change. A visible lock message alone does not prove that a sale was prevented. Compare server input, output and stored currency before and after the attempt, then repeat after reconnecting. Client prediction and actual server sale are separate observations.
+
+An `item_on_block` rule checks the held stack during block use. GUI insertion is a separate `item_into_inventory` rule, and menu opening can be restricted independently with `block_right_click`. To restrict one sellable item through both player insertion routes, configure the same item selector and destination in both insertion rules. Do not leave an `all:*` rule active when testing a selective item rule. Existing accepted deposits and playerless automation keep their normal behavior.
+
 For a bounded support capture, an operator or console can run:
 
 ```

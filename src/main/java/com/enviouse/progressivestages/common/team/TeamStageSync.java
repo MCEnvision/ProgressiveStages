@@ -99,7 +99,7 @@ public class TeamStageSync {
         Set<StageId> playerStages = StageManager.getInstance().getStages(oldTeamId);
 
         // Get new team's stages
-        Set<StageId> teamStages = StageManager.getInstance().getStages(newTeamId);
+        Set<StageId> teamStages = StageManager.getInstance().getStages(player);
 
         // Validate join based on stage matching rule
         if (!validateStageMatch(playerStages, teamStages)) {
@@ -173,10 +173,8 @@ public class TeamStageSync {
         if (!isTeamAligned(teamId)) return;
 
         Set<ServerPlayer> members = getOnlineTeamMembers(teamId);
-        Set<StageId> stages = StageManager.getInstance().getStages(teamId);
-
         for (ServerPlayer member : members) {
-            NetworkHandler.sendStageSync(member, stages);
+            NetworkHandler.sendStageSync(member, StageManager.getInstance().getStages(member));
         }
     }
 
@@ -189,8 +187,10 @@ public class TeamStageSync {
         if (server == null) return members;
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            UUID playerTeamId = TeamProvider.getInstance().getTeamId(player);
-            if (playerTeamId.equals(teamId)) {
+            TeamProvider provider = TeamProvider.getInstance();
+            UUID playerTeamId = provider.getTeamId(player);
+            UUID ftbTeamId = provider.getFtbTeamId(player);
+            if (playerTeamId.equals(teamId) || ftbTeamId.equals(teamId)) {
                 members.add(player);
             }
         }

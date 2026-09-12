@@ -90,6 +90,24 @@ class StagePackageParserTest {
     }
 
     @Test
+    void preservesOptionalTeamStageThroughPackageCompilerMetadata() {
+        String stage = """
+            [schema]
+            version = 4
+
+            [stage]
+            id = "pack:personal"
+            team_stage = false
+            """;
+        StageFileParser.ParseResult parsed = StagePackageParser.parseContents("test", "stage.toml", stage,
+            "rules.toml", "[items]\nlocked = []\n", "progression.toml", null);
+        assertTrue(parsed.isSuccess(), parsed::getErrorMessage);
+        assertEquals(java.util.Optional.of(false), parsed.getStageDefinition().getTeamStage());
+        var compiled = Schema4StageCompiler.compile(parsed.getStageDefinition(), parsed.getSourceConfig(), "test", 0);
+        assertEquals(false, compiled.metadata().get("team_stage"));
+    }
+
+    @Test
     void rejectsSectionsPlacedInTheWrongFile() throws Exception {
         Path packageRoot = temporaryDirectory.resolve("broken");
         Files.createDirectories(packageRoot);

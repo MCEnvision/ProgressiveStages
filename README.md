@@ -48,7 +48,15 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 
 ---
 
-## What's new in 3.0.4 and 3.0.4-fix
+## What's new in 3.0.4 and upcoming 3.0.5
+
+- **Actor-aware stage ownership.** Add optional `team_stage = false` or `true` in a stage's
+  `[stage]` table to keep a profession personal or use the active FTB Teams owner. Omit it to
+  inherit `general.team_mode`. Server stages remain shared, and each player receives an effective
+  view made from personal, team, and server records.
+- **Ownership diagnostics.** Admins can run `/stage explain scope <player> <stage>` and use the
+  bounded `/stage debug progression on|status|off` capture to inspect owner resolution without
+  logging names, UUIDs, inventories, or permission trees.
 
 - **Survival armor-slot correction.** Players can place armor into armor slots when no matching
   `item_into_inventory` lock applies. Configured inventory insertion rules still enforce their

@@ -88,6 +88,9 @@ public enum StageCause {
      */
     API,
 
+    /** Stage access derived from an external permission provider. */
+    PERMISSION,
+
     /** Stage changed by KubeJS or another server-side script. */
     SCRIPT,
 

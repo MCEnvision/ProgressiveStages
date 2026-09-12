@@ -17,6 +17,7 @@ class EditorSchemaRegistryTest {
             "stage.toml:stage.id",
             "stage.toml:stage.display_name",
             "stage.toml:stage.dependencies",
+            "stage.toml:stage.team_stage",
             "stage.toml:stage.dependency_mode",
             "stage.toml:stage.dependency_count",
             "stage.toml:display.background",

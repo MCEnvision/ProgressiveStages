@@ -6,6 +6,7 @@ import com.enviouse.progressivestages.common.lock.ActiveLockDefinition;
 import com.enviouse.progressivestages.common.lock.LockDefinition;
 import com.enviouse.progressivestages.common.rehaul.ConfigProvenance;
 import com.enviouse.progressivestages.common.stage.DependencyMode;
+import com.enviouse.progressivestages.common.stage.StageOwnershipOptions;
 import com.enviouse.progressivestages.common.trigger.TriggerRule;
 import net.minecraft.resources.ResourceLocation;
 
@@ -72,6 +73,9 @@ public class StageDefinition {
     private final int slotLimit;
     private final StageSlotPolicy slotPolicy;
     private final String scope;        // "team" (default) or "server"
+    private final boolean scopePresent;
+    /** Optional per-stage override for the global team sharing mode. */
+    private final Boolean teamStage;
     private final long durationMillis; // -1 = permanent; otherwise real-time lifespan after grant
     private final List<StageAttribute> attributes;
     private final RevokeRule revoke;
@@ -135,6 +139,8 @@ public class StageDefinition {
         this.slotLimit = Math.max(0, builder.slotLimit);
         this.slotPolicy = builder.slotPolicy != null ? builder.slotPolicy : StageSlotPolicy.DENY;
         this.scope = builder.scope != null ? builder.scope : "team";
+        this.scopePresent = builder.scopePresent;
+        this.teamStage = builder.teamStage;
         this.durationMillis = builder.durationMillis;
         this.attributes = builder.attributes != null
             ? Collections.unmodifiableList(new ArrayList<>(builder.attributes))
@@ -341,8 +347,22 @@ public class StageDefinition {
     /** Progression scope: {@code "team"} (default) or {@code "server"} (server-wide). */
     public String getScope() { return scope; }
 
+    /** True when the source explicitly declared a stage scope. */
+    public boolean isScopePresent() { return scopePresent; }
+
     /** True if this stage is server-wide (shared by everyone), not per-team. */
     public boolean isServerScope() { return "server".equalsIgnoreCase(scope); }
+
+    /**
+     * Return the optional per-stage team sharing override. Empty means that the global team mode
+     * remains authoritative for this stage.
+     */
+    public Optional<Boolean> getTeamStage() { return Optional.ofNullable(teamStage); }
+
+    /** Return the validated, presence-aware ownership options for this definition. */
+    public StageOwnershipOptions getOwnershipOptions() {
+        return StageOwnershipOptions.from(scope, getTeamStage());
+    }
 
     /** Real-time lifespan in milliseconds after grant, or {@code -1} for a permanent stage. */
     public long getDurationMillis() { return durationMillis; }
@@ -430,6 +450,8 @@ public class StageDefinition {
         private int slotLimit = 0;
         private StageSlotPolicy slotPolicy = StageSlotPolicy.DENY;
         private String scope = "team";
+        private boolean scopePresent;
+        private Boolean teamStage;
         private long durationMillis = -1L;
         private List<StageAttribute> attributes = new ArrayList<>();
         private RevokeRule revoke = RevokeRule.NONE;
@@ -596,6 +618,8 @@ public class StageDefinition {
         public Builder slotLimit(int v) { this.slotLimit = Math.max(0, v); return this; }
         public Builder slotPolicy(StageSlotPolicy v) { this.slotPolicy = v != null ? v : StageSlotPolicy.DENY; return this; }
         public Builder scope(String v) { this.scope = v != null ? v : "team"; return this; }
+        public Builder scopePresent(boolean v) { this.scopePresent = v; return this; }
+        public Builder teamStage(Boolean v) { this.teamStage = v; return this; }
         public Builder durationMillis(long v) { this.durationMillis = v; return this; }
         public Builder attributes(List<StageAttribute> v) { this.attributes = v != null ? v : new ArrayList<>(); return this; }
         public Builder revoke(RevokeRule v) { this.revoke = v != null ? v : RevokeRule.NONE; return this; }

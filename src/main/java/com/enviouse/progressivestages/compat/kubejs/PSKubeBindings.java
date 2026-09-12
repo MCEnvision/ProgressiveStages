@@ -279,6 +279,7 @@ public final class PSKubeBindings {
             out.put("slotLimit", def.getSlotLimit());
             out.put("slotPolicy", def.getSlotPolicy().configName());
             out.put("scope", def.getScope());
+            out.put("teamStage", def.getTeamStage().orElse(null));
             out.put("hidden", def.isHidden());
             out.put("temporary", def.isTemporary());
             out.put("durationMillis", def.getDurationMillis());
@@ -301,6 +302,15 @@ public final class PSKubeBindings {
             out.put("conditionalRules", conditionalRules);
             return out;
         }).orElseGet(Map::of);
+    }
+
+    /** Return the resolved owner kind for a stage and server player. */
+    public Map<String, Object> owner(Player player, String stage) {
+        StageId id = parse(stage);
+        if (!(player instanceof ServerPlayer sp) || id == null) return Map.of();
+        var owner = StageManager.getInstance().getStageOwner(sp, id);
+        return Map.of("kind", owner.kind().name().toLowerCase(java.util.Locale.ROOT),
+            "id", owner.id().toString());
     }
 
     public Map<String, Object> slot(Player player, String stage) {

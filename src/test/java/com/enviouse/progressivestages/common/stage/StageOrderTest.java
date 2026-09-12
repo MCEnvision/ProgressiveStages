@@ -94,6 +94,20 @@ class StageOrderTest {
         assertTrue(errors.stream().anyMatch(error -> error.contains("inconsistent")));
     }
 
+    @Test
+    void explicitTeamStageOverrideCannotCrossSlotOwnerNamespaces() {
+        StageDefinition personal = StageDefinition.builder(StageId.parse("personal"))
+            .slotGroup("classes").slotLimit(1).slotPolicy(StageSlotPolicy.REPLACE_OLDEST)
+            .teamStage(false).build();
+        StageDefinition inherited = StageDefinition.builder(StageId.parse("inherited"))
+            .slotGroup("classes").slotLimit(1).slotPolicy(StageSlotPolicy.REPLACE_OLDEST)
+            .teamStage(true).build();
+
+        List<String> errors = StageOrder.validateDefinitions(List.of(personal, inherited));
+
+        assertTrue(errors.stream().anyMatch(error -> error.contains("mixes incompatible team_stage owners")));
+    }
+
     private static StageDefinition stage(StageId id, StageId... dependencies) {
         return StageDefinition.builder(id).dependencies(List.of(dependencies)).build();
     }

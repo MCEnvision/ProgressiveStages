@@ -531,6 +531,8 @@ public final class StructureSessionManager {
         StructureLeaseData data = StructureLeaseData.get(server);
         Set<UUID> owners = new LinkedHashSet<>();
         owners.add(TeamProvider.getInstance().getTeamId(player));
+        owners.add(TeamProvider.getInstance().getFtbTeamId(player));
+        owners.add(player.getUUID());
         owners.add(StageManager.SERVER_TEAM);
         for (UUID owner : owners) {
             for (StageId stage : data.stagesFor(owner)) {

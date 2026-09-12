@@ -35,6 +35,9 @@ final class BuiltinEditorSchemas {
             SchemaValueType.INTEGER, 0, false, null, Set.of(), List.of());
         add(sink, "stage.scope", "stage.toml", "stage.scope", "Scope", "The ownership scope.",
             SchemaValueType.ENUM, "team", false, null, Set.of(), List.of("team", "server"));
+        add(sink, "stage.team_stage", "stage.toml", "stage.team_stage", "Team stage",
+            "Optional override for team sharing. Leave unset to inherit the global team mode. Server stages cannot override this field.",
+            SchemaValueType.BOOLEAN, null, false, null, Set.of(), List.of());
         add(sink, "stage.tags", "stage.toml", "stage.tags", "Tags", "Labels used for grouping and automation.",
             SchemaValueType.LIST, List.of(), false, null, Set.of(), List.of());
         add(sink, "stage.slot_group", "stage.toml", "stage.slot_group", "Slot group", "Related stages that share an ownership limit.",

@@ -1,6 +1,7 @@
 package com.enviouse.progressivestages.common.stage;
 
 import com.enviouse.progressivestages.common.api.StageId;
+import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.lock.ConditionalRule;
 import com.mojang.logging.LogUtils;
@@ -322,6 +323,11 @@ public class StageOrder {
                     errors.add("Stage slot group '" + definition.getSlotGroup()
                         + "' has inconsistent limit policy or ownership scope");
                 }
+                if (previous != null && ownershipPolicy(previous) != ownershipPolicy(definition)
+                        && (previous.getTeamStage().isPresent() || definition.getTeamStage().isPresent())) {
+                    errors.add("Stage slot group '" + definition.getSlotGroup() + "' mixes incompatible team_stage owners: "
+                        + previous.getId() + " and " + definition.getId());
+                }
             }
             for (var rule : definition.getTriggers()) {
                 for (var condition : rule.conditions()) {
@@ -354,6 +360,11 @@ public class StageOrder {
             }
         }
         return errors;
+    }
+
+    private static boolean ownershipPolicy(StageDefinition definition) {
+        if (definition.isServerScope()) return false;
+        return definition.getTeamStage().orElse(StageConfig.isFtbTeamsMode());
     }
 
     private boolean canEverResolve(StageId id, Set<StageId> cycleMembers,

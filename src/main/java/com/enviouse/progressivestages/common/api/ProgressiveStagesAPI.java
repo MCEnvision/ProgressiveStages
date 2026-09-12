@@ -9,9 +9,18 @@ import com.enviouse.progressivestages.common.api.structure.StructureSessionView;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.common.stage.StageOrder;
 import com.enviouse.progressivestages.common.stage.StageSlotResolver;
+import com.enviouse.progressivestages.common.stage.StageActorContext;
+import com.enviouse.progressivestages.common.stage.EffectiveStageSnapshot;
+import com.enviouse.progressivestages.common.stage.OwnerRef;
+import com.enviouse.progressivestages.common.stage.StageMutationResult;
+import com.enviouse.progressivestages.common.stage.StageOperation;
+import com.enviouse.progressivestages.common.stage.StageCapabilities;
+import com.enviouse.progressivestages.common.stage.FieldDiagnostic;
+import com.enviouse.progressivestages.common.team.TeamProvider;
 import com.enviouse.progressivestages.server.enforcement.ConditionalLockEngine;
 import com.enviouse.progressivestages.server.enforcement.InventoryTargetResolverRegistry;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
+import com.enviouse.progressivestages.server.loader.StageFileParser;
 import com.enviouse.progressivestages.server.triggers.StageCounterData;
 import com.enviouse.progressivestages.server.triggers.StageTriggerEvaluator;
 import com.enviouse.progressivestages.server.structure.StructureContextRegistry;
@@ -24,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.ArrayList;
 
 /**
  * Public API for ProgressiveStages.
@@ -85,6 +95,75 @@ public final class ProgressiveStagesAPI {
         return StageManager.getInstance().getStages(player);
     }
 
+    /** Resolve the persistence owner for one stage and actor. */
+    public static OwnerRef getStageOwner(ServerPlayer player, StageId stageId) {
+        return com.enviouse.progressivestages.common.stage.StageOwnership.owner(player, stageId);
+    }
+
+    /** Return the actor and resolved owner context used by actor-aware integrations. */
+    public static StageActorContext resolveStageOwner(ServerPlayer player, StageId stageId) {
+        return com.enviouse.progressivestages.common.stage.StageOwnership.context(player, stageId);
+    }
+
+    /** Return an immutable individual effective stage snapshot. */
+    public static EffectiveStageSnapshot getEffectiveSnapshot(ServerPlayer player) {
+        return StageManager.getInstance().getEffectiveSnapshot(player);
+    }
+
+    /** Apply an actor-aware mutation and return its committed result. */
+    public static StageMutationResult mutateStage(StageActorContext context, StageId stageId,
+                                                  StageOperation operation, StageCause cause) {
+        return StageManager.getInstance().mutateStage(context, stageId, operation, cause);
+    }
+
+    /** Subscribe to committed actor-aware stage mutations. */
+    public static AutoCloseable subscribeCommittedStageChanges(
+            java.util.function.Consumer<StageMutationResult> listener) {
+        return StageManager.getInstance().subscribeCommittedStageChanges(listener);
+    }
+
+    /** Return the current provider and definition capabilities used by editor validation. */
+    public static StageCapabilities getStageCapabilities() {
+        TeamProvider provider = TeamProvider.getInstance();
+        StageCapabilities.TeamProviderStatus team = !StageConfig.isFtbTeamsIntegrationEnabled()
+            ? StageCapabilities.TeamProviderStatus.DISABLED
+            : provider.isFtbTeamsAvailable()
+                ? StageCapabilities.TeamProviderStatus.READY
+                : StageCapabilities.TeamProviderStatus.ABSENT;
+        return new StageCapabilities(team, StageCapabilities.LuckPermsStatus.ABSENT,
+            List.of("inherit", "personal", "team", "server"), List.of("synchronized", "permanent"),
+            Map.of(), Map.of(), StageFileLoader.getInstance().getCompiledSnapshot().revision());
+    }
+
+    /** Validate raw stage source with the same parser used for installed definitions. */
+    public static List<FieldDiagnostic> validateStageOptions(Map<String, String> rawFiles,
+                                                              StageCapabilities capabilities) {
+        if (rawFiles == null || rawFiles.isEmpty()) return List.of();
+        List<FieldDiagnostic> diagnostics = new ArrayList<>();
+        for (Map.Entry<String, String> entry : rawFiles.entrySet()) {
+            String file = entry.getKey() == null ? "<unknown>" : entry.getKey();
+            StageFileParser.ParseResult parsed = StageFileParser.parseText(
+                entry.getValue() == null ? "" : entry.getValue(), file, "validation", false);
+            if (!parsed.isSuccess()) {
+                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.ERROR, file, "stage",
+                    Optional.empty(), "invalid_stage", parsed.getErrorMessage()));
+                continue;
+            }
+            StageDefinition definition = parsed.getStageDefinition();
+            if (definition.isServerScope() && definition.getTeamStage().isPresent()) {
+                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.ERROR, file, "stage.team_stage",
+                    Optional.empty(), "server_override", "server stages cannot declare team_stage"));
+            }
+            if (definition.getTeamStage().orElse(false)
+                    && capabilities != null
+                    && capabilities.teamProvider() != StageCapabilities.TeamProviderStatus.READY) {
+                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file, "stage.team_stage",
+                    Optional.empty(), "provider_fallback", "the team provider is unavailable, so this stage uses solo fallback"));
+            }
+        }
+        return List.copyOf(diagnostics);
+    }
+
     public static boolean hasAllStages(ServerPlayer player, Collection<StageId> stageIds) {
         return stageIds != null && getStages(player).containsAll(stageIds);
     }
@@ -110,11 +189,15 @@ public final class ProgressiveStagesAPI {
      * @return true if the stage was newly granted, false if already had it
      */
     public static boolean grantStage(ServerPlayer player, StageId stageId, StageCause cause) {
-        if (hasStage(player, stageId)) {
-            return false;
-        }
+        Set<StageId> before = getStages(player);
         StageManager.getInstance().grantStageWithCause(player, stageId, cause);
-        return hasStage(player, stageId);
+        return !before.equals(getStages(player));
+    }
+
+    /** Grant derived access while retaining source attribution for later reconciliation. */
+    public static boolean grantStageFromSource(ServerPlayer player, StageId stageId, String source,
+                                               StageCause cause) {
+        return StageManager.getInstance().grantStageFromSource(player, stageId, source, cause);
     }
 
     /**
@@ -134,6 +217,12 @@ public final class ProgressiveStagesAPI {
         }
         StageManager.getInstance().revokeStageWithCause(player, stageId, cause);
         return !hasStage(player, stageId);
+    }
+
+    /** Remove one derived source and retain independently earned access. */
+    public static boolean revokeStageFromSource(ServerPlayer player, StageId stageId, String source,
+                                                StageCause cause) {
+        return StageManager.getInstance().revokeStageFromSource(player, stageId, source, cause);
     }
 
     /** Grant an existing stage without checking or auto-granting its prerequisites. */

@@ -16,6 +16,7 @@ import java.util.UUID;
 final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     private static final Logger LOGGER = LogUtils.getLogger();
     private Object api;
+    private final GroupAvailabilityCache groupAvailability = new GroupAvailabilityCache();
     private Method getUser;
     private Method saveUser;
     private Class<?> queryOptionsClass;
@@ -107,6 +108,41 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
         } catch (ReflectiveOperationException | RuntimeException exception) {
             return false;
         }
+    }
+
+    @Override
+    public com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus groupStatus(String group) {
+        var unknown = com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.UNKNOWN;
+        if (api == null || group == null || group.isBlank()) return unknown;
+        try {
+            Object manager = api.getClass().getMethod("getGroupManager").invoke(api);
+            Class<?> managerType = Class.forName("net.luckperms.api.model.group.GroupManager");
+            if (managerType.getMethod("getGroup", String.class).invoke(manager, group) != null) {
+                return com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.PRESENT;
+            }
+            return groupAvailability.query(group, () -> {
+                try {
+                    Object result = managerType.getMethod("loadGroup", String.class).invoke(manager, group);
+                    if (!(result instanceof java.util.concurrent.CompletableFuture<?> future)) {
+                        return java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("Group lookup is unavailable"));
+                    }
+                    return future.thenApply(value -> {
+                        if (!(value instanceof java.util.Optional<?> loaded)) throw new IllegalStateException("Invalid group lookup result");
+                        return loaded.isPresent();
+                    });
+                } catch (ReflectiveOperationException | RuntimeException failure) {
+                    return java.util.concurrent.CompletableFuture.failedFuture(failure);
+                }
+            });
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException failure) {
+            return unknown;
+        }
+    }
+
+    @Override
+    public void shutdown() {
+        groupAvailability.clear();
+        api = null;
     }
 
     @Override

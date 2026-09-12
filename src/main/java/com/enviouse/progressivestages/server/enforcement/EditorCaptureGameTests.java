@@ -46,9 +46,21 @@ public final class EditorCaptureGameTests {
         EditorSessionOpen session = null;
         String transaction = "";
         long initialDefinition = loader.getCompiledSnapshot().revision();
+        var baselineWarnings = new java.util.concurrent.atomic.AtomicInteger();
         try {
             session = sessions.open(operator);
             var initial = request(operator, session, "{\"action\":\"bootstrap\"}");
+            helper.assertTrue(initial.get("capabilities").isJsonArray()
+                    && initial.getAsJsonObject("stageCapabilities").has("luckPerms")
+                    && initial.getAsJsonObject("validation").has("validatedRevision"),
+                "Bootstrap must preserve legacy capabilities and add typed draft capabilities.");
+            var baseline = initial.getAsJsonObject("validation");
+            helper.assertTrue(baseline.get("valid").getAsBoolean()
+                    && baseline.getAsJsonArray("diagnostics").asList().stream().allMatch(value ->
+                        "WARNING".equals(value.getAsJsonObject().get("severity").getAsString())
+                        && "provider_fallback".equals(value.getAsJsonObject().get("code").getAsString())),
+                "The default draft may contain only current team fallback warnings.");
+            baselineWarnings.set(baseline.getAsJsonArray("diagnostics").size());
             long revision = initial.getAsJsonObject("draft").get("revision").getAsLong();
             active.set(null, capture);
             capture.startWriter();
@@ -75,13 +87,29 @@ public final class EditorCaptureGameTests {
             var stale = request(operator, session, "{\"action\":\"apply\",\"confirmed\":true,\"revision\":-1}");
             helper.assertTrue("draft_conflict".equals(stale.get("error").getAsString()),
                 "The stale request must be rejected before apply.");
-            edit.addProperty("content", source.replace("scope = \"server\"", "scope = \"team\""));
+            String validSource = source.replace("scope = \"server\"", "scope = \"team\"")
+                + "[luckperms]\nenabled = false\n[[luckperms.outbound]]\nid = \"chef_output\"\nkind = \"group\"\nvalue = \"chef\"\n"
+                + "[[command_permissions]]\nid = \"known\"\npath = \"stage\"\n"
+                + "[[command_permissions]]\nid = \"missing\"\npath = \"missing_fixture_command\"\n";
+            edit.addProperty("content", validSource);
             edit.addProperty("revision", current);
             changed = request(operator, session, edit.toString());
             var applied = request(operator, session,
                 "{\"action\":\"apply\",\"confirmed\":true,\"revision\":" + changed.get("revision").getAsLong() + "}");
             if (applied.has("transactionId")) transaction = applied.get("transactionId").getAsString();
             helper.assertTrue(applied.get("success").getAsBoolean(), "The valid draft must apply normally.");
+            var capabilities = applied.getAsJsonObject("validation").getAsJsonObject("stageCapabilities");
+            helper.assertTrue(capabilities.getAsJsonObject("configuredGroupStatus").has("chef")
+                    && "RESOLVED".equals(capabilities.getAsJsonObject("configuredCommandStatus").get("stage").getAsString())
+                    && "MISSING".equals(capabilities.getAsJsonObject("configuredCommandStatus").get("missing_fixture_command").getAsString()),
+                "New draft groups and commands must be checked before they are installed.");
+            var warnings = applied.getAsJsonObject("validation").getAsJsonArray("diagnostics");
+            helper.assertTrue(warnings.asList().stream().anyMatch(value -> "bridge_disabled".equals(value.getAsJsonObject().get("code").getAsString()))
+                    && warnings.asList().stream().anyMatch(value -> "missing_command".equals(value.getAsJsonObject().get("code").getAsString())
+                        && "missing".equals(value.getAsJsonObject().get("ruleId").getAsString())),
+                "Dormant mappings must return field warnings without blocking apply.");
+            helper.assertTrue(Files.readString(directory.resolve("stage.toml")).equals(validSource),
+                "Capability warnings must preserve the applied source exactly.");
             helper.assertTrue(!capture.status().active() && capture.status().stopReason().equals("reload"),
                 "The actual reload must stop accepting captures.");
             request(operator, session, "{\"action\":\"bootstrap\"}");
@@ -113,7 +141,8 @@ public final class EditorCaptureGameTests {
                         && invalid.get("validation_code").getAsString().equals("server_override")
                         && invalid.get("operation_code").getAsString().equals("validation_failed")
                         && invalid.get("file_role").getAsString().equals("identity")
-                        && invalid.get("diagnostic_count").getAsInt() == 1,
+                        && invalid.get("diagnostic_count").getAsInt() == baselineWarnings.get() + 1
+                        && !invalid.get("provider_state").getAsString().equals("not_observed"),
                     "The capture must identify the rejected field without source text.");
                 helper.assertTrue(stale.get("reason").getAsString().equals("stale_revision"),
                     "A stale request must have a distinct reason.");

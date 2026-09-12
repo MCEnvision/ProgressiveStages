@@ -64,6 +64,13 @@ public final class LuckPermsBridge {
         return bridge.adapter != null && bridge.adapter.groupExists(group);
     }
 
+    public static com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus groupStatus(String group) {
+        LuckPermsBridge bridge = getInstance();
+        return bridge.adapter == null || bridge.adapter.state() != LuckPermsAdapter.State.READY
+            ? com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.UNKNOWN
+            : bridge.adapter.groupStatus(group);
+    }
+
     public synchronized void setAdapterForTests(LuckPermsAdapter replacement) {
         adapter = replacement == null ? ReflectiveLuckPermsAdapter.create() : replacement;
     }

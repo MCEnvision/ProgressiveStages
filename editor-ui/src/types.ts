@@ -66,8 +66,21 @@ export interface ExtensionRegistration {
   arguments?: ExtensionArgument[];
 }
 
+export interface StageCapabilities {
+  teamProvider: "ABSENT" | "DISABLED" | "READY";
+  luckPerms: "ABSENT" | "DISABLED" | "STARTING" | "READY" | "FAILED";
+  supportedOwnership: string[];
+  supportedInboundModes: string[];
+  configuredGroupStatus: Record<string, "PRESENT" | "MISSING" | "UNKNOWN">;
+  configuredCommandStatus: Record<string, "RESOLVED" | "MISSING" | "AMBIGUOUS">;
+  definitionRevision: number;
+}
+
 export interface Bootstrap {
   protocol: number;
+  stageCapabilities?: StageCapabilities;
+  teamMode?: string;
+  validation?: ValidationResult;
   session: SessionView;
   draft: DraftView;
   schemas: FieldSchema[];
@@ -123,6 +136,8 @@ export interface ValidationResult {
   validatedRevision?: number;
   revision?: number;
   diagnostics?: FieldDiagnostic[];
+  stageCapabilities?: StageCapabilities;
+  teamMode?: string;
 }
 
 export interface ReviewResult {

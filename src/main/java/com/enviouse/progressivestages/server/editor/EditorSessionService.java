@@ -196,6 +196,10 @@ public final class EditorSessionService {
         out.put("schemas", EditorSchemaRegistry.get().all());
         out.put("extensions", ExtensionMetadataRegistry.get().snapshot());
         out.put("capabilities", ProgressiveStagesRehaulAPI.capabilities());
+        DraftValidation validation = EditorDraftValidator.validate(draft.files(), draft.revision());
+        out.put("validation", validation);
+        out.put("stageCapabilities", validation.stageCapabilities());
+        out.put("teamMode", com.enviouse.progressivestages.common.config.StageConfig.getTeamMode());
         var catalog = com.enviouse.progressivestages.common.rehaul.catalog.EditorCatalogService.get().snapshot();
         out.put("catalog", Map.of("revision", catalog.revision(), "configurationRevision", catalog.configurationRevision(),
             "ids", catalog.catalogIds(), "checksum", catalog.checksum(), "providerErrors", catalog.providerErrors()));

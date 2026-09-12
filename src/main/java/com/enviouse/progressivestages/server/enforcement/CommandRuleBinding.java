@@ -22,6 +22,7 @@ public final class CommandRuleBinding<S> {
     private final Set<CommandNode<S>> registered = identitySet();
     private final Set<Command<S>> commands = identitySet();
     private boolean resolved;
+    private boolean ambiguous;
 
     private CommandRuleBinding() {}
 
@@ -32,6 +33,7 @@ public final class CommandRuleBinding<S> {
         var targets = CommandRuleBinding.<CommandNode<S>>identitySet();
         resolvePath(root, path.split(" ", -1), 0, new IdentityHashMap<>(), targets);
         result.resolved = !targets.isEmpty();
+        result.ambiguous = targets.size() > 1;
         collectRegistered(root, result.registered);
         for (var target : targets) {
             result.collectExecutions(target, descendants, identitySet());
@@ -41,6 +43,10 @@ public final class CommandRuleBinding<S> {
 
     public boolean isResolved() {
         return resolved;
+    }
+
+    public boolean isAmbiguous() {
+        return ambiguous;
     }
 
     public boolean matches(CommandContext<S> context) {

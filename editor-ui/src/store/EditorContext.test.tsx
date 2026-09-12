@@ -107,3 +107,18 @@ it("retains field diagnostics from a failed apply and blocks the rejected review
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(EditorApi.prototype.request).not.toHaveBeenCalled();
 });
+
+it("uses bootstrap validation only for its draft revision and refreshes capability warnings on validation", async () => {
+  vi.mocked(EditorApi.prototype.bootstrap).mockResolvedValue({ ...bootstrap,
+    validation: { ...validation, validatedRevision: 9, diagnostics: [], stageCapabilities: {
+      teamProvider: "ABSENT", luckPerms: "ABSENT", supportedOwnership: [], supportedInboundModes: [],
+      configuredGroupStatus: {}, configuredCommandStatus: {}, definitionRevision: 1
+    } }
+  });
+  vi.spyOn(EditorApi.prototype, "request").mockResolvedValue({ revision: 10, diff: [], canUndo: true, canRedo: false });
+  render(<EditorProvider><Controls/></EditorProvider>);
+  await screen.findByText("Validation 9");
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+  await screen.findByText("Draft 10");
+  expect(screen.getByText("No current validation")).toBeTruthy();
+});

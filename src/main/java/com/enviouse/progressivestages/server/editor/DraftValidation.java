@@ -1,11 +1,17 @@
 package com.enviouse.progressivestages.server.editor;
 
 import com.enviouse.progressivestages.common.stage.FieldDiagnostic;
+import com.enviouse.progressivestages.common.stage.StageCapabilities;
 
 import java.util.List;
 
 public record DraftValidation(boolean valid, List<String> errors, List<String> warnings,
-                              int stages, long validatedRevision, List<Diagnostic> diagnostics) {
+                              int stages, long validatedRevision, List<Diagnostic> diagnostics,
+                              StageCapabilities stageCapabilities, String teamMode) {
+    public DraftValidation(boolean valid, List<String> errors, List<String> warnings,
+                           int stages, long validatedRevision, List<Diagnostic> diagnostics) {
+        this(valid, errors, warnings, stages, validatedRevision, diagnostics, null, null);
+    }
     public DraftValidation(boolean valid, List<String> errors, List<String> warnings,
                            int stages, long validatedRevision) {
         this(valid, errors, warnings, stages, validatedRevision, List.of());

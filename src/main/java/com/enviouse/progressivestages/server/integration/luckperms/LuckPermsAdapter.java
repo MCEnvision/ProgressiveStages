@@ -27,6 +27,11 @@ public interface LuckPermsAdapter {
     SubjectSnapshot snapshot(UUID player);
     default PermissionValue permission(UUID player, String node) { return PermissionValue.UNDEFINED; }
     boolean groupExists(String group);
+    default com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus groupStatus(String group) {
+        return groupExists(group)
+            ? com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.PRESENT
+            : com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.UNKNOWN;
+    }
     void addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
                       String ownerKey);
     void removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,

@@ -57,7 +57,9 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **Strict access configuration validation.** Incorrect LuckPerms booleans and non-string
   group or permission entries are rejected instead of silently changing their meaning. The
   builder places returned diagnostics beside ownership and access rules, with a full validation
-  summary. Results are tied to the draft revision and disappear after an edit.
+  summary. Results are tied to the draft revision and disappear after an edit. Provider feedback
+  explains current team fallback, dormant LuckPerms mappings, pending or missing groups, and
+  unresolved command paths without rewriting the source.
 - **Selling Bin interaction presets.** Direct interactions can be authored with
   `tag:c:armors` or `all:*` held item selectors and the exact
   `id:selling_bin:selling_bin` block selector. For selected items such as bread, enable

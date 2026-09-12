@@ -107,6 +107,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     try {
       const next = await api.bootstrap();
       setBoot(next);
+      rememberValidation(next.validation, next.draft.id);
       setBusy("");
       setSelectedStageKey(current => current && discoverStages(next.draft.files).some(stage => stage.key === current)
         ? current
@@ -115,7 +116,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setBusy("");
       setError(failure instanceof Error ? failure.message : "The editor could not connect to Minecraft.");
     }
-  }, [api]);
+  }, [api, rememberValidation]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -189,6 +190,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       const result = await api.request<T>({ ...payload, revision: payload.revision ?? boot.draft.revision });
       const fresh = await api.bootstrap();
       setBoot(fresh);
+      rememberValidation(fresh.validation, fresh.draft.id);
       setSelectedStageKey(current => current && discoverStages(fresh.draft.files).some(stage => stage.key === current)
         ? current
         : discoverStages(fresh.draft.files).find(stage => !stage.archived)?.key || "");
@@ -200,7 +202,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       notify("danger", "The server rejected the change", failure instanceof Error ? failure.message : String(failure));
       throw failure;
     }
-  }, [api, boot, notify]);
+  }, [api, boot, notify, rememberValidation]);
 
   const undo = useCallback(async () => {
     if (!boot?.draft.canUndo) return;
@@ -264,6 +266,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setApplyResult(result);
       const fresh = await api.bootstrap();
       setBoot(fresh);
+      rememberValidation(fresh.validation, fresh.draft.id);
       setBusy("");
       notify("success", "The live server is synchronized", `Server revision ${result.configurationRevision}.`);
     } catch (failure) {
@@ -284,6 +287,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       if (!result.success) throw new Error(result.explanation || "Rollback was rejected.");
       const fresh = await api.bootstrap();
       setBoot(fresh);
+      rememberValidation(fresh.validation, fresh.draft.id);
       setReview(null);
       setApplyResult(null);
       setBusy("");
@@ -292,7 +296,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setBusy("");
       notify("danger", "Rollback failed", failure instanceof Error ? failure.message : String(failure));
     }
-  }, [api, notify]);
+  }, [api, notify, rememberValidation]);
 
   const catalog = useCallback((catalogId: string, field: string, mode: string, text: string,
                                filters: Record<string, string> = {}, cursor = "", pageSize = 50) => {

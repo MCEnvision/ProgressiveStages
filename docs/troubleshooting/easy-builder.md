@@ -79,8 +79,24 @@ name their draft relative `stage.toml` path. A rejected apply preserves the edit
 installed definitions. After Validate, ownership and access rules show matching field details.
 Expand the draft validation summary or open Review to see errors across all files. Errors and
 warnings have distinct text labels. Editing the draft hides earlier results until it is validated
-again. Rejected apply diagnostics remain available for the matching draft. Actual browser
-acceptance and complete provider capability feedback remain open.
+again. Rejected apply diagnostics remain available for the matching draft. Bootstrap also supplies
+validation for the initial draft. Actual browser acceptance remains open.
+
+Ownership feedback uses the current server's global sharing setting and team provider availability.
+A forced or inherited team stage uses solo fallback when that provider is absent or disabled.
+Personal and server choices retain their separate meanings. An unapplied edit to the global
+configuration does not change this current server observation.
+
+The Access tab distinguishes LuckPerms absence, disablement, startup, readiness, and failure.
+Disabled stage mappings, missing groups, and unresolved commands remain editable. These are warnings,
+so an otherwise valid draft can still apply. Command gates are checked even without LuckPerms.
+A resolved command path exists in the current dispatcher; native permission checks still apply.
+An ambiguous path reaches multiple literal nodes and requires checking each affected command branch.
+
+A group marked unknown is pending or could not be checked. Use Validate again to refresh it.
+Only a completed negative provider lookup reports a missing group. The lookup does not create
+groups or wait on the server thread. New draft groups and commands are checked before apply,
+including groups used only by outbound mappings.
 
 ## Editor operation capture
 
@@ -100,8 +116,9 @@ rule ID when available, severity and validation code. The full diagnostic count 
 flag show when the editor response contains additional entries. `operation_code` retains the
 request outcome, such as `validation_failed`, separately from a field code such as `server_override`.
 Operations without a diagnostic retain `field = "draft"` and `severity = "NONE"`. File paths and
-error messages are never copied into these records. Complete capability observations remain
-acceptance work.
+error messages are never copied into these records. Bootstrap, validation, review and apply
+record the observed LuckPerms provider state when their response supplies typed capabilities.
+Dedicated group and command capture fields remain acceptance work.
 
 A record is reserved when an operation begins. A reload stops new observations immediately, while
 an already accepted apply record can finish with its result and installed revision. The writer

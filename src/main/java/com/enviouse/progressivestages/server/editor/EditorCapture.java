@@ -57,9 +57,12 @@ final class EditorCapture {
             } else if (response instanceof Map<?, ?> values) {
                 if (values.get("validation") instanceof DraftValidation result) validation = result;
                 if (values.containsKey("error")) code = "unknown_action";
-                if (values.get("capabilities") instanceof StageCapabilities capabilities) {
+                if (values.get("stageCapabilities") instanceof StageCapabilities capabilities) {
                     provider = capabilities.luckPerms().name().toLowerCase(Locale.ROOT);
                 }
+            }
+            if (validation != null && validation.stageCapabilities() != null) {
+                provider = validation.stageCapabilities().luckPerms().name().toLowerCase(Locale.ROOT);
             }
             String reason = switch (code) {
                 case "draft_conflict", "configuration_conflict" -> "stale_revision";

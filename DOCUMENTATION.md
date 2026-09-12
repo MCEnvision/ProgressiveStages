@@ -4770,7 +4770,33 @@ and rejected apply only for the matching draft ID and revision. A changed draft 
 results, and a delayed older validation cannot produce a current success notice. Ownership fields
 and indexed access rows display their matching errors or returned warnings. The draft summary
 and review preserve all ordinary errors, including failures without structured locations.
-Complete capability production and actual browser acceptance remain separate gates.
+Bootstrap preserves its existing string `capabilities` list and adds typed `stageCapabilities`,
+`teamMode`, and the draft `validation` result. Validate, review, and apply return the same typed
+capabilities inside `DraftValidation`. Its existing five and six argument constructors remain
+supported. The group and command maps contain only references from successfully parsed draft
+stages, including new stages and outbound groups. Package child files are not reparsed as legacy
+stages. Bootstrap validation and later results are displayed only for their matching draft revision.
+
+`ProgressiveStagesAPI.getStageCapabilities(Collection<StageDefinition>)` accepts the draft definitions;
+the existing no argument method uses installed definitions. Command status uses the actual server
+Brigadier dispatcher and `CommandRuleBinding` literal traversal. A path can be resolved, missing,
+or ambiguous across multiple literal nodes. No dispatcher leaves the path unobserved rather than
+claiming it is missing. Command warnings also work without a LuckPerms table or provider.
+
+The optional LuckPerms adapter checks loaded groups first, then uses the provider's asynchronous
+`loadGroup` query for referenced unloaded names. An empty completed result confirms a missing group;
+a pending or failed lookup stays unknown. This never creates a group, blocks on a future, or changes
+stage authority from a callback. Diagnostic lookup work is limited to eight pending requests and
+256 cached observations. Completed observations expire after ten seconds; pending requests keep
+their concurrency slot until completion. Adapter shutdown clears its observations without canceling
+provider owned work. Revalidate to refresh lookup results. The provider's loaded cache alone cannot
+prove absence, as specified by the [LuckPerms GroupManager API](https://www.javadocs.dev/net.luckperms/api/5.4/net/luckperms/api/model/group/GroupManager.html).
+
+Warnings identify disabled stage mappings, unavailable providers, unknown or missing groups,
+unresolved or ambiguous commands, and team fallback under current server settings. They preserve
+source and do not block an otherwise valid apply. Ownership feedback describes the current server's
+global sharing mode, not an unapplied global configuration edit. Actual browser acceptance and the
+real LuckPerms runtime matrix remain separate gates.
 
 ### Diagnostic candidate identity
 

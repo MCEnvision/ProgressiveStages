@@ -160,8 +160,9 @@ Players gain stages through:
 
 Stages are **server-authoritative**: the server stores the truth, the client
 caches it for visual feedback (lock icons in EMI/JEI, locked-item tooltips,
-masked names). Stages can be **per-player** (solo mode) or **per-team** (FTB
-Teams mode); the choice is a single `general.team_mode` config flag.
+masked names). A stage can inherit the global `general.team_mode`, opt into a
+personal owner with `team_stage = false`, or request the active FTB Teams owner
+with `team_stage = true`. Server scoped stages remain shared by every player.
 
 Everything is **multiplayer-first**: locks sync to clients, EMI/JEI refresh on
 stage change, FTB Quests stage-tasks update instantly, FTB Teams stages are
@@ -2142,6 +2143,7 @@ tags     = ["combat", "tier2"]   # New in 3.0 — labels for /stage tag ... (§7
 slot_group = "beginner_paths"    # New in 3.0.1 — shared ownership pool
 slot_limit = 2                    # two members of this group may be active
 slot_policy = "deny"             # behavior when the group is full
+team_stage = false                # optional personal owner, omit to inherit general.team_mode
 ```
 
 | Field | Type | Meaning |
@@ -2150,6 +2152,7 @@ slot_policy = "deny"             # behavior when the group is full
 | `color` | string | A GUI **tint** for the stage's name — a `#RRGGBB` hex string (`"#55FF55"`) or an `&`-color code. Applies to the stage's name in both the tree and the detail header (the status colour is the fallback when omitted). |
 | `category` | string | A **group label**, shown as a `[category]` tag in the detail-pane header. |
 | `scope` | string | `"team"` (default) or `"server"`. A **`"server"`-scoped stage is SERVER-WIDE**: the **first team** to satisfy it unlocks it for the **whole server** (everyone, including future joiners). Use for global milestones ("someone has beaten the dragon → the End gate opens for all"). |
+| `team_stage` | bool, optional | Override the global team mode for this stage. Omitted inherits `general.team_mode` and the available provider. `false` stores a personal actor stage. `true` uses the active FTB Teams owner and falls back to the actor UUID when FTB Teams is unavailable. Server scoped stages reject this field. |
 | `duration` | string | Temporary-stage lifetime — see §4.25. |
 | `tags` | list | **New in 3.0.** Free-form **labels** for this stage (lower-cased on load). They group stages for the bulk `/stage tag grant\|revoke\|list <tag>` commands (§7.1) — e.g. tag every combat-tier stage `"combat"` and grant them all at once. Tags have **no** gating effect on their own; they're purely an authoring/admin convenience. |
 | `dependency_mode` | string | **New in 3.0.** `"all"` (default), `"any"`, or `"at_least"`. This enables alternate branches and quorum progression without scripts. |
@@ -2164,6 +2167,13 @@ slot_policy = "deny"             # behavior when the group is full
 > hex) tints the stage name, and `category` shows as a tag in the detail header.
 > They are synced to the client via `ClientStageCache`
 > ([`StageTreeScreen`](src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java)).
+
+The owner is resolved before a grant, revoke, dependency check, slot decision, or
+integration callback. Personal records remain with the player when team membership
+changes. Team and server records retain their existing namespaces. The effective
+view sent to a player is the union of their personal records, their resolved team
+record, and server records. Counters keep their own subject scope and are not changed
+by `team_stage`.
 
 ### 4.30 Datapack-loaded stages
 
@@ -3383,7 +3393,7 @@ Default values are shown below.
 |-----|---------|---------|
 | `starting_stages` | `[]` | Stages auto-granted on first join. Empty by default so showcase classes remain player choices. |
 | `reapply_starting_stages_on_login` | `false` | If true, the starting list is re-checked on every login (idempotent — already-granted stages are not re-granted). |
-| `team_mode` | `"ftb_teams"` | `"ftb_teams"` (shared per FTB team) or `"solo"` (per player). Falls back to solo if FTB Teams is not installed. |
+| `team_mode` | `"ftb_teams"` | `"ftb_teams"` (shared per FTB team) or `"solo"` (per player). Falls back to solo if FTB Teams is not installed. Each stage can override this with optional `team_stage`. |
 | `debug_logging` | `false` | Verbose logging for stage checks, lock queries, team operations. |
 | `linear_progression` | `false` | If true, granting a stage auto-grants all missing dependencies recursively. |
 
@@ -3549,6 +3559,10 @@ permission level 2; authoring/reload/validation operations require level 3.
 | `/stage bulk grant\|revoke <players>` | **New in 3.0.** Grant or revoke the complete defined/owned stage set. |
 | `/stage sync <players>` | **New in 3.0.** Re-send definitions, lock registry, ownership, and bypass state to selected clients. |
 | `/stage simulate [player]` | **New in 3.0.** **Dry-run** of what the player can unlock next: lists their **reachable-next** stages (deps met, not yet owned) sorted by completion %, and for each shows exactly which `[[triggers]]` conditions are still **short** (`current/threshold`, "need N more"). Then lists **dependency-blocked** stages with the prerequisites they're still missing. Player defaults to the caller. Read-only. |
+| `/stage explain scope <player> <stage>` | **New in 3.0.5.** Admin-only owner explanation showing optional `team_stage` presence, provider availability, and the resolved personal, team, server, or fallback owner. |
+| `/stage debug progression on <player>` | **New in 3.0.5.** Admin-only bounded progression ownership capture. |
+| `/stage debug progression status` | **New in 3.0.5.** Show the active diagnostic capture and its server-selected output path. |
+| `/stage debug progression off` | **New in 3.0.5.** Stop the active progression capture and drain its bounded writer. |
 | `/stage new <id>` | **New in 3.0.** **Scaffold** a new stage TOML at `config/progressivestages/stages/<id>.toml` (a commented template with `[stage]`, `[items]`, a sample `[[triggers]]`, and pointers to the optional sections). Refuses to overwrite an existing file; run `/progressivestages reload` after editing. |
 | `/stage export` | **New in 3.0.** Write a **markdown progression guide** (`progressivestages_guide.md` in the config folder) built from the stage graph — for each stage: description, **Requires** (deps), **Leads to** (dependents), **Unlock by** (`[[triggers]]` conditions), and whether it's purchasable. |
 | `/stage counter get <player> <counter>` | Read a named `custom_counter` value (permission 2). |
@@ -4098,6 +4112,11 @@ Set<StageId> all = ProgressiveStagesAPI.getAllStageIds();
 // Per-player queries
 boolean has = ProgressiveStagesAPI.hasStage(player, "diamond_age");
 Set<StageId> stages = ProgressiveStagesAPI.getStages(player);
+OwnerRef owner = ProgressiveStagesAPI.getStageOwner(player, StageId.parse("profession:chef"));
+EffectiveStageSnapshot snapshot = ProgressiveStagesAPI.getEffectiveSnapshot(player);
+StageActorContext context = ProgressiveStagesAPI.resolveStageOwner(player, StageId.parse("profession:chef"));
+ProgressiveStagesAPI.grantStageFromSource(player, StageId.parse("profession:chef"),
+    "luckperms_synchronized", StageCause.PERMISSION);
 List<StageId> available = ProgressiveStagesAPI.getAvailableStages(player);
 StageSlotResolver.Decision slot = ProgressiveStagesAPI.getSlotDecision(player,
     StageId.parse("diamond_engineer"));

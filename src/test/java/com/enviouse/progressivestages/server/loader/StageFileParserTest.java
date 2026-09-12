@@ -618,4 +618,22 @@ class StageFileParserTest {
         Files.writeString(file, contents);
         return file;
     }
+
+    @org.junit.jupiter.api.Test
+    void optionalTeamStagePreservesPresenceAndRejectsServerOverride() {
+        String content = "[stage]\nid = \"progressivestages:chef\"\nteam_stage = false\n";
+        var parsed = StageFileParser.parseText(content, "chef.toml", "test", false);
+        org.junit.jupiter.api.Assertions.assertTrue(parsed.isSuccess());
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.Optional.of(false),
+            parsed.getStageDefinition().getTeamStage());
+        org.junit.jupiter.api.Assertions.assertFalse(parsed.getStageDefinition().isScopePresent());
+        org.junit.jupiter.api.Assertions.assertEquals(
+            com.enviouse.progressivestages.common.stage.StageOwnershipOptions.Scope.TEAM,
+            parsed.getStageDefinition().getOwnershipOptions().scope());
+
+        String server = "[stage]\nid = \"progressivestages:server\"\nscope = \" server \"\nteam_stage = true\n";
+        var rejected = StageFileParser.parseText(server, "server.toml", "test", false);
+        org.junit.jupiter.api.Assertions.assertFalse(rejected.isSuccess());
+    }
+
 }

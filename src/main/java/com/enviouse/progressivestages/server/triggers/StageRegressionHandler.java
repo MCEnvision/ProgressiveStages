@@ -8,7 +8,6 @@ import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.common.stage.StageOrder;
-import com.enviouse.progressivestages.common.team.TeamProvider;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -95,7 +94,6 @@ public final class StageRegressionHandler {
         if (player.server == null) return;
         Set<StageId> owned = StageManager.getInstance().getStages(player);
         if (owned.isEmpty()) return;
-        UUID teamId = TeamProvider.getInstance().getTeamId(player);
         StageRegressionData data = StageRegressionData.get(player.server);
         long now = System.currentTimeMillis();
 
@@ -106,7 +104,7 @@ public final class StageRegressionHandler {
             // Temporary stage expiry (real wall-clock, runs while offline). Server-scoped stages
             // are keyed under SERVER_TEAM so every team shares one synchronized expiry clock.
             if (def.isTemporary()) {
-                UUID grantKey = def.isServerScope() ? StageManager.SERVER_TEAM : teamId;
+                UUID grantKey = StageManager.getInstance().getStorageOwner(player, id);
                 long grantTime = data.getGrantTime(grantKey, id);
                 if (grantTime <= 0) {
                     // No record (e.g. granted before this feature, or by command) — start the clock now.

@@ -340,16 +340,6 @@ public final class FtbQuestsHooks {
 
         LOGGER.info("[ProgressiveStages] FTB Provider add() called - raw stage ID: '{}', player: {}", stage, player.getName().getString());
 
-        // Optional FTB Teams TeamStagesHelper delegation.
-        if (com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()) {
-            Boolean delegated = teamStagesHelperAdd(player, stage.trim());
-            if (delegated != null) {
-                LOGGER.info("[ProgressiveStages] FTB Provider add() delegated to TeamStagesHelper -> {}", delegated);
-                return;
-            }
-            // fall through to mine's backend on failure
-        }
-
         // Normalize the stage ID (handles case differences, whitespace, etc.)
         StageId stageId;
         try {
@@ -366,6 +356,16 @@ public final class FtbQuestsHooks {
             LOGGER.error("[ProgressiveStages] FTB Provider add() - stage '{}' does not exist in ProgressiveStages! " +
                 "Check that the stage ID in FTB Quests matches a [stage] id in config/progressivestages/stages/*.toml", stageId);
             return;
+        }
+
+        // TeamStagesHelper is used only when this stage actually resolves to a team owner.
+        if (com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()
+                && com.enviouse.progressivestages.common.stage.StageOwnership.isTeamOwned(player, stageId)) {
+            Boolean delegated = teamStagesHelperAdd(player, stage.trim());
+            if (delegated != null) {
+                LOGGER.info("[ProgressiveStages] FTB Provider add() delegated to TeamStagesHelper -> {}", delegated);
+                return;
+            }
         }
 
         // Check if already has stage
@@ -390,16 +390,6 @@ public final class FtbQuestsHooks {
 
         LOGGER.info("[ProgressiveStages] FTB Provider remove() called - raw stage ID: '{}', player: {}", stage, player.getName().getString());
 
-        // Optional FTB Teams TeamStagesHelper delegation.
-        if (com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()) {
-            Boolean delegated = teamStagesHelperRemove(player, stage.trim());
-            if (delegated != null) {
-                LOGGER.info("[ProgressiveStages] FTB Provider remove() delegated to TeamStagesHelper -> {}", delegated);
-                return;
-            }
-            // fall through to mine's backend on failure
-        }
-
         // Normalize the stage ID
         StageId stageId;
         try {
@@ -410,6 +400,14 @@ public final class FtbQuestsHooks {
         }
 
         LOGGER.info("[ProgressiveStages] FTB Provider remove() - normalized to: '{}'", stageId);
+        if (com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()
+                && com.enviouse.progressivestages.common.stage.StageOwnership.isTeamOwned(player, stageId)) {
+            Boolean delegated = teamStagesHelperRemove(player, stage.trim());
+            if (delegated != null) {
+                LOGGER.info("[ProgressiveStages] FTB Provider remove() delegated to TeamStagesHelper -> {}", delegated);
+                return;
+            }
+        }
         ProgressiveStagesAPI.revokeStage(player, stageId, StageCause.QUEST_REWARD);
         LOGGER.info("[ProgressiveStages] FTB Provider remove() completed - stage '{}' revoked from {}", stageId, player.getName().getString());
     }

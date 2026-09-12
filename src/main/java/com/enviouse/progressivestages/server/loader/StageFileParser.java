@@ -256,12 +256,23 @@ public final class StageFileParser {
             .slotLimit(slotLimit)
             .slotPolicy(StageSlotPolicy.parse(stageSection.getOrElse("slot_policy", "deny")));
         String scope = stageSection.get("scope");
+        String normalizedScope = null;
         if (scope != null) {
-            String normalizedScope = scope.trim().toLowerCase(java.util.Locale.ROOT);
+            normalizedScope = scope.trim().toLowerCase(java.util.Locale.ROOT);
             if (!normalizedScope.equals("team") && !normalizedScope.equals("server")) {
                 throw new IllegalArgumentException("Invalid stage scope. " + scope);
             }
-            builder.scope(normalizedScope);
+            builder.scope(normalizedScope).scopePresent(true);
+        }
+        if (stageSection.contains("team_stage")) {
+            Object rawTeamStage = stageSection.get("team_stage");
+            if (!(rawTeamStage instanceof Boolean)) {
+                throw new IllegalArgumentException("Stage team_stage must be a boolean");
+            }
+            if ("server".equals(normalizedScope)) {
+                throw new IllegalArgumentException("Server stages cannot declare team_stage");
+            }
+            builder.teamStage((Boolean) rawTeamStage);
         }
         builder.durationMillis(parseDuration(stageSection.get("duration")));
         builder.attributes(parseAttributes(config));

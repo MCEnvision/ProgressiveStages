@@ -8,6 +8,8 @@ import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.lock.ConditionalRule;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.common.stage.StageOrder;
+import com.enviouse.progressivestages.common.stage.OwnerRef;
+import com.enviouse.progressivestages.common.stage.StageOwnership;
 import com.enviouse.progressivestages.common.util.TextUtil;
 import com.enviouse.progressivestages.compat.ftbquests.FTBQuestsCompat;
 import com.enviouse.progressivestages.compat.ftbquests.FtbQuestsHooks;
@@ -364,6 +366,11 @@ public class StageCommand {
                         .then(Commands.argument("player", EntityArgument.player())
                             .requires(source -> source.hasPermission(2))
                             .executes(context -> explainStage(context, EntityArgument.getPlayer(context, "player"))))))
+                .then(Commands.literal("scope").requires(source -> source.hasPermission(3))
+                    .then(Commands.argument("player", EntityArgument.player())
+                        .then(Commands.argument("stage", StringArgumentType.word())
+                            .suggests(StageCommand::suggestStages)
+                            .executes(StageCommand::explainScope))))
                 .then(Commands.literal("target")
                     .then(Commands.argument("context", StringArgumentType.word())
                         .then(Commands.argument("target", StringArgumentType.word())
@@ -397,6 +404,14 @@ public class StageCommand {
                         .executes(StageCommand::interactionCaptureStatus))
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::stopInteractionCapture))))
+                .then(Commands.literal("progression").requires(source -> source.hasPermission(3))
+                    .then(Commands.literal("on").requires(source -> source.hasPermission(3))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(StageCommand::startProgressionCapture)))
+                    .then(Commands.literal("status").requires(source -> source.hasPermission(3))
+                        .executes(StageCommand::progressionCaptureStatus))
+                    .then(Commands.literal("off").requires(source -> source.hasPermission(3))
+                        .executes(StageCommand::stopProgressionCapture)))
         );
 
         // Friendly public command aliases.
@@ -705,6 +720,33 @@ public class StageCommand {
             + ". Lifecycle rules. " + stage.progression().lifecycleRules().size()
             + ". Challenges. " + stage.progression().challenges().size()
             + ". Modifiers. " + stage.rules().stream().filter(rule -> rule.category().equals("modifiers")).count()), false);
+        return 1;
+    }
+
+    private static int explainScope(CommandContext<CommandSourceStack> context) {
+        ServerPlayer player;
+        try {
+            player = EntityArgument.getPlayer(context, "player");
+        } catch (CommandSyntaxException exception) {
+            context.getSource().sendFailure(Component.literal("An online player is required"));
+            return 0;
+        }
+        StageId id = StageId.tryParse(StringArgumentType.getString(context, "stage"));
+        StageDefinition definition = id == null ? null : StageOrder.getInstance().getStageDefinition(id).orElse(null);
+        if (definition == null) {
+            context.getSource().sendFailure(Component.literal("Stage was not found"));
+            return 0;
+        }
+        OwnerRef owner = StageOwnership.owner(player, id);
+        boolean providerActive = com.enviouse.progressivestages.common.team.TeamProvider.getInstance().isFtbTeamsActive();
+        String source = StageOwnership.resolutionReason(player, id);
+        context.getSource().sendSuccess(() -> Component.literal("Scope. " + definition.getScope()
+            + ". Scope present. " + definition.isScopePresent()
+            + ". Team stage present. " + definition.getTeamStage().isPresent()
+            + ". Team stage value. " + definition.getTeamStage().map(String::valueOf).orElse("inherited")
+            + ". Owner. " + owner.kind().name().toLowerCase(java.util.Locale.ROOT)
+            + ". Resolution. " + source
+            + ". Provider active. " + providerActive), false);
         return 1;
     }
 
@@ -1742,26 +1784,43 @@ public class StageCommand {
 
     private static int startInteractionCapture(CommandContext<CommandSourceStack> context)
         throws CommandSyntaxException {
-        ServerPlayer target = EntityArgument.getPlayer(context, "player");
+        return startCapture(context, EntityArgument.getPlayer(context, "player"), "interactions");
+    }
+
+    private static int startProgressionCapture(CommandContext<CommandSourceStack> context)
+        throws CommandSyntaxException {
+        return startCapture(context, EntityArgument.getPlayer(context, "player"), "progression");
+    }
+
+    private static int startCapture(CommandContext<CommandSourceStack> context, ServerPlayer target,
+                                    String category) {
         InteractionCaptureManager.StartResult result = InteractionCaptureManager.start(
-            context.getSource().getServer(), target);
+            context.getSource().getServer(), target, category);
         if (result.invalidTarget()) {
             context.getSource().sendFailure(Component.literal("An online target is required"));
             return 0;
         }
         if (result.alreadyActive()) {
-            context.getSource().sendFailure(Component.literal("An interaction capture is already active"));
+            context.getSource().sendFailure(Component.literal("A diagnostic capture is already active"));
             return 0;
         }
         InteractionCaptureManager.CaptureStatus status = result.status();
-        context.getSource().sendSuccess(() -> Component.literal("Interaction capture started for "
+        context.getSource().sendSuccess(() -> Component.literal(category + " capture started for "
             + status.target() + ". Output. " + status.output()), false);
         return 1;
     }
 
     private static int interactionCaptureStatus(CommandContext<CommandSourceStack> context) {
+        return captureStatus(context, "interactions");
+    }
+
+    private static int progressionCaptureStatus(CommandContext<CommandSourceStack> context) {
+        return captureStatus(context, "progression");
+    }
+
+    private static int captureStatus(CommandContext<CommandSourceStack> context, String category) {
         InteractionCaptureManager.CaptureStatus status = InteractionCaptureManager.status();
-        context.getSource().sendSuccess(() -> Component.literal("Interaction capture. "
+        context.getSource().sendSuccess(() -> Component.literal(category + " capture. "
             + (status.active() ? "active" : "off") + ". Target. " + status.target()
             + ". Records. " + status.records() + ". Dropped. " + status.dropped()
             + ". Bytes. " + status.bytes() + ". Stop reason. " + status.stopReason()
@@ -1770,10 +1829,18 @@ public class StageCommand {
     }
 
     private static int stopInteractionCapture(CommandContext<CommandSourceStack> context) {
+        return stopCapture(context, "interactions");
+    }
+
+    private static int stopProgressionCapture(CommandContext<CommandSourceStack> context) {
+        return stopCapture(context, "progression");
+    }
+
+    private static int stopCapture(CommandContext<CommandSourceStack> context, String category) {
         boolean stopped = InteractionCaptureManager.stop(InteractionCaptureManager.StopReason.MANUAL);
         context.getSource().sendSuccess(() -> Component.literal(stopped
-            ? "Interaction capture stopped"
-            : "Interaction capture was already off"), false);
+            ? category + " capture stopped"
+            : "Diagnostic capture was already off"), false);
         return 1;
     }
 

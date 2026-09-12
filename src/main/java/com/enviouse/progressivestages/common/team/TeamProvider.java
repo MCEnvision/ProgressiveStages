@@ -21,6 +21,7 @@ public class TeamProvider {
 
     private static TeamProvider INSTANCE;
     private ITeamIntegration integration;
+    private ITeamIntegration ftbIntegration;
     private boolean ftbTeamsAvailable = false;
 
     public static TeamProvider getInstance() {
@@ -39,6 +40,7 @@ public class TeamProvider {
         // Check if FTB Teams integration is enabled in config
         if (!StageConfig.isFtbTeamsIntegrationEnabled()) {
             ftbTeamsAvailable = false;
+            ftbIntegration = null;
             LOGGER.info("[ProgressiveStages] FTB Teams integration disabled by config, using solo mode");
             integration = new SoloIntegration();
             return;
@@ -48,15 +50,17 @@ public class TeamProvider {
         try {
             Class.forName("dev.ftb.mods.ftbteams.api.FTBTeamsAPI");
             ftbTeamsAvailable = true;
+            ftbIntegration = new ReflectiveFTBTeamsIntegration();
             LOGGER.info("FTB Teams detected, enabling team integration");
         } catch (ClassNotFoundException e) {
             ftbTeamsAvailable = false;
+            ftbIntegration = null;
             LOGGER.info("FTB Teams not found, using solo mode");
         }
 
         // Create integration based on config and availability
         if (StageConfig.isFtbTeamsMode() && ftbTeamsAvailable) {
-            integration = new ReflectiveFTBTeamsIntegration();
+            integration = ftbIntegration;
         } else {
             integration = new SoloIntegration();
         }
@@ -92,12 +96,41 @@ public class TeamProvider {
         return ftbTeamsAvailable && StageConfig.isFtbTeamsMode();
     }
 
+    /** Whether the FTB Teams classes were found during provider initialization. */
+    public boolean isFtbTeamsAvailable() {
+        return ftbTeamsAvailable;
+    }
+
+    /** Whether the player is actually attached to an FTB team. */
+    public boolean hasTeam(ServerPlayer player) {
+        return integration != null && integration.hasTeam(player);
+    }
+
+    /** Resolve a team through FTB Teams even when the global sharing mode is disabled. */
+    public UUID getFtbTeamId(ServerPlayer player) {
+        if (ftbIntegration == null) return player.getUUID();
+        return ftbIntegration.getTeamId(player);
+    }
+
+    /** Return members for an explicitly team-owned stage. */
+    public Set<ServerPlayer> getTeamMembersForOwner(UUID teamId, ServerPlayer requester) {
+        if (ftbIntegration != null) return ftbIntegration.getTeamMembers(teamId, requester);
+        if (requester == null || !requester.getUUID().equals(teamId)) return Set.of();
+        return getTeamMembers(teamId, requester);
+    }
+
+    /** Whether the player belongs to an available FTB Teams provider. */
+    public boolean hasFtbTeam(ServerPlayer player) {
+        return ftbIntegration != null && ftbIntegration.hasTeam(player);
+    }
+
     /**
      * Interface for team integrations
      */
     public interface ITeamIntegration {
         UUID getTeamId(ServerPlayer player);
         Set<ServerPlayer> getTeamMembers(UUID teamId, ServerPlayer requester);
+        default boolean hasTeam(ServerPlayer player) { return false; }
     }
 
     /**
@@ -210,6 +243,23 @@ public class TeamProvider {
             }
 
             return Collections.singleton(requester);
+        }
+
+        @Override
+        public boolean hasTeam(ServerPlayer player) {
+            ensureReflection();
+            if (reflectionFailed) return false;
+            try {
+                Object manager = getManagerMethod.invoke(cachedApi);
+                if (getTeamForPlayerMethod == null) {
+                    getTeamForPlayerMethod = manager.getClass().getMethod("getTeamForPlayer", ServerPlayer.class);
+                }
+                @SuppressWarnings("unchecked")
+                Optional<Object> team = (Optional<Object>) getTeamForPlayerMethod.invoke(manager, player);
+                return team.isPresent();
+            } catch (Exception e) {
+                return false;
+            }
         }
     }
 }

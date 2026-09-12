@@ -57,6 +57,14 @@ public final class LegacyStageCompiler {
         addCategory(rules, stage, "dimensions", "enter", dimensions, root);
         addConditionalRules(rules, stage, root);
 
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("scope", stage.getScope());
+        metadata.put("scope_present", stage.isScopePresent());
+        metadata.put("category", stage.getCategory());
+        metadata.put("tags", stage.getTags());
+        metadata.put("legacy", stage.getSchemaVersion() < 4);
+        stage.getTeamStage().ifPresent(value -> metadata.put("team_stage", value));
+
         return new CompiledStage(
             stage.getId(),
             stage.getDisplayName(),
@@ -66,11 +74,7 @@ public final class LegacyStageCompiler {
             sourceId,
             rules,
             compileProgression(stage, root),
-            Map.of(
-                "scope", stage.getScope(),
-                "category", stage.getCategory(),
-                "tags", stage.getTags(),
-                "legacy", stage.getSchemaVersion() < 4),
+            Map.copyOf(metadata),
             stage,
             root);
     }

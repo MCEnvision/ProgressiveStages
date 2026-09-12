@@ -124,7 +124,7 @@ public class StageCommand {
                     .executes(StageCommand::syncPlayers)))
 
             // v3.0: /stage simulate [player] — dry-run what they'd unlock next and what's short
-            .then(Commands.literal("simulate")
+            .then(Commands.literal("simulate").requires(source -> source.hasPermission(2))
                 .executes(ctx -> simulate(ctx, ctx.getSource().getPlayerOrException()))
                 .then(Commands.argument("player", EntityArgument.player())
                     .executes(ctx -> simulate(ctx, EntityArgument.getPlayer(ctx, "player")))))

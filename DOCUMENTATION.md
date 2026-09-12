@@ -4733,6 +4733,19 @@ Start at [Phase 1](PHASES_1_TO_19.md#phase-1-install-the-mod-and-generate-the-co
 if the mod is already installed. The early phases establish paths and ownership rules that every
 later example assumes.
 
+### Editor apply revision boundary
+
+The authenticated session `apply` request includes `revision`, taken from the displayed review.
+The session service checks it while holding the draft monitor through validation and apply.
+A missing or stale revision returns `draft_conflict`, the current revision, and recovery feedback
+before invoking the file transaction or loader. Other draft mutations use the same monitor.
+The existing configuration conflict check still protects live files changed outside the draft.
+
+On a conflict, the Easy Builder clears the rejected review and refreshes the server draft. It
+requires a fresh review before another apply attempt. An older cached editor that omits the
+revision fails safely and must reload the current packaged assets. This does not change stage
+schema or the transport protocol. See the [editor recovery guide](docs/troubleshooting/easy-builder.md).
+
 ### Diagnostic capture output lifecycle
 
 The interaction, progression, and permission capture commands share the `/stage debug` parent.

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { EditorApi } from "../lib/api";
+import { EditorApi, EditorApiError } from "../lib/api";
 import { discoverStages } from "../lib/model";
 import type {
   ApplyResult,
@@ -237,7 +237,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     if (!review?.validation.valid) return;
     setBusy("Applying and synchronizing the server");
     try {
-      const result = await api.request<ApplyResult>({ action: "apply", confirmed: true });
+      const result = await api.request<ApplyResult>({ action: "apply", revision: review.revision, confirmed: true });
       if (!result.success) throw new Error(result.explanation || "The server rejected the draft.");
       setApplyResult(result);
       const fresh = await api.bootstrap();
@@ -245,10 +245,15 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setBusy("");
       notify("success", "The live server is synchronized", `Server revision ${result.configurationRevision}.`);
     } catch (failure) {
+      if (failure instanceof EditorApiError && failure.code === "draft_conflict") {
+        setReview(null);
+        setApplyResult(null);
+        await refresh();
+      }
       setBusy("");
       notify("danger", "Apply failed", failure instanceof Error ? failure.message : String(failure));
     }
-  }, [api, notify, review?.validation.valid]);
+  }, [api, notify, refresh, review]);
 
   const rollback = useCallback(async (transaction: string) => {
     setBusy("Rolling back the transaction");

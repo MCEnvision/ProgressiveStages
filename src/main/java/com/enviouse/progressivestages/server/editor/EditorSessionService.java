@@ -131,7 +131,8 @@ public final class EditorSessionService {
             };
             return GSON.toJson(response);
         } catch (EditorDraft.DraftConflictException conflict) {
-            return GSON.toJson(Map.of("error", "draft_conflict", "currentRevision", conflict.currentRevision()));
+            return GSON.toJson(Map.of("error", "draft_conflict", "currentRevision", conflict.currentRevision(),
+                "explanation", "The draft changed. Review the current changes before trying again."));
         } catch (RuntimeException failure) {
             return error("request_failed", failure.getMessage());
         }
@@ -387,6 +388,15 @@ public final class EditorSessionService {
     }
 
     private EditorApplyResult apply(MinecraftServer server, UUID actor, EditorDraft draft, JsonObject request) {
+        synchronized (draft) {
+            if (number(request, "revision", -1) != draft.revision()) {
+                throw new EditorDraft.DraftConflictException(draft.revision());
+            }
+            return applyReviewed(server, actor, draft, request);
+        }
+    }
+
+    private EditorApplyResult applyReviewed(MinecraftServer server, UUID actor, EditorDraft draft, JsonObject request) {
         long current = StageFileLoader.getInstance().getCompiledSnapshot().revision();
         EditorApplyResult result = applyService.apply(server, actor, draft, current,
             bool(request, "confirmed", false));

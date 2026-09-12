@@ -336,6 +336,9 @@ node and execution bindings identify aliases; namespace text alone does not esta
 The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)
 distinguishes the core checks from the outstanding real provider and client acceptance.
 
+Easy Builder applies only the reviewed draft revision. If another edit changes the draft, it
+reloads the current source and asks for a new review before applying.
+
 Diagnostic capture status now shows the actual category, remaining limits, and writer completion.
 See the [capture procedure](docs/troubleshooting/interaction-locks.md) before collecting support logs.
 

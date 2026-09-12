@@ -56,5 +56,11 @@ and unrelated files. A stale revision or failed reload leaves the editable draft
 field or capability diagnostic. Use undo, redo, or reopen to restore the last valid source, then
 run `Apply changes` again.
 
+Apply checks the revision shown in the review against the server draft. If another tab or
+collaborator changes the draft, the server returns `draft_conflict` without writing live configuration or
+reloading stages. The editor closes that stale review and refreshes the current draft. Open
+Review again, inspect the updated changes, and confirm them. Older cached tabs that omit the
+reviewed revision are also rejected; reopen the editor to load the matching packaged assets.
+
 If the tab reports `403 Forbidden`, close it and open `/pstages editor` again from a permission
 level 3 operator. The token belongs to one loopback session and cannot be reused in an older tab.

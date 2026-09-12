@@ -8,7 +8,7 @@ The candidate reviewed for this work is wd's Selling Bin `1.6-NEOFORGE-1.21.1`. 
 
 The original project loader was NeoForge 21.1.219. The candidate metadata requires newer NeoForge for its bundled libraries, so that earlier investigation started the exact candidate only in an isolated NeoForge 21.1.233 runtime. That server reached readiness and loaded the candidate. The pinned candidate runtime was rejected by dependency validation before gameplay. The current development build uses the owner selected NeoForge 21.1.248. It satisfies those declared minimums, but the earlier startup is not evidence that the reporter's exact environment or the final candidate was verified.
 
-Focused selector, parser, decision, and full build checks pass on the pinned project toolchain. A dedicated core startup smoke also remains independent of Selling Bin. The laptop presentation gate is not claimed here because the isolated client did not reach a responsive joined world and its application audio stream could not be verified over the available desktop connection. No release artifact is published by this work.
+Focused selector, parser, decision, and full build checks pass on the pinned project toolchain. A dedicated core startup smoke also remains independent of Selling Bin. The initial laptop attempt did not reach a responsive joined world with verified application audio. The later [joined laptop verification](#joined-laptop-verification) records the successful input, presentation and reconnect checks with their remaining limits. No release artifact is published by this work.
 
 ## September 12 interaction correction regression
 
@@ -195,3 +195,75 @@ artifact, scratch logs and scripts, and 475 additional build entries were remove
 preexisting build entries, 26 local Gradle entries, shared dependency caches, current candidate
 JAR, existing investigation runtime and source were preserved. No laptop client, browser or
 laptop resource was created by this suite.
+
+## Joined laptop verification
+
+On September 12, 2026, commit `2874f2756fb4d996433212ef8196362765dc1e9b` was exercised
+with a real Prism client on `envision` and an authenticated, headless dedicated server on
+`node-1`. Both used Minecraft 1.21.1, NeoForge 21.1.248 and the exact mod JARs listed in
+[the bounded observations](selling-bin-client/observations.json). The ProgressiveStages JAR
+SHA256 is `537b6484c662a709cd94bc27e186d38d3891c3aa0e1ac3b65d38e393ee7a0575`.
+Selling Bin remains 1.6 with SHA256
+`025c96f5cf1ab531e75d11ef9ed655fe64878dd4228d73b26c419b688e3abf7d`.
+LuckPerms was absent from this specific bin fixture; no permission provider acceptance is
+inferred from it.
+
+The server runtime was `.phase-worktrees/phase-003/build/laptop-prediction-verification`.
+The reused isolated Prism runtime was
+`/home/envy/.local/share/PrismLauncher/instances/pstages-acceptance-20260912/minecraft`.
+Its original configuration, mods and logs were backed up before launch. The server bound only
+to `127.0.0.1:25585`, retained `online-mode=true` and received the client over the private SSH
+route. Both logs confirmed the same player joined, including a second join after an actual
+disconnect and Direct Connection journey. No public port or personal server list entry was added.
+
+The client used the NVIDIA GeForce RTX 5090 Laptop GPU with driver 610.57.04. Master volume
+was zero before startup. The owned Hyprland window, process and playback stream were correlated
+before input, and a watcher verified application mute continuously. Resource reload recreated
+stream 1039 as stream 14051; the replacement was muted and read back before further input.
+Actions used the game's Use binding and native Wayland pointer input in that exact window.
+Console commands prepared fixtures, granted or revoked the stage and read authoritative state;
+they did not perform the tested insertion or menu actions.
+
+The controlled price pack valued one iron chestplate at 30 emeralds, bread at 10 and carrot at 7.
+The test player was in survival without operator privileges. The stage used `team_stage=false`.
+The original armor rule, standalone wildcard rule, paired selective bread rules and independent
+`block_right_click` rule were installed in separate definition revisions. No wildcard or whole
+bin access rule was active during selective bread testing. The two physical parts were the
+primary bin at `(0, -60, 0)` and its companion at `(1, -60, 0)`.
+
+| Actual client action | Observed server and client result |
+| --- | --- |
+| Original `tag:c:armors` rule, primary part, automatic sale enabled | Denial left one chestplate held, no bin input or output and no open GUI. Grant allowed the sale and produced 30 emeralds. After revoke, three further Use presses preserved the restored chestplate and empty bin. |
+| Standalone `all:*` rule, companion part, automatic sale enabled | Denial preserved three bread and an empty bin. Grant allowed their insertion and produced 30 emeralds. |
+| Selective `id:minecraft:bread` direct and inventory rules | Bread was denied while a carrot inserted and sold for 7 emeralds without the stage. A separate empty-hand click opened the GUI. |
+| Selective GUI insertion with automatic sale enabled | Left placement, right placement, hotbar swap, shift click and offhand swap could not insert denied bread. The stack remained carried or in its original inventory slot, with no new payout. Grant allowed the same shift click and produced 30 emeralds; extracting that output succeeded. Revoking while the menu remained open blocked fresh bread insertion. |
+| Selective GUI insertion with automatic sale disabled | Dragging denied bread into the input preserved all three carried bread. Grant allowed the same drag and left three bread unsold in the input. One actual Sell button press consumed one bread and produced 10 emeralds. |
+| Previously accepted deposits after revoke | Two bread accepted before revoke still sold, bringing the previously earned total to 30 emeralds. Fresh denied bread could not enter the empty input or create additional output through the Sell button. This follows the existing insertion boundary; deposited items are not retroactively attributed to the current viewer. |
+| Disconnect and reconnect | The same muted client joined the exact private server again. Direct bread use remained denied; an empty-hand click opened the selectively gated GUI, where shift click still preserved three bread and the existing 30 emeralds without additional payout. |
+| Independent whole bin access | A separate `block_right_click` rule blocked both empty-hand and bread-held clicks. Grant opened the GUI; revoke blocked repeated empty-hand clicks. After resource reload, bread-held use remained denied with the same inventory and empty bin. |
+
+The diagnostic records preserve terminal server denial for the original armor and wildcard
+fixtures and for both empty and nonempty whole bin clicks. Server inventory and block entity
+observations establish the listed counts and currency, including delayed reads after denial.
+The preserved images show [denied carried bread](selling-bin-client/gui_bread_denied.png),
+[allowed automatic output](selling-bin-client/gui_shift_allowed.png),
+[GUI denial after reconnect](selling-bin-client/reconnect_gui_denied.png) and
+[whole bin denial after resource reload](selling-bin-client/resource_reload_denied.png).
+The earlier headless records retain their original, narrower scope.
+
+This closes these particular physical input, GUI and reconnect checks for the candidate. It
+does not close the complete matrix: multiple real players, custom stack components, creative
+and configuration bypass transitions, all hand and sneaking combinations, LuckPerms retention
+and source changes, the packaged Brave authoring journey and verification of the eventual
+merged default commit remain open. The bundled `wdutils` access transformer error and the
+dependency manifest's unresolved license observations also remain visible.
+
+The server exited normally through `stop` after saving every dimension. The exact owned client
+and Prism processes exited, the audio watcher finished, both playback streams disappeared and
+the private tunnel listener was absent. The isolated client received its original options,
+instance configuration, ProgressiveStages and LuckPerms JARs, logs and crash reports back;
+its complete runtime path inventory matched the prelaunch inventory. Existing saves and
+unrelated instances were preserved. The disposable server's 81 new build entries and both
+hosts' scratch files were removed after the evidence was retained. The 837 preexisting build
+entries, 26 local Gradle entries, current candidate, shared caches and earlier investigation
+runtime remain untouched. No browser resource was created by this bounded suite.

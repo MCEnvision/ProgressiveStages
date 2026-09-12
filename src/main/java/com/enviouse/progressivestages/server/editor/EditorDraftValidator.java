@@ -41,10 +41,17 @@ final class EditorDraftValidator {
             }
             StagePackageDiscovery.DiscoveryResult discovery = StagePackageDiscovery.discover(temporary);
             List<String> errors = new ArrayList<>(discovery.errors());
+            List<DraftValidation.Diagnostic> diagnostics = new ArrayList<>();
             Map<StageId, StageDefinition> definitions = new LinkedHashMap<>();
             for (var source : discovery.packages()) {
                 var parsed = StagePackageParser.parse(source);
-                if (!parsed.isSuccess()) { errors.add(source.root().getFileName() + ". " + parsed.getErrorMessage()); continue; }
+                if (!parsed.isSuccess()) {
+                    errors.add(source.root().getFileName() + ". " + parsed.getErrorMessage());
+                    parsed.getFieldDiagnostic("stages/" + temporary.relativize(source.identityFile()).toString().replace('\\', '/'))
+                        .filter(diagnostic -> !diagnostic.code().equals("invalid_stage"))
+                        .map(DraftValidation.Diagnostic::from).ifPresent(diagnostics::add);
+                    continue;
+                }
                 StageDefinition definition = parsed.getStageDefinition();
                 try { Schema4StageCompiler.compile(definition, parsed.getSourceConfig(), source.sourceId(), 0); }
                 catch (RuntimeException error) { errors.add(definition.getId() + ". " + error.getMessage()); }
@@ -53,7 +60,12 @@ final class EditorDraftValidator {
             }
             for (Path source : discovery.legacyFiles()) {
                 var parsed = StageFileParser.parseWithErrors(source);
-                if (!parsed.isSuccess()) { errors.add(source.getFileName() + ". " + parsed.getErrorMessage()); continue; }
+                if (!parsed.isSuccess()) {
+                    errors.add(source.getFileName() + ". " + parsed.getErrorMessage());
+                    parsed.getFieldDiagnostic("stages/" + temporary.relativize(source).toString().replace('\\', '/'))
+                        .map(DraftValidation.Diagnostic::from).ifPresent(diagnostics::add);
+                    continue;
+                }
                 StageDefinition definition = parsed.getStageDefinition();
                 if (definitions.putIfAbsent(definition.getId(), definition) != null) errors.add("Duplicate stage id. " + definition.getId());
             }
@@ -61,7 +73,7 @@ final class EditorDraftValidator {
             Path validationRoot = temporary;
             List<String> warnings = discovery.ignoredFiles().stream()
                 .map(path -> "Ignored helper TOML. " + validationRoot.relativize(path)).toList();
-            return new DraftValidation(errors.isEmpty(), errors, warnings, definitions.size(), revision);
+            return new DraftValidation(errors.isEmpty(), errors, warnings, definitions.size(), revision, diagnostics);
         } catch (IOException | RuntimeException error) {
             return new DraftValidation(false, List.of(error.getMessage()), List.of(), 0, revision);
         } finally {

@@ -54,6 +54,9 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   team, and server ownership, optional LuckPerms inbound and outbound mappings, retention mode,
   context values, command descendant gates, and direct interaction definitions without requiring
   raw TOML. Existing source comments and unrelated files remain in the draft.
+- **Strict access configuration validation.** Incorrect LuckPerms booleans and non-string
+  group or permission entries are rejected instead of silently changing their meaning. The
+  editor service returns field and rule diagnostics alongside its existing validation summary.
 - **Selling Bin interaction presets.** Direct interactions can be authored with
   `tag:c:armors` or `all:*` held item selectors and the exact
   `id:selling_bin:selling_bin` block selector. For selected items such as bread, enable

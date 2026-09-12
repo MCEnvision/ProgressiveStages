@@ -66,6 +66,19 @@ If the tab reports `403 Forbidden`, close it and open `/pstages editor` again fr
 level 3 operator. The token belongs to one loopback session and cannot be reused in an older tab.
 
 
+## Access configuration validation
+
+Use TOML booleans for `luckperms.enabled` and command `descendants`, for example `enabled = false`.
+Quoted `"false"` and numeric values are rejected. Write groups and permissions as string arrays,
+for example `groups = ["chef"]`; non-string entries are not silently discarded. Omission keeps
+the documented default.
+
+The server validation response retains the ordinary error summary and adds structured field
+and stable row details for ownership and LuckPerms parsing failures. Package identity failures
+name their draft relative `stage.toml` path. A rejected apply preserves the editable source and
+installed definitions. Complete inline field presentation and capability feedback remain part
+of the final editor verification.
+
 ## Editor operation capture
 
 An operator with permission level 3 or the server console can capture one online player's editor

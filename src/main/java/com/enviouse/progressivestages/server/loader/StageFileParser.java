@@ -9,6 +9,7 @@ import com.enviouse.progressivestages.common.config.StageCost;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import com.enviouse.progressivestages.common.stage.DependencyMode;
+import com.enviouse.progressivestages.common.stage.FieldDiagnostic;
 import com.enviouse.progressivestages.common.config.StageRewards;
 import com.enviouse.progressivestages.common.config.StageSlotPolicy;
 import com.enviouse.progressivestages.common.config.UnlockEffects;
@@ -115,7 +116,7 @@ public final class StageFileParser {
         } catch (RuntimeException e) {
             String message = e.getMessage();
             if (message == null || message.isBlank()) message = e.getClass().getSimpleName();
-            return ParseResult.validationError("Invalid stage definition. " + message);
+            return ParseResult.validationError("Invalid stage definition. " + message, e);
         }
     }
 
@@ -149,7 +150,7 @@ public final class StageFileParser {
             return ParseResult.syntaxError("TOML syntax error: " + message);
         } catch (RuntimeException e) {
             String message = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            return ParseResult.validationError("Invalid stage definition. " + message);
+            return ParseResult.validationError("Invalid stage definition. " + message, e);
         }
     }
 
@@ -256,22 +257,28 @@ public final class StageFileParser {
         builder.slotGroup(slotGroup)
             .slotLimit(slotLimit)
             .slotPolicy(StageSlotPolicy.parse(stageSection.getOrElse("slot_policy", "deny")));
-        String scope = stageSection.get("scope");
+        String scope = atField("stage.scope", null, () -> {
+            Object value = stageSection.get("scope");
+            if (value != null && !(value instanceof String)) {
+                throw new IllegalArgumentException("Stage scope must be a string");
+            }
+            return (String) value;
+        });
         String normalizedScope = null;
         if (scope != null) {
             normalizedScope = scope.trim().toLowerCase(java.util.Locale.ROOT);
             if (!normalizedScope.equals("team") && !normalizedScope.equals("server")) {
-                throw new IllegalArgumentException("Invalid stage scope. " + scope);
+                throw new FieldValidationException("stage.scope", null, "invalid_value", "Invalid stage scope. " + scope);
             }
             builder.scope(normalizedScope).scopePresent(true);
         }
         if (stageSection.contains("team_stage")) {
             Object rawTeamStage = stageSection.get("team_stage");
             if (!(rawTeamStage instanceof Boolean)) {
-                throw new IllegalArgumentException("Stage team_stage must be a boolean");
+                throw new FieldValidationException("stage.team_stage", null, "invalid_type", "Stage team_stage must be a boolean");
             }
             if ("server".equals(normalizedScope)) {
-                throw new IllegalArgumentException("Server stages cannot declare team_stage");
+                throw new FieldValidationException("stage.team_stage", null, "server_override", "Server stages cannot declare team_stage");
             }
             builder.teamStage((Boolean) rawTeamStage);
         }
@@ -294,59 +301,100 @@ public final class StageFileParser {
         Object commandRaw = config.get("command_permissions");
         boolean present = raw instanceof Config || commandRaw instanceof List<?>;
         if (raw != null && !(raw instanceof Config)) {
-            throw new IllegalArgumentException("The luckperms section must be a table");
+            throw new FieldValidationException("luckperms", null, "invalid_type", "The luckperms section must be a table");
         }
         Config section = raw instanceof Config c ? c : null;
-        boolean enabled = section == null || section.get("enabled") == null || readBool(section, "enabled");
-        LuckPermsStageOptions.InboundMode mode = LuckPermsStageOptions.InboundMode.parse(
-            section == null ? null : section.get("inbound_mode"));
+        boolean enabled = section == null || strictBoolean(section, "enabled", true, "luckperms.enabled", null);
+        LuckPermsStageOptions.InboundMode mode = atField("luckperms.inbound_mode", null,
+            () -> LuckPermsStageOptions.InboundMode.parse(section == null ? null : section.get("inbound_mode")));
         List<LuckPermsStageOptions.InboundRule> inbound = new ArrayList<>();
         List<LuckPermsStageOptions.OutboundRule> outbound = new ArrayList<>();
         if (section != null) {
-            Object inboundRaw = section.get("inbound");
-            if (inboundRaw != null && !(inboundRaw instanceof List<?>)) {
-                throw new IllegalArgumentException("luckperms.inbound must be an array of tables");
+            List<?> rows = ruleRows(section.get("inbound"), "luckperms.inbound");
+            for (int index = 0; index < rows.size(); index++) {
+                String field = "luckperms.inbound[" + index + "]";
+                Config row = ruleTable(rows.get(index), field);
+                String id = atField(field + ".id", null, () -> requiredString(row, "id", field));
+                inbound.add(atField(field, id, () -> new LuckPermsStageOptions.InboundRule(id,
+                    strictStrings(row, "groups", field + ".groups", id),
+                    strictStrings(row, "permissions", field + ".permissions", id),
+                    atField(field + ".match", id, () -> LuckPermsStageOptions.Match.parse(row.get("match"))),
+                    atField(field + ".contexts", id, () -> parseContexts(row.get("contexts"))))));
             }
-            if (inboundRaw instanceof List<?> rows) {
-                for (int index = 0; index < rows.size(); index++) {
-                    Object row = rows.get(index);
-                    if (!(row instanceof Config c)) throw new IllegalArgumentException("luckperms.inbound row " + index + " must be a table");
-                    String id = requiredString(c, "id", "luckperms.inbound[" + index + "]");
-                    inbound.add(new LuckPermsStageOptions.InboundRule(id,
-                        stringList(c, "groups"), stringList(c, "permissions"),
-                        LuckPermsStageOptions.Match.parse(c.get("match")), parseContexts(c.get("contexts"))));
-                }
-            }
-            Object outboundRaw = section.get("outbound");
-            if (outboundRaw != null && !(outboundRaw instanceof List<?>)) {
-                throw new IllegalArgumentException("luckperms.outbound must be an array of tables");
-            }
-            if (outboundRaw instanceof List<?> rows) {
-                for (int index = 0; index < rows.size(); index++) {
-                    Object row = rows.get(index);
-                    if (!(row instanceof Config c)) throw new IllegalArgumentException("luckperms.outbound row " + index + " must be a table");
-                    String id = requiredString(c, "id", "luckperms.outbound[" + index + "]");
-                    outbound.add(new LuckPermsStageOptions.OutboundRule(id,
-                        LuckPermsStageOptions.OutboundKind.parse(c.get("kind")),
-                        requiredString(c, "value", "luckperms.outbound[" + index + "]"),
-                        parseContexts(c.get("contexts"))));
-                }
+            rows = ruleRows(section.get("outbound"), "luckperms.outbound");
+            for (int index = 0; index < rows.size(); index++) {
+                String field = "luckperms.outbound[" + index + "]";
+                Config row = ruleTable(rows.get(index), field);
+                String id = atField(field + ".id", null, () -> requiredString(row, "id", field));
+                outbound.add(atField(field, id, () -> new LuckPermsStageOptions.OutboundRule(id,
+                    atField(field + ".kind", id, () -> LuckPermsStageOptions.OutboundKind.parse(row.get("kind"))),
+                    atField(field + ".value", id, () -> requiredString(row, "value", field)),
+                    atField(field + ".contexts", id, () -> parseContexts(row.get("contexts"))))));
             }
         }
         List<LuckPermsStageOptions.CommandPermissionRule> commands = new ArrayList<>();
-        if (commandRaw != null && !(commandRaw instanceof List<?>)) {
-            throw new IllegalArgumentException("command_permissions must be an array of tables");
+        List<?> rows = ruleRows(commandRaw, "command_permissions");
+        for (int index = 0; index < rows.size(); index++) {
+            String field = "command_permissions[" + index + "]";
+            Config row = ruleTable(rows.get(index), field);
+            String id = atField(field + ".id", null, () -> requiredString(row, "id", field));
+            String path = atField(field + ".path", id, () -> requiredString(row, "path", field));
+            boolean descendants = strictBoolean(row, "descendants", false, field + ".descendants", id);
+            commands.add(atField(field, id,
+                () -> new LuckPermsStageOptions.CommandPermissionRule(id, path, descendants)));
         }
-        if (commandRaw instanceof List<?> rows) {
-            for (int index = 0; index < rows.size(); index++) {
-                Object row = rows.get(index);
-                if (!(row instanceof Config c)) throw new IllegalArgumentException("command_permissions row " + index + " must be a table");
-                String id = requiredString(c, "id", "command_permissions[" + index + "]");
-                String path = requiredString(c, "path", "command_permissions[" + index + "]");
-                commands.add(new LuckPermsStageOptions.CommandPermissionRule(id, path, readBool(c, "descendants")));
-            }
+        return atField("luckperms", null,
+            () -> new LuckPermsStageOptions(present, enabled, mode, inbound, outbound, commands));
+    }
+
+    private static List<?> ruleRows(Object value, String field) {
+        if (value == null) return List.of();
+        if (value instanceof List<?> rows) return rows;
+        throw new FieldValidationException(field, null, "invalid_type", field + " must be an array of tables");
+    }
+
+    private static Config ruleTable(Object value, String field) {
+        if (value instanceof Config config) return config;
+        throw new FieldValidationException(field, null, "invalid_type", field + " must be a table");
+    }
+
+    private static boolean strictBoolean(Config config, String key, boolean fallback, String field, String id) {
+        Object value = config.get(key);
+        if (value == null) return fallback;
+        if (value instanceof Boolean flag) return flag;
+        throw new FieldValidationException(field, id, "invalid_type", field + " must be a boolean");
+    }
+
+    private static List<String> strictStrings(Config config, String key, String field, String id) {
+        Object value = config.get(key);
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> list) || list.stream().anyMatch(item -> !(item instanceof String))) {
+            throw new FieldValidationException(field, id, "invalid_type", field + " must be an array of strings");
         }
-        return new LuckPermsStageOptions(present, enabled, mode, inbound, outbound, commands);
+        return list.stream().map(String.class::cast).toList();
+    }
+
+    private static <T> T atField(String field, String id, java.util.function.Supplier<T> parse) {
+        try {
+            return parse.get();
+        } catch (FieldValidationException error) {
+            throw error;
+        } catch (IllegalArgumentException error) {
+            throw new FieldValidationException(field, id, "invalid_value", error.getMessage());
+        }
+    }
+
+    private static final class FieldValidationException extends IllegalArgumentException {
+        private final String field;
+        private final String ruleId;
+        private final String code;
+
+        private FieldValidationException(String field, String ruleId, String code, String message) {
+            super(message);
+            this.field = field;
+            this.ruleId = ruleId != null && ruleId.matches("[A-Za-z0-9_.]{1,64}") ? ruleId : null;
+            this.code = code;
+        }
     }
 
     private static String requiredString(Config config, String key, String field) {
@@ -1627,8 +1675,15 @@ public final class StageFileParser {
         private final String errorMessage;
         private final boolean syntaxError;
         private final Config sourceConfig;
+        private final FieldValidationException diagnostic;
 
         private ParseResult(StageDefinition def, String error, boolean syntax, Config sourceConfig) {
+            this(def, error, syntax, sourceConfig, null);
+        }
+
+        private ParseResult(StageDefinition def, String error, boolean syntax, Config sourceConfig,
+                            FieldValidationException diagnostic) {
+            this.diagnostic = diagnostic;
             this.stageDefinition = def;
             this.errorMessage = error;
             this.syntaxError = syntax;
@@ -1639,6 +1694,20 @@ public final class StageFileParser {
         public static ParseResult success(StageDefinition def, Config sourceConfig) { return new ParseResult(def, null, false, sourceConfig); }
         public static ParseResult syntaxError(String msg)          { return new ParseResult(null, msg, true, null); }
         public static ParseResult validationError(String msg)      { return new ParseResult(null, msg, false, null); }
+
+        public static ParseResult validationError(String message, Throwable cause) {
+            return new ParseResult(null, message, false, null,
+                cause instanceof FieldValidationException fieldError ? fieldError : null);
+        }
+
+        public Optional<FieldDiagnostic> getFieldDiagnostic(String file) {
+            if (isSuccess()) return Optional.empty();
+            return Optional.of(new FieldDiagnostic(FieldDiagnostic.Severity.ERROR, file,
+                diagnostic == null ? "stage" : diagnostic.field,
+                diagnostic == null ? Optional.empty() : Optional.ofNullable(diagnostic.ruleId),
+                diagnostic == null ? (syntaxError ? "invalid_toml" : "invalid_stage") : diagnostic.code,
+                errorMessage));
+        }
 
         public boolean isSuccess()              { return stageDefinition != null; }
         public boolean isSyntaxError()          { return syntaxError; }

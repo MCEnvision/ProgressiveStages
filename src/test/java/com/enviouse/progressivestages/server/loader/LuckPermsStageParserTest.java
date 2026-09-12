@@ -2,10 +2,70 @@ package com.enviouse.progressivestages.server.loader;
 
 import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class LuckPermsStageParserTest {
+    @ParameterizedTest
+    @CsvSource({
+        "'enabled = \"false\"', luckperms.enabled",
+        "'enabled = 1', luckperms.enabled",
+        "'inbound_mode = \"forever\"', luckperms.inbound_mode"
+    })
+    void rejectsMalformedBridgeSettingsWithAnOwningField(String setting, String field) {
+        var result = StageFileParser.parseText("[stage]\nid = \"chef\"\n[luckperms]\n" + setting,
+            "chef.toml", "test", false);
+        assertFalse(result.isSuccess());
+        var diagnostic = result.getFieldDiagnostic("stages/chef.toml").orElseThrow();
+        assertEquals(field, diagnostic.field());
+        assertEquals("stages/chef.toml", diagnostic.file());
+        assertTrue(diagnostic.ruleId().isEmpty());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "'groups = \"chef\"', groups",
+        "'groups = [1]', groups",
+        "'permissions = [true]', permissions",
+        "'match = \"some\"', match",
+        "'contexts = \"overworld\"', contexts"
+    })
+    void identifiesMalformedInboundValuesWithoutDroppingThem(String setting, String field) {
+        var result = StageFileParser.parseText("[stage]\nid = \"chef\"\n[[luckperms.inbound]]\nid = \"chef_rank\"\n" + setting,
+            "chef.toml", "test", false);
+        assertFalse(result.isSuccess());
+        var diagnostic = result.getFieldDiagnostic("stages/chef.toml").orElseThrow();
+        assertEquals("luckperms.inbound[0]." + field, diagnostic.field());
+        assertEquals("chef_rank", diagnostic.ruleId().orElseThrow());
+    }
+
+    @Test
+    void packageAndLegacyValidationRetainTheSameCommandRowFailure() {
+        String source = "[stage]\nid = \"chef\"\n[[command_permissions]]\nid = \"home_gate\"\npath = \"sethome\"\ndescendants = \"false\"\n";
+        var legacy = StageFileParser.parseText(source, "chef.toml", "test", false);
+        var packaged = StagePackageParser.parseContents("test", "stage.toml", "[schema]\nversion = 4\n" + source,
+            "rules.toml", "# Existing rules remain separate.\n", "progression.toml", "");
+        var expected = legacy.getFieldDiagnostic("stages/chef/stage.toml").orElseThrow();
+        var actual = packaged.getFieldDiagnostic("stages/chef/stage.toml").orElseThrow();
+        assertEquals("command_permissions[0].descendants", actual.field());
+        assertEquals(expected.field(), actual.field());
+        assertEquals(expected.ruleId(), actual.ruleId());
+        assertEquals("home_gate", actual.ruleId().orElseThrow());
+        assertEquals("invalid_type", actual.code());
+    }
+
+    @Test
+    void ownershipConflictHasTheSameDiagnosticInThePublicApi() {
+        String source = "[stage]\nid = \"chef\"\nscope = \"server\"\nteam_stage = false\n";
+        var diagnostic = com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.validateStageOptions(
+            java.util.Map.of("stages/chef.toml", source), null).getFirst();
+        assertEquals("stage.team_stage", diagnostic.field());
+        assertEquals("server_override", diagnostic.code());
+        assertEquals(com.enviouse.progressivestages.common.stage.FieldDiagnostic.Severity.ERROR, diagnostic.severity());
+    }
+
     @Test
     void parsesInboundOutboundAndCommandRules() {
         String source = """

@@ -62,7 +62,7 @@ public final class StagePackageParser {
                 source.sourceId(), true);
         } catch (IOException | RuntimeException error) {
             String message = error.getMessage() != null ? error.getMessage() : error.getClass().getSimpleName();
-            return StageFileParser.ParseResult.validationError("Invalid stage package. " + message);
+            return StageFileParser.ParseResult.validationError("Invalid stage package. " + message, error);
         }
     }
 
@@ -92,7 +92,7 @@ public final class StagePackageParser {
             return StageFileParser.parseConfig(merged, identityName, sourceId, true);
         } catch (RuntimeException error) {
             String message = error.getMessage() != null ? error.getMessage() : error.getClass().getSimpleName();
-            return StageFileParser.ParseResult.validationError("Invalid stage package. " + message);
+            return StageFileParser.ParseResult.validationError("Invalid stage package. " + message, error);
         }
     }
 

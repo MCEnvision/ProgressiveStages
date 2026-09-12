@@ -65,6 +65,11 @@ public final class EditorCaptureGameTests {
                 "{\"action\":\"apply\",\"confirmed\":true,\"revision\":" + current + "}");
             helper.assertTrue("validation_failed".equals(rejected.get("code").getAsString()),
                 "Invalid stage options must reject apply.");
+            var diagnostic = rejected.getAsJsonObject("validation").getAsJsonArray("diagnostics").get(0).getAsJsonObject();
+            helper.assertTrue("stage.team_stage".equals(diagnostic.get("field").getAsString())
+                    && "server_override".equals(diagnostic.get("code").getAsString())
+                    && ("stages/" + folder + "/stage.toml").equals(diagnostic.get("file").getAsString()),
+                "Rejected apply must return the owning field and package identity path.");
             helper.assertTrue(!Files.exists(directory) && loader.getCompiledSnapshot().revision() == initialDefinition,
                 "Invalid apply must preserve files and the installed revision.");
             var stale = request(operator, session, "{\"action\":\"apply\",\"confirmed\":true,\"revision\":-1}");

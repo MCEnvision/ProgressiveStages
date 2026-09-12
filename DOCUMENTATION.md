@@ -4746,6 +4746,28 @@ requires a fresh review before another apply attempt. An older cached editor tha
 revision fails safely and must reload the current packaged assets. This does not change stage
 schema or the transport protocol. See the [editor recovery guide](docs/troubleshooting/easy-builder.md).
 
+### Editor field diagnostics
+
+`StageFileParser.ParseResult.getFieldDiagnostic(file)` preserves validation metadata from the
+stage ownership and LuckPerms parser. A diagnostic contains severity, the caller supplied source
+path, owning field, optional stable rule ID, code and message. Package parsing preserves these
+fields through its error boundary. Indexed paths such as `luckperms.inbound[0].groups` identify a
+specific source row; its valid stable ID is also supplied. Invalid or absent IDs are omitted.
+
+The editor validation response adds `diagnostics` while retaining `errors`, `warnings`, `stages`
+and `validatedRevision`. Its JSON projection uses a string rule ID when present and omits it
+otherwise. The existing five argument `DraftValidation` constructor remains supported. Package
+identity diagnostics use the draft relative `stages/.../stage.toml` path. Errors without a known
+package source retain the existing summary rather than assigning a guessed file or field.
+The public raw stage validation API uses the same parser diagnostics.
+
+`luckperms.enabled` and command `descendants` require actual TOML booleans. Inbound `groups` and
+`permissions` require arrays containing only strings. Omitted fields retain their documented
+true, false or empty defaults. The normal domain validation still rejects unsupported modes,
+invalid contexts, empty conditions, invalid commands and duplicate IDs. Validation does not
+rewrite source or install a partial draft. Detailed field presentation, complete capability
+warnings and capture projection are separate editor acceptance work.
+
 ### Diagnostic candidate identity
 
 Capture startup snapshots the baked main configuration and immutable compiled stage map. The

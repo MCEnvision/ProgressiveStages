@@ -169,8 +169,7 @@ public final class ProgressiveStagesAPI {
             StageFileParser.ParseResult parsed = StageFileParser.parseText(
                 entry.getValue() == null ? "" : entry.getValue(), file, "validation", false);
             if (!parsed.isSuccess()) {
-                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.ERROR, file, "stage",
-                    Optional.empty(), "invalid_stage", parsed.getErrorMessage()));
+                parsed.getFieldDiagnostic(file).ifPresent(diagnostics::add);
                 continue;
             }
             StageDefinition definition = parsed.getStageDefinition();

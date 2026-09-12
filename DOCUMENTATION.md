@@ -1,6 +1,6 @@
-# ProgressiveStages 3.0.4 — Complete Documentation
+# ProgressiveStages 3.0.5 — Complete Documentation
 
-> ProgressiveStages **3.0.4** for NeoForge 1.21.1, Java 21.
+> ProgressiveStages **3.0.5** for NeoForge 1.21.1, Java 21.
 > Mod id: `progressivestages`  Java package root: `com.enviouse.progressivestages`  
 > This document is exhaustive — every feature, every TOML field, every config key,
 > every command, every integration, every troubleshooting tip. If a section of
@@ -8,6 +8,11 @@
 > authority and this document is a bug.
 >
 > **Project, support, and community:** [CurseForge](https://www.curseforge.com/minecraft/mc-mods/progressivestages) · [Discord](https://discord.com/invite/9v4gaRSfdJ) · [Issues](https://github.com/EnVisione/ProgressiveStages/issues). The mod metadata wires in the CurseForge project and GitHub issue tracker through `displayURL` and `issueTrackerURL`.
+
+> **3.0.5 development candidate:** The authenticated editor now has an Access tab for per stage
+> ownership, optional LuckPerms mappings, command gates, and direct interaction definitions. This
+> checked candidate is merged and tagged for verification. No CurseForge, Modrinth, or GitHub
+> release is published by this work.
 
 > **3.0.2 maintenance release:** The authenticated localhost editor now works for permission level
 > 3 operators in integrated single-player worlds as well as dedicated servers. The editor has a
@@ -387,7 +392,7 @@ save state, and Apply changes. The Stages page has only two columns. The left co
 stage. The right column edits it. There is no dashboard, second navigation rail, permanent
 inspector, or decorative information panel competing with the form.
 
-The stage workspace has Setup, Rules, Progression, Rewards, Advanced, and Source tabs. Common work
+The stage workspace has Setup, Rules, Progression, Rewards, Advanced, Access, and Source tabs. Common work
 stays in the first four tabs. Advanced systems and direct TOML stay out of the way until the
 operator chooses them. Player UI edits both icon positions and dependency branches. Settings is
 generated from the connected server schema. Registry searches installed content by type, mod,
@@ -406,7 +411,7 @@ To create a stage without knowing TOML:
    valid, such as `wizard`. This permits `wizard:wizard` and `wizard:warlock` without forcing a
    literal `pack` prefix.
 4. Confirm the preview, such as `pack:iron_age`, and click `Create stage`.
-5. Open Setup. Fill out the stage name, description, icon, required stages, stage slots, team or server ownership, map
+5. Open Setup. Fill out the stage name, description, icon, required stages, stage slots, personal, team, inherited, or server ownership, map
    category, color, frame, reveal policy, advancement background, and optional player UI position.
    `Required stages` is a visual branch builder. It lists existing stages as selectable cards,
    explains each card's parents, prevents dependency cycles, and previews selected paths flowing
@@ -467,11 +472,12 @@ To create a stage without knowing TOML:
     minimum, maximum, priority, and exclusive stacking. This
     creates `[[drop_modifiers]]`; the generated Diamond Engineer demonstrates a purchase for 32
     diamonds plus a Fortune only double diamond rule.
-12. Open Advanced for guided challenge, variable, formula, lifecycle state, affinity profile, and
+12. Open Access for guided ownership, LuckPerms, command, and direct interaction definitions. Choose personal, team, inherited, or server ownership. Enable the optional bridge, choose synchronized removal or permanent retention, add group or Boolean permission conditions with all or any matching and nested contexts, add transient group or permission outputs, and gate command literals with optional descendants. The direct interaction builder includes item on block, block right click, item on entity, and item into inventory rows. Its Selling Bin presets write `tag:c:armors` or `all:*` with `id:selling_bin:selling_bin`.
+13. Open Advanced for guided challenge, variable, formula, lifecycle state, affinity profile, and
     reusable template builders. A challenge can define start, success, and end conditions, retries,
     timeout, hit limit, measured budget, ordered step, and detailed HUD presentation. Registered
     Java and KubeJS data remains available through Extensions and the exact source tab.
-13. Open `Player UI`, filter by category, search, zoom, fit the complete graph, or drag nodes to
+14. Open `Player UI`, filter by category, search, zoom, fit the complete graph, or drag nodes to
     save their in game coordinates. Drag empty graph space to pan. Scroll to zoom around the mouse
     pointer. Curved connectors follow at every zoom.
     Click `Connect stages` to edit progression directly on the graph. Select the prerequisite stage
@@ -489,7 +495,7 @@ To create a stage without knowing TOML:
     scales cards for editing but stores the compact coordinates Minecraft uses. The layout page has
     no separate save action. `Apply changes` is the only action that publishes the draft to the
     server.
-14. Click `Apply changes`. This action validates every stage before it opens the review. Inspect
+15. Click `Apply changes`. This action validates every stage before it opens the review. Inspect
     every file in the diff, then confirm.
     After the server validates, writes, reloads, and synchronizes the result, every online operator
     receives the complete file change list in Minecraft chat. Added files appear in green. Modified

@@ -14,12 +14,14 @@ Use this page to find the maintained project documentation.
 - [Selling Bin interaction repair](verification/selling-bin-interaction-repair.md)
 - [Progression ownership](verification/progression-ownership.md)
 - [LuckPerms bridge](verification/luckperms-bridge.md)
+- [3.0.5 acceptance](verification/3.0.5-acceptance.md)
 
 ## Troubleshooting
 
 - [Interaction locks](troubleshooting/interaction-locks.md)
 - [Progression scopes and ownership](troubleshooting/progression-scopes.md)
 - [LuckPerms bridge](troubleshooting/luckperms.md)
+- [Easy Builder](troubleshooting/easy-builder.md)
 
 - [3.0.4 entity presence fixture](verification/3.0.4-entity-presence-fixture.md)
 - [3.0.4 optional integration artifact and runtime evidence](verification/3.0.4-optional-integration-artifacts.md)

@@ -65,5 +65,16 @@ class LuckPermsStageParserTest {
             progressivestages_bridge = ["active"]
             """;
         assertFalse(StageFileParser.parseText(reserved, "stage.toml", "test", true).isSuccess());
+        String unsafeKey = """
+            [stage]
+            id = "chef"
+            [luckperms]
+            [[luckperms.inbound]]
+            id = "same"
+            groups = ["chef"]
+            [luckperms.inbound.contexts]
+            "bad key" = ["active"]
+            """;
+        assertFalse(StageFileParser.parseText(unsafeKey, "stage.toml", "test", true).isSuccess());
     }
 }

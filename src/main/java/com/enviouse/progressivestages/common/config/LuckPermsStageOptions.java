@@ -153,7 +153,9 @@ public final class LuckPermsStageOptions {
         Map<String, List<String>> result = new LinkedHashMap<>();
         for (var entry : values.entrySet()) {
             String key = entry.getKey();
-            if (key == null || key.isBlank() || key.length() > 256 || key.startsWith("progressivestages_bridge")) {
+            if (key == null || key.isBlank() || key.length() > 256
+                    || !key.matches("[A-Za-z0-9_.:-]{1,256}")
+                    || key.startsWith("progressivestages_bridge")) {
                 throw new IllegalArgumentException("Invalid or reserved LuckPerms context key");
             }
             List<String> list = normalizeValues(entry.getValue(), "context " + key);

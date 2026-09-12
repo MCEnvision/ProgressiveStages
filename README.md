@@ -4,7 +4,7 @@
 
 A NeoForge mod for Minecraft 1.21.1 that gives modpack developers complete control over stage-based progression. Define stages as TOML files; ProgressiveStages locks items, blocks, entities, fluids, dimensions, recipes, enchantments, crops, mob spawns, pets, regions, structures, screens, and player interactions until the player has earned the right stage(s).
 
-**ProgressiveStages 3.0.4-fix** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
+**ProgressiveStages 3.0.5 development build** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
 
 ---
 
@@ -48,7 +48,20 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 
 ---
 
-## What's new in 3.0.4 and upcoming 3.0.5
+## What's new in 3.0.5
+
+- **Guided ownership and access builder.** The editor's Access tab writes inherited, personal,
+  team, and server ownership, optional LuckPerms inbound and outbound mappings, retention mode,
+  context values, command descendant gates, and direct interaction definitions without requiring
+  raw TOML. Existing source comments and unrelated files remain in the draft.
+- **Selling Bin interaction presets.** Direct interactions can be authored with
+  `tag:c:armors` or `all:*` held item selectors and the exact
+  `id:selling_bin:selling_bin` block selector.
+- **Optional LuckPerms bridge.** Inbound mappings can be synchronized or permanent per stage,
+  outbound group and permission contributions are transient and owned, and command gates retain
+  native permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
+
+## What's new in 3.0.4
 
 - **Actor-aware stage ownership.** Add optional `team_stage = false` or `true` in a stage's
   `[stage]` table to keep a profession personal or use the active FTB Teams owner. Omit it to

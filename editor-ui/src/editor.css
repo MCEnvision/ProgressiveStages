@@ -647,3 +647,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     transition: opacity .14s ease, transform .14s ease;
   }
 }
+
+.field-diagnostics { display: block; width: 100%; }
+.field-diagnostic { display: grid; gap: 0.3rem; margin-top: 0.5rem; padding: 0.65rem; border: 1px solid currentColor; border-radius: 0.4rem; overflow-wrap: anywhere; }
+.field-diagnostic.error { color: #ffb4ab; }
+.field-diagnostic.warning { color: #f5d68a; }
+.field-diagnostic code { white-space: normal; overflow-wrap: anywhere; }
+.draft-validation { margin: 0.75rem 0; padding: 0.75rem; border: 1px solid #766446; border-radius: 0.5rem; }
+.draft-validation summary { cursor: pointer; }

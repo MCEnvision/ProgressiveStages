@@ -106,12 +106,23 @@ export interface CatalogPage {
   truncated: boolean;
 }
 
+export interface FieldDiagnostic {
+  severity: "ERROR" | "WARNING";
+  file: string;
+  field: string;
+  ruleId?: string;
+  code: string;
+  message: string;
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
   stages: number;
-  revision: number;
+  validatedRevision?: number;
+  revision?: number;
+  diagnostics?: FieldDiagnostic[];
 }
 
 export interface ReviewResult {

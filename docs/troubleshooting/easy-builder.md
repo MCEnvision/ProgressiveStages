@@ -76,8 +76,11 @@ the documented default.
 The server validation response retains the ordinary error summary and adds structured field
 and stable row details for ownership and LuckPerms parsing failures. Package identity failures
 name their draft relative `stage.toml` path. A rejected apply preserves the editable source and
-installed definitions. Complete inline field presentation and capability feedback remain part
-of the final editor verification.
+installed definitions. After Validate, ownership and access rules show matching field details.
+Expand the draft validation summary or open Review to see errors across all files. Errors and
+warnings have distinct text labels. Editing the draft hides earlier results until it is validated
+again. Rejected apply diagnostics remain available for the matching draft. Actual browser
+acceptance and complete provider capability feedback remain open.
 
 ## Editor operation capture
 
@@ -91,8 +94,14 @@ Authenticated draft operations record the action, requested and actual draft rev
 definition and apply revisions, validation outcome, and before and after source digests. These
 source digests cover the package file map, including comments and unknown fields, without emitting
 file paths, source text, session tokens or error messages. They differ from the header's effective
-configuration fingerprint. Current operation records identify the whole draft as their field;
-more specific validation rows and complete capability observations remain acceptance work.
+configuration fingerprint. When validation returns structured diagnostics, a capture records the
+first error, or the first warning if there are no errors. It includes the file role, field, stable
+rule ID when available, severity and validation code. The full diagnostic count and truncation
+flag show when the editor response contains additional entries. `operation_code` retains the
+request outcome, such as `validation_failed`, separately from a field code such as `server_override`.
+Operations without a diagnostic retain `field = "draft"` and `severity = "NONE"`. File paths and
+error messages are never copied into these records. Complete capability observations remain
+acceptance work.
 
 A record is reserved when an operation begins. A reload stops new observations immediately, while
 an already accepted apply record can finish with its result and installed revision. The writer
@@ -104,7 +113,7 @@ All reservations and the capture header share the 128 KiB limit. The usual 60 se
 20 sample per second and 256 queued record limits still apply. Exhaustion reports `sample_limit`
 or `byte_limit`, with `rate_limit` and the existing lifecycle reasons where appropriate.
 
-Use `invalid_field` with `validation_failed` to identify a rejected apply, `stale_revision` for a
+Use `invalid_field` with `operation_code = "validation_failed"` to identify a rejected apply, `stale_revision` for a
 revision conflict, and `applied` with matching apply and definition revisions for a successful
 transaction. A draft edit uses `draft_changed`; `source_preserved` and equal source digests identify
 an unchanged source observation. Provider state is `not_observed` unless the operation already

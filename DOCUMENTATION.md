@@ -4765,8 +4765,12 @@ The public raw stage validation API uses the same parser diagnostics.
 `permissions` require arrays containing only strings. Omitted fields retain their documented
 true, false or empty defaults. The normal domain validation still rejects unsupported modes,
 invalid contexts, empty conditions, invalid commands and duplicate IDs. Validation does not
-rewrite source or install a partial draft. Detailed field presentation, complete capability
-warnings and capture projection are separate editor acceptance work.
+rewrite source or install a partial draft. The builder retains diagnostics from validation, review
+and rejected apply only for the matching draft ID and revision. A changed draft hides earlier
+results, and a delayed older validation cannot produce a current success notice. Ownership fields
+and indexed access rows display their matching errors or returned warnings. The draft summary
+and review preserve all ordinary errors, including failures without structured locations.
+Complete capability production and actual browser acceptance remain separate gates.
 
 ### Diagnostic candidate identity
 
@@ -4830,6 +4834,11 @@ capture or extending its authority to another operation. The manager drains acce
 within the shared output limit; an incomplete editor observation fails after 60 seconds. Stop
 reasons use `sample_limit` and `byte_limit` for the corresponding shared limits.
 
-Current editor records cover draft operation and apply outcomes. Owning field and row diagnostics,
-full capability detail, positive joined player controls and packaged browser acceptance remain
-separate gates. See the [editor capture procedure](docs/troubleshooting/easy-builder.md).
+Editor records cover draft operation and apply outcomes and project one structured diagnostic
+when present. The first error takes precedence over warnings. `file_role`, `field`, `rule_id`,
+`severity` and `validation_code` identify it; `operation_code` preserves the request outcome.
+`diagnostic_count` and `diagnostics_truncated` disclose any omitted entries while the editor
+response retains its complete list. Only bounded roles, field keys, row IDs and codes are written,
+without source paths or message text. Operations without diagnostics keep the draft field and
+NONE severity. Full capability detail, positive joined player controls and packaged browser
+acceptance remain separate gates. See the [editor capture procedure](docs/troubleshooting/easy-builder.md).

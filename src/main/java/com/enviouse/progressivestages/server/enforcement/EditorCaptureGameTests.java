@@ -108,13 +108,20 @@ public final class EditorCaptureGameTests {
                         && invalid.get("source_preserved").getAsBoolean()
                         && invalid.get("definition_revision").getAsLong() == initialDefinition,
                     "Invalid apply must explain source and runtime preservation.");
+                helper.assertTrue(invalid.get("field").getAsString().equals("stage.team_stage")
+                        && invalid.get("severity").getAsString().equals("ERROR")
+                        && invalid.get("validation_code").getAsString().equals("server_override")
+                        && invalid.get("operation_code").getAsString().equals("validation_failed")
+                        && invalid.get("file_role").getAsString().equals("identity")
+                        && invalid.get("diagnostic_count").getAsInt() == 1,
+                    "The capture must identify the rejected field without source text.");
                 helper.assertTrue(stale.get("reason").getAsString().equals("stale_revision"),
                     "A stale request must have a distinct reason.");
                 helper.assertTrue(applied.get("reason").getAsString().equals("applied")
                         && applied.get("apply_revision").getAsLong() > initialDefinition
                         && applied.get("definition_revision").equals(applied.get("apply_revision")),
                     "The final observation must identify the successfully installed revision.");
-                helper.assertTrue(lines.stream().noneMatch(line -> line.contains(folder) || line.contains("team_stage")),
+                helper.assertTrue(lines.stream().noneMatch(line -> line.contains(folder) || line.contains("team_stage =")),
                     "Diagnostic output must not disclose source paths or source text.");
             } catch (java.io.IOException failure) { helper.fail("The editor capture could not be read."); }
         });

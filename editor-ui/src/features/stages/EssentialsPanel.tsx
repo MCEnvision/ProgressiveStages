@@ -1,3 +1,4 @@
+import { FieldDiagnostics } from "../../components/ValidationMessages";
 import { useEffect, useMemo, useState } from "react";
 import { CatalogPicker } from "../../components/CatalogPicker";
 import { Badge, Button, Field, Section, Toggle } from "../../components/ui";
@@ -116,7 +117,7 @@ export function EssentialsPanel({ stage }: { stage: StagePackage }) {
     </Section>
     <Section title="Ownership and stacking" description="Control who shares the stage and how related choices combine." action={<Button onClick={() => openDialog({ title: "Stage slots and stacking", description: "Limit mutually exclusive classes or let specialist buffs stack.", content: <SlotEditor stage={stage}/> })}>Configure slots</Button>}>
       <div className="form-grid">
-        <Field label="Ownership" help="Personal stages use team_stage = false. Inherit keeps the global setting."><select value={ownership} onChange={event => void mutateFile(stage.stagePath, writeOwnership(content, event.target.value as Parameters<typeof writeOwnership>[1]), "Stage ownership saved")}><option value="inherit">Inherit global setting</option><option value="personal">Each player owns it</option><option value="team">The team shares it</option><option value="server">The whole server shares it</option></select></Field>
+        <Field label="Ownership" help="Personal stages use team_stage = false. Inherit keeps the global setting."><select value={ownership} onChange={event => void mutateFile(stage.stagePath, writeOwnership(content, event.target.value as Parameters<typeof writeOwnership>[1]), "Stage ownership saved")}><option value="inherit">Inherit global setting</option><option value="personal">Each player owns it</option><option value="team">The team shares it</option><option value="server">The whole server shares it</option></select><FieldDiagnostics file={stage.stagePath} fields={["stage.scope", "stage.team_stage"]}/></Field>
         <div className="policy-summary compact"><span>Current slot behavior</span><strong>{slotGroup ? slotLimit > 0 ? `${slotLimit} active in ${slotGroup}` : `All ${slotGroup} stages stack` : "No slot limit"}</strong></div>
         <Toggle label="Hide this stage from players" help="Reveal policy still controls when hidden content becomes visible." checked={booleanValue(readTomlValue(content, "stage.hidden"))} onChange={value => void save("stage.hidden", value)}/>
       </div>

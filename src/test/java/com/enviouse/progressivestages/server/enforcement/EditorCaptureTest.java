@@ -36,6 +36,32 @@ class EditorCaptureTest {
     }
 
     @Test
+    void recordsOneBoundedFieldDiagnosticWithoutFilePathsOrMessages() {
+        var diagnostic = new EditorCaptureRecord.Diagnostic("identity", "luckperms.inbound[63].permissions",
+            "chef_rank", com.enviouse.progressivestages.common.stage.FieldDiagnostic.Severity.ERROR, "invalid_type");
+        var record = new EditorCaptureRecord("apply", 2, 2, 2, 4, 4, 101, "invalid_field",
+            "validation_failed", "not_observed", Map.of("private/stage.toml", "private source"),
+            Map.of("private/stage.toml", "private source"), diagnostic, 3);
+        String line = record.line("capture", 1, 100);
+        var output = JsonParser.parseString(line).getAsJsonObject();
+        assertEquals("luckperms.inbound[63].permissions", output.get("field").getAsString());
+        assertEquals("chef_rank", output.get("rule_id").getAsString());
+        assertEquals("ERROR", output.get("severity").getAsString());
+        assertEquals("invalid_type", output.get("validation_code").getAsString());
+        assertEquals("validation_failed", output.get("operation_code").getAsString());
+        assertEquals(3, output.get("diagnostic_count").getAsInt());
+        assertTrue(output.get("diagnostics_truncated").getAsBoolean());
+        assertFalse(line.contains("private"));
+        assertTrue(line.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= EditorCaptureRecord.MAX_BYTES);
+        var invalid = new EditorCaptureRecord.Diagnostic("private/path", "private/path", "private\nsource",
+            com.enviouse.progressivestages.common.stage.FieldDiagnostic.Severity.WARNING, "private source");
+        assertEquals("package", invalid.fileRole());
+        assertEquals("draft", invalid.field());
+        assertEquals("", invalid.ruleId());
+        assertEquals("invalid", invalid.code());
+    }
+
+    @Test
     void reservedOperationSurvivesReloadButNewOperationsReject() throws Exception {
         var capture = capture("editor");
         var operation = begin(capture, 100);

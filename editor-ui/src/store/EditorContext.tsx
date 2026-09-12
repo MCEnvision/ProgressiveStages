@@ -28,6 +28,7 @@ interface EditorContextValue {
   notices: Notice[];
   dialog: DialogState | null;
   review: ReviewResult | null;
+  validationResult: ValidationResult | null;
   applyResult: ApplyResult | null;
   setPage: (page: PageId) => void;
   setStageTab: (tab: StageTab) => void;
@@ -63,6 +64,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   if (!apiRef.current) apiRef.current = new EditorApi();
   const api = apiRef.current;
   const [boot, setBoot] = useState<Bootstrap | null>(null);
+  const bootRef = useRef<Bootstrap | null>(null);
+  bootRef.current = boot;
   const [page, setPageState] = useState<PageId>("stages");
   const [stageTab, setStageTab] = useState<StageTab>("essentials");
   const [selectedStageKey, setSelectedStageKey] = useState("");
@@ -72,6 +75,17 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [review, setReview] = useState<ReviewResult | null>(null);
   const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
+
+  const [validationState, setValidationState] = useState<{ draftId: string; result: ValidationResult } | null>(null);
+  const rememberValidation = useCallback((result: ValidationResult | undefined, draftId: string | undefined) => {
+    if (!result || !draftId) return;
+    setValidationState(current => current?.draftId === draftId
+      && (current.result.validatedRevision ?? current.result.revision ?? -1) > (result.validatedRevision ?? result.revision ?? -1)
+      ? current : { draftId, result });
+  }, []);
+  const validationResult = validationState?.draftId === boot?.draft.id
+    && (validationState?.result.validatedRevision ?? validationState?.result.revision) === boot?.draft.revision
+    ? validationState?.result ?? null : null;
 
   const stages = useMemo(() => discoverStages(boot?.draft.files || {}), [boot?.draft.files]);
   const selectedStage = useMemo(() => stages.find(stage => stage.key === selectedStageKey) || null,
@@ -203,7 +217,10 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     setBusy("Validating every stage");
     try {
       const result = await api.request<ValidationResult>({ action: "validate" });
+      rememberValidation(result, boot.draft.id);
       setBusy("");
+      if (bootRef.current?.draft.id !== boot.draft.id
+        || (result.validatedRevision ?? result.revision) !== bootRef.current?.draft.revision) return result;
       notify(result.valid ? "success" : "danger",
         result.valid ? "Every stage is valid" : "Validation found problems",
         result.valid ? `${result.stages} stages compiled successfully.` : `${result.errors.length} errors must be corrected.`);
@@ -213,20 +230,21 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       notify("danger", "Validation failed", failure instanceof Error ? failure.message : String(failure));
       return null;
     }
-  }, [api, boot, notify]);
+  }, [api, boot, notify, rememberValidation]);
 
   const openReview = useCallback(async () => {
     setBusy("Preparing the complete change review");
     try {
       const result = await api.request<ReviewResult>({ action: "review" });
       setReview(result);
+      rememberValidation(result.validation, boot?.draft.id);
       setApplyResult(null);
       setBusy("");
     } catch (failure) {
       setBusy("");
       notify("danger", "Review could not be prepared", failure instanceof Error ? failure.message : String(failure));
     }
-  }, [api, notify]);
+  }, [api, boot?.draft.id, notify, rememberValidation]);
 
   const closeReview = useCallback(() => {
     setReview(null);
@@ -238,7 +256,11 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     setBusy("Applying and synchronizing the server");
     try {
       const result = await api.request<ApplyResult>({ action: "apply", revision: review.revision, confirmed: true });
-      if (!result.success) throw new Error(result.explanation || "The server rejected the draft.");
+      rememberValidation(result.validation, boot?.draft.id);
+      if (!result.success) {
+        if (result.validation) setReview(current => current ? { ...current, validation: result.validation } : current);
+        throw new Error(result.explanation || "The server rejected the draft.");
+      }
       setApplyResult(result);
       const fresh = await api.bootstrap();
       setBoot(fresh);
@@ -253,7 +275,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setBusy("");
       notify("danger", "Apply failed", failure instanceof Error ? failure.message : String(failure));
     }
-  }, [api, notify, refresh, review]);
+  }, [api, boot?.draft.id, notify, refresh, rememberValidation, review]);
 
   const rollback = useCallback(async (transaction: string) => {
     setBusy("Rolling back the transaction");
@@ -287,11 +309,11 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<EditorContextValue>(() => ({
     api, boot, stages, selectedStage, selectedStageKey, page, stageTab, busy, error, notices, dialog,
-    review, applyResult, setPage, setStageTab, selectStage, notify, dismissNotice,
+    review, validationResult, applyResult, setPage, setStageTab, selectStage, notify, dismissNotice,
     openDialog: setDialog, closeDialog: () => setDialog(null), refresh, mutateFile, mutateFiles,
     runDraftAction, undo, redo, validate, openReview, closeReview, apply, rollback, catalog
   }), [api, boot, stages, selectedStage, selectedStageKey, page, stageTab, busy, error, notices, dialog,
-    review, applyResult, setPage, selectStage, notify, dismissNotice, refresh, mutateFile, mutateFiles,
+    review, validationResult, applyResult, setPage, selectStage, notify, dismissNotice, refresh, mutateFile, mutateFiles,
     runDraftAction, undo, redo, validate, openReview, closeReview, apply, rollback, catalog]);
 
   return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;

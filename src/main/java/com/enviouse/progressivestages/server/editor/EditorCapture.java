@@ -1,6 +1,7 @@
 package com.enviouse.progressivestages.server.editor;
 
 import com.enviouse.progressivestages.common.stage.StageCapabilities;
+import com.enviouse.progressivestages.common.stage.FieldDiagnostic;
 import com.enviouse.progressivestages.server.enforcement.EditorCaptureRecord;
 import com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
@@ -70,12 +71,24 @@ final class EditorCapture {
                 default -> "source_preserved";
             };
             if (code.isEmpty()) code = validation == null ? "not_validated" : validation.valid() ? "valid" : "invalid";
+            DraftValidation.Diagnostic selected = validation == null ? null : validation.diagnostics().stream()
+                .filter(diagnostic -> diagnostic.severity() == FieldDiagnostic.Severity.ERROR).findFirst()
+                .orElse(validation.diagnostics().isEmpty() ? null : validation.diagnostics().getFirst());
+            EditorCaptureRecord.Diagnostic diagnostic = selected == null ? null : new EditorCaptureRecord.Diagnostic(
+                fileRole(selected.file()), selected.field(), selected.ruleId(), selected.severity(), selected.code());
             operation.complete(new EditorCaptureRecord(action, requestedRevision, beforeRevision,
                 draft.revision(), draft.baseConfigurationRevision(),
                 StageFileLoader.getInstance().getCompiledSnapshot().revision(), player.getServer().getTickCount(),
-                reason, code, provider, before, draft.files()));
+                reason, code, provider, before, draft.files(), diagnostic, validation == null ? 0 : validation.diagnostics().size()));
         } catch (RuntimeException failure) {
             operation.fail();
         }
+    }
+
+    private static String fileRole(String file) {
+        if (file.endsWith("/stage.toml")) return "identity";
+        if (file.endsWith("/rules.toml")) return "rules";
+        if (file.endsWith("/progression.toml")) return "progression";
+        return file.startsWith("stages/") && file.endsWith(".toml") ? "legacy" : "package";
     }
 }

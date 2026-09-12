@@ -24,10 +24,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Server owned bounded interaction diagnostics.
@@ -45,7 +48,7 @@ public final class InteractionCaptureManager {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Object LOCK = new Object();
     private static volatile Capture active;
-    private static volatile CaptureStatus lastStatus = CaptureStatus.inactive();
+    private static volatile Capture lastCapture;
 
     private InteractionCaptureManager() {}
 
@@ -54,39 +57,38 @@ public final class InteractionCaptureManager {
     }
 
     public static StartResult start(MinecraftServer server, ServerPlayer target, String category) {
-        if (server == null || target == null) return StartResult.invalid();
+        if (server == null || target == null
+                || server.getPlayerList().getPlayer(target.getUUID()) != target) return StartResult.invalid();
         String normalizedCategory = category == null || category.isBlank() ? "interactions"
             : category.trim().toLowerCase(Locale.ROOT);
-        if (!normalizedCategory.matches("[a-z0-9_]+")) return StartResult.invalid();
+        if (!List.of("interactions", "progression", "permissions", "editor").contains(normalizedCategory))
+            return StartResult.invalid();
         synchronized (LOCK) {
-            if (active != null) return StartResult.alreadyActive(active.status());
+            if (lastCapture != null && !lastCapture.canReplace())
+                return StartResult.alreadyActive(lastCapture.status());
             String id = UUID.randomUUID().toString().replace("-", "");
-            Path output = normalizedCategory.equals("interactions")
-                ? server.getServerDirectory().resolve("debug")
-                    .resolve("progressivestages-interactions-" + id + ".jsonl")
-                : server.getServerDirectory().resolve("logs").resolve("progressivestages")
-                    .resolve(normalizedCategory).resolve(id + ".log");
+            Path output = server.getServerDirectory().resolve("logs").resolve("progressivestages")
+                .resolve(normalizedCategory).resolve(id + ".log");
             Capture capture = new Capture(id, target.getUUID(), normalizedCategory, output, server.getTickCount());
             active = capture;
-            lastStatus = capture.status();
+            lastCapture = capture;
             capture.startWriter();
             return StartResult.started(capture.status());
         }
     }
 
     public static CaptureStatus status() {
-        Capture capture = active;
-        return capture == null ? lastStatus : capture.status();
+        Capture capture = lastCapture;
+        return capture == null ? CaptureStatus.inactive() : capture.status();
     }
 
     public static boolean stop(StopReason reason) {
         Capture capture;
         synchronized (LOCK) {
             capture = active;
-            if (capture == null) return false;
+            if (capture == null || !capture.isActive()) return false;
             active = null;
             capture.stop(reason == null ? StopReason.MANUAL : reason);
-            lastStatus = capture.status();
         }
         return true;
     }
@@ -116,50 +118,49 @@ public final class InteractionCaptureManager {
 
     public static void resetRuntimeState() {
         stop(StopReason.RESTART);
-        lastStatus = CaptureStatus.inactive();
+        synchronized (LOCK) {
+            if (lastCapture == null || lastCapture.canReplace()) lastCapture = null;
+        }
     }
 
     public static void record(ServerPlayer player, InteractionHand hand, ItemStack stack, Block block,
                               InteractionDecision decision, boolean canceled, TriState useBlock,
                               TriState useItem, InteractionResult result, String mutation) {
         Capture capture = active;
-        if (capture == null || player == null || decision == null || !capture.target().equals(player.getUUID())) return;
+        if (capture == null || player == null || decision == null
+                || !capture.accepts("interactions", player.getUUID())) return;
         capture.record(player, hand, stack, block, decision, canceled, useBlock, useItem, result, mutation);
-        lastStatus = capture.status();
     }
 
     public static void recordProgression(ServerPlayer player, StageId stageId,
                                          java.util.Set<StageId> before, java.util.Set<StageId> after,
                                          String cause, String reason, int recipientCount) {
         Capture capture = active;
-        if (capture == null || !"progression".equals(capture.category()) || player == null
-                || stageId == null || !capture.target().equals(player.getUUID())) return;
+        if (capture == null || player == null || stageId == null
+                || !capture.accepts("progression", player.getUUID())) return;
         capture.recordProgression(player, stageId, before, after, cause, reason, recipientCount);
-        lastStatus = capture.status();
     }
 
     public static void recordPermission(ServerPlayer player, StageId stageId, String ruleId,
                                         boolean desired, String reason, String providerState) {
         Capture capture = active;
-        if (capture == null || !"permissions".equals(capture.category()) || player == null
-                || !capture.target().equals(player.getUUID()) || stageId == null) return;
+        if (capture == null || player == null || stageId == null
+                || !capture.accepts("permissions", player.getUUID())) return;
         capture.recordPermission(player, stageId, ruleId, desired, reason, providerState);
-        lastStatus = capture.status();
     }
 
     public static void recordCommandPermission(ServerPlayer player, StageId stageId,
             com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context,
             boolean allowed, boolean nativeAllowed, String reason) {
         Capture capture = active;
-        if (capture == null || !"permissions".equals(capture.category()) || player == null
-                || !capture.target().equals(player.getUUID()) || stageId == null) return;
+        if (capture == null || player == null || stageId == null
+                || !capture.accepts("permissions", player.getUUID())) return;
         String path = context.getNodes().stream().map(node -> node.getNode())
             .filter(node -> node instanceof com.mojang.brigadier.tree.LiteralCommandNode<?>)
             .map(node -> node.getName()).collect(java.util.stream.Collectors.joining(" "));
         String executionNode = context.getNodes().isEmpty() ? context.getRootNode().getName()
             : context.getNodes().get(context.getNodes().size() - 1).getNode().getName();
         capture.recordCommandPermission(player, stageId, path, executionNode, allowed, nativeAllowed, reason);
-        lastStatus = capture.status();
     }
 
     public record StartResult(boolean started, boolean alreadyActive, boolean invalidTarget,
@@ -170,9 +171,10 @@ public final class InteractionCaptureManager {
     }
 
     public record CaptureStatus(boolean active, String captureId, String target, Path output,
-                                int records, int dropped, int bytes, String stopReason) {
+                                int records, int dropped, int bytes, String stopReason,
+                                String category, int queued, String outputState, int remainingSeconds) {
         static CaptureStatus inactive() {
-            return new CaptureStatus(false, "", "", null, 0, 0, 0, "off");
+            return new CaptureStatus(false, "", "", null, 0, 0, 0, "off", "", 0, "idle", 0);
         }
     }
 
@@ -187,7 +189,7 @@ public final class InteractionCaptureManager {
         String value() { return value; }
     }
 
-    private static final class Capture {
+    static final class Capture {
         private final String id;
         private final UUID target;
         private final String category;
@@ -201,139 +203,122 @@ public final class InteractionCaptureManager {
         private volatile int bytes;
         private long rateWindowStart;
         private int rateWindowRecords;
+        private volatile boolean writerFinished;
+        private long currentTick;
         private Thread writer;
+        private final Map<OwnerRef, String> ownerLabels = new LinkedHashMap<>();
 
-        private Capture(String id, UUID target, String category, Path output, long startedTick) {
+        Capture(String id, UUID target, String category, Path output, long startedTick) {
             this.id = id;
             this.target = target;
             this.category = category;
             this.output = output;
             this.startedTick = startedTick;
             this.rateWindowStart = startedTick;
+            this.currentTick = startedTick;
         }
 
         String id() { return id; }
         UUID target() { return target; }
         String category() { return category; }
+        boolean isActive() { return active; }
+        boolean accepts(String requestedCategory, UUID actor) {
+            return active && category.equals(requestedCategory) && target.equals(actor);
+        }
+        boolean canReplace() { return !active && writerFinished; }
 
-        void startWriter() {
+        synchronized void startWriter() {
+            if (writer != null) return;
             writer = new Thread(this::write, "progressivestages-interaction-capture");
             writer.setDaemon(true);
             writer.start();
         }
 
         synchronized void checkTimeout(long currentTick) {
+            this.currentTick = currentTick;
             if (active && currentTick - startedTick >= MAX_SECONDS * 20L) stop(StopReason.TIMEOUT);
         }
 
         synchronized void record(ServerPlayer player, InteractionHand hand, ItemStack stack, Block block,
                                  InteractionDecision decision, boolean canceled, TriState useBlock,
                                  TriState useItem, InteractionResult result, String mutation) {
-            if (!active) return;
-            long tick = player.level().getGameTime();
-            if (tick - startedTick >= MAX_SECONDS * 20L) {
-                stop(StopReason.TIMEOUT);
-                return;
-            }
-            if (records >= MAX_DECISIONS) {
-                stop(StopReason.DECISION_LIMIT);
-                return;
-            }
-            if (tick - rateWindowStart >= 20L) {
-                rateWindowStart = tick;
-                rateWindowRecords = 0;
-            }
-            if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) {
-                stop(StopReason.RATE_LIMIT);
-                return;
-            }
-            String line = line(player, hand, stack, block, decision, canceled, useBlock, useItem, result, mutation, tick);
-            int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
-            if (bytes + lineBytes > MAX_OUTPUT_BYTES) {
-                stop(StopReason.OUTPUT_LIMIT);
-                return;
-            }
-            if (!queue.offer(line)) {
-                dropped++;
-                stop(StopReason.QUEUE_LIMIT);
-                return;
-            }
-            records++;
-            rateWindowRecords++;
-            bytes += lineBytes;
+            long tick = player.getServer().getTickCount();
+            recordLine(tick, () -> {
+                return line(player, hand, stack, block, decision, canceled, useBlock, useItem, result, mutation, tick);
+            });
         }
 
         synchronized void recordProgression(ServerPlayer player, StageId stageId,
                                              java.util.Set<StageId> before, java.util.Set<StageId> after,
                                              String cause, String reason, int recipientCount) {
-            if (!active) return;
-            long tick = player.level().getGameTime();
-            if (tick - startedTick >= MAX_SECONDS * 20L) { stop(StopReason.TIMEOUT); return; }
-            if (records >= MAX_DECISIONS) { stop(StopReason.DECISION_LIMIT); return; }
-            if (tick - rateWindowStart >= 20L) { rateWindowStart = tick; rateWindowRecords = 0; }
-            if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) { stop(StopReason.RATE_LIMIT); return; }
-            StageDefinition definition = StageFileLoader.getInstance().getStage(stageId).orElse(null);
-            OwnerRef owner = StageManager.getInstance().getStageOwner(player, stageId);
-            String line = progressionLine(stageId, definition, owner, before, after, cause, reason,
-                recipientCount, tick);
-            int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
-            if (bytes + lineBytes > MAX_OUTPUT_BYTES) { stop(StopReason.OUTPUT_LIMIT); return; }
-            if (!queue.offer(line)) { dropped++; stop(StopReason.QUEUE_LIMIT); return; }
-            records++; rateWindowRecords++; bytes += lineBytes;
+            long tick = player.getServer().getTickCount();
+            recordLine(tick, () -> {
+                StageDefinition definition = StageFileLoader.getInstance().getStage(stageId).orElse(null);
+                OwnerRef owner = StageManager.getInstance().getStageOwner(player, stageId);
+                return progressionLine(stageId, definition, owner, before, after, cause, reason,
+                    recipientCount, tick);
+            });
         }
 
         synchronized void recordPermission(ServerPlayer player, StageId stageId, String ruleId,
                                             boolean desired, String reason, String providerState) {
-            if (!active) return;
-            long tick = player.level().getGameTime();
-            if (tick - startedTick >= MAX_SECONDS * 20L) { stop(StopReason.TIMEOUT); return; }
-            if (records >= MAX_DECISIONS) { stop(StopReason.DECISION_LIMIT); return; }
-            if (tick - rateWindowStart >= 20L) { rateWindowStart = tick; rateWindowRecords = 0; }
-            if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) { stop(StopReason.RATE_LIMIT); return; }
-            String line = "{\"capture_id\":\"" + id + "\",\"sequence\":" + (records + 1)
-                + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"permissions\""
-                + ",\"definition_revision\":" + StageFileLoader.getInstance().getCompiledSnapshot().revision()
-                + ",\"stage\":\"" + esc(stageId.toString()) + "\",\"rule_id\":\""
-                + esc(ruleId) + "\",\"desired\":" + desired + ",\"provider_state\":\""
-                + esc(providerState) + "\",\"reason\":\"" + esc(reason) + "\"}\n";
-            int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
-            if (bytes + lineBytes > MAX_OUTPUT_BYTES) { stop(StopReason.OUTPUT_LIMIT); return; }
-            if (!queue.offer(line)) { dropped++; stop(StopReason.QUEUE_LIMIT); return; }
-            records++; rateWindowRecords++; bytes += lineBytes;
+            long tick = player.getServer().getTickCount();
+            recordLine(tick, () -> {
+                return "{\"capture_id\":\"" + id + "\",\"sequence\":" + (records + 1)
+                    + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"permissions\""
+                    + ",\"definition_revision\":" + StageFileLoader.getInstance().getCompiledSnapshot().revision()
+                    + ",\"stage\":\"" + esc(stageId.toString()) + "\",\"rule_id\":\""
+                    + esc(ruleId) + "\",\"desired\":" + desired + ",\"provider_state\":\""
+                    + esc(providerState) + "\",\"reason\":\"" + esc(reason) + "\"}\n";
+            });
         }
 
         synchronized void recordCommandPermission(ServerPlayer player, StageId stageId, String path, String executionNode,
                                                    boolean allowed, boolean nativeAllowed, String reason) {
+            long tick = player.getServer().getTickCount();
+            recordLine(tick, () -> {
+                return "{\"capture_id\":\"" + id + "\",\"sequence\":" + (records + 1)
+                    + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"permissions\""
+                    + ",\"command_path\":\"" + esc(path) + "\",\"stage\":\""
+                    + esc(stageId.toString()) + "\",\"stage_allowed\":" + allowed
+                    + ",\"native_allowed\":" + nativeAllowed + ",\"effective_actor_label\":\"target\""
+                    + ",\"execution_node\":\"" + esc(executionNode) + "\""
+                    + ",\"decision\":\"" + esc(reason) + "\"}\n";
+            });
+        }
+
+        synchronized void recordLine(long tick, Supplier<String> record) {
             if (!active) return;
-            long tick = player.level().getGameTime();
-            if (tick - startedTick >= MAX_SECONDS * 20L) { stop(StopReason.TIMEOUT); return; }
+            checkTimeout(tick);
+            if (!active) return;
             if (records >= MAX_DECISIONS) { stop(StopReason.DECISION_LIMIT); return; }
             if (tick - rateWindowStart >= 20L) { rateWindowStart = tick; rateWindowRecords = 0; }
             if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) { stop(StopReason.RATE_LIMIT); return; }
-            String line = "{\"capture_id\":\"" + id + "\",\"sequence\":" + (records + 1)
-                + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"permissions\""
-                + ",\"command_path\":\"" + esc(path) + "\",\"stage\":\""
-                + esc(stageId.toString()) + "\",\"stage_allowed\":" + allowed
-                + ",\"native_allowed\":" + nativeAllowed + ",\"effective_actor_label\":\"target\""
-                + ",\"execution_node\":\"" + esc(executionNode) + "\""
-                + ",\"decision\":\"" + esc(reason) + "\"}\n";
+            String line = record.get();
             int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
-            if (bytes + lineBytes > MAX_OUTPUT_BYTES) { stop(StopReason.OUTPUT_LIMIT); return; }
+            if (lineBytes > MAX_OUTPUT_BYTES - bytes) { stop(StopReason.OUTPUT_LIMIT); return; }
             if (!queue.offer(line)) { dropped++; stop(StopReason.QUEUE_LIMIT); return; }
-            records++; rateWindowRecords++; bytes += lineBytes;
+            records++;
+            rateWindowRecords++;
+            bytes += lineBytes;
+            if (bytes == MAX_OUTPUT_BYTES) stop(StopReason.OUTPUT_LIMIT);
+            else if (records == MAX_DECISIONS) stop(StopReason.DECISION_LIMIT);
+            else if (rateWindowRecords == MAX_DECISIONS_PER_SECOND) stop(StopReason.RATE_LIMIT);
         }
 
         synchronized void stop(StopReason reason) {
             if (!active) return;
             active = false;
             stopReason = reason;
-            queue.offer("");
         }
 
-        CaptureStatus status() {
+        synchronized CaptureStatus status() {
             StopReason reason = stopReason;
             return new CaptureStatus(active, id, "selected", output, records, dropped, bytes,
-                active ? "active" : (reason == null ? "off" : reason.value()));
+                active ? "active" : (reason == null ? "off" : reason.value()), category, queue.size(),
+                writerFinished ? (reason == StopReason.OUTPUT_ERROR ? "failed" : "drained")
+                    : (active ? "writing" : "draining"),
+                active ? (int) Math.max(0, MAX_SECONDS - (currentTick - startedTick) / 20L) : 0);
         }
 
         private String line(ServerPlayer player, InteractionHand hand, ItemStack stack, Block block,
@@ -347,8 +332,8 @@ public final class InteractionCaptureManager {
                 + ",\"definition_revision\":" + StageFileLoader.getInstance().getCompiledSnapshot().revision()
                 + ",\"target\":\"selected\",\"hand\":\"" + (hand == null ? "" : hand.name().toLowerCase(Locale.ROOT))
                 + "\",\"item_id\":\"" + itemId + "\",\"item_count\":" + itemCount
-                + ",\"block_id\":\"" + blockId + "\",\"matched_stages\":" + stages(decision.matchedStages())
-                + ",\"missing_stages\":" + stages(decision.missingStages())
+                + ",\"block_id\":\"" + blockId + "\"," + stageFields("matched_stages", decision.matchedStages())
+                + "," + stageFields("missing_stages", decision.missingStages())
                 + ",\"reason\":\"" + decision.reason().name().toLowerCase(Locale.ROOT)
                 + "\",\"allowed\":" + decision.allowed() + ",\"canceled\":" + canceled
                 + ",\"use_block\":\"" + (useBlock == null ? "" : useBlock.name().toLowerCase(Locale.ROOT))
@@ -361,8 +346,7 @@ public final class InteractionCaptureManager {
                                        java.util.Set<StageId> before, java.util.Set<StageId> after,
                                        String cause, String reason, int recipientCount, long tick) {
             String ownerKind = owner == null ? "unknown" : owner.kind().name().toLowerCase(Locale.ROOT);
-            String ownerLabel = owner == null ? "unknown" : ownerKind + ":"
-                + Integer.toUnsignedString(owner.id().hashCode(), 16);
+            String ownerLabel = ownerLabel(owner);
             boolean scopePresent = definition != null && definition.isScopePresent();
             boolean teamStagePresent = definition != null && definition.getTeamStage().isPresent();
             String teamStageValue = teamStagePresent ? String.valueOf(definition.getTeamStage().orElse(false)) : "";
@@ -373,46 +357,60 @@ public final class InteractionCaptureManager {
                 + ",\"team_stage_present\":" + teamStagePresent + ",\"team_stage_value\":\""
                 + esc(teamStageValue) + "\",\"owner_kind\":\"" + ownerKind + "\",\"owner_label\":\""
                 + esc(ownerLabel) + "\",\"cause\":\"" + esc(cause) + "\",\"reason\":\""
-                + esc(reason) + "\",\"before_effective\":" + stages(before == null ? List.of() : before.stream().sorted(java.util.Comparator.comparing(StageId::toString)).toList())
-                + ",\"after_effective\":" + stages(after == null ? List.of() : after.stream().sorted(java.util.Comparator.comparing(StageId::toString)).toList())
+                + esc(reason) + "\"," + stageFields("before_effective", before == null ? List.of() : before.stream().sorted(java.util.Comparator.comparing(StageId::toString)).toList())
+                + "," + stageFields("after_effective", after == null ? List.of() : after.stream().sorted(java.util.Comparator.comparing(StageId::toString)).toList())
                 + ",\"recipient_count\":" + Math.max(0, recipientCount)
                 + ",\"mutation_revision\":" + StageManager.getInstance().getMutationRevision() + "}\n";
         }
 
-        private String stages(List<StageId> values) {
-            StringBuilder output = new StringBuilder("[");
+        String ownerLabel(OwnerRef owner) {
+            if (owner == null) return "unknown";
+            String existing = ownerLabels.get(owner);
+            if (existing != null) return existing;
+            if (ownerLabels.size() >= MAX_COLLECTION_LENGTH) return "owner_truncated";
+            String label = "owner" + (ownerLabels.size() + 1);
+            ownerLabels.put(owner, label);
+            return label;
+        }
+
+        String stageFields(String name, List<StageId> values) {
+            StringBuilder output = new StringBuilder("\"").append(name).append("\":[");
             int total = values == null ? 0 : values.size();
             int count = Math.min(total, MAX_COLLECTION_LENGTH);
             for (int index = 0; index < count; index++) {
                 if (index > 0) output.append(',');
-                output.append('\"').append(esc(values.get(index).toString())).append('\"');
+                output.append('"').append(esc(values.get(index).toString())).append('"');
             }
-            if (total > count) {
-                if (count > 0) output.append(',');
-                output.append("\"...\"");
-            }
-            return output.append(']').toString();
+            return output.append("],\"").append(name).append("_total\":").append(total)
+                .append(",\"").append(name).append("_truncated\":").append(total > count).toString();
         }
 
         private void write() {
             try {
                 Files.createDirectories(output.getParent());
                 try (BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+                        StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
                     while (active || !queue.isEmpty()) {
                         String line = queue.poll(100, TimeUnit.MILLISECONDS);
                         if (line != null && !line.isEmpty()) writer.write(line);
                     }
                 }
             } catch (IOException exception) {
-                LOGGER.error("ProgressiveStages interaction capture could not write {}.", output, exception);
-                synchronized (this) {
-                    if (active) stop(StopReason.OUTPUT_ERROR);
-                    else if (stopReason == null) stopReason = StopReason.OUTPUT_ERROR;
-                }
+                failOutput();
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
+                failOutput();
+            } finally {
+                writerFinished = true;
             }
+        }
+
+        private synchronized void failOutput() {
+            active = false;
+            stopReason = StopReason.OUTPUT_ERROR;
+            dropped += queue.size();
+            queue.clear();
+            LOGGER.error("ProgressiveStages diagnostic capture {} could not finish writing.", id);
         }
     }
 
@@ -420,10 +418,14 @@ public final class InteractionCaptureManager {
         return value == null ? "" : esc(value.toString());
     }
 
-    private static String esc(String value) {
+    static String esc(String value) {
         if (value == null) return "";
-        String bounded = value.length() > MAX_STRING_LENGTH ? value.substring(0, MAX_STRING_LENGTH) + "..." : value;
-        return bounded.replace("\\", "\\\\").replace("\"", "\\\"")
-            .replace("\n", "\\n").replace("\r", "\\r");
+        if (value.length() > MAX_STRING_LENGTH) {
+            int end = MAX_STRING_LENGTH - 3;
+            if (Character.isHighSurrogate(value.charAt(end - 1))) end--;
+            value = value.substring(0, end) + "...";
+        }
+        String encoded = new com.google.gson.JsonPrimitive(value).toString();
+        return encoded.substring(1, encoded.length() - 1);
     }
 }

@@ -88,3 +88,8 @@ for the bounded reconciliation queue to drain or use `/stage sync` after the pro
 Capture output is bounded and redacts long values. Send only the relevant capture lines and the
 before and after stage state. Never include a permission tree, credentials, private address or whole
 inventory.
+
+Capture status distinguishes stopped recording from completed output. Wait for `Writer: drained`
+before reading the finished support file. `Writer: failed` leaves the capture incomplete; a later
+write failure remains visible after manual stop. The [shared capture procedure](interaction-locks.md)
+describes category isolation, fixed limits, server tick timing, and bounded JSON fields.

@@ -336,6 +336,9 @@ node and execution bindings identify aliases; namespace text alone does not esta
 The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)
 distinguishes the core checks from the outstanding real provider and client acceptance.
 
+Diagnostic capture status now shows the actual category, remaining limits, and writer completion.
+See the [capture procedure](docs/troubleshooting/interaction-locks.md) before collecting support logs.
+
 The selected LuckPerms 5.4.140 candidate fails player login on NeoForge 21.1.248 even without
 ProgressiveStages installed. Its successful server startup does not establish compatibility.
 The [verification record](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)

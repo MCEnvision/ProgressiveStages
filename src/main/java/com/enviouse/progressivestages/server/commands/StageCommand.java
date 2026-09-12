@@ -408,7 +408,7 @@ public class StageCommand {
                     .then(Commands.literal("status").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::interactionCaptureStatus))
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
-                        .executes(StageCommand::stopInteractionCapture))))
+                        .executes(StageCommand::stopInteractionCapture)))
                 .then(Commands.literal("progression").requires(source -> source.hasPermission(3))
                     .then(Commands.literal("on").requires(source -> source.hasPermission(3))
                         .then(Commands.argument("player", EntityArgument.player())
@@ -424,7 +424,7 @@ public class StageCommand {
                     .then(Commands.literal("status").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::permissionsCaptureStatus))
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
-                        .executes(StageCommand::stopPermissionsCapture)))
+                        .executes(StageCommand::stopPermissionsCapture))))
         );
 
         // Friendly public command aliases.
@@ -1843,7 +1843,7 @@ public class StageCommand {
             return 0;
         }
         if (result.alreadyActive()) {
-            context.getSource().sendFailure(Component.literal("A diagnostic capture is already active"));
+            context.getSource().sendFailure(Component.literal("A diagnostic capture is active or its output is still draining."));
             return 0;
         }
         InteractionCaptureManager.CaptureStatus status = result.status();
@@ -1866,11 +1866,19 @@ public class StageCommand {
 
     private static int captureStatus(CommandContext<CommandSourceStack> context, String category) {
         InteractionCaptureManager.CaptureStatus status = InteractionCaptureManager.status();
-        context.getSource().sendSuccess(() -> Component.literal(category + " capture. "
-            + (status.active() ? "active" : "off") + ". Target. " + status.target()
-            + ". Records. " + status.records() + ". Dropped. " + status.dropped()
-            + ". Bytes. " + status.bytes() + ". Stop reason. " + status.stopReason()
-            + (status.output() == null ? "" : ". Output. " + status.output())), false);
+        context.getSource().sendSuccess(() -> Component.literal("Diagnostic capture"
+            + "\nCategory: " + (status.category().isEmpty() ? category : status.category())
+            + "\nState: " + (status.active() ? "Active" : "Stopped")
+            + "\nTarget: " + status.target()
+            + "\nTime remaining: " + status.remainingSeconds() + " seconds"
+            + "\nRecords: " + status.records() + " / " + InteractionCaptureManager.MAX_DECISIONS
+            + "\nRate limit: " + InteractionCaptureManager.MAX_DECISIONS_PER_SECOND + " records per second"
+            + "\nDropped: " + status.dropped()
+            + "\nBytes: " + status.bytes() + " / " + InteractionCaptureManager.MAX_OUTPUT_BYTES
+            + "\nQueued: " + status.queued() + " / " + InteractionCaptureManager.MAX_QUEUE
+            + "\nWriter: " + status.outputState()
+            + "\nStop reason: " + status.stopReason()
+            + (status.output() == null ? "" : "\nOutput: " + status.output())), false);
         return 1;
     }
 

@@ -20,6 +20,18 @@ For a bounded support capture, an operator or console can run:
 
 The command requires permission level 3 and an online target. Only one capture can run at a time. The server chooses the output file and reports it through status. A capture lasts at most 60 seconds, records at most 200 decisions and 20 decisions per second, queues at most 256 records, and writes at most 128 KiB. Strings are limited to 256 characters and stage lists to 32 entries. Captures stop on reload, shutdown, restart, disconnect, timeout, or the first exhausted limit. The disabled path does not create records or perform file I/O.
 
+Status reports the actual active category, remaining server tick time, records, UTF-8 bytes,
+queued records, and writer state. `off` stops new records immediately. Wait for `Writer: drained`
+before collecting the finished file; `Writer: failed` means the capture is incomplete even if it
+was stopped manually first. A replacement capture waits until the previous writer has closed.
+Output is created under `logs/progressivestages/<category>/<capture-id>.log` and never overwrites
+an existing file. Record timing and timeout checks use the same server tick clock, independent
+of the world's persisted age. Capture never records another selected category's events.
+
+Stage lists contain at most 32 entries, with separate `_total` and `_truncated` fields. Truncated
+strings include their ellipsis within the 256 character limit. JSON control characters are escaped.
+Progression owner labels are assigned locally within each capture and do not encode UUID hashes.
+
 Inspect only the path returned by status. Keep the smallest sanitized excerpt containing the capture id, selected hand, item and block identifiers, matched and missing stages, reason, cancellation flags, result, and mutation outcome. Captures never include player names, UUIDs, NBT, inventories, permission trees, credentials, addresses, raw commands, or arbitrary paths.
 
 To reproduce a report, first enable the capture, perform one controlled click with the exact held item and target block, check status, then disable the capture. Compare the server decision with the resulting stack, menu, and sale state. A valid sale fixture must be tested separately from an unvalued item. If the candidate mod or dependency does not meet the pinned loader requirements, record that compatibility limit and do not call it a report reproduction.

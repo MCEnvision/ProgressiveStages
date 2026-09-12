@@ -4733,6 +4733,29 @@ Start at [Phase 1](PHASES_1_TO_19.md#phase-1-install-the-mod-and-generate-the-co
 if the mod is already installed. The early phases establish paths and ownership rules that every
 later example assumes.
 
+### Diagnostic capture output lifecycle
+
+The interaction, progression, and permission capture commands share the `/stage debug` parent.
+The shared capture manager accepts only its selected category and online target. Record timestamps,
+rate windows, and timeout checks use the server tick clock rather than persisted world game time.
+All supported categories create a new file below `logs/progressivestages/<category>/`.
+The capture buffers immutable record strings and writes them off the server thread. UTF-8 byte
+accounting rejects an excessive record in full. Reaching the sample, rate, or byte limit stops
+recording immediately while accepted records drain.
+
+`CaptureStatus` reports category, queued records, remaining seconds, and output state alongside
+its existing counters and stop reason. Recording can be stopped while the writer is still draining.
+A new capture waits until that writer closes. Late I/O failure replaces a manual stop reason with
+`output_error`; an existing output file is never truncated. Status reads the live last capture so
+writer completion and errors remain visible. No blocking writer wait occurs on the server thread.
+
+Strings are escaped as JSON, including all control characters, and decoded strings remain within
+256 characters including truncation marks. Stage arrays contain at most 32 values with separate
+total and truncation fields. Owner labels are bounded, capture local labels without UUID hashes.
+The [shared support procedure](docs/troubleshooting/interaction-locks.md) explains collection and
+failure handling. Full category, packaged workflow, and runtime overhead acceptance remains tracked
+in the [3.0.5 verification record](docs/verification/3.0.5-acceptance.md).
+
 ---
 
 *End of document.*

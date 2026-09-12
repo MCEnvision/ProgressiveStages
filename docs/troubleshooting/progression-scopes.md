@@ -57,3 +57,8 @@ permission trees are not written.
 
 If a reload fails, the last valid stage snapshot remains active. Stop an active capture before a
 reload or shutdown; the lifecycle hooks stop it automatically and drain the bounded writer.
+
+Capture status distinguishes stopped recording from completed output. Wait for `Writer: drained`
+before reading the finished support file. `Writer: failed` leaves the capture incomplete; a later
+write failure remains visible after manual stop. The [shared capture procedure](interaction-locks.md)
+describes category isolation, fixed limits, server tick timing, and bounded JSON fields.

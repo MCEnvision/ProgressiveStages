@@ -482,7 +482,7 @@ public class StageManager {
     private GrantResult grantStageToActorInternal(ServerPlayer player, StageId stageId,
                                                   boolean bypassDependencies) {
         if (!StageOrder.getInstance().stageExists(stageId)) {
-            LOGGER.warn("Attempted to grant non-existent stage: {}", stageId);
+            LOGGER.warn("Attempted to grant non-existent actor stage.");
             return new GrantResult(List.of(), List.of(), "Stage does not exist. " + stageId);
         }
         TeamStageData data = getTeamStageData();

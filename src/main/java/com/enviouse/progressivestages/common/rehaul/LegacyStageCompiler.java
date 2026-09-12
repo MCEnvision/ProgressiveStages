@@ -64,6 +64,14 @@ public final class LegacyStageCompiler {
         metadata.put("tags", stage.getTags());
         metadata.put("legacy", stage.getSchemaVersion() < 4);
         stage.getTeamStage().ifPresent(value -> metadata.put("team_stage", value));
+        var permissions = stage.getLuckPerms();
+        if (permissions.present()) {
+            metadata.put("luckperms_enabled", permissions.enabled());
+            metadata.put("luckperms_inbound_mode", permissions.inboundMode().label());
+            metadata.put("luckperms_inbound", permissions.inbound().size());
+            metadata.put("luckperms_outbound", permissions.outbound().size());
+            metadata.put("command_permissions", permissions.commandPermissions().size());
+        }
 
         return new CompiledStage(
             stage.getId(),

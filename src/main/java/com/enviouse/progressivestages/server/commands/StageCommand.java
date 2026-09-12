@@ -371,6 +371,11 @@ public class StageCommand {
                         .then(Commands.argument("stage", StringArgumentType.word())
                             .suggests(StageCommand::suggestStages)
                             .executes(StageCommand::explainScope))))
+                .then(Commands.literal("permissions").requires(source -> source.hasPermission(3))
+                    .then(Commands.argument("player", EntityArgument.player())
+                        .then(Commands.argument("stage", StringArgumentType.word())
+                            .suggests(StageCommand::suggestStages)
+                            .executes(StageCommand::explainPermissions))))
                 .then(Commands.literal("target")
                     .then(Commands.argument("context", StringArgumentType.word())
                         .then(Commands.argument("target", StringArgumentType.word())
@@ -412,6 +417,11 @@ public class StageCommand {
                         .executes(StageCommand::progressionCaptureStatus))
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::stopProgressionCapture)))
+                .then(Commands.literal("permissions").requires(source -> source.hasPermission(3))
+                    .then(Commands.literal("on").then(Commands.argument("player", EntityArgument.player())
+                        .executes(StageCommand::startPermissionsCapture)))
+                    .then(Commands.literal("status").executes(StageCommand::permissionsCaptureStatus))
+                    .then(Commands.literal("off").executes(StageCommand::stopPermissionsCapture)))
         );
 
         // Friendly public command aliases.
@@ -747,6 +757,30 @@ public class StageCommand {
             + ". Owner. " + owner.kind().name().toLowerCase(java.util.Locale.ROOT)
             + ". Resolution. " + source
             + ". Provider active. " + providerActive), false);
+        return 1;
+    }
+
+    private static int explainPermissions(CommandContext<CommandSourceStack> context) {
+        ServerPlayer player;
+        try {
+            player = EntityArgument.getPlayer(context, "player");
+        } catch (CommandSyntaxException exception) {
+            context.getSource().sendFailure(Component.literal("An online player is required"));
+            return 0;
+        }
+        StageId id = StageId.tryParse(StringArgumentType.getString(context, "stage"));
+        StageDefinition definition = id == null ? null : StageOrder.getInstance().getStageDefinition(id).orElse(null);
+        if (definition == null) {
+            context.getSource().sendFailure(Component.literal("Stage was not found"));
+            return 0;
+        }
+        var options = definition.getLuckPerms();
+        var sources = StageManager.getInstance().getEffectiveSnapshot(player).sources().getOrDefault(id, java.util.Set.of());
+        context.getSource().sendSuccess(() -> Component.literal("LuckPerms. State. "
+            + com.enviouse.progressivestages.server.integration.luckperms.LuckPermsBridge.capabilities().state()
+            + ". Enabled. " + options.enabled() + ". Inbound mode. " + options.inboundMode().label()
+            + ". Inbound rows. " + options.inbound().size() + ". Outbound rows. " + options.outbound().size()
+            + ". Command rows. " + options.commandPermissions().size() + ". Sources. " + sources), false);
         return 1;
     }
 
@@ -1792,6 +1826,11 @@ public class StageCommand {
         return startCapture(context, EntityArgument.getPlayer(context, "player"), "progression");
     }
 
+    private static int startPermissionsCapture(CommandContext<CommandSourceStack> context)
+        throws CommandSyntaxException {
+        return startCapture(context, EntityArgument.getPlayer(context, "player"), "permissions");
+    }
+
     private static int startCapture(CommandContext<CommandSourceStack> context, ServerPlayer target,
                                     String category) {
         InteractionCaptureManager.StartResult result = InteractionCaptureManager.start(
@@ -1818,6 +1857,10 @@ public class StageCommand {
         return captureStatus(context, "progression");
     }
 
+    private static int permissionsCaptureStatus(CommandContext<CommandSourceStack> context) {
+        return captureStatus(context, "permissions");
+    }
+
     private static int captureStatus(CommandContext<CommandSourceStack> context, String category) {
         InteractionCaptureManager.CaptureStatus status = InteractionCaptureManager.status();
         context.getSource().sendSuccess(() -> Component.literal(category + " capture. "
@@ -1834,6 +1877,10 @@ public class StageCommand {
 
     private static int stopProgressionCapture(CommandContext<CommandSourceStack> context) {
         return stopCapture(context, "progression");
+    }
+
+    private static int stopPermissionsCapture(CommandContext<CommandSourceStack> context) {
+        return stopCapture(context, "permissions");
     }
 
     private static int stopCapture(CommandContext<CommandSourceStack> context, String category) {

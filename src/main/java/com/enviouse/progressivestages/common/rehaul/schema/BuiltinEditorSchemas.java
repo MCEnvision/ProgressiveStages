@@ -55,6 +55,20 @@ final class BuiltinEditorSchemas {
             SchemaValueType.BOOLEAN, false, false, null, Set.of(), List.of());
         add(sink, "stage.duration", "stage.toml", "stage.duration", "Ownership duration", "Automatically expire ownership after this duration.",
             SchemaValueType.DURATION, "", false, null, Set.of(), List.of());
+        add(sink, "permissions.luckperms.enabled", "stage.toml", "luckperms.enabled", "LuckPerms bridge",
+            "Enable this stage's optional LuckPerms mappings.", SchemaValueType.BOOLEAN, true, false, null, Set.of(), List.of());
+        add(sink, "permissions.luckperms.inbound_mode", "stage.toml", "luckperms.inbound_mode", "Inbound retention",
+            "Keep or synchronize access granted by a LuckPerms row.", SchemaValueType.ENUM, "synchronized", false, null,
+            Set.of(), List.of("synchronized", "permanent"));
+        add(sink, "permissions.luckperms.inbound", "stage.toml", "luckperms.inbound", "Inbound rules",
+            "LuckPerms groups, Boolean permissions, match mode and contexts that grant this stage.", SchemaValueType.OBJECT,
+            List.of(), false, catalog("permissions"), Set.of(), List.of());
+        add(sink, "permissions.luckperms.outbound", "stage.toml", "luckperms.outbound", "Outbound rules",
+            "Transient existing groups or positive permissions contributed by this stage.", SchemaValueType.OBJECT,
+            List.of(), false, catalog("permissions"), Set.of(), List.of());
+        add(sink, "permissions.command_permissions", "stage.toml", "command_permissions", "Command gates",
+            "Literal command paths that require this stage while native permissions remain required.", SchemaValueType.OBJECT,
+            List.of(), false, catalog("commands"), Set.of(), List.of());
         add(sink, "display.background", "stage.toml", "display.background", "Background", "The stage map background texture.",
             SchemaValueType.RESOURCE_ID, "minecraft:textures/gui/advancements/backgrounds/stone.png", false,
             catalog("textures"), Set.of(), List.of());

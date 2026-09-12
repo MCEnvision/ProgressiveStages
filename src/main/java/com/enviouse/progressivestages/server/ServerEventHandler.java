@@ -14,6 +14,7 @@ import com.enviouse.progressivestages.compat.ftbquests.FTBQuestsCompat;
 import com.enviouse.progressivestages.server.commands.StageCommand;
 import com.enviouse.progressivestages.server.enforcement.*;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
+import com.enviouse.progressivestages.server.integration.luckperms.LuckPermsBridge;
 import com.enviouse.progressivestages.server.triggers.*;
 import com.enviouse.progressivestages.server.structure.StructureSessionManager;
 import net.minecraft.server.level.ServerPlayer;
@@ -78,6 +79,7 @@ public class ServerEventHandler {
 
         // Initialize stage manager
         StageManager.getInstance().initialize(event.getServer());
+        LuckPermsBridge.initialize(event.getServer());
         StructureSessionManager.getInstance().bind(event.getServer());
 
         // Initialize team stage sync
@@ -94,6 +96,7 @@ public class ServerEventHandler {
             NeoForge.EVENT_BUS.register(com.enviouse.progressivestages.server.enforcement.AbilityEnforcer.class);
             NeoForge.EVENT_BUS.register(com.enviouse.progressivestages.server.enforcement.ConditionalLockEngine.class);
             NeoForge.EVENT_BUS.register(com.enviouse.progressivestages.server.rehaul.RehaulRuntime.class);
+            NeoForge.EVENT_BUS.register(com.enviouse.progressivestages.server.enforcement.CommandPermissionGate.class);
             coreHandlersRegistered = true;
         }
 
@@ -124,6 +127,7 @@ public class ServerEventHandler {
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         InteractionCaptureManager.stopForShutdown();
+        LuckPermsBridge.getInstance().shutdown();
         com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get().persist();
         StructureSessionManager.getInstance().shutdown(event.getServer());
     }
@@ -162,6 +166,7 @@ public class ServerEventHandler {
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         InteractionCaptureManager.tick(event.getServer());
+        LuckPermsBridge.tick(event.getServer());
     }
 
     /** v2.5: register the datapack stage loader so data/&lt;ns&gt;/progressivestages/stages/*.toml load + /reload. */
@@ -194,6 +199,7 @@ public class ServerEventHandler {
                 CreativeBypassNotifier.sendPopupIfEligible(player);
             }
             StructureSessionManager.getInstance().reconcile(player, true);
+            LuckPermsBridge.reconcile(player);
         }
     }
 

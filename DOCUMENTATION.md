@@ -103,6 +103,7 @@
    - [4.35 Structure session providers, leased stages, and active locks](#435-structure-session-providers-leased-stages-and-active-locks) — **New in 3.0.1**
    - [4.36 `[[drop_modifiers]]` — selector based block output bonuses](#436-drop_modifiers--selector-based-block-output-bonuses) — **New in 3.0.1**
    - [4.37 Stage slots, class limits, replacements, and stacking](#437-stage-slots-class-limits-replacements-and-stacking) — **New in 3.0.1**
+   - [4.38 LuckPerms bridge and command gates](#438-luckperms-bridge-and-command-gates) — **New in 3.0.5**
 5. [Triggers — The Per-Stage `[[triggers]]` System](#5-triggers--the-per-stage-triggers-system)
    - [5.1 Rules, conditions, and modes](#51-rules-conditions-and-modes)
    - [5.2 Condition types](#52-condition-types)
@@ -2850,6 +2851,50 @@ The generated [fifty stage showcase](SHOWCASE_PACK.md) contains all three common
 - `beginner_paths` permits any two of Mage, Warrior, and Ranger, then denies a third.
 - `engineering_tiers` has no limit, so the six engineering bonuses stack.
 - `mining_modes` permits one mode and replaces it when another mode is acquired.
+
+### 4.38 LuckPerms bridge and command gates
+
+LuckPerms is an optional server integration. A stage may read inherited groups or true Boolean
+permissions through `[[luckperms.inbound]]` rows and may contribute an existing group or positive
+permission through `[[luckperms.outbound]]`. The default inbound mode is `synchronized`, which
+removes the attributed source after rank, permission, context, provider, dependency, or slot loss.
+`inbound_mode = "permanent"` keeps that attributed stage after the qualifying source is removed.
+Independent grants are retained in both modes.
+
+```toml
+[luckperms]
+enabled = true
+inbound_mode = "synchronized"
+
+[[luckperms.inbound]]
+id = "chef_rank"
+groups = ["chef"]
+permissions = ["professions.chef"]
+match = "any"
+
+[[luckperms.outbound]]
+id = "home"
+kind = "permission"
+value = "neoessentials.teleport.home.set"
+
+[[command_permissions]]
+id = "home_gate"
+path = "sethome"
+descendants = true
+```
+
+Rows support `all` and `any` matching, bounded context maps, and stable IDs. Only a Boolean true
+qualifies a permission. Reconciliation has no acquisition effects. It does not charge a cost,
+execute a reward, grant a prerequisite, refresh an expiry, or rewrite trigger counter scope.
+Outbound output is transient and reference counted. It never overwrites administrative nodes or
+external membership, and bridge-created output is excluded from inbound feedback queries.
+
+`command_permissions` is evaluated at the parsed Brigadier execution boundary. Descendant rules
+cover a literal subtree. Non descendant rules cover the configured deepest literal and its argument
+values. Aliases and namespaced literals use their actual dispatcher binding. Native permission
+predicates remain required, so a stage gate cannot elevate a player. See
+[`docs/troubleshooting/luckperms.md`](docs/troubleshooting/luckperms.md) and
+[`docs/verification/luckperms-bridge.md`](docs/verification/luckperms-bridge.md).
 
 ## 5. Triggers — The Per-Stage `[[triggers]]` System
 

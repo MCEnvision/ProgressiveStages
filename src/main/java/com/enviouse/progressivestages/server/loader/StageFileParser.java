@@ -7,6 +7,7 @@ import com.enviouse.progressivestages.common.config.RevokeRule;
 import com.enviouse.progressivestages.common.config.StageAttribute;
 import com.enviouse.progressivestages.common.config.StageCost;
 import com.enviouse.progressivestages.common.config.StageDefinition;
+import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import com.enviouse.progressivestages.common.stage.DependencyMode;
 import com.enviouse.progressivestages.common.config.StageRewards;
 import com.enviouse.progressivestages.common.config.StageSlotPolicy;
@@ -275,6 +276,7 @@ public final class StageFileParser {
             builder.teamStage((Boolean) rawTeamStage);
         }
         builder.durationMillis(parseDuration(stageSection.get("duration")));
+        builder.luckPerms(parseLuckPerms(config));
         builder.attributes(parseAttributes(config));
         builder.revoke(parseRevoke(config));
         builder.cost(parseCost(config));
@@ -285,6 +287,91 @@ public final class StageFileParser {
         builder.activeLocks(parseActiveLocks(config));
 
         return ParseResult.success(builder.build(), schemaVersion == 4 ? Config.copy(config) : null);
+    }
+
+    private static LuckPermsStageOptions parseLuckPerms(Config config) {
+        Object raw = config.get("luckperms");
+        Object commandRaw = config.get("command_permissions");
+        boolean present = raw instanceof Config || commandRaw instanceof List<?>;
+        if (raw != null && !(raw instanceof Config)) {
+            throw new IllegalArgumentException("The luckperms section must be a table");
+        }
+        Config section = raw instanceof Config c ? c : null;
+        boolean enabled = section == null || section.get("enabled") == null || readBool(section, "enabled");
+        LuckPermsStageOptions.InboundMode mode = LuckPermsStageOptions.InboundMode.parse(
+            section == null ? null : section.get("inbound_mode"));
+        List<LuckPermsStageOptions.InboundRule> inbound = new ArrayList<>();
+        List<LuckPermsStageOptions.OutboundRule> outbound = new ArrayList<>();
+        if (section != null) {
+            Object inboundRaw = section.get("inbound");
+            if (inboundRaw != null && !(inboundRaw instanceof List<?>)) {
+                throw new IllegalArgumentException("luckperms.inbound must be an array of tables");
+            }
+            if (inboundRaw instanceof List<?> rows) {
+                for (int index = 0; index < rows.size(); index++) {
+                    Object row = rows.get(index);
+                    if (!(row instanceof Config c)) throw new IllegalArgumentException("luckperms.inbound row " + index + " must be a table");
+                    String id = requiredString(c, "id", "luckperms.inbound[" + index + "]");
+                    inbound.add(new LuckPermsStageOptions.InboundRule(id,
+                        stringList(c, "groups"), stringList(c, "permissions"),
+                        LuckPermsStageOptions.Match.parse(c.get("match")), parseContexts(c.get("contexts"))));
+                }
+            }
+            Object outboundRaw = section.get("outbound");
+            if (outboundRaw != null && !(outboundRaw instanceof List<?>)) {
+                throw new IllegalArgumentException("luckperms.outbound must be an array of tables");
+            }
+            if (outboundRaw instanceof List<?> rows) {
+                for (int index = 0; index < rows.size(); index++) {
+                    Object row = rows.get(index);
+                    if (!(row instanceof Config c)) throw new IllegalArgumentException("luckperms.outbound row " + index + " must be a table");
+                    String id = requiredString(c, "id", "luckperms.outbound[" + index + "]");
+                    outbound.add(new LuckPermsStageOptions.OutboundRule(id,
+                        LuckPermsStageOptions.OutboundKind.parse(c.get("kind")),
+                        requiredString(c, "value", "luckperms.outbound[" + index + "]"),
+                        parseContexts(c.get("contexts"))));
+                }
+            }
+        }
+        List<LuckPermsStageOptions.CommandPermissionRule> commands = new ArrayList<>();
+        if (commandRaw != null && !(commandRaw instanceof List<?>)) {
+            throw new IllegalArgumentException("command_permissions must be an array of tables");
+        }
+        if (commandRaw instanceof List<?> rows) {
+            for (int index = 0; index < rows.size(); index++) {
+                Object row = rows.get(index);
+                if (!(row instanceof Config c)) throw new IllegalArgumentException("command_permissions row " + index + " must be a table");
+                String id = requiredString(c, "id", "command_permissions[" + index + "]");
+                String path = requiredString(c, "path", "command_permissions[" + index + "]");
+                commands.add(new LuckPermsStageOptions.CommandPermissionRule(id, path, readBool(c, "descendants")));
+            }
+        }
+        return new LuckPermsStageOptions(present, enabled, mode, inbound, outbound, commands);
+    }
+
+    private static String requiredString(Config config, String key, String field) {
+        Object value = config.get(key);
+        if (!(value instanceof String text) || text.isBlank()) {
+            throw new IllegalArgumentException(field + "." + key + " must be a nonempty string");
+        }
+        return text;
+    }
+
+    private static Map<String, List<String>> parseContexts(Object raw) {
+        if (raw == null) return Map.of();
+        if (!(raw instanceof Config config)) throw new IllegalArgumentException("LuckPerms contexts must be a table");
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        for (var entry : config.entrySet()) {
+            Object value = entry.getValue();
+            if (!(value instanceof List<?> list)) throw new IllegalArgumentException("LuckPerms context values must be arrays");
+            List<String> values = new ArrayList<>();
+            for (Object item : list) {
+                if (!(item instanceof String text)) throw new IllegalArgumentException("LuckPerms context values must be strings");
+                values.add(text);
+            }
+            result.put(entry.getKey(), values);
+        }
+        return result;
     }
 
     // -------------------- v2.4 sections --------------------

@@ -239,7 +239,7 @@ public class StageManager {
         grantStageWithCause(player, stageId, StageCause.COMMAND);
     }
 
-    /** Grant a stage from a named derived source without conflating it with independent access. */
+    /** grant a stage from a named derived source without conflating it with independent access. */
     public boolean grantStageFromSource(ServerPlayer player, StageId stageId, String source,
                                         StageCause cause) {
         if (player == null || stageId == null || source == null || source.isBlank()
@@ -257,39 +257,62 @@ public class StageManager {
             boolean added = !beforeSources.equals(data.getSources(stageOwner, stageId));
             if (added) {
                 markMutation(true);
+                syncStageView(player, stageId);
                 publishMutation(player, stageId, false, "already_owned", Set.of(stageOwner));
             }
             return added;
         }
         Set<StageId> before = getStages(player);
-        grantStageWithCause(player, stageId, cause);
-        if (before.equals(getStages(player))) return false;
+        if (!StageOrder.getInstance().getMissingDependencies(before, stageId).isEmpty()) return false;
+        StageDefinition derivedDefinition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
+        StageSlotResolver.Decision derivedSlot = slotDecision(player, derivedDefinition, before);
+        if (!derivedSlot.allowed() || !derivedSlot.replacements().isEmpty()) return false;
+        GrantResult result = grantStageToActorInternal(player, stageId, true);
+        if (!result.denial().isBlank() || result.granted().isEmpty()) return false;
         if (stageOwner.kind() == OwnerKind.PERSONAL) {
             data.grantPersonalStageFromSource(stageOwner.id(), stageId, source);
-            data.revokeStageFromSource(stageOwner.id(), stageId, "independent", true);
         } else {
             data.grantStageFromSource(stageOwner.id(), stageId, source);
-            data.revokeStageFromSource(stageOwner, stageId, "independent");
         }
+        markMutation(true);
+        for (StageId replaced : result.replaced()) {
+            fireStageChangeEvent(player, owner(player, replaced).id(), replaced,
+                StageChangeType.REVOKED, StageCause.GROUP_POLICY);
+        }
+        for (StageId granted : result.granted()) {
+            fireStageChangeEvent(player, owner(player, granted).id(), granted, StageChangeType.GRANTED, cause);
+        }
+        syncToPlayer(player);
+        publishMutation(player, stageId, !before.equals(getStages(player)), "committed",
+            Set.of(stageOwner));
+        captureProgression(player, stageId, before, getStages(player), cause, "committed");
         return true;
     }
 
-    /** Remove one derived source while retaining independent or other derived access. */
+    /** remove one derived source while retaining independent or other derived access. */
     public boolean revokeStageFromSource(ServerPlayer player, StageId stageId, String source,
                                          StageCause cause) {
         if (player == null || stageId == null || source == null || source.isBlank()) return false;
+        Set<StageId> before = getStages(player);
         OwnerRef stageOwner = owner(player, stageId);
         TeamStageData data = getTeamStageData();
         Set<String> sources = data.getSources(stageOwner, stageId);
         if (!sources.contains(source)) return false;
         if (!hasOwned(data, stageOwner, stageId)) return false;
         if (sources.size() == 1) {
-            revokeStageWithCause(player, stageId, cause);
+            boolean removed = revokeOwned(data, stageOwner, stageId);
+            if (!removed) return false;
+            markMutation(true);
+            fireStageChangeEvent(player, stageOwner.id(), stageId, StageChangeType.REVOKED, cause);
+            syncStageView(player, stageId);
+            publishMutation(player, stageId, true, "source_removed", Set.of(stageOwner));
+            captureProgression(player, stageId, before, getStages(player), cause, "source_removed");
             return true;
         }
         boolean removed = data.revokeStageFromSource(stageOwner, stageId, source);
         if (removed) {
             markMutation(true);
+            syncStageView(player, stageId);
             publishMutation(player, stageId, false, "source_removed", Set.of(stageOwner));
         }
         return removed;
@@ -957,6 +980,15 @@ public class StageManager {
     }
 
     public long getMutationRevision() { return mutationRevision; }
+
+    /** refresh effective stage and lock views after an external source mutation. */
+    public void syncStageView(ServerPlayer player, StageId stageId) {
+        if (player == null) return;
+        OwnerRef resolved = owner(player, stageId);
+        if (resolved.kind() == OwnerKind.SERVER) syncAllPlayers();
+        else if (resolved.kind() == OwnerKind.TEAM) syncToTeamMembers(resolved.id(), player);
+        else syncToPlayer(player);
+    }
 
     /**
      * Get all stages for a team

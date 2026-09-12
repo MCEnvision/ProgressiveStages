@@ -88,6 +88,7 @@ public class StageDefinition {
     private final int schemaVersion;
     private final int priority;
     private final ConfigProvenance provenance;
+    private final LuckPermsStageOptions luckPerms;
 
     private StageDefinition(Builder builder) {
         this.id = builder.id;
@@ -157,6 +158,7 @@ public class StageDefinition {
         this.schemaVersion = Math.max(1, builder.schemaVersion);
         this.priority = builder.priority;
         this.provenance = builder.provenance;
+        this.luckPerms = builder.luckPerms != null ? builder.luckPerms : LuckPermsStageOptions.absent();
     }
 
     public StageId getId() {
@@ -402,6 +404,10 @@ public class StageDefinition {
 
     public ConfigProvenance getProvenance() { return provenance; }
 
+    /** optional luckperms inbound, outbound and command permission mappings. */
+    public LuckPermsStageOptions getLuckPerms() { return luckPerms; }
+    public LuckPermsStageOptions getLuckPermsOptions() { return luckPerms; }
+
     @Override
     public String toString() {
         return "StageDefinition{" +
@@ -464,6 +470,7 @@ public class StageDefinition {
         private int schemaVersion = 3;
         private int priority = 0;
         private ConfigProvenance provenance;
+        private LuckPermsStageOptions luckPerms = LuckPermsStageOptions.absent();
 
         private Builder(StageId id) {
             this.id = id;
@@ -632,6 +639,10 @@ public class StageDefinition {
         public Builder schemaVersion(int v) { this.schemaVersion = v; return this; }
         public Builder priority(int v) { this.priority = v; return this; }
         public Builder provenance(ConfigProvenance v) { this.provenance = v; return this; }
+        public Builder luckPerms(LuckPermsStageOptions v) {
+            this.luckPerms = v != null ? v : LuckPermsStageOptions.absent();
+            return this;
+        }
 
         public StageDefinition build() {
             return new StageDefinition(this);

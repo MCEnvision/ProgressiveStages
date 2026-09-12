@@ -138,6 +138,24 @@ public final class InteractionCaptureManager {
         lastStatus = capture.status();
     }
 
+    public static void recordPermission(ServerPlayer player, StageId stageId, String ruleId,
+                                        boolean desired, String reason, String providerState) {
+        Capture capture = active;
+        if (capture == null || !"permissions".equals(capture.category()) || player == null
+                || !capture.target().equals(player.getUUID()) || stageId == null) return;
+        capture.recordPermission(player, stageId, ruleId, desired, reason, providerState);
+        lastStatus = capture.status();
+    }
+
+    public static void recordCommandPermission(ServerPlayer player, StageId stageId, String path,
+                                               boolean allowed, String reason) {
+        Capture capture = active;
+        if (capture == null || !"permissions".equals(capture.category()) || player == null
+                || !capture.target().equals(player.getUUID()) || stageId == null) return;
+        capture.recordCommandPermission(player, stageId, path, allowed, reason);
+        lastStatus = capture.status();
+    }
+
     public record StartResult(boolean started, boolean alreadyActive, boolean invalidTarget,
                               CaptureStatus status) {
         static StartResult started(CaptureStatus status) { return new StartResult(true, false, false, status); }
@@ -252,6 +270,45 @@ public final class InteractionCaptureManager {
             OwnerRef owner = StageManager.getInstance().getStageOwner(player, stageId);
             String line = progressionLine(stageId, definition, owner, before, after, cause, reason,
                 recipientCount, tick);
+            int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
+            if (bytes + lineBytes > MAX_OUTPUT_BYTES) { stop(StopReason.OUTPUT_LIMIT); return; }
+            if (!queue.offer(line)) { dropped++; stop(StopReason.QUEUE_LIMIT); return; }
+            records++; rateWindowRecords++; bytes += lineBytes;
+        }
+
+        synchronized void recordPermission(ServerPlayer player, StageId stageId, String ruleId,
+                                            boolean desired, String reason, String providerState) {
+            if (!active) return;
+            long tick = player.level().getGameTime();
+            if (tick - startedTick >= MAX_SECONDS * 20L) { stop(StopReason.TIMEOUT); return; }
+            if (records >= MAX_DECISIONS) { stop(StopReason.DECISION_LIMIT); return; }
+            if (tick - rateWindowStart >= 20L) { rateWindowStart = tick; rateWindowRecords = 0; }
+            if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) { stop(StopReason.RATE_LIMIT); return; }
+            String line = "{\"capture_id\":\"" + id + "\",\"sequence\":" + (records + 1)
+                + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"permissions\""
+                + ",\"definition_revision\":" + StageFileLoader.getInstance().getCompiledSnapshot().revision()
+                + ",\"stage\":\"" + esc(stageId.toString()) + "\",\"rule_id\":\""
+                + esc(ruleId) + "\",\"desired\":" + desired + ",\"provider_state\":\""
+                + esc(providerState) + "\",\"reason\":\"" + esc(reason) + "\"}\n";
+            int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
+            if (bytes + lineBytes > MAX_OUTPUT_BYTES) { stop(StopReason.OUTPUT_LIMIT); return; }
+            if (!queue.offer(line)) { dropped++; stop(StopReason.QUEUE_LIMIT); return; }
+            records++; rateWindowRecords++; bytes += lineBytes;
+        }
+
+        synchronized void recordCommandPermission(ServerPlayer player, StageId stageId, String path,
+                                                   boolean allowed, String reason) {
+            if (!active) return;
+            long tick = player.level().getGameTime();
+            if (tick - startedTick >= MAX_SECONDS * 20L) { stop(StopReason.TIMEOUT); return; }
+            if (records >= MAX_DECISIONS) { stop(StopReason.DECISION_LIMIT); return; }
+            if (tick - rateWindowStart >= 20L) { rateWindowStart = tick; rateWindowRecords = 0; }
+            if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) { stop(StopReason.RATE_LIMIT); return; }
+            String line = "{\"capture_id\":\"" + id + "\",\"sequence\":" + (records + 1)
+                + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"permissions\""
+                + ",\"command_path\":\"" + esc(path) + "\",\"stage\":\""
+                + esc(stageId.toString()) + "\",\"stage_allowed\":" + allowed
+                + ",\"decision\":\"" + esc(reason) + "\"}\n";
             int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
             if (bytes + lineBytes > MAX_OUTPUT_BYTES) { stop(StopReason.OUTPUT_LIMIT); return; }
             if (!queue.offer(line)) { dropped++; stop(StopReason.QUEUE_LIMIT); return; }

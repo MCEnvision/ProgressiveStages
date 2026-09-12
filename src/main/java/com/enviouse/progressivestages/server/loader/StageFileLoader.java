@@ -257,6 +257,7 @@ public class StageFileLoader {
             com.enviouse.progressivestages.common.rehaul.extension.ExtensionMetadataRegistry.get().freeze();
         }
         EditorCatalogService.get().rebuild(server, compiledSnapshot.revision());
+        com.enviouse.progressivestages.server.integration.luckperms.LuckPermsBridge.reconcileAll();
         com.enviouse.progressivestages.common.compat.ScriptHooks.fireEvent("reload", Map.of(
             "configurationRevision", compiledSnapshot.revision(),
             "catalogRevision", EditorCatalogService.get().snapshot().revision(),

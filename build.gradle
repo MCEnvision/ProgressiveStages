@@ -10,6 +10,7 @@ group = mod_group_id
 
 repositories {
     mavenLocal()
+    mavenCentral()
     // v3.0: every optional integration resolves from its publisher's Maven. A fresh clone no
     // longer depends on ignored, developer-local jars in libs/.
     maven {
@@ -128,6 +129,8 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 
 dependencies {
+    // compile against the exact optional api surface, never load it on common startup.
+    compileOnly 'net.luckperms:api:5.4'
     compileOnly "maven.modrinth:emi:1.1.22+1.21.1+neoforge"
     compileOnly "mezz.jei:jei-1.21.1-neoforge-api:19.27.0.340"
     compileOnly "dev.ftb.mods:ftb-library-neoforge:2101.1.30"

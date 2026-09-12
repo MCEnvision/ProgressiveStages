@@ -253,7 +253,7 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 
 ## Installation
 
-1. Install [NeoForge](https://neoforged.net/) for Minecraft 1.21.1.
+1. For the 3.0.5 development candidate, install [NeoForge](https://neoforged.net/) 21.1.248 for Minecraft 1.21.1 on both the server and client.
 2. Drop the jar into `mods/`.
 3. Optional integrations (auto-detected when their mods are present): EMI, JEI, FTB Quests + FTB Library, FTB Teams, Curios, Lootr, Mekanism, KubeJS, NaturesCompass, Visual Workbench.
 4. Launch the game once. ProgressiveStages generates the main file at `config/progressivestages/progressivestages.toml` and fifty schema 4 showcase packages under `config/progressivestages/stages/` when that folder is empty.

@@ -1,6 +1,6 @@
 # ProgressiveStages 3.0.5 — Complete Documentation
 
-> ProgressiveStages **3.0.5** for NeoForge 1.21.1, Java 21.
+> ProgressiveStages **3.0.5** for Minecraft 1.21.1, NeoForge 21.1.248, Java 21.
 > Mod id: `progressivestages`  Java package root: `com.enviouse.progressivestages`  
 > This document is exhaustive — every feature, every TOML field, every config key,
 > every command, every integration, every troubleshooting tip. If a section of
@@ -11,8 +11,9 @@
 
 > **3.0.5 development candidate:** The authenticated editor now has an Access tab for per stage
 > ownership, optional LuckPerms mappings, command gates, and direct interaction definitions. This
-> checked candidate is merged and tagged for verification. No CurseForge, Modrinth, or GitHub
-> release is published by this work.
+> candidate uses NeoForge 21.1.248 for the build, dedicated server and client. The loader update
+> and interaction followups require renewed acceptance before integration. No CurseForge,
+> Modrinth, or GitHub release is published by this work.
 
 > **3.0.2 maintenance release:** The authenticated localhost editor now works for permission level
 > 3 operators in integrated single-player worlds as well as dedicated servers. The editor has a

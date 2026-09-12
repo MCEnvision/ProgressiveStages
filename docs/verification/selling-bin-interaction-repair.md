@@ -6,7 +6,7 @@ The repaired path uses holder-aware `PrefixEntry` matching for item and block se
 
 The candidate reviewed for this work is wd's Selling Bin `1.6-NEOFORGE-1.21.1`. The recorded SHA-256 is `025c96f5cf1ab531e75d11ef9ed655fe64878dd4228d73b26c419b688e3abf7d`. Its bundled `wdUtils`, Fancy Tab Sections, and Tiny Multiblock Library dependencies were recorded with the candidate manifest.
 
-The pinned project loader is NeoForge 21.1.219. The candidate metadata requires newer NeoForge for its bundled libraries, so the exact candidate was started only in an isolated NeoForge 21.1.233 runtime. That server reached readiness and loaded the candidate. The pinned candidate runtime was rejected by dependency validation before gameplay. This is an external compatibility limitation, not evidence that the reporter's exact environment was reproduced.
+The original project loader was NeoForge 21.1.219. The candidate metadata requires newer NeoForge for its bundled libraries, so that earlier investigation started the exact candidate only in an isolated NeoForge 21.1.233 runtime. That server reached readiness and loaded the candidate. The pinned candidate runtime was rejected by dependency validation before gameplay. The current development build uses the owner selected NeoForge 21.1.248. It satisfies those declared minimums, but the earlier startup is not evidence that the reporter's exact environment or the final candidate was verified.
 
 Focused selector, parser, decision, and full build checks pass on the pinned project toolchain. A dedicated core startup smoke also remains independent of Selling Bin. The laptop presentation gate is not claimed here because the isolated client did not reach a responsive joined world and its application audio stream could not be verified over the available desktop connection. No release artifact is published by this work.
 
@@ -32,7 +32,7 @@ test run deniedblockusecorrectspredictionbeforegrantandrevoke
 | `src/main/java/com/enviouse/progressivestages/server/enforcement/InteractionDenialGameTests.java` | `0cad9729a3c56b931bd569cff708a65442c44e83bb66d67cd3661c4d65c28d4d` |
 | `build/libs/progressivestages-3.0.5.jar` | `472369e0b77f5d6a0f34531e9383e5d2582d8818f0b39a896ddf055598a89097` |
 
-This proves the generic server correction and the listed container regressions. It does not establish client prediction suppression, actual Selling Bin selective sales or payouts, multiblock presentation, the paired Easy Builder workflow, or reconnect behavior. Those acceptance gates remain open. The exact candidate's bundled loader compatibility limitation above also remains open; this test does not change any platform pin.
+This proves the generic server correction and the listed container regressions. It does not establish client prediction suppression, actual Selling Bin selective sales or payouts, multiblock presentation, the paired Easy Builder workflow, or reconnect behavior. Those acceptance gates remain open. This historical test does not establish runtime compatibility of the current 21.1.248 candidate with the exact bundled libraries.
 
 The five targeted documentation tests also passed after the guide updates. The owned dedicated server exited through `stop`, its process was verified absent, and the disposable runtime and 274 newly created verification output files were removed after inspection. Preexisting build artifacts and shared caches were preserved. This bounded suite created no laptop client or browser process.
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CatalogPicker } from "../../components/CatalogPicker";
 import { Badge, Button, Field, Section, Toggle } from "../../components/ui";
 import { dependenciesFor, dependencySummary, stageDependsOn } from "../../lib/model";
+import { parseOwnership, writeOwnership } from "../../lib/integrations";
 import { booleanValue, lineValues, numberValue, parseSimpleArray, readTomlValue, removeTomlValue, stringValue, upsertToml } from "../../lib/toml";
 import { useEditor } from "../../store/EditorContext";
 import type { StagePackage } from "../../types";
@@ -93,7 +94,7 @@ export function EssentialsPanel({ stage }: { stage: StagePackage }) {
   const save = (path: string, value: unknown) => mutateFile(stage.stagePath, upsertToml(boot?.draft.files[stage.stagePath] || "", path, value));
   const icon = stringValue(readTomlValue(content, "stage.icon")) || stage.icon;
   const tags = parseSimpleArray(readTomlValue(content, "stage.tags"));
-  const scope = stringValue(readTomlValue(content, "stage.scope")) || "team";
+  const ownership = parseOwnership(content);
   const frame = stringValue(readTomlValue(content, "display.frame")) || "task";
   const reveal = stringValue(readTomlValue(content, "display.reveal")) || "dependencies";
   const background = stringValue(readTomlValue(content, "display.background")) || "minecraft:textures/gui/advancements/backgrounds/stone.png";
@@ -115,7 +116,7 @@ export function EssentialsPanel({ stage }: { stage: StagePackage }) {
     </Section>
     <Section title="Ownership and stacking" description="Control who shares the stage and how related choices combine." action={<Button onClick={() => openDialog({ title: "Stage slots and stacking", description: "Limit mutually exclusive classes or let specialist buffs stack.", content: <SlotEditor stage={stage}/> })}>Configure slots</Button>}>
       <div className="form-grid">
-        <Field label="Ownership"><select value={scope} onChange={event => void save("stage.scope", event.target.value)}><option value="player">Each player owns it</option><option value="team">The team shares it</option><option value="server">The whole server shares it</option></select></Field>
+        <Field label="Ownership" help="Personal stages use team_stage = false. Inherit keeps the global setting."><select value={ownership} onChange={event => void mutateFile(stage.stagePath, writeOwnership(content, event.target.value as Parameters<typeof writeOwnership>[1]), "Stage ownership saved")}><option value="inherit">Inherit global setting</option><option value="personal">Each player owns it</option><option value="team">The team shares it</option><option value="server">The whole server shares it</option></select></Field>
         <div className="policy-summary compact"><span>Current slot behavior</span><strong>{slotGroup ? slotLimit > 0 ? `${slotLimit} active in ${slotGroup}` : `All ${slotGroup} stages stack` : "No slot limit"}</strong></div>
         <Toggle label="Hide this stage from players" help="Reveal policy still controls when hidden content becomes visible." checked={booleanValue(readTomlValue(content, "stage.hidden"))} onChange={value => void save("stage.hidden", value)}/>
       </div>

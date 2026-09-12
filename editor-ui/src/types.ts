@@ -1,5 +1,5 @@
 export type PageId = "stages" | "layout" | "settings" | "registry" | "extensions";
-export type StageTab = "essentials" | "rules" | "progression" | "effects" | "advanced" | "source";
+export type StageTab = "essentials" | "rules" | "progression" | "effects" | "advanced" | "integrations" | "source";
 
 export interface DraftDiffEntry {
   path: string;
@@ -151,6 +151,43 @@ export interface StagePackage {
   dependencies: string[];
   dependencyMode: string;
   dependencyCount: number;
+}
+
+export interface InboundModel {
+  id: string;
+  groups: string[];
+  permissions: string[];
+  match: "all" | "any";
+  contexts: Record<string, string[]>;
+  sourceText?: string;
+}
+
+export interface OutboundModel {
+  id: string;
+  kind: "group" | "permission";
+  value: string;
+  contexts: Record<string, string[]>;
+  sourceText?: string;
+}
+
+export interface CommandPermissionModel {
+  id: string;
+  path: string;
+  descendants: boolean;
+  sourceText?: string;
+}
+
+export interface InteractionModel {
+  type: "item_on_block" | "block_right_click" | "item_on_entity" | "item_into_inventory" | string;
+  heldItem: string;
+  targetBlock: string;
+  targetEntity: string;
+  targetKind: string;
+  target: string;
+  effect: string;
+  priority: number;
+  description: string;
+  sourceText?: string;
 }
 
 export interface RuleModel {

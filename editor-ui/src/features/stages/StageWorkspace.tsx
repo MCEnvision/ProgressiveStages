@@ -5,6 +5,7 @@ import type { StageTab } from "../../types";
 import { AdvancedPanel } from "./AdvancedPanel";
 import { EffectsPanel } from "./EffectsPanel";
 import { EssentialsPanel } from "./EssentialsPanel";
+import { IntegrationsPanel } from "./IntegrationsPanel";
 import { ProgressionPanel } from "./ProgressionPanel";
 import { RulesPanel } from "./RulesPanel";
 import { SourcePanel } from "./SourcePanel";
@@ -17,6 +18,7 @@ const TABS: Array<{ id: StageTab; label: string; icon: string }> = [
   { id: "progression", label: "Progression", icon: "progression" },
   { id: "effects", label: "Rewards", icon: "gift" },
   { id: "advanced", label: "Advanced", icon: "extensions" },
+  { id: "integrations", label: "Access", icon: "extensions" },
   { id: "source", label: "Source", icon: "code" }
 ];
 
@@ -26,6 +28,6 @@ export function StageWorkspace() {
   return <div className="stage-workspace">
     <header className="stage-hero-new"><div><h1>{stage.name}</h1><div className="stage-meta"><code>{stage.id}</code><span>{stage.category}</span>{stage.hidden ? <span>Hidden</span> : null}</div><p>{stage.description || "Add a description so players understand what this stage changes."}</p></div><StageActions stage={stage}/></header>
     <nav className="stage-tabs" aria-label="Stage editor sections">{TABS.map(tab => <button key={tab.id} className={stageTab === tab.id ? "active" : ""} onClick={() => setStageTab(tab.id)}><Icon name={tab.icon} size={17}/><span>{tab.label}</span>{tab.id === "rules" && stage.ruleCount ? <em>{stage.ruleCount}</em> : null}{tab.id === "progression" && stage.grantCount + stage.revokeCount ? <em>{stage.grantCount + stage.revokeCount}</em> : null}</button>)}</nav>
-    <div className="stage-tab-content">{stageTab === "essentials" ? <EssentialsPanel stage={stage}/> : stageTab === "rules" ? <RulesPanel stage={stage}/> : stageTab === "progression" ? <ProgressionPanel stage={stage}/> : stageTab === "effects" ? <EffectsPanel stage={stage}/> : stageTab === "advanced" ? <AdvancedPanel stage={stage}/> : <SourcePanel stage={stage}/>}</div>
+    <div className="stage-tab-content">{stageTab === "essentials" ? <EssentialsPanel stage={stage}/> : stageTab === "rules" ? <RulesPanel stage={stage}/> : stageTab === "progression" ? <ProgressionPanel stage={stage}/> : stageTab === "effects" ? <EffectsPanel stage={stage}/> : stageTab === "advanced" ? <AdvancedPanel stage={stage}/> : stageTab === "integrations" ? <IntegrationsPanel stage={stage}/> : <SourcePanel stage={stage}/>}</div>
   </div>;
 }

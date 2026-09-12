@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { parseCommandPermissions, parseInteractions, parseLuckPerms, parseOwnership, replaceCommandPermissions, replaceInbound, serializeInbound, serializeInteraction, writeLuckPermsSettings, writeOwnership } from "./integrations";
+import { appendRow, parseCommandPermissions, parseInteractions, parseLuckPerms, parseOwnership, replaceCommandPermissions, replaceInbound, serializeContainerInsertionPair, serializeInbound, serializeInteraction, updateInteractionBlock, writeLuckPermsSettings, writeOwnership } from "./integrations";
 
 describe("guided integration configuration", () => {
+  it("authors selective insertion together without adding a menu access or wildcard rule", () => {
+    const original = '# Keep the existing conditional rule.\n[[interactions]]\ntype = "item_into_inventory"\nheld_item = "id:minecraft:carrot"\ntarget_kind = "block"\ntarget = "id:minecraft:chest"\n[interactions.while]\ntype = "dimension"\nid = "minecraft:the_end"\n';
+    const pair = serializeContainerInsertionPair({ type: "item_on_block", heldItem: "id:minecraft:bread", targetBlock: "id:selling_bin:selling_bin", targetEntity: "", targetKind: "", target: "", effect: "lock", priority: 100, description: "Chef profession" });
+    const source = appendRow(original, pair);
+    expect(source.startsWith(original)).toBe(true);
+    const rows = parseInteractions(source);
+    expect(rows).toHaveLength(3);
+    expect(rows[1]).toMatchObject({ type: "item_on_block", heldItem: "id:minecraft:bread", targetBlock: "id:selling_bin:selling_bin" });
+    expect(rows[2]).toMatchObject({ type: "item_into_inventory", heldItem: "id:minecraft:bread", targetKind: "block", target: "id:selling_bin:selling_bin", effect: "lock", priority: 100 });
+    expect(pair).not.toContain("block_right_click");
+    expect(pair).not.toContain("all:*");
+    const conditional = `${rows[2].sourceText}\n[interactions.while]\ntype = "dimension"\nid = "minecraft:the_end"\n`;
+    const edited = updateInteractionBlock(conditional, { ...rows[2], priority: 150 });
+    expect(edited).toContain('priority = 150');
+    expect(edited).toContain('[interactions.while]\ntype = "dimension"\nid = "minecraft:the_end"');
+  });
+
   it("maps ownership choices without writing the rejected player scope", () => {
     const source = "# keep this note\n[stage]\nid = \"pack:chef\"\n";
     const personal = writeOwnership(source, "personal");

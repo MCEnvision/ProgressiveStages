@@ -56,7 +56,9 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   raw TOML. Existing source comments and unrelated files remain in the draft.
 - **Selling Bin interaction presets.** Direct interactions can be authored with
   `tag:c:armors` or `all:*` held item selectors and the exact
-  `id:selling_bin:selling_bin` block selector.
+  `id:selling_bin:selling_bin` block selector. For selected items such as bread, enable
+  **Also restrict GUI insertion** to create matching held item and inventory insertion rules
+  together. Whole bin access remains a separate block right click rule.
 - **Optional LuckPerms bridge.** Inbound mappings can be synchronized or permanent per stage,
   outbound group and permission contributions are transient and owned, and command gates retain
   native permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).

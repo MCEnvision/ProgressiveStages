@@ -36,6 +36,18 @@ block, set the held selector to `tag:c:armors` or `all:*`, and set the target bl
 `id:selling_bin:selling_bin`. The server checks the live holders and the nonempty held stack before
 the interaction continues.
 
+For a selective restriction, enter `id:minecraft:bread` and the Selling Bin block selector, then
+enable **Also restrict GUI insertion**. Set **Inventory rule priority** if another inventory rule
+also matches. Saving creates an `item_on_block` rule and a matching `item_into_inventory` rule
+in one draft change. Both require the containing stage, and both remain independently editable.
+An independent empty hand click can still open the menu; other items follow their own rules.
+Use **Right click a block** as a separate rule when the whole bin should require a stage.
+
+The pairing option is available when adding a held item rule. For an existing rule, add its
+inventory counterpart with the same item, choose **Container block**, enter the same block
+selector, and select **Deny until stage is owned**. Conditional activation remains editable in
+the Rules tab. Use the same activation on both rules when they should apply together.
+
 ## browser and draft recovery
 
 If a field disappears after reload, reopen the stage from the current session. Do not copy the

@@ -234,6 +234,22 @@ export function serializeInteraction(row: InteractionModel): string {
   return lines.join("\n");
 }
 
+export function serializeContainerInsertionPair(row: InteractionModel): string {
+  if (row.type !== "item_on_block" || !row.heldItem.trim() || !row.targetBlock.trim()) {
+    throw new Error("Choose an item selector and a block destination for the insertion pair.");
+  }
+  const inventory: InteractionModel = {
+    ...row,
+    type: "item_into_inventory",
+    targetKind: "block",
+    target: row.targetBlock,
+    targetBlock: "",
+    targetEntity: "",
+    effect: "lock"
+  };
+  return `${serializeInteraction(row)}\n\n${serializeInteraction(inventory)}`;
+}
+
 export function replaceInteractions(text: string, rows: string[]): string {
   return replaceArrayGroups(text, "interactions", rows);
 }

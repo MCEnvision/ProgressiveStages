@@ -68,11 +68,17 @@ permanent and independent sources remain.
 
 ## Command gates
 
-`command_permissions` matches the actual parsed literal path. Descendant rules cover the literal
+`command_permissions` matches resolved command nodes at Minecraft's execution tasks after redirects,
+using the effective player at that point. Descendant rules cover the literal
 subtree, while a non descendant rule covers the configured deepest literal and its argument values.
 Aliases and namespaced literals are compared using their actual dispatcher binding. Native command
 permission checks still run, so a stage cannot elevate a player. The gate is evaluated before the
 command side effect and preserves the effective player through delegated execution.
+
+An unresolved path produces an inactive rule warning. Reload after the command provider becomes
+available. A similarly named command in another namespace is not automatically an alias. The
+[core runtime regression](../verification/luckperms-bridge.md#command-execution-regression) covers
+vanilla redirects and custom result callbacks; the full real provider and client matrix remains open.
 
 ## Recovery
 

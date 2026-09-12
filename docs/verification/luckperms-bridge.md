@@ -17,9 +17,10 @@ bridge supports synchronized and permanent retention, overlapping rows, true ver
 undefined Boolean results, context matching, outbound reference counting, provider loss and a
 bounded reconciliation queue.
 
-Command gates run from NeoForge `CommandEvent` after Brigadier has resolved the command and before
-execution side effects. Literal descendants, argument values, aliases, namespaced literals and
-delegated effective actors are evaluated without changing native permission predicates.
+Command gates run inside Minecraft command execution tasks after redirects and before execution
+side effects. Literal descendants, argument values, aliases and namespaced literals bind to the
+registered dispatcher. The effective actor is checked without changing native permission predicates.
+The [command execution regression](#command-execution-regression) records the verified subset.
 
 The real runtime acceptance matrix requires a dependency only startup, bridge disabled startup,
 provider ready login, inherited group and Boolean permission queries, explicit negative values, and
@@ -76,6 +77,52 @@ Changing the selected candidate requires an authorized plan amendment and new ru
 
 The owned server stopped normally and saved every dimension. Its disposable runtime and 83
 new build entries were removed, preserving the preexisting build and local Gradle entries.
-The owned client and audio watcher exited. SSH connectivity to the laptop was then lost;
-restoring the isolated instance backups and verifying the launcher exit, playback stream
-removal and laptop scratch cleanup remain pending. This bounded suite is cleanup incomplete.
+The laptop restoration completed after SSH connectivity returned. The client, audio watcher
+and launcher had exited. The owned playback stream and test tunnel listener were absent.
+The original three mod files, options, launcher configuration, logs and crash reports were
+restored. The runtime path inventory matched its baseline with no added or missing paths,
+and both hosts' temporary recovery files were removed. This bounded suite is cleaned up;
+the failed provider login gate remains open.
+
+## Command execution regression
+
+On September 12, 2026, the Phase 003 candidate passed `./gradlew test build` using Java
+21.0.11, Minecraft 1.21.1 and NeoForge 21.1.248. The test reports contained 259 tests across
+88 suites, with no failures, errors or skipped tests. Seven command binding tests cover argument
+values, descendant selection, literals after arguments, redirects, actual alias bindings,
+dispatcher replacement and missing paths. No formatting task is configured; `git diff --check`
+passed. No dependency or platform version changed in this repair.
+
+The packaged `progressivestages-3.0.5.jar` SHA256 is
+`f6c1b3e0b72f6ea833d4e7a8cdaa4226715bdc41366b7ca7d26f8ea1bf434101`.
+Both execution mixins require their injection target. A production dedicated server containing
+this JAR and no optional integration mods reached readiness at 16:24:24 America/Chicago.
+Its console executed `time query daytime` before normal shutdown. This proves production
+classloading and the console execution path, not provider compatibility or player login.
+
+The development dedicated server ran the checked in
+`CommandPermissionGameTests.executionRechecksStagesAfterVanillaRedirects` fixture. The exact
+console invocation was `execute positioned 0 90 0 run test run executionrechecksstagesaftervanillaredirects`.
+The previous result marker was cleared before the final run. At 16:23:49 America/Chicago,
+`execute if block -1 118 2 minecraft:lime_stained_glass run say command_gate_final_pass`
+reported `command_gate_final_pass`, confirming the successful GameTest marker.
+
+The fixture uses a constructed server player without a login connection and disabled LuckPerms
+options. It asserts unchanged world time after direct denial, redirected denial and revocation;
+changed world time after a grant; native denial despite a stage; one failure callback for a
+blocked custom `return`; the expected result callback when allowed; and unchanged console
+semantics without a player actor. It restores previous stage definitions and all dimension times
+in its teardown. An earlier fixture using a mock player failed during unnegotiated payload delivery
+before command assertions. Replacing that fixture did not change production network enforcement.
+
+The server ran without a GUI on `node-1`, in the Phase 003 worktree's
+`build/command-gate-verification`, using loopback port 25589 and the existing read only library
+link. No client was launched for this suite. This record does not satisfy real NeoEssentials
+home storage, console delegation to a joined player, LuckPerms provider events, or laptop feedback
+acceptance. Those gates remain open, as does the complete final phase acceptance matrix.
+
+Both dedicated server runs exited normally and saved every dimension. The owned Gradle daemon
+exited, port 25589 had no listener, and the disposable runtime was removed without following its
+library symlink. Cleanup removed 659 additional build entries and 0 local Gradle entries created
+by this suite. Preexisting output paths and shared dependencies were preserved. The temporary
+launch configuration and ownership receipt were removed after evidence retention.

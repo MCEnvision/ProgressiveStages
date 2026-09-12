@@ -4,6 +4,8 @@
   "package": "com.enviouse.progressivestages.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ExecuteCommandMixin",
+    "BuildContextsMixin",
     "CraftingMenuMixin",
     "AbstractContainerMenuMixin",
     "ResultSlotMixin",

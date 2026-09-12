@@ -2907,7 +2907,15 @@ execute a reward, grant a prerequisite, refresh an expiry, or rewrite trigger co
 Outbound output is transient and reference counted. It never overwrites administrative nodes or
 external membership, and bridge-created output is excluded from inbound feedback queries.
 
-`command_permissions` is evaluated at the parsed Brigadier execution boundary. Descendant rules
+`command_permissions` is evaluated inside Minecraft's command execution tasks after redirects.
+`ExecuteCommandMixin` checks ordinary execution immediately before `ContextChain.runExecutable`;
+`BuildContextsMixin` checks custom command executors before their `run` call. Both use the effective
+source, preserve failed result callbacks, and require their exact injection target. The outer
+NeoForge command event is insufficient because it can contain only a wrapper command.
+
+`CommandRuleBinding` resolves literal configuration to the current dispatcher's nodes and execution
+bindings, without stripping namespaces. Cached bindings are replaced with the dispatcher or stage
+definition and cleared on server shutdown. Missing paths warn and remain inactive. Descendant rules
 cover a literal subtree. Non descendant rules cover the configured deepest literal and its argument
 values. Aliases and namespaced literals use their actual dispatcher binding. Native permission
 predicates remain required, so a stage gate cannot elevate a player. See

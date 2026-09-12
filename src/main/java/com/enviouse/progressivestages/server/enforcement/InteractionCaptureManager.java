@@ -147,12 +147,18 @@ public final class InteractionCaptureManager {
         lastStatus = capture.status();
     }
 
-    public static void recordCommandPermission(ServerPlayer player, StageId stageId, String path,
-                                               boolean allowed, String reason) {
+    public static void recordCommandPermission(ServerPlayer player, StageId stageId,
+            com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context,
+            boolean allowed, boolean nativeAllowed, String reason) {
         Capture capture = active;
         if (capture == null || !"permissions".equals(capture.category()) || player == null
                 || !capture.target().equals(player.getUUID()) || stageId == null) return;
-        capture.recordCommandPermission(player, stageId, path, allowed, reason);
+        String path = context.getNodes().stream().map(node -> node.getNode())
+            .filter(node -> node instanceof com.mojang.brigadier.tree.LiteralCommandNode<?>)
+            .map(node -> node.getName()).collect(java.util.stream.Collectors.joining(" "));
+        String executionNode = context.getNodes().isEmpty() ? context.getRootNode().getName()
+            : context.getNodes().get(context.getNodes().size() - 1).getNode().getName();
+        capture.recordCommandPermission(player, stageId, path, executionNode, allowed, nativeAllowed, reason);
         lastStatus = capture.status();
     }
 
@@ -296,8 +302,8 @@ public final class InteractionCaptureManager {
             records++; rateWindowRecords++; bytes += lineBytes;
         }
 
-        synchronized void recordCommandPermission(ServerPlayer player, StageId stageId, String path,
-                                                   boolean allowed, String reason) {
+        synchronized void recordCommandPermission(ServerPlayer player, StageId stageId, String path, String executionNode,
+                                                   boolean allowed, boolean nativeAllowed, String reason) {
             if (!active) return;
             long tick = player.level().getGameTime();
             if (tick - startedTick >= MAX_SECONDS * 20L) { stop(StopReason.TIMEOUT); return; }
@@ -308,6 +314,8 @@ public final class InteractionCaptureManager {
                 + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"permissions\""
                 + ",\"command_path\":\"" + esc(path) + "\",\"stage\":\""
                 + esc(stageId.toString()) + "\",\"stage_allowed\":" + allowed
+                + ",\"native_allowed\":" + nativeAllowed + ",\"effective_actor_label\":\"target\""
+                + ",\"execution_node\":\"" + esc(executionNode) + "\""
                 + ",\"decision\":\"" + esc(reason) + "\"}\n";
             int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
             if (bytes + lineBytes > MAX_OUTPUT_BYTES) { stop(StopReason.OUTPUT_LIMIT); return; }

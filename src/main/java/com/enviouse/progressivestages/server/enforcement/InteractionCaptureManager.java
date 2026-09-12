@@ -69,7 +69,8 @@ public final class InteractionCaptureManager {
             String id = UUID.randomUUID().toString().replace("-", "");
             Path output = server.getServerDirectory().resolve("logs").resolve("progressivestages")
                 .resolve(normalizedCategory).resolve(id + ".log");
-            Capture capture = new Capture(id, target.getUUID(), normalizedCategory, output, server.getTickCount());
+            Capture capture = new Capture(id, target.getUUID(), normalizedCategory, output, server.getTickCount(),
+                CaptureIdentity.snapshot());
             active = capture;
             lastCapture = capture;
             capture.startWriter();
@@ -207,8 +208,14 @@ public final class InteractionCaptureManager {
         private long currentTick;
         private Thread writer;
         private final Map<OwnerRef, String> ownerLabels = new LinkedHashMap<>();
+        private final CaptureIdentity identity;
+        private int reservedHeaderBytes;
 
         Capture(String id, UUID target, String category, Path output, long startedTick) {
+            this(id, target, category, output, startedTick, null);
+        }
+
+        Capture(String id, UUID target, String category, Path output, long startedTick, CaptureIdentity identity) {
             this.id = id;
             this.target = target;
             this.category = category;
@@ -216,6 +223,8 @@ public final class InteractionCaptureManager {
             this.startedTick = startedTick;
             this.rateWindowStart = startedTick;
             this.currentTick = startedTick;
+            this.identity = identity;
+            this.reservedHeaderBytes = identity == null ? 0 : CaptureIdentity.MAX_HEADER_BYTES;
         }
 
         String id() { return id; }
@@ -296,7 +305,7 @@ public final class InteractionCaptureManager {
             if (rateWindowRecords >= MAX_DECISIONS_PER_SECOND) { stop(StopReason.RATE_LIMIT); return; }
             String line = record.get();
             int lineBytes = line.getBytes(StandardCharsets.UTF_8).length;
-            if (lineBytes > MAX_OUTPUT_BYTES - bytes) { stop(StopReason.OUTPUT_LIMIT); return; }
+            if (lineBytes > MAX_OUTPUT_BYTES - reservedHeaderBytes - bytes) { stop(StopReason.OUTPUT_LIMIT); return; }
             if (!queue.offer(line)) { dropped++; stop(StopReason.QUEUE_LIMIT); return; }
             records++;
             rateWindowRecords++;
@@ -390,12 +399,22 @@ public final class InteractionCaptureManager {
                 Files.createDirectories(output.getParent());
                 try (BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.UTF_8,
                         StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+                    if (identity != null) {
+                        String header = identity.header(id, category, startedTick);
+                        synchronized (this) {
+                            int headerBytes = header.getBytes(StandardCharsets.UTF_8).length;
+                            if (headerBytes > reservedHeaderBytes) throw new IOException("Capture header exceeds its reserved limit");
+                            bytes += headerBytes;
+                            reservedHeaderBytes = 0;
+                        }
+                        writer.write(header);
+                    }
                     while (active || !queue.isEmpty()) {
                         String line = queue.poll(100, TimeUnit.MILLISECONDS);
                         if (line != null && !line.isEmpty()) writer.write(line);
                     }
                 }
-            } catch (IOException exception) {
+            } catch (IOException | RuntimeException exception) {
                 failOutput();
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
@@ -419,13 +438,17 @@ public final class InteractionCaptureManager {
     }
 
     static String esc(String value) {
+        String encoded = new com.google.gson.JsonPrimitive(bounded(value)).toString();
+        return encoded.substring(1, encoded.length() - 1);
+    }
+
+    static String bounded(String value) {
         if (value == null) return "";
         if (value.length() > MAX_STRING_LENGTH) {
             int end = MAX_STRING_LENGTH - 3;
             if (Character.isHighSurrogate(value.charAt(end - 1))) end--;
             value = value.substring(0, end) + "...";
         }
-        String encoded = new com.google.gson.JsonPrimitive(value).toString();
-        return encoded.substring(1, encoded.length() - 1);
+        return value;
     }
 }

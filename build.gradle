@@ -165,6 +165,23 @@ tasks.named('compileJava', JavaCompile) {
     options.compilerArgs.add('-Xlint:deprecation')
 }
 
+def buildCommit = providers.exec {
+    commandLine 'git', 'rev-parse', 'HEAD'
+    ignoreExitValue = true
+}.standardOutput.asText.map { it.trim() ?: 'unavailable' }
+def buildDirty = providers.exec {
+    commandLine 'git', 'status', '--porcelain', '--untracked-files=normal', '--',
+        'src/main', 'build.gradle', 'gradle.properties', 'settings.gradle', 'gradle'
+    ignoreExitValue = true
+}.standardOutput.asText.map { buildCommit.get() == 'unavailable' || !it.trim().isEmpty() }
+tasks.named('jar', Jar) {
+    inputs.property('buildCommit', buildCommit)
+    inputs.property('buildDirty', buildDirty)
+    doFirst {
+        manifest.attributes('Build-Commit': buildCommit.get(), 'Build-Dirty': buildDirty.get().toString())
+    }
+}
+
 
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.

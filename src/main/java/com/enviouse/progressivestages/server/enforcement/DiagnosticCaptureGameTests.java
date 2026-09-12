@@ -34,7 +34,7 @@ public final class DiagnosticCaptureGameTests {
         String id = UUID.randomUUID().toString();
         var capture = new InteractionCaptureManager.Capture(id, player.getUUID(), "permissions",
             server.getServerDirectory().resolve("logs/progressivestages/permissions").resolve(id + ".log"),
-            server.getTickCount());
+            server.getTickCount(), CaptureIdentity.snapshot());
         long originalTime = level.getGameTime();
         try {
             helper.assertTrue(InteractionCaptureManager.start(server, player).invalidTarget(),
@@ -55,6 +55,16 @@ public final class DiagnosticCaptureGameTests {
             helper.assertTrue(capture.status().outputState().equals("drained"),
                 "The accepted record must drain successfully.");
             helper.assertTrue(capture.status().queued() == 0, "No capture record may remain queued.");
+            try {
+                String first = java.nio.file.Files.readAllLines(capture.status().output()).getFirst();
+                var header = com.google.gson.JsonParser.parseString(first).getAsJsonObject();
+                helper.assertTrue(header.get("configuration_sha256").getAsString().length() == 64,
+                    "A runtime capture must fingerprint the loaded configuration.");
+                helper.assertTrue(header.getAsJsonArray("artifacts").size() >= 3,
+                    "A runtime capture must identify the mod, game and loader.");
+            } catch (java.io.IOException failure) {
+                helper.fail("The capture header could not be read.");
+            }
         });
     }
 }

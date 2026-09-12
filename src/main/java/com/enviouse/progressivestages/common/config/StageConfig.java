@@ -927,6 +927,9 @@ public class StageConfig {
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
+        if (event.getConfig().getSpec() == SPEC) {
+            com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
+        }
         // Starting stages (v1.3 - supports list)
         List<? extends String> stagesList = STARTING_STAGES.get();
         startingStages = new ArrayList<>();

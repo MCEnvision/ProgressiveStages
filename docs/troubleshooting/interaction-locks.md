@@ -28,6 +28,19 @@ Output is created under `logs/progressivestages/<category>/<capture-id>.log` and
 an existing file. Record timing and timeout checks use the same server tick clock, independent
 of the world's persisted age. Capture never records another selected category's events.
 
+Each file starts with a `capture_header` at sequence zero. It records the loaded stage revision,
+a versioned fingerprint of the captured effective configuration, and up to 32 artifact identities.
+The mod, loader, and Minecraft entries come first. Artifact paths and configuration values are not
+written. The complete loaded ID/version set has a separate fingerprint and truncation count.
+Archive SHA256 and build commit fields help match a report to a candidate. `build_dirty = true`
+means the archive included uncommitted production inputs; its commit alone cannot identify it.
+Development directories report an unavailable archive hash instead of claiming a packaged build.
+
+Header preparation and artifact hashing run on the writer thread. The header shares the 128 KiB
+limit and reserves 16 KiB while it is being prepared. Decision counters exclude sequence zero;
+byte counters include the header once prepared. A header failure makes the capture incomplete.
+Main configuration reload, as well as stage reload, stops capture before settings change.
+
 Stage lists contain at most 32 entries, with separate `_total` and `_truncated` fields. Truncated
 strings include their ellipsis within the 256 character limit. JSON control characters are escaped.
 Progression owner labels are assigned locally within each capture and do not encode UUID hashes.

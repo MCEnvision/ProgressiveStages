@@ -4746,6 +4746,23 @@ requires a fresh review before another apply attempt. An older cached editor tha
 revision fails safely and must reload the current packaged assets. This does not change stage
 schema or the transport protocol. See the [editor recovery guide](docs/troubleshooting/easy-builder.md).
 
+### Diagnostic candidate identity
+
+Capture startup snapshots the baked main configuration and immutable compiled stage map. The
+writer computes `configuration_sha256` using fingerprint schema 1, including compatibility
+stage definitions, ownership, permission mappings, rule conditions and progression settings.
+Map and set order do not affect it, ordered lists retain order, and concrete condition kinds remain
+distinct. File provenance is excluded so equivalent loaded configuration on different hosts can
+be compared. The existing compiled snapshot checksum and transport protocol remain unchanged.
+Unsupported, cyclic or excessive configuration graphs stop the capture safely with output failure.
+
+The header records loaded mod IDs and versions, bounded artifact hashes, and the production
+archive's `Build-Commit` and `Build-Dirty` manifest attributes. A dirty build names its base commit;
+use its artifact hash to distinguish the actual bytes. Header preparation uses the same writer,
+output budget, target and lifecycle as decision records. No artifact paths or configuration values
+are emitted. The [capture guide](docs/troubleshooting/interaction-locks.md) documents limits and
+unavailable development identity. Full runtime overhead and category acceptance remain separate gates.
+
 ### Diagnostic capture output lifecycle
 
 The interaction, progression, and permission capture commands share the `/stage debug` parent.

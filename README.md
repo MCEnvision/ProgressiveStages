@@ -339,7 +339,8 @@ distinguishes the core checks from the outstanding real provider and client acce
 Easy Builder applies only the reviewed draft revision. If another edit changes the draft, it
 reloads the current source and asks for a new review before applying.
 
-Diagnostic capture status now shows the actual category, remaining limits, and writer completion.
+Diagnostic capture status shows the category, remaining limits, and writer completion.
+Capture headers identify the candidate archives and captured effective configuration.
 See the [capture procedure](docs/troubleshooting/interaction-locks.md) before collecting support logs.
 
 The selected LuckPerms 5.4.140 candidate fails player login on NeoForge 21.1.248 even without

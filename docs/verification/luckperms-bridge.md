@@ -86,6 +86,9 @@ the failed provider login gate remains open.
 
 ## Command execution regression
 
+The implementation and checked in regression fixtures are bound to source commit
+`f458361a79e13513483e6a0084d02fea4236669b`. The artifact below was built from those source bytes.
+
 On September 12, 2026, the Phase 003 candidate passed `./gradlew test build` using Java
 21.0.11, Minecraft 1.21.1 and NeoForge 21.1.248. The test reports contained 259 tests across
 88 suites, with no failures, errors or skipped tests. Seven command binding tests cover argument

@@ -418,10 +418,13 @@ public class StageCommand {
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::stopProgressionCapture)))
                 .then(Commands.literal("permissions").requires(source -> source.hasPermission(3))
-                    .then(Commands.literal("on").then(Commands.argument("player", EntityArgument.player())
+                    .then(Commands.literal("on").requires(source -> source.hasPermission(3))
+                        .then(Commands.argument("player", EntityArgument.player())
                         .executes(StageCommand::startPermissionsCapture)))
-                    .then(Commands.literal("status").executes(StageCommand::permissionsCaptureStatus))
-                    .then(Commands.literal("off").executes(StageCommand::stopPermissionsCapture)))
+                    .then(Commands.literal("status").requires(source -> source.hasPermission(3))
+                        .executes(StageCommand::permissionsCaptureStatus))
+                    .then(Commands.literal("off").requires(source -> source.hasPermission(3))
+                        .executes(StageCommand::stopPermissionsCapture)))
         );
 
         // Friendly public command aliases.

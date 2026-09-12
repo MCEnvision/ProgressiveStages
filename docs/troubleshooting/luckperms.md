@@ -3,7 +3,11 @@
 ProgressiveStages can read LuckPerms groups and Boolean permissions for a stage and can project a
 stage's existing group or positive permission contributions back to LuckPerms. The integration is
 optional and remains dormant when LuckPerms is absent. It uses the compile only API 5.4 surface and
-is intended for the LuckPerms NeoForge 5.4.140 runtime on Minecraft 1.21.1.
+was developed against the selected LuckPerms NeoForge 5.4.140 candidate on Minecraft 1.21.1.
+That exact candidate currently fails actual player login on NeoForge 21.1.248 even with
+ProgressiveStages absent. See the [provider login evidence](../verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure).
+Successful server startup alone does not establish compatibility, and the integration's
+full runtime acceptance remains open.
 
 ## Configuration
 

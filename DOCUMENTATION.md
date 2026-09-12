@@ -2866,6 +2866,12 @@ The generated [fifty stage showcase](SHOWCASE_PACK.md) contains all three common
 
 ### 4.38 LuckPerms bridge and command gates
 
+The current exact runtime candidate, LuckPerms 5.4.140, fails actual player login on NeoForge
+21.1.248 with `Invalid player data` and an uninitialized capability exception, including when
+ProgressiveStages is absent. The [dependency only verification](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
+records the failure. The configuration below describes the implemented integration; its full
+runtime acceptance and a compatible replacement candidate remain unverified.
+
 LuckPerms is an optional server integration. A stage may read inherited groups or true Boolean
 permissions through `[[luckperms.inbound]]` rows and may contribute an existing group or positive
 permission through `[[luckperms.outbound]]`. The default inbound mode is `synchronized`, which

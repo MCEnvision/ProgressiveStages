@@ -39,3 +39,43 @@ NeoForge 21.1.219 in the disposable dedicated server. LuckPerms reported success
 the server reached `Done`. A second run with the LuckPerms jar absent reached `Done` with the bridge
 dormant. The laptop login, provider-managed rank changes and real command side-effect matrix remain
 unverified because the required laptop session was not available on the headless execution host.
+
+## NeoForge 21.1.248 dependency only login failure
+
+On September 12, 2026, the exact selected LuckPerms 5.4.140 JAR was tested alone with
+Minecraft 1.21.1 and NeoForge 21.1.248. ProgressiveStages, Selling Bin and NeoEssentials were
+absent. The disposable server used fresh local H2 storage, messaging disabled, automatic
+translation installation disabled, online authentication and a loopback listener reached
+through the existing private SSH connection. It reached readiness and reported successful
+LuckPerms enablement.
+
+The actual laptop client then failed to enter the world. At 15:38:16 server local time,
+`NeoForgeConnectionListener.onPlayerLoggedIn` reached context invalidation and
+`UserCapabilityImpl.getQueryOptionsCache`, which threw
+`IllegalStateException: Capability has not been initialised`. The server could not place the
+player in the world and disconnected it with `Invalid player data`. The earlier join message
+in that same sequence is not successful login evidence. The rendered
+[connection failure](luckperms-login/login_failure.png) and
+[bounded observations](luckperms-login/observations.json) preserve both sides of the result.
+
+The client ran on `envision` using the RTX 5090 Laptop GPU and NVIDIA 610.57.04, with master
+volume zero before launch and its exact process playback stream verified muted. The dedicated
+server ran without a GUI on `node-1` in `build/luckperms248-verification`. This reproduces the
+failure without ProgressiveStages code and leaves provider dependent bridge, command and
+combined acceptance open. The failure matches the earlier
+[upstream 5.4.140 report](https://github.com/LuckPerms/LuckPerms/issues/4048), now independently
+observed on the selected 21.1.248 loader.
+
+The existing 5.4.150 candidate was inspected without launching it. Its bytes match the official
+[CurseForge file 5971552](https://www.curseforge.com/minecraft/mc-mods/luckperms/files/5971552),
+SHA256 `f161a939c7320e8a30569c37aae2c0f5bbb3cfbd77bebb233bd0f0787a2d0ef9`.
+That file is labeled for Minecraft 1.21.4. The
+[upstream context issue](https://github.com/LuckPerms/LuckPerms/issues/4235) also reports
+problems with it on 1.21.1. It is not accepted as a replacement or as compatibility proof.
+Changing the selected candidate requires an authorized plan amendment and new runtime evidence.
+
+The owned server stopped normally and saved every dimension. Its disposable runtime and 83
+new build entries were removed, preserving the preexisting build and local Gradle entries.
+The owned client and audio watcher exited. SSH connectivity to the laptop was then lost;
+restoring the isolated instance backups and verifying the launcher exit, playback stream
+removal and laptop scratch cleanup remain pending. This bounded suite is cleanup incomplete.

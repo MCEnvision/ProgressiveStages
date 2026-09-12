@@ -11,6 +11,12 @@ Use this page to find the maintained project documentation.
 
 ## Verification
 
+- [Selling Bin interaction repair](verification/selling-bin-interaction-repair.md)
+
+## Troubleshooting
+
+- [Interaction locks](troubleshooting/interaction-locks.md)
+
 - [3.0.4 entity presence fixture](verification/3.0.4-entity-presence-fixture.md)
 - [3.0.4 optional integration artifact and runtime evidence](verification/3.0.4-optional-integration-artifacts.md)
 - [3.0.4 phase 004 compatibility candidate](verification/3.0.4-phase-004-compatibility.md)

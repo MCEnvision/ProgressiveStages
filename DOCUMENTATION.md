@@ -1153,6 +1153,8 @@ The `held_item` / `target_block` / `target_entity` fields accept **single
 prefix entries** (e.g. `tag:minecraft:logs`, `mod:create`). The `description`
 field is free text used in messages and `/stage info`.
 
+Selectors are evaluated against the live registry holders on the server. Modern `tag:c:armors`, exact `id:selling_bin:selling_bin`, and `all:*` selectors work for item-on-block rules, and the legacy `#c:armors` spelling remains supported. The held stack must be nonempty for an `item_on_block` rule. A missing stage is denied before the protected interaction continues. The optional bounded support capture is documented in [Interaction locks](docs/troubleshooting/interaction-locks.md).
+
 The implementation is
 [`InteractionEnforcer`](src/main/java/com/enviouse/progressivestages/server/enforcement/InteractionEnforcer.java).
 

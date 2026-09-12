@@ -144,6 +144,7 @@ public class StageFileLoader {
      * Reload all stage files from disk
      */
     public boolean reload() {
+        com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
         LoadCandidate candidate = readCandidateStages();
         if (!candidate.errors().isEmpty()) {
             lastReloadErrors = List.copyOf(candidate.errors());

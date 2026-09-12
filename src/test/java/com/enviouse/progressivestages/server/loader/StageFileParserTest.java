@@ -450,6 +450,31 @@ class StageFileParserTest {
     }
 
     @Test
+    void registersModernInteractionSelectorsForTheLegacyQueryApi() throws IOException {
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(write("modern_interaction.toml", """
+            [stage]
+            id = "modern_interaction"
+
+            [[interactions]]
+            type = "item_on_block"
+            held_item = "all:*"
+            target_block = "id:minecraft:crafting_table"
+            """));
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        LockRegistry registry = LockRegistry.getInstance();
+        registry.clear();
+        try {
+            registry.registerStage(result.getStageDefinition());
+            var stages = registry.getRequiredStagesForInteraction(
+                "item_on_block", "minecraft:stick", "minecraft:crafting_table");
+            assertTrue(stages.contains(result.getStageDefinition().getId()));
+        } finally {
+            registry.clear();
+        }
+    }
+
+    @Test
     void parsesInventoryInsertionActivationAndLifetimeMetadata() throws IOException {
         StageFileParser.ParseResult result = StageFileParser.parseWithErrors(write("conditional_inventory_interaction.toml", """
             [stage]

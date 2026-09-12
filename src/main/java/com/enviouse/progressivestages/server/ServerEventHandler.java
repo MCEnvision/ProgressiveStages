@@ -50,6 +50,7 @@ import net.neoforged.neoforge.event.level.block.CropGrowEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 import java.util.HashMap;
@@ -122,12 +123,14 @@ public class ServerEventHandler {
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
+        InteractionCaptureManager.stopForShutdown();
         com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get().persist();
         StructureSessionManager.getInstance().shutdown(event.getServer());
     }
 
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
+        InteractionCaptureManager.resetRuntimeState();
         lastScanTime.clear();
         lastDimensionCheck.clear();
         lastRegionCheck.clear();
@@ -154,6 +157,11 @@ public class ServerEventHandler {
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         StageCommand.register(event.getDispatcher());
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(ServerTickEvent.Post event) {
+        InteractionCaptureManager.tick(event.getServer());
     }
 
     /** v2.5: register the datapack stage loader so data/&lt;ns&gt;/progressivestages/stages/*.toml load + /reload. */
@@ -553,9 +561,13 @@ public class ServerEventHandler {
             }
 
             // Check interaction locks (item-on-block, Create-style interactions)
-            if (!InteractionEnforcer.canInteract(player, event.getItemStack(), block)) {
+            var interactionDecision = InteractionEnforcer.evaluateInteraction(player, event.getItemStack(), block);
+            if (!interactionDecision.allowed()) {
                 event.setCanceled(true);
-                InteractionEnforcer.notifyLocked(player, event.getItemStack(), block);
+                InteractionEnforcer.notifyLocked(player, interactionDecision);
+                InteractionCaptureManager.record(player, event.getHand(), event.getItemStack(), block,
+                    interactionDecision, event.isCanceled(), event.getUseBlock(), event.getUseItem(),
+                    event.getCancellationResult(), "denied");
                 return;
             }
 
@@ -565,6 +577,9 @@ public class ServerEventHandler {
                 if (!decision.allowed()) {
                     event.setCanceled(true);
                     ItemEnforcer.notifyLockedWithCooldown(player, decision, event.getItemStack().getItem());
+                    InteractionCaptureManager.record(player, event.getHand(), event.getItemStack(), block,
+                        interactionDecision, true, event.getUseBlock(), event.getUseItem(),
+                        event.getCancellationResult(), "denied");
                     return;
                 }
 
@@ -576,6 +591,9 @@ public class ServerEventHandler {
                     }
                 }
             }
+            InteractionCaptureManager.record(player, event.getHand(), event.getItemStack(), block,
+                interactionDecision, event.isCanceled(), event.getUseBlock(), event.getUseItem(),
+                event.getCancellationResult(), event.isCanceled() ? "denied" : "allowed");
         }
     }
 
@@ -921,6 +939,7 @@ public class ServerEventHandler {
             DimensionEnforcer.cleanupPlayer(player.getUUID());
             StructureEnforcer.cleanupPlayer(player.getUUID());
             OreSpoofManager.get().onPlayerLogout(player);
+            InteractionCaptureManager.stopForTarget(player.getUUID(), InteractionCaptureManager.StopReason.TARGET_REMOVED);
             ContextualModifierApplier.clear(player);
             EntityPresenceEnforcer.clearPlayer(player.getUUID());
             com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get()

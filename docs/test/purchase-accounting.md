@@ -44,3 +44,7 @@ Stop the exact owned process and remove the disposable runtime and temporary bui
 preserving required results in the [security review](../verification/3.0.5-security-review.md).
 These server assertions do not replace the separate laptop purchase presentation or real provider
 acceptance matrix.
+
+The separate [real lease fixture](fixtures/purchase-lease/README.md) exercises actual laptop movement,
+purchase clicks and restart persistence. Its [observations](../verification/purchase-lease-client/README.md)
+include passing server accounting and a failing live map refresh after command revocation.

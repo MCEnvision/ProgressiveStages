@@ -66,10 +66,14 @@ ProgressiveStages.onEvent((event, data) => {
     [personal, shared, globalStage].forEach(stage => {
         const id = StageId.parse(stage);
         const context = API.resolveStageOwner(first, id);
+        require(API.resolveActorOwner(first.uuid, id).equals(context),
+            'Explicit UUID actor resolution must remain unambiguous through Rhino.');
         const grant = API.mutateStage(context, id, Operation.GRANT, Cause.SCRIPT);
         require(grant.changed() && grant.affectedOwners().contains(context.owner()),
             'Explicit actor mutation must report the resolved owner.');
         require(ProgressiveStages.has(first, stage), 'Explicit actor grants must be visible to scripts.');
+        require(API.getActorSnapshot(first.uuid).contains(id),
+            'Explicit UUID actor snapshots must reflect committed grants through Rhino.');
         require(ProgressiveStages.has(second, stage) === (stage !== personal),
             'Explicit actor grants must respect the selected sharing policy.');
         require(API.mutateStage(API.resolveStageOwner(first, id), id, Operation.REVOKE, Cause.SCRIPT).changed(),

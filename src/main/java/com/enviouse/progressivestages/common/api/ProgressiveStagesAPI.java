@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Public API for ProgressiveStages.
@@ -107,9 +108,19 @@ public final class ProgressiveStagesAPI {
         return com.enviouse.progressivestages.common.stage.StageOwnership.context(player, stageId);
     }
 
+    /** Resolve a player identity on the server thread even when that actor is offline. */
+    public static StageActorContext resolveActorOwner(UUID actorId, StageId stageId) {
+        return com.enviouse.progressivestages.common.stage.StageOwnership.contextForActor(actorId, stageId);
+    }
+
     /** Return an immutable individual effective stage snapshot. */
     public static EffectiveStageSnapshot getEffectiveSnapshot(ServerPlayer player) {
         return StageManager.getInstance().getEffectiveSnapshot(player);
+    }
+
+    /** Read the current individual view of an explicitly identified online or offline actor. */
+    public static EffectiveStageSnapshot getActorSnapshot(UUID actorId) {
+        return StageManager.getInstance().getActorSnapshot(actorId);
     }
 
     /** Apply an actor-aware mutation and return its committed result. */

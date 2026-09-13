@@ -1427,6 +1427,27 @@ public class StageManager {
         return new EffectiveStageSnapshot(player.getUUID(), mutationRevision, stages, sources);
     }
 
+    /** Read an individual actor snapshot without interpreting the actor id as a legacy team id. */
+    public EffectiveStageSnapshot getActorSnapshot(UUID actorId) {
+        Objects.requireNonNull(actorId, "actorId");
+        if (server == null || !server.isSameThread()) {
+            throw new IllegalStateException("Stage actor queries require the running server thread.");
+        }
+        ServerPlayer player = server.getPlayerList().getPlayer(actorId);
+        if (player != null) return getEffectiveSnapshot(player);
+        Set<StageId> stages = new LinkedHashSet<>();
+        Map<StageId, Set<StageSourceKind>> sources = new LinkedHashMap<>();
+        TeamStageData data = getTeamStageData();
+        for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+            OwnerRef resolved = StageOwnership.contextForActor(actorId, stage).owner();
+            if (data.hasEffectiveStage(resolved, stage)) {
+                stages.add(stage);
+                addSources(sources, stage, data.getEffectiveSources(resolved, stage));
+            }
+        }
+        return new EffectiveStageSnapshot(actorId, mutationRevision, stages, sources);
+    }
+
     private static void addSources(Map<StageId, Set<StageSourceKind>> target, StageId stage,
                                    Set<String> labels) {
         Set<StageSourceKind> resolved = target.computeIfAbsent(stage, ignored -> new LinkedHashSet<>());

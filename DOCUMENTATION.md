@@ -4425,6 +4425,21 @@ Static facade in [`ProgressiveStagesAPI.java`](src/main/java/com/enviouse/progre
 Mutation methods must run on the logical server thread; queries should normally
 be made there because they read live world/team state.
 
+`resolveActorOwner(UUID, StageId)` and `getActorSnapshot(UUID)` explicitly identify an individual
+actor, whether connected or offline. Both require the running server thread and throw
+`IllegalStateException` outside it. Resolve requires a registered stage and throws
+`IllegalArgumentException` for an unknown stage. Offline snapshots include registered stages
+whose current personal, team, or server owner has an active source. Persisted synchronized
+sources remain inactive until authoritative revalidation. Returned sets and source maps are
+immutable and do not change when later membership or ownership changes.
+
+If an enabled team provider cannot resolve an offline actor, resolution and the complete snapshot
+query throw `IllegalStateException`; they do not guess an owner or return a partial view. A
+disabled or absent provider retains the normal solo fallback. Querying personal or server
+ownership does not require a team lookup. These explicitly named methods leave legacy UUID
+team queries unchanged. They read state without granting access, publishing mutation events,
+or replaying acquisition effects. Offline mutation remains separately rejected as described below.
+
 `resolveStageOwner` captures the current membership revision along with the definition revision
 and typed owner. `mutateStage` rejects calls outside the server thread with `wrong_thread`, an
 offline actor with `actor_offline`, stale membership with `stale_membership`, a different owner
@@ -4456,6 +4471,8 @@ Set<StageId> stages = ProgressiveStagesAPI.getStages(player);
 OwnerRef owner = ProgressiveStagesAPI.getStageOwner(player, StageId.parse("profession:chef"));
 EffectiveStageSnapshot snapshot = ProgressiveStagesAPI.getEffectiveSnapshot(player);
 StageActorContext context = ProgressiveStagesAPI.resolveStageOwner(player, StageId.parse("profession:chef"));
+EffectiveStageSnapshot actorSnapshot = ProgressiveStagesAPI.getActorSnapshot(actorId);
+StageActorContext actorContext = ProgressiveStagesAPI.resolveActorOwner(actorId, StageId.parse("profession:chef"));
 ProgressiveStagesAPI.grantStageFromSource(player, StageId.parse("profession:chef"),
     "luckperms_synchronized", StageCause.PERMISSION);
 List<StageId> available = ProgressiveStagesAPI.getAvailableStages(player);

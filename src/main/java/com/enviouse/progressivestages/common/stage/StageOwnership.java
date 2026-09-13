@@ -8,6 +8,7 @@ import com.enviouse.progressivestages.server.loader.StageFileLoader;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /** Central owner resolution for stage definitions. */
 public final class StageOwnership {
@@ -30,6 +31,25 @@ public final class StageOwnership {
     public static OwnerRef owner(ServerPlayer player, StageId stageId) {
         Objects.requireNonNull(player, "player");
         return resolveOwner(player, stageId);
+    }
+
+    /** Resolve an explicitly identified actor on the server thread without requiring a connected player. */
+    public static StageActorContext contextForActor(UUID actorId, StageId stageId) {
+        Objects.requireNonNull(actorId, "actorId");
+        Objects.requireNonNull(stageId, "stageId");
+        var server = StageManager.getInstance().getServer();
+        if (server == null || !server.isSameThread()) {
+            throw new IllegalStateException("Stage actor queries require the running server thread.");
+        }
+        if (!StageOrder.getInstance().stageExists(stageId)) {
+            throw new IllegalArgumentException("Unknown stage. " + stageId);
+        }
+        ServerPlayer player = server.getPlayerList().getPlayer(actorId);
+        if (player != null) return context(player, stageId);
+        OwnerRef resolved = offlineOwner(actorId, stageId).orElseThrow(() ->
+            new IllegalStateException("The offline actor owner is unavailable for stage " + stageId));
+        return new StageActorContext(actorId, resolved, StageFileLoader.getInstance().getCompiledSnapshot().revision(),
+            TeamProvider.getInstance().membershipRevision());
     }
 
     public static java.util.Optional<OwnerRef> offlineOwner(java.util.UUID subject, StageId stageId) {

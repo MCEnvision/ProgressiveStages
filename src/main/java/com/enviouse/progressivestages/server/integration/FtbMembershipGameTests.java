@@ -138,6 +138,13 @@ public final class FtbMembershipGameTests {
                 helper.assertTrue(manager.hasStage(first, personal) && !manager.hasStage(second, personal)
                     && manager.hasStage(first, shared) && manager.hasStage(second, shared),
                     "Real teammates must share the team stage while keeping a profession personal.");
+                var offlineFirst = com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.getActorSnapshot(firstId);
+                var offlineSecond = com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.getActorSnapshot(secondId);
+                var actorContext = com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.resolveActorOwner(secondId, shared);
+                helper.assertTrue(offlineFirst.stages().equals(manager.getStages(first))
+                    && offlineSecond.stages().equals(manager.getStages(second))
+                    && actorContext.owner().equals(manager.getStageOwner(second, shared)),
+                    "Explicit offline actor queries must agree with the actual FTB provider and individual player views.");
                 var captured = manager.captureOfflinePermissionContext(secondId);
                 revision = provider.membershipRevision();
                 party.leave(secondId);
@@ -148,6 +155,10 @@ public final class FtbMembershipGameTests {
                     && !manager.hasStage(second, shared) && manager.hasStage(first, shared)
                     && manager.hasStage(first, personal) && !manager.hasStage(second, personal),
                     "Leaving the real party must invalidate the captured owner and preserve the remaining member's stages.");
+                helper.assertTrue(!com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.getActorSnapshot(secondId).contains(shared)
+                    && offlineSecond.contains(shared)
+                    && !actorContext.equals(com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.resolveActorOwner(secondId, shared)),
+                    "A native party leave must change fresh actor queries while previously returned snapshots remain immutable.");
                 revision = provider.membershipRevision();
                 party.join(null, secondProfile);
                 helper.assertTrue(provider.membershipRevision() == revision + 1 && manager.hasStage(second, shared)

@@ -46,6 +46,14 @@ is server wide, so another player's membership change can also invalidate a capt
 Resolve and reevaluate on the server thread before retrying. Rejected contexts do not publish
 committed changes or alter stored stages.
 
+Use `ProgressiveStagesAPI.resolveActorOwner(actorId, stageId)` and
+`ProgressiveStagesAPI.getActorSnapshot(actorId)` for explicit individual queries while an actor
+is offline. Call them on the running server thread. An unavailable offline team lookup raises
+an error rather than returning guessed or partial access. The snapshot reports active sources,
+so persisted synchronized grants awaiting revalidation stay excluded. These queries preserve
+legacy UUID team API meanings and do not authorize offline mutations. See the
+[Java API contract](../../DOCUMENTATION.md#151-progressivestagesapi) for errors and examples.
+
 ## Quest provider ownership
 
 Defined stages use their ProgressiveStages owner for quest checks, grants and removals,

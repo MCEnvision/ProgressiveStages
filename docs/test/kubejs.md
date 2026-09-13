@@ -53,7 +53,8 @@ The script checks all of these contracts:
 5. Team grants and revocation reach both members, while server grants and revocation use the
    global owner.
 6. Explicit actor Java mutation calls made from the script report the resolved owner and produce
-   the correct effective view for each actor in all three scopes.
+   the correct effective view for each actor in all three scopes. UUID actor resolution and
+   snapshot queries remain callable through Rhino without legacy team overload ambiguity.
 7. Exactly one callback completes all assertions for each invocation, including after reload.
 
 The fixture uses ordinary server player objects with an embedded transport and a test packet sink.

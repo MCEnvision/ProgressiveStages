@@ -5214,7 +5214,12 @@ archive's `Build-Commit` and `Build-Dirty` manifest attributes. A dirty build na
 use its artifact hash to distinguish the actual bytes. Header preparation uses the same writer,
 output budget, target and lifecycle as decision records. No artifact paths or configuration values
 are emitted. The [capture guide](docs/troubleshooting/interaction-locks.md) documents limits and
-unavailable development identity. Full runtime overhead and category acceptance remain separate gates.
+unavailable development identity. The [dedicated server benchmark](docs/test/diagnostics.md)
+measures three 1,000 attempt rounds per recording path with normal writer output and unchanged
+capture limits. It checks enabled CPU and elapsed overhead against disabled calls, requires no
+disabled diagnostic allocation, and validates every accepted output record. Capture startup and
+asynchronous output costs are outside the timed recording region. Full category, lifecycle,
+provider and client acceptance remain separate gates.
 
 ### Diagnostic capture output lifecycle
 

@@ -854,6 +854,7 @@ compat/
 - Temporary, triggered, context, timer, and priority rules: [TEMPORARY_AND_TRIGGERED_LOCKS.md](TEMPORARY_AND_TRIGGERED_LOCKS.md).
 - Architecture, folder structure, data flow, and extension guide: [ARCHITECTURE.md](ARCHITECTURE.md).
 - Build, smoke-test, multiplayer, and integration matrix: [TESTING.md](TESTING.md).
+- Dedicated server capture benchmark: [Diagnostic capture performance](docs/test/diagnostics.md).
 - Copy-ready tested tutorial stages: [examples/beginner_pack](examples/beginner_pack/README.md).
 - CurseForge 3.0 project description: [CURSEFORGE.md](CURSEFORGE.md).
 - Implemented 3.0 scope and remaining runtime matrix:

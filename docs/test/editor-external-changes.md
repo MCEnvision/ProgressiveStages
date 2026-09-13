@@ -14,8 +14,14 @@ Use Minecraft 1.21.1, NeoForge 21.1.248 and Java 21 with both `progressivestages
 GameTest namespaces enabled. Run through the owned dedicated server console after readiness:
 
 ```text
+fill -2 180 -2 12 195 15 air
+fill -2 179 -2 12 179 15 stone
 execute positioned 0 180 0 run test run sessionapplyrejectsexternalchangesbeforereload
 ```
+
+Prepare this platform only inside the disposable test world. The command selects terrain height,
+so its supplied Y coordinate alone does not determine the structure position. Keep the test area
+loaded and inspect the actual structure metadata and lime stained glass marker before teardown.
 
 Also run `sessionapplyrejectsunreviewedchanges`, `applywritesreloadsandrestorescanonicalrules`,
 `invalidrecipealiasdoesnotmutateliveconfiguration` and

@@ -1284,3 +1284,19 @@ This advances the offline source transaction portions of BIN-AC-011B, BIN-AC-012
 Actual provider login and caches, complete provider and FTB lifecycle behavior, joined client
 synchronization, guided browser acceptance and the combined Selling Bin sale matrix remain open.
 No default merge, phase tag, wiki publication or release is claimed.
+
+## Official provider compatibility followup
+
+On September 13, 2026, the official Modrinth API filtered to NeoForge and Minecraft 1.21.1 still
+returned only versions 5.4.140 and 5.4.139. This preserves the selected artifact identity; it does
+not establish that either version passes login. The recorded 5.4.140 dependency only login failure
+remains authoritative for the current fixture.
+
+[Upstream issue 4235](https://github.com/LuckPerms/LuckPerms/issues/4235) reports that 5.4.150 resolves
+the login failure in another environment while producing context estimation warnings. Comments
+also report command restrictions and startup failures with some later versions. The
+[related issue 4259](https://github.com/LuckPerms/LuckPerms/issues/4259) contains conflicting user
+reports about 5.4.150. Those reports support evaluating an official replacement; they do not prove
+compatibility with this project's exact loader, command provider or context requirements.
+No alternate provider was installed or adopted during this followup. The current provider pin
+and the Minecraft 1.21.1 and NeoForge 21.1.248 requirements remain unchanged.

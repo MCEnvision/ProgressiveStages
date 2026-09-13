@@ -352,15 +352,24 @@ public final class EditorSessionService {
         }
         Map<String, String> imported = stringMap(request.getAsJsonObject("files"));
         if (!imported.containsKey("stage.toml")) throw new IllegalArgumentException("An imported package requires stage.toml");
-        long revision = number(request, "revision", -1);
+        Map<String, String> normalized = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : imported.entrySet()) {
-            if (!Set.of("stage.toml", "rules.toml", "progression.toml").contains(entry.getKey())) {
-                throw new IllegalArgumentException("An imported package contains an unsupported file");
+            String path = EditorPaths.normalize(entry.getKey());
+            if (path.indexOf(':') >= 0) {
+                throw new IllegalArgumentException("An imported package requires relative TOML paths");
             }
-            revision = draft.mutate(operator.getUUID(), revision, destination + entry.getKey(), entry.getValue());
+            if (normalized.putIfAbsent(path, entry.getValue()) != null) {
+                throw new IllegalArgumentException("An imported package contains duplicate file paths");
+            }
         }
-        persist(draft);
-        return draftView(draft);
+        synchronized (draft) {
+            long revision = number(request, "revision", -1);
+            for (Map.Entry<String, String> entry : normalized.entrySet()) {
+                revision = draft.mutate(operator.getUUID(), revision, destination + entry.getKey(), entry.getValue());
+            }
+            persist(draft);
+            return draftView(draft);
+        }
     }
 
     private void relocate(ServerPlayer operator, EditorDraft draft, String source, String destination,

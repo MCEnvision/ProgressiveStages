@@ -5100,6 +5100,19 @@ read, validation, export, apply and rollback dispatch, as well as before ordinar
 The [server authorization regression](docs/test/editor-authorization.md) covers this boundary;
 browser error presentation and authenticated client transport remain separate acceptance work.
 
+### Editor package import
+
+The `export_stage` file map can be passed to `import_stage` without flattening nested includes
+or dropping helper TOML files. Import requires the exact `stage.toml` entry. Every package path
+is validated before any draft mutation. Absolute paths, paths escaping the package, drive paths,
+non TOML files and duplicate normalized paths are rejected. File contents remain unchanged.
+
+The import holds the draft monitor through its mutations and persistence. Stale revisions and
+invalid package paths leave the draft unchanged. Successful imports retain the existing per file
+undo and redo behavior. Existing destination files are updated by path and unrelated files remain
+in the draft. Import does not apply live configuration; validation, review and apply remain separate
+actions. See the [package import regressions](docs/test/editor-import.md).
+
 ### Editor field diagnostics
 
 `StageFileParser.ParseResult.getFieldDiagnostic(file)` preserves validation metadata from the

@@ -290,6 +290,10 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 4. Launch the game once. ProgressiveStages generates the main file at `config/progressivestages/progressivestages.toml` and fifty schema 4 showcase packages under `config/progressivestages/stages/` when that folder is empty.
 5. Run `/pstages editor` as a permission level 3 operator to open the local React stage editor. It opens directly on the stage list. Use the guided stage workspace, the movable and zoomable Player UI, Registry, Settings, or Extensions without touching a file. Direct TOML remains available under Source. Reload at runtime with `/pstages reload`.
 
+The editor's package export and import preserve nested TOML includes and helper TOML files,
+including comments and quoted keys. Import requires `stage.toml` and safe relative TOML paths.
+An invalid package leaves the draft and its undo history unchanged.
+
 ---
 
 ## Quick Start

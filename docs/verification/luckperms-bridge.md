@@ -42,6 +42,79 @@ the server reached `Done`. A second run with the LuckPerms jar absent reached `D
 dormant. The laptop login, provider-managed rank changes and real command side-effect matrix remain
 unverified because the required laptop session was not available on the headless execution host.
 
+## Provider event regression
+
+Source commit `55eae9800a0062611929dee4acd006a08d8d1850` connects provider user, node,
+group, synchronization and configuration reload changes to the existing bounded reconciliation
+queue. API 5.4 subscription handles are retained for deterministic cleanup. Closing disables
+delivery before attempting every detachment; failures retain inactive handles for retry.
+Subject changes invalidate only the affected calculator projection. Group and global changes
+advance a projection generation and request a resumable rescan without enumerating players on
+the callback thread. Callbacks neither access stage storage nor load provider users.
+
+The [API event bus contract](https://raw.githubusercontent.com/LuckPerms/LuckPerms/v5.4/api/src/main/java/net/luckperms/api/event/EventBus.java)
+defines subscription and detachment handles. Exact API 5.4 signatures were checked from the
+recorded dependency artifact before implementation. Cache recalculation events are excluded
+because bridge queries and context publication can themselves cause recalculation. Provider
+context notifications remain in server reconciliation; this change does not prove immediate
+invalidation of previously cached native permission answers.
+
+On September 12, 2026, Java 21.0.11 `./gradlew test build --no-daemon --no-configuration-cache`
+passed with Minecraft 1.21.1 and NeoForge 21.1.248. All 378 tests across 102 suites passed with
+zero failures, errors or skips. Three new API boundary tests cover event routing, repeat
+registration, late delivery after closure, retryable failed detachment and partial registration
+cleanup. A calculator test verifies subject and global invalidation without provider queries or
+context notifications, rejection of old publication tickets and recovery with a fresh ticket.
+No separate formatter or static analysis task is configured. `git diff --check` and the final
+source build passed; the postcommit rebuild passed with a clean source manifest.
+
+The inspected `runServer` task graph starts a development dedicated server, with no client or
+renderer. It reached readiness at 23:50:06 America/Chicago. The server executed the following
+core fixtures through the actual GameTest dispatcher.
+
+| Fixture | Started | Matching metadata and lime success marker observed |
+|---|---|---|
+| `projectioncontextsfollowconfirmedoutputandlifecycle` | 23:51:32 | 23:52:46, `provider_events_projection_pass` |
+| `overflowingpermissioneventsreacheveryonlinesubject` | 23:52:46 | 23:53:14, `provider_events_budget_pass` |
+| `permissionquerieswithdrawdeniedandunavailableoutput` | 23:53:14 | 23:53:34, `provider_events_query_pass` |
+
+The template's actual structure block was at `0 180 3`, with its success glass at `-1 179 2`.
+The first result inspection used a different height and was not accepted as evidence. The queue
+fixture was rerun after locating the structure; each accepted result had matching metadata and
+a fresh success marker. Released test chunks were force loaded before inspection. The queue
+fixture includes the existing 300 subject overflow and reload checks, plus 1,200 subject callbacks
+and a global callback through the installed adapter subscription. Callback delivery performs no
+subject query; the queue stays at or below 256 entries. At most sixteen subjects reconcile per
+simulated bridge tick, and all 300 subjects are visited within 64 iterations with no remaining
+queue or rescan work. Constructed players and the recording adapter do not establish real provider
+event delivery, offline convergence or the separate 60 second production acceptance gate.
+
+The development server stopped at 23:53:45, saved all dimensions and exited normally at 23:53:48.
+The packaged `progressivestages-3.0.5.jar` has SHA256
+`d5486500d0fab140e6ec462acdcba8d8f284a2ee5891f56ef019e14bf741cdfe`.
+Its manifest records the source commit above and `Build-Dirty: false`. All 741 project classes
+match compiled output byte for byte; no `net/luckperms` API classes are bundled.
+
+The same packaged artifact, without optional mods, reached production dedicated readiness at
+23:55:06. At 23:55:18, `time query gametime` returned 4619. At 23:55:26,
+`stage debug permissions status` reported stopped capture, zero records and an idle writer.
+The server stopped at 23:55:38, saved every dimension and exited normally. Both launches used
+the owned `node-1` runtime at
+`/mnt/hermes/projects/ProgressiveStages/.phase-worktrees/phase-003/build/provider-events-verification`,
+online authentication and `127.0.0.1:25589`. EULA true was read back before each launch.
+
+Cleanup confirmed that both owned server processes exited and the loopback port was available.
+All 979 paths created under `build` were removed, restoring its exact 836 path baseline; the
+26 preexisting `.gradle` paths were preserved with no additions. The disposable runtime and
+three metadata scratch files were removed. The preexisting `run`, `run-248`, library target,
+shared dependency caches and candidate artifact were preserved. No cleanup resource remains.
+
+This evidence does not close BIN-REQ-012. The exact provider dependency only login failure,
+native cached permission behavior, offline contributor loads, stale completion guards across
+all revisions, source episodes, real context transitions and combined client acceptance remain
+separate gates. No laptop or browser resource was created, no release was published, and the
+immutable goal, phase cursor and plan set remain unchanged.
+
 ## NeoForge 21.1.248 dependency only login failure
 
 On September 12, 2026, the exact selected LuckPerms 5.4.140 JAR was tested alone with

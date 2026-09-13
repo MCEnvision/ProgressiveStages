@@ -404,3 +404,100 @@ after evidence extraction, and the unique temporary directory was verified absen
 browser, client, renderer, watcher or audio resources were created. Plan validation passed with
 plan set SHA256 `42ce0478a1e4c96021c72d0152224d5d883c9d7728eb92475ca380e05b862854`;
 the validator intake was removed. The plan, immutable goal and phase cursor remained unchanged.
+
+
+## Native quest team storage routing on NeoForge 21.1.248
+
+Source commit `3974448403249feed3733bd5cfa5939a1166d731` extends the correction to native FTB team storage routes and
+registered team stages. In FTB Quests 2101.1.21, `StageReward.claim` calls `isTeamReward` before
+using `TeamStagesHelper`; `StageTask.canSubmit` reads `teamStage` before checking that same
+helper. Those paths bypass the registered stage provider. The provider itself also delegated
+registered team stages to the helper, leaving ProgressiveStages ownership unchanged.
+
+Two optional mixins redirect those storage choices for defined stage IDs to the existing
+provider. The reward hook targets all three native `isTeamReward` calls inside `claim`, including
+its feedback selection, without replacing `isTeamReward` globally. The task hook targets the
+single native team storage branch in `canSubmit`. Explicit injection counts protect the exact
+inspected targets. The existing optional mixin plugin guards absent provider classes. The
+provider uses ProgressiveStages ownership for every defined stage, including shared stages.
+Undefined external stages retain the native FTB route, and disabled integration preserves it.
+No third party binary, reward distribution setting, quest persistence format or stage schema
+was modified. There is no event or provider callback before the two native helper shortcuts;
+intercepting only the registered provider cannot fix them.
+
+### Actual regression and passing scope
+
+The fixture uses the same exact FTB Teams 2101.1.9, FTB Library 2101.1.30, Architectury 13.0.8
+and FTB Quests 2101.1.21 artifacts recorded above. Before launch, each cached binary matched its
+recorded SHA256 and SHA512, ZIP integrity passed, and the complete required four artifact matrix
+was copied into the owned runtime. No dependency version or platform pin changed.
+
+Both failure modes were reproduced before the production correction. On September 13, 2026,
+America/Chicago, baseline server PID `706300` reached readiness at 04:26:49. At 04:27:12,
+`nativeteamquestsettingsrespectstageownership` failed because the actual native team reward did
+not grant the claimant's personal profession. At 04:27:58, the expanded per player reward test
+failed with `Shared quest rewards must update authoritative stage ownership.` The preceding
+personal and server assertions had passed, isolating the shared provider delegation mismatch.
+These baseline results are failed evidence. The server exited before its owned world was removed.
+
+Corrected server PID `712226` reached readiness at 04:30:15. Its log confirmed both new mixins
+applied to the exact native classes. The native team settings regression passed twice, at
+04:30:35 and 04:31:11. The expanded per player quest regression passed at 04:32:01, followed by
+the native membership regression at 04:32:37. Each invocation cleared the fixture area and
+verified a fresh lime success marker at `-1 179 2` together with the matching structure metadata
+at `0 180 3`, after the actual server console test command completed.
+
+Both native flag configurations cover actor only personal grants and removals, separate reward
+invocations for two actors, stale helper denial, server scope and authoritative team grants and
+removals. The native team settings case additionally proves undefined external stage grant,
+check and removal through FTB storage, plus the disabled integration route. Native reward/task
+NBT writes preserve the configured `team_reward` and `team_stage` values. Temporary cached config
+values, team state, attachment data, definitions and regression clocks are restored in teardown.
+The second actor's previous personal regression clock is now restored rather than cleared.
+
+The fixtures invoke native reward bodies and task eligibility with detached server players and
+real FTB teams. Invoking a team reward body for each actor does not prove that FTB's outer claim
+workflow lets both actors claim that reward. Full reward claim tracking, authenticated packets,
+quest team completion, client rendering and synchronization remain separate acceptance gates.
+FTB reward distribution remains separate from stage ownership. This supplies bounded server
+proof for the native storage and owner consistency portions of BIN-AC-011D and SHARED-003.
+
+Existing defined stage records held only in the FTB helper are preserved but not imported into
+ProgressiveStages by this correction. Their upgrade migration and source attribution remain an
+open gate. This record does not claim legacy entitlement migration, final provider compatibility,
+complete team lifecycle or final combined acceptance. Earlier records remain historical; their
+open native storage branch is superseded only within the passing scope described here.
+
+### Build and packaged absence verification
+
+The owned runtime was `build/native-quest-storage-verification` in the active Phase 003 checkout
+on `node-1`. The inspected development launch uses `forgeserverdev` and `--nogui`; the packaged
+launch uses the production NeoForge server arguments. Both use Java 21, Minecraft 1.21.1 and
+exactly NeoForge 21.1.248, verify `eula=true`, keep authentication and bind only loopback port
+25589. No graphical process was launched.
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed after the
+correction, including 407 unit tests in 106 suites with zero failures, errors or skips. The final
+precommit build took 13 seconds, and the postcommit packaged `build` took four seconds. No
+separate formatter is configured, no data provider changed, and `git diff --check` passed.
+
+The packaged JAR has SHA256 `b73eaa979cb150b44463d01f821128b011295cf2aa5701c897355b34f021fbf1` and SHA512 `21b2493a2a7cf0cb47a55530a32562faab9247d1098bf59e24d5d96ee7af170115be6ffddf8770a78eee928ed37e47f1000d3f1983a66d33a36afe89223ba3f5`.
+Its manifest records `Build-Commit: 3974448403249feed3733bd5cfa5939a1166d731` and `Build-Dirty: false`.
+All 772 project classes match compiled output, both new mixins are registered in the packaged
+configuration, and neither FTB nor LuckPerms API classes are bundled. With all optional providers
+absent, packaged server PID `719503` reached readiness at 04:33:44 and answered
+`time query gametime` at 04:34:05. GitHub verified the pushed source commit signature.
+Default branch integration, final phase tagging, wiki publication and release remain unclaimed.
+
+
+### Native storage suite cleanup
+
+The baseline server saved all dimensions at 04:28:18, the corrected development server at
+04:32:53, and the packaged server at 04:34:57. All three processes exited normally and were
+confirmed absent. No process retained the runtime as its working directory, and loopback port
+25589 was free. Cleanup removed 1233 new build paths and 13 new local Gradle paths,
+preserving all 836 preexisting build paths and 26 preexisting Gradle paths. The runtime
+libraries symlink was removed without following it; shared libraries and the packaged candidate
+were preserved. All 12 registered scratch files and their unique temporary directory were
+removed after evidence extraction, with absence verified. No laptop client, browser, renderer,
+watcher or audio resource was created. The plan, immutable goal and phase cursor were unchanged.

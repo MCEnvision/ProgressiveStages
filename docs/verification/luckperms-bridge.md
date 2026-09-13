@@ -1155,3 +1155,66 @@ This advances the online source transaction and owner movement portions of BIN-A
 BIN-AC-012D and BIN-AC-012F. Outbound provider consistency, remaining offline concurrency and lifecycle
 cases, real provider login, FTB membership, joined clients and the complete browser/gameplay matrix
 remain open. No integration merge, phase tag, wiki update or release is claimed.
+
+
+## Outbound projection consistency verification
+
+Source revision `d3ef67367eaf5b881576d326797c218722660db9` was signed, pushed to
+`envy/3.0.5-phase-003` and verified by GitHub on September 13, 2026. It adds captured adapter
+and context checks around outbound collection, between node mutations and around publication.
+Rejected writes retain exact cleanup ownership. A provider thread can check publication validity
+through atomic generations and the volatile compiled snapshot without traversing game state.
+The public stage revision may reset across server lifecycles without making an old guard current.
+
+Java 21 with the checked in Wrapper 8.8 ran `./gradlew --no-daemon test build` against Minecraft
+1.21.1 and NeoForge 21.1.248. All 407 tests in 106 suites passed with no failures, errors or skips;
+the build finished in 18 seconds. New unit regressions cover stale writes, exact cleanup,
+reentrant cleanup, context guards, rejected publication and lifecycle revision reset. The clean
+postcommit `./gradlew --no-daemon build` passed in four seconds. No separate formatter is configured,
+no resource provider changed, and the complete diff passed `git diff --check`.
+
+The isolated dedicated development server ran on `node-1` in the Phase 003 checkout's
+`build/outbound-verification` directory. Its inspected launch was `forgeserverdev --nogui` with
+Java 21, the pinned compiled artifact and enabled test namespaces. Authentication remained enabled,
+its listener used loopback port 25589, and the exact EULA file read back `eula=true`. PID 615589
+reached readiness at 03:34:39 America/Chicago. Seven invocations passed:
+
+| GameTest | Verified time |
+|---|---|
+| `outboundchangesrejectstalewritesandpublication` | 03:35:08, 03:35:24 |
+| `onlinepermissioncommitpublishescompletestateandpreservescallbackmutations` | 03:35:28 |
+| `staleonlinequeriescannotpartiallygrantorwithdrawstages` | 03:35:31 |
+| `permissionownerchangeswithdrawstalecontributions` | 03:35:33 |
+| `permissionsourcespreserveothersubjectsandindependentearnings` | 03:35:35 |
+| `loadedpermissionsourcesrequireauthoritativerevalidation` | 03:35:38 |
+
+Each invocation reset its owned structure area, ran at `0 180 0`, waited for a fresh lime success
+marker at `-1 179 2` and confirmed the matching method in structure metadata at `0 180 3` before
+the next test. The new fixture changes membership during permission queries, the first node write
+and publication, and revokes a stage during writing or publication. It checks exact write counts,
+no active stale projection, preserved independent ownership or deliberate revoke, fresh recovery,
+and complete node cleanup on disconnect. It ran twice to check restoration between invocations.
+These are real bridge and stage manager paths with deterministic adapters and fake players, not
+actual LuckPerms cache or joined client acceptance. The server saved all dimensions and exited
+normally at 03:35:50.
+
+The clean packaged JAR has SHA256
+`daab02b8f5114e260d29f3c586c6ec70bd948cbe9d047072d999d1ebcae97d68`.
+Its manifest names the source revision above with `Build-Dirty: false`; all 767 project classes
+match compiled output and no LuckPerms API classes are bundled. Production PID 621315 loaded this
+JAR with optional providers absent and reached readiness at 03:37:27. A console time query returned
+1564 at 03:37:36, followed by normal shutdown and a complete dimension save at that time.
+
+Cleanup verified both PIDs absent, no process working directory under the owned runtime and the
+loopback port free. Exact baseline comparison removed 1026 new build paths and 13 local Gradle
+paths while preserving all 836 preexisting build paths and 26 preexisting local Gradle paths.
+The runtime was removed without following its libraries symlink. Existing `run-248/libraries`,
+the verified candidate JAR, source, worktrees and shared caches remain. All nine metadata and log
+scratch files and their unique directory were removed after their final evidence consumer. No
+laptop, client, browser, renderer or audio resource was created.
+
+This advances BIN-AC-012E and BIN-AC-012F. External node mutations are not a multiwrite transaction.
+Actual provider cache invalidation and permission consumption, the known provider login failure,
+remaining offline concurrency and lifecycle cases, FTB native events, joined clients, complete
+Brave authoring and the combined Selling Bin sale matrix remain open. No default integration,
+phase tag, wiki publication or release is claimed.

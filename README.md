@@ -368,7 +368,10 @@ Matching clients suppress local item and block prediction for denied direct inte
 
 Client snapshot acknowledgements must match the revision, checksum and enforcement policy sent
 to that player. Repeated acknowledgements reuse the stored offer instead of rebuilding the
-snapshot. Disconnect clears the offer. See the [snapshot handler tests](docs/test/snapshot-acknowledgements.md).
+snapshot. Disconnect clears the offer. Recovery requests receive one immediate response; repeats
+coalesce into one pending response per player every 20 server ticks. A full recovery request takes
+precedence over a delta base, and normal server updates remain immediate. Disconnect cancels
+pending recovery. See the [snapshot handler tests](docs/test/snapshot-acknowledgements.md).
 
 Stages can optionally integrate with LuckPerms. Add `[luckperms]`, `[[luckperms.inbound]]`, and `[[luckperms.outbound]]` to read inherited groups or true Boolean permissions and to contribute existing groups or positive permissions. `inbound_mode = "synchronized"` removes access after a qualifying rank is lost. `inbound_mode = "permanent"` keeps the attributed stage. Native team changes withdraw the moving player's synchronized contribution from the old owner while preserving independent and permanent grants. Add `[[command_permissions]]` rows to require a stage at an actual literal command path while native command permissions remain required. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 

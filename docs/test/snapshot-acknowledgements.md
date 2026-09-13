@@ -1,4 +1,4 @@
-# Snapshot Acknowledgement Tests
+# Snapshot Acknowledgement and Recovery Tests
 
 These dedicated server GameTests exercise `NetworkHandler.handleClientSnapshotAck` through its
 payload context with controlled nonoperator server players. They use the actual snapshot sender
@@ -19,6 +19,26 @@ packet rate limit or a guarantee about other request handlers. The fixture recor
 and elapsed time, restores the JVM allocation measurement setting and snapshot history, and
 removes its player's state in `finally`.
 
+`snapshotrequestburstsdonotrebuildeveryresponse` measures 1,000 recovery requests after 128 warmup
+calls. The first request must send an actual offer; the burst must keep that offer and allocate
+less than 1 MiB on the Java server thread. It restores allocation measurement, history and the
+test player's state in `finally`.
+
+`pendingsnapshotrecoveryusescurrentstateonserverticks` establishes independent immediate offers
+for two controlled players and acknowledges one base. It queues delta, full and subsequent delta
+requests, proves ordinary server synchronization remains immediate, and disconnects the second
+player before its queued work runs. After changing the compiled revision, it waits 25 actual
+server ticks and verifies that the pending response uses the current revision, clears the old
+acknowledged base and does not recreate the disconnected player's offer. The fixture temporarily
+registers only its controlled players in the server's UUID lookup so the normal tick callback
+can resolve them. It restores that lookup, compiled snapshot, history and player state on success
+or failure. No laptop transport delivery is inferred from these controlled players.
+
+`SnapshotRequestQueueTest` checks the exact 20 tick boundary, repeated bursts without deadline
+extension, full request precedence, latest nonzero base, independent players, idle expiration,
+disconnect, shutdown and negative revision handling. No clock sleeps or external provider is
+required for these unit tests.
+
 Use Java 21, Minecraft 1.21.1 and NeoForge 21.1.248 with the `progressivestages` and `minecraft`
 GameTest namespaces enabled. After the owned dedicated server is ready, run each test separately:
 
@@ -30,6 +50,7 @@ execute positioned 0 180 0 run test run snapshotacknowledgementsrequireanoffered
 
 After inspecting that test's actual structure metadata and result marker, clear the test area
 and substitute `snapshotacknowledgementburstsavoidsnapshotreconstruction` in the final command.
+Run each of the two recovery tests the same way, separately from the acknowledgement tests.
 The platform is only for a disposable world. The test framework chooses placement from the
 terrain height, so a command's Y coordinate alone does not prove the result location.
 

@@ -166,6 +166,7 @@ public class ServerEventHandler {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
+        NetworkHandler.tickSnapshotRequests(event.getServer());
         InteractionCaptureManager.tick(event.getServer());
         LuckPermsBridge.tick(event.getServer());
     }

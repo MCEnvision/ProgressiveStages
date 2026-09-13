@@ -547,6 +547,7 @@ public class NetworkHandler {
     private record SnapshotAcknowledgement(long revision, String checksum, boolean blockInteractions) {}
     private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> acknowledgedClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> offeredClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final SnapshotRequestQueue snapshotRequests = new SnapshotRequestQueue();
     private static final java.util.Map<java.util.UUID, Integer> challengeHudFingerprints = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<Long, byte[]> clientSnapshotHistory = java.util.Collections.synchronizedMap(
         new java.util.LinkedHashMap<>() {
@@ -559,6 +560,7 @@ public class NetworkHandler {
         lastPurchase.clear();
         acknowledgedClientSnapshots.clear();
         offeredClientSnapshots.clear();
+        snapshotRequests.clear();
         challengeHudFingerprints.clear();
         clientSnapshotHistory.clear();
     }
@@ -566,6 +568,7 @@ public class NetworkHandler {
     public static void clearPlayerRuntimeState(java.util.UUID player) {
         acknowledgedClientSnapshots.remove(player);
         offeredClientSnapshots.remove(player);
+        snapshotRequests.clear(player);
         challengeHudFingerprints.remove(player);
     }
 
@@ -634,11 +637,24 @@ public class NetworkHandler {
 
     private static void handleClientSnapshotRequest(ClientSnapshotRequestPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (context.player() instanceof ServerPlayer player) {
-                if (payload.knownRevision() == 0) acknowledgedClientSnapshots.remove(player.getUUID());
-                sendCompiledSnapshot(player, payload.knownRevision());
+            if (context.player() instanceof ServerPlayer player
+                    && snapshotRequests.request(player.getUUID(), payload.knownRevision())) {
+                sendRequestedSnapshot(player, payload.knownRevision());
             }
         });
+    }
+
+    public static void tickSnapshotRequests(net.minecraft.server.MinecraftServer server) {
+        snapshotRequests.tick((id, revision) -> {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player != null) sendRequestedSnapshot(player, revision);
+        });
+    }
+
+    private static void sendRequestedSnapshot(ServerPlayer player, long revision) {
+        long base = Math.max(0, revision);
+        if (base == 0) acknowledgedClientSnapshots.remove(player.getUUID());
+        sendCompiledSnapshot(player, base);
     }
 
     public static void sendEditorOpen(ServerPlayer player,

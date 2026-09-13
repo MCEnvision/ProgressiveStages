@@ -4673,6 +4673,15 @@ compiled revision and policy. Unsolicited, stale, wrong player and incorrect che
 cannot establish a new delta base. Repeated acknowledgements perform the same bounded metadata
 comparison without encoding, compressing or hashing the snapshot again. Player disconnect and
 server shutdown clear offers along with acknowledged bases. The payload format is unchanged.
+Client recovery requests are bounded separately. The first request responds immediately; later
+requests from that player coalesce into one pending response, serviced after 20 server ticks.
+Repeated requests do not extend that deadline. A requested full snapshot takes precedence over
+any pending delta base. Deferred sends read the current compiled snapshot and revalidate the
+acknowledged base when serviced. Negative requested revisions normalize to full recovery.
+Each player has independent state. Logout and server shutdown cancel pending work, idle entries
+expire, and ordinary server initiated synchronization bypasses this request cooldown. These
+internal bounds add no configuration field or protocol change. They bound resend work, not the
+transport's packet admission or unrelated GUI requests.
 The [snapshot acknowledgement tests](docs/test/snapshot-acknowledgements.md) exercise the actual
 server handler; their evidence does not replace laptop reconnect acceptance.
 The cache clears on disconnect. Definition reloads replace the rules, while ordinary effective

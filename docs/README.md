@@ -18,7 +18,7 @@ Use this page to find the maintained project documentation.
 - [Editor session authorization](test/editor-authorization.md)
 - [Editor package import](test/editor-import.md)
 - [Editor external file changes](test/editor-external-changes.md)
-- [Snapshot acknowledgement handlers](test/snapshot-acknowledgements.md)
+- [Snapshot acknowledgement and recovery handlers](test/snapshot-acknowledgements.md)
 - [Selling Bin artifact manifest](verification/selling-bin-artifacts.json)
 - [Selling Bin client observations and image hashes](verification/selling-bin-client/observations.json)
 - [Progression ownership](verification/progression-ownership.md)

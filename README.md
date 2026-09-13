@@ -896,6 +896,7 @@ The build updates the editor assets packaged with the mod. See the
 - Build, smoke-test, multiplayer, and integration matrix: [TESTING.md](TESTING.md).
 - Dedicated server capture benchmark: [Diagnostic capture performance](docs/test/diagnostics.md).
 - Authenticated capture controls and recovery: [Laptop lifecycle verification](docs/verification/capture-client/README.md).
+- Native quest rewards and profession recovery: [FTB Quests laptop verification](docs/verification/ftb-quest-client/README.md).
 - Copy-ready tested tutorial stages: [examples/beginner_pack](examples/beginner_pack/README.md).
 - CurseForge 3.0 project description: [CURSEFORGE.md](CURSEFORGE.md).
 - Implemented 3.0 scope and remaining runtime matrix:

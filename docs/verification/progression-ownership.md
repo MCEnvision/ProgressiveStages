@@ -4,6 +4,12 @@ This page records the verification surface for actor-aware stage ownership in 3.
 It is kept with the source so a release candidate can replace the pending entries with exact hashes
 and runtime receipts.
 
+The [authenticated quest verification](ftb-quest-client/README.md) adds actual laptop checkmark,
+stage reward, stage task, removal and restart evidence on the clean `7b99df1` candidate and
+NeoForge 21.1.248. It preserves the original fidelity limits of the server fixtures below.
+The laptop run proves one player's native quest journey; two player party distribution and the
+combined LuckPerms and browser matrix remain separate gates.
+
 ## Owner clock regression
 
 Source commit `5d9034528b799cf80a76a8a392f8504e69b9b46e` separates grant timestamps by owner kind,

@@ -4145,6 +4145,12 @@ FTB Quests can grant ProgressiveStages stages as quest rewards. Stage IDs are
 normalized automatically — both `iron_age` and `progressivestages:iron_age`
 work in the FTB Quests reward editor.
 
+The [authenticated quest fixture](docs/verification/ftb-quest-client/README.md) records native
+checkmark completion, a manually claimed personal profession grant, stage task qualification,
+removal and repeated claims after restart on NeoForge 21.1.248. It includes source fixtures,
+sanitized quest ledgers and laptop images. That run used one player; its scope does not establish
+two player team reward distribution or the combined permissions workflow.
+
 ### 9.3 Native "Stage Required" property on quests and chapters
 
 When FTB Quests is installed, this mod's mixins add a **"Stage Required"**

@@ -27,6 +27,7 @@ Use this page to find the maintained project documentation.
 - [Selling Bin artifact manifest](verification/selling-bin-artifacts.json)
 - [Selling Bin client observations and image hashes](verification/selling-bin-client/observations.json)
 - [Progression ownership](verification/progression-ownership.md)
+- [Authenticated FTB Quests profession rewards and restart](verification/ftb-quest-client/README.md)
 - [LuckPerms bridge](verification/luckperms-bridge.md)
 - [LuckPerms 21.1.248 login observations](verification/luckperms-login/observations.json)
 - [3.0.5 acceptance](verification/3.0.5-acceptance.md)

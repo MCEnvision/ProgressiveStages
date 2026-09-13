@@ -217,3 +217,98 @@ the preexisting `run-248/libraries` target and the verified packaged JAR were pr
 The 14 registered metadata and log files were removed after evidence extraction, and their
 unique temporary directory was removed and checked absent. No laptop resource, client, browser,
 renderer or audio stream was created by this suite.
+
+## Native FTB membership verification on NeoForge 21.1.248
+
+Source commit `f2e9b7cad10fe7e9c421bfb8b07e31ec281fb02d` adds `FtbMembershipGameTests` without changing production behavior.
+On September 13, 2026, the actual FTB Teams 2101.1.9 runtime drove party creation, joining,
+leaving and rejoining. The fixture uses the provider's own `playerLoggedIn`, `createParty`,
+`PartyTeam.join` and `PartyTeam.leave` methods. It does not post a synthetic membership event
+or manually increment the membership revision. Detached server test players supply the actors;
+this proves native provider and server ownership behavior, not authenticated player login,
+FTB command permissions, packets, client rendering or synchronization.
+
+The test verifies that repeated integration registration still gives exactly one membership
+invalidation per native event. Actual online actor queries and offline UUID owner queries agree
+on the joined party and the solo owner after leaving. A personal profession belongs only to its
+actor, while an explicitly shared stage is available to both members. Leaving removes the second
+member's shared access and invalidates its captured offline owner context without altering the
+first member's personal or shared stage. Rejoining restores shared access without copying the
+personal profession.
+
+The initial runtime test failed during teardown because `getKnownPlayerTeams()` returns an
+unmodifiable map. That run is excluded from passing evidence. The corrected fixture uses bounded
+reflection only to remove its two synthetic player records during teardown, then restores the
+original stage attachment, definitions and regression clock in a separate `finally` block.
+Native party disband handles the fixture party. Two consecutive runs assert that fixture team
+and player records have been removed before reporting success. No production access bypass,
+provider replacement or third party binary modification was introduced.
+
+### Exact provider artifacts and bounded inspection
+
+The three cached artifacts matched the official pinned hashes below. ZIP integrity passed;
+none contains a nested JAR or native executable library. Metadata declares compatible Minecraft
+and NeoForge ranges, and the selected Architectury and FTB Library versions meet the provider's
+required dependencies. These binaries were copied only into the owned test runtime and are not
+redistributed in the product or evidence.
+
+- [ftb-teams-neoforge 2101.1.9](https://maven.ftb.dev/releases/dev/ftb/mods/ftb-teams-neoforge/2101.1.9/ftb-teams-neoforge-2101.1.9.jar). License: All Rights Reserved. SHA256 `c0e4fcb2e349dd24dd3bddb1bcda6c61dad3c1db38e3bf1100e5da9c2753e571`. SHA512 `f1542136eb2c857c9f278a2fe5b605186f2e1307c1b217812ed3f677b9ef5af01d86cb8269a5ce039325312f7d3f5d2ccb94c364a5aea52c28455de86e1cff9d`.
+- [ftb-library-neoforge 2101.1.30](https://maven.ftb.dev/releases/dev/ftb/mods/ftb-library-neoforge/2101.1.30/ftb-library-neoforge-2101.1.30.jar). License: All Rights Reserved. SHA256 `8d3ad0eaaae5f71cfbe9062bb9a03223a2db4aafa5243da486b65afa13fb24ad`. SHA512 `1d3ccafda2b453ec95a703ce3fa5148db254ff2f7514c4c67fae5cd9698b196816e7b18a3bfafad60db2585069a9fcdf25953baef45cd24da685413b68a7b093`.
+- [architectury-neoforge 13.0.8](https://maven.architectury.dev/dev/architectury/architectury-neoforge/13.0.8/architectury-neoforge-13.0.8.jar). License: GNU LGPLv3. SHA256 `2eb06668281be9c57ed6ba8b2ca39b155567063c3096aa94a1c2140694f787df`. SHA512 `25bd0de8219ee5cab11011262ac8e7ca276d40a72475392637c0f89c1a6af08f4d9e4cf9e5d183149af80c029476470392ad352b2685e06087f34a397bce5e6e`.
+
+The scoped bytecode reference inspection found no direct Java network or process execution
+references in FTB Teams. FTB Library network references occur in icon and client utilities;
+Architectury has a URL reference in platform metadata. No `ProcessBuilder` reference was found
+in the three artifacts. This bounded inventory is not a comprehensive third party security
+audit and does not prove that indirect network or file activity is absent. The fixture uses
+normal provider data storage inside its disposable world, exposes only the loopback game port,
+and supplies no credentials or external services. Client image behavior was not exercised.
+
+### Commands, results and artifact identity
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed after the
+fixture correction in 12 seconds. All 407 unit tests in 106 suites passed with zero failures,
+errors or skips. The postcommit `build` passed in four seconds. No separate formatter is
+configured, no resource provider changed, and the source diff check passed.
+
+The inspected development launch uses `forgeserverdev` and `--nogui`, Java 21, Minecraft 1.21.1
+and NeoForge 21.1.248 on `node-1`, in the active Phase 003 checkout's
+`build/ftb-membership-verification` directory. It starts no client or renderer. Each server
+launch read back `eula=true`, retained authentication and bound only loopback port 25589.
+The log confirmed all three exact provider versions above.
+
+The initial server PID `657433` reached readiness at 04:00:33 America/Chicago, recorded the
+teardown failure at 04:00:49 and saved all dimensions before exiting at 04:01:14. Its owned
+world was removed after shutdown before retrying. The corrected server PID `661111` reached
+readiness at 04:02:22. Each invocation cleared the fixture area, dispatched
+`execute positioned 0 180 0 run test run nativeftbmembershippreservespersonalandsharedownership`,
+and checked the matching structure metadata at `0 180 3` plus a fresh lime success marker at
+`-1 179 2`. Both invocations passed at 04:02:37 and 04:02:48. The server saved all dimensions
+and exited normally at 04:03:05.
+
+The packaged `progressivestages-3.0.5.jar` has SHA256 `7a120279969f53e1021f8b4f127a491e8151b64bc803937ce457514bc0f73ed1` and SHA512 `d7f31d64bb2b79f183b16ce09a7692ba5b82005fb76dd44f95fb301f64e2c564264a900ce4888361284aba06f20025ddbd950d3fa8fb13639d68dcccef206953`.
+Its manifest binds source commit `f2e9b7cad10fe7e9c421bfb8b07e31ec281fb02d` with `Build-Dirty: false`; all 769 project classes
+match the compiled output. Neither FTB nor LuckPerms API classes are bundled. Packaged
+production server PID `665889` reached readiness at 04:04:22 with all optional providers
+absent, responded to `time query gametime` and reported progression capture stopped with zero
+records and an idle writer. It saved all dimensions and exited normally at 04:04:45.
+
+This supplies bounded native membership evidence for BIN-AC-009C, BIN-AC-011C and BIN-AC-011E.
+It does not close complete team merge/disband, actual FTB Quests or KubeJS workflows, client
+synchronization, the LuckPerms compatibility gate or final combined acceptance. The signed
+source commit is pushed and verified by GitHub. No default branch integration, phase tag,
+wiki update or release is claimed.
+
+
+### Native membership suite cleanup
+
+All three recorded server processes exited, no process retained the owned runtime as its
+working directory, and loopback port 25589 was free. Cleanup removed 1049 new build paths
+and 13 new local Gradle paths, preserving all 836 preexisting build paths and 26 preexisting
+local Gradle paths. The runtime was removed without following its libraries symlink, and the
+preexisting `run-248/libraries` target and packaged candidate remained intact. The 12 owned
+scratch files and their unique temporary directory were removed after their final evidence
+consumer, with absence verified. No laptop resource, browser, client, renderer, watcher or
+audio stream was created by this suite. The laptop capability inspection was read only and
+created no files or processes. The saved goal, phase cursor and authoritative plan stayed
+unchanged.

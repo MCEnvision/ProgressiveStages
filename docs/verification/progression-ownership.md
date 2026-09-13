@@ -1050,3 +1050,84 @@ and metadata were removed after this evidence was saved. Preexisting `run-248`, 
 source and the source bound candidate JAR were preserved. The plan, immutable goal and cursor stayed
 unchanged. General offline actor grants and revocations, authenticated gameplay, real provider
 purchase compatibility and final phase integration remain separate unfinished gates.
+
+## Explicit offline revocation verification, September 13, 2026
+
+Source commit `73d9e6897d56ba8a6ae809b1e97683952b8b1331` implements the offline revocation portion
+of BIN-AC-011B. `mutateStage` accepts a freshly resolved explicit actor context for REVOKE without
+a connected player entity. It validates membership, definitions and concrete ownership before
+changing state. An unavailable required owner rejects the entire operation. Personal cascades use
+the same implementation as connected actor cascades; shared and global removals reuse the existing
+team cascade path. Removed owners lose their grant clocks, and purchase refunds retain their payer.
+
+Each concrete offline removal emits `StageActorChangeEvent` with the explicit context, owner,
+stage, type and cause. It does not invent a player entity or deliver a legacy player callback
+through another member. The committed subscription includes the offline initiator and affected
+online recipients. Repeated revocations have no new refund, event or revision. General offline
+grants, deferred acquisition effects and complete script lifecycle acceptance remain unfinished.
+This evidence does not close BIN-AC-011B or the final phase.
+
+### Server fixtures and results
+
+The owned ignored runtime was `build/offline-revoke-verification` under the active phase checkout
+on `node-1`. The tested matrix was Java 21, Minecraft 1.21.1, NeoForge 21.1.248 and the candidate
+alone. It had a loopback listener, authentication enabled, no RCON or query service, and no optional
+mods. EULA acceptance was written and verified before launch. No client, renderer, browser or
+third party membership provider was used. Offline mutation fixtures have no connected actor
+entity and use a restored fixture membership adapter.
+
+| Test | Result and server local time |
+|---|---|
+| `offlinepersonalrevokepreservessharedmilestones` | Passed at 06:56:46 and again at 06:58:36 |
+| `offlineteamrevokepreservespersonalrecords` | Passed at 06:57:03 |
+| `offlineserverrevokecascadesacrossteams` | Passed at 06:57:29 |
+| `stalemembershipcannotgrantorrevokewiththesameowner` | Passed at 06:57:48 |
+| `refundsreturnonlytothepayeracrossofflinedelivery` | Passed at 06:58:18 |
+
+Each invocation cleared the previous fixture area, ran the registered test at `0 180 0`, then
+checked fresh lime success glass and the exact structure metadata before emitting its success
+marker. The three offline fixtures cover personal and shared namespace collisions, independently
+earned shared milestones, another actor's personal records, per owner grant clocks, server cascade
+across multiple teams, unavailable membership without partial mutation, attributable pending
+refund persistence, exact committed notification identity, cause, duplicate operations and stale
+membership. Definitions, attachments, purchase data, clocks, provider state and listeners were
+restored after each test.
+
+The context regression now invokes the actual logout handler before testing a disconnected stale
+context. Its former blanket offline rejection assertion conflicted with the explicit offline
+operation requirement. The revised test retains rejection after actual logout and all existing
+owner, definition and membership rejection assertions; the three new fixtures prove valid offline
+revocation separately. The existing purchase handler regression verifies that the nullable
+initiator refactor preserves connected purchases and offline payer refund delivery.
+
+An initial fixture failed before its assertions because a generic collection method reference did
+not retain the event type required by event bus registration. An explicitly typed listener fixed
+the fixture. The first disposable server also lacked flat world generator settings; those were
+corrected before the final launch. The corrected development server reached readiness at 06:56:24,
+passed all six runs, and exited normally at 06:58:50. Its complete console had no error or exception
+lines. These fixture corrections did not weaken a gameplay assertion.
+
+### Build, artifact and cleanup
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed after the
+fixture correction in eleven seconds. All 413 unit tests in 106 suites passed, with zero failures,
+errors or skips. The postcommit build passed in three seconds. `git diff --check` passed; the
+repository has no configured formatter. All 789 project classes in the packaged JAR exactly
+matched the compiled bytes exercised by the final GameTests. The manifest records the source
+commit above and `Build-Dirty: false`. No optional provider API classes were bundled.
+
+- JAR SHA-256: `789faa065acb871860f116e39f2bdab2eb1502f1fcddc835468190b3f28b051f`.
+- JAR SHA-512: `1bb168fc41975ebb765fff5f13dfac55db53a4d5f7bed9f794c8bbc94c20357a0b1b2cd72aa15df3558f3537c3d51cc2984f366fd35a54f049934b2035367793`.
+
+The packaged candidate alone reached dedicated readiness at 06:59:58, returned game time 4593
+at 07:00:18 and stopped normally in the same minute with exit code zero. Its complete console
+had no error or exception lines. GitHub verified the signed source commit on the phase branch.
+
+Cleanup confirmed owned process IDs 931300, 934781 and 940984 absent, the test port free and no
+process working directory remaining under the runtime. Removing 1065 new build paths and eight
+local Gradle paths restored the exact 836 path build and 26 path local Gradle baselines. The owned
+runtime was absent afterward. The source bound candidate, preexisting `run-248`, shared libraries,
+source and unrelated worktrees were preserved. Temporary logs and launch metadata were removed
+after recording this evidence. The authoritative plan, immutable goal and active phase cursor
+remained unchanged. Client and browser verification, actual provider and script compatibility,
+offline acquisition effects, final integration and the other plan wide gates remain open.

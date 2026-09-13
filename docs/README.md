@@ -24,6 +24,7 @@ Use this page to find the maintained project documentation.
 - [LuckPerms bridge](verification/luckperms-bridge.md)
 - [LuckPerms 21.1.248 login observations](verification/luckperms-login/observations.json)
 - [3.0.5 acceptance](verification/3.0.5-acceptance.md)
+- [3.0.5 security review](verification/3.0.5-security-review.md)
 
 ## Troubleshooting
 

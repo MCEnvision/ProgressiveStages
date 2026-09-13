@@ -214,6 +214,80 @@ remained. The intended candidate JAR, source, evidence, preexisting runtimes and
 caches were preserved. The goal and cursor hashes remained unchanged. The owned Gradle runs were
 terminal and left no single use daemon running.
 
+## Saved source activation regression
+
+Source commit `33373f85f233351c6181841b5b7bbbdad457bedd` separates stored permission sources
+from effective access after data loading. Synchronized sources start inactive after codec decode;
+independent and permanent sources remain effective. Activation is not serialized, while an in
+process copy preserves the current activation state. The stage manager filters pending sources
+from actor and legacy UUID access, effective lists, dependency views and source explanations.
+Revalidation activates the existing contribution without manufacturing independent ownership or
+repeating its acquisition event and timestamp. Explicit API, command and script bulk revocation
+enumerate stored entitlements. The starter grant guard also uses stored progression, so pending
+access does not make a returning player eligible for another first join starter grant.
+
+On September 12, 2026, Java 21.0.11 `./gradlew test build --no-daemon --no-configuration-cache`
+passed on Minecraft 1.21.1 and NeoForge 21.1.248. All 368 tests across 100 suites passed with no
+failures, errors or skips. Four new unit tests cover all owner kinds, unchanged serialized records,
+reactivation, retained independent and permanent sources, copy isolation, serialization of active
+data, known legacy synchronized labels, highest stage filtering and bulk removal. No separate
+formatter or static analysis task is configured; `git diff --check` passed. The postcommit clean
+build passed with unchanged Java test inputs. No dependency or platform version changed.
+
+The final development dedicated server reached readiness at 22:55:58 America/Chicago. The exact
+configured task graph was inspected and started no client or renderer. Its GameTest dispatcher
+ran these fixtures sequentially, clearing the success marker before each run and reloading the
+test chunks before inspecting the structure metadata and fresh lime glass marker:
+
+| Fixture | Started | Matching metadata and success marker observed |
+|---|---|---|
+| `loadedpermissionsourcesrequireauthoritativerevalidation` | 23:01:11 | 23:01:34, `permission_load_final_pass` |
+| `pendingpermissionstagesdonotrepeatstartergrants` | 23:01:48 | 23:02:06, `permission_starter_final_pass` |
+| `permissionsourcespreserveothersubjectsandindependentearnings` | 23:02:19 | 23:02:48, `permission_sources_after_load_pass` |
+
+The load fixture decodes saved data and installs it as the actual overworld attachment. Through
+the real stage manager and a controlled provider adapter, it asserts pending actor and legacy
+access denial, retained independent and permanent source kinds, explicit removal of an inactive
+entitlement, qualified reactivation with the original acquisition timestamp, and no mutation on
+repeat reconciliation. The starter fixture temporarily changes cached starter settings, proves
+that pending only progression prevents a repeated grant, then removes that progression and proves
+the configured starter still grants to a player without stored stages. Both fixtures restore
+attachments, stage definitions and timestamps; the starter fixture restores its cached settings.
+The existing source ownership fixture passed afterward. The development server stopped at
+23:03:00, saved all dimensions and exited normally.
+
+These tests use constructed players without login connections. Codec decode and attachment
+replacement are not a physical process restart or a real provider query. Native KubeJS bulk
+revocation, joined beneficiary synchronization, actual provider restart and offline convergence,
+context invalidation, legacy contributor migration, expiry, episode suppression and complete
+acquisition effect behavior remain open. No complete BIN-REQ-011 or BIN-REQ-012 result is claimed.
+
+The clean `progressivestages-3.0.5.jar` SHA256 is
+`2c58f9ae3974dcfbd409e4b327399fc8c8ca679281850460c8f07df4a7e50413`.
+Its manifest identifies the source commit above and `Build-Dirty: false`. All 738 production
+classes match compiled bytes, and no LuckPerms API classes are bundled. GitHub verified the
+pushed source commit's SSH signature. A production server with that exact JAR and no optional
+integration mods reached readiness at 23:04:04. At 23:04:22 its console returned daytime 10849
+and stopped permissions capture with zero records and an idle writer. It stopped at 23:04:38,
+saved every dimension and exited normally. The inspected final development and production logs
+contained no errors or fatal failures.
+
+Both modes reused the owned `build/permission-startup-verification` directory inside the existing
+Phase 003 worktree on `node-1`, with online authentication, loopback port 25589 and verified
+`eula=true`. Production used the existing NeoForge 21.1.248 libraries through a read only link.
+No laptop, browser or live optional provider resource was created. The selected provider's
+dependency only login failure remains a separate prerequisite. The plan validation confirmed
+DEC-006 already requires exactly 21.1.248 throughout; no plan, goal or phase cursor changed.
+
+Cleanup confirmed every owned server process absent, every owned Gradle and server handle terminal,
+and port 25589 available. It removed exactly 1120 added build paths and no added local Gradle paths,
+including the runtime, worlds, logs, reports, compiled test output and fixture JAR. The libraries
+link was removed without following its target. Final path inventories matched both pretest
+baselines, with no preexisting path missing. The candidate JAR retained the recorded hash; source,
+tracked evidence, preexisting runtimes and shared caches were preserved. The temporary launch
+script, ownership receipt and metadata directory were removed. Plan validation scratch was also
+removed, and the final plan, goal and cursor hashes matched their original values.
+
 ## Obsolete owner regression
 
 Source commit `f476cbfdd85ee7f8ffcf5f61f76b1fbde8ba150d` adds a subject lookup over attributed

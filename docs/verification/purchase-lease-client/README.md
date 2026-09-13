@@ -65,8 +65,10 @@ open to that extent.
 
 Source `5d68f06d86ad5e1a5e297bb1caae6c235614392f` implements revision driven map and offer
 refresh. Its build, server response GameTests and dedicated startup passed, as recorded in the
-[repair verification](../3.0.5-security-review.md#open-map-synchronization-repair). Corrected laptop
-acceptance remains pending; these screenshots continue to describe the earlier candidate.
+[repair verification](../3.0.5-security-review.md#open-map-synchronization-repair). The subsequent
+[matching laptop verification](../map-synchronization-client/README.md) passes live command revoke,
+source changes, definition reload and reconnect. These screenshots continue to describe the
+earlier candidate and preserve the failing baseline.
 
 The direct Java script binding opened the actual client map from a closed screen. This does not
 prove KubeJS engine loading, an external provider implementation, LuckPerms behavior or the full

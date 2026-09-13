@@ -90,7 +90,10 @@ purchasefixture status EnVyOnMyMind
 The September 13 [laptop observations](../../../verification/purchase-lease-client/README.md)
 prove purchase, lease withdrawal, restart persistence and exactly one refund on source
 `c89c692ae20e21084798340b42e5f5be890b9f33`. Step 7 exposed stale open map details and remains a
-regression to repair. Do not interpret the passing server balances as a passing client update.
+regression in that historical candidate. The
+[corrected laptop verification](../../../verification/map-synchronization-client/README.md)
+passes the live update on source `5d68f06d86ad5e1a5e297bb1caae6c235614392f`, including a same
+effective state source change and a repeated grant and revoke after client reconnect.
 
 After the final consumer, preserve only the fixture sources, minimal screenshots, hashes and
 structured results. Stop exact owned clients, watchers, launchers, servers and tunnel; verify

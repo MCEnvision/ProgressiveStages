@@ -905,6 +905,18 @@ public class StageManager {
      * @param cause The reason for the grant
      */
     public void grantStageWithCause(ServerPlayer player, StageId stageId, StageCause cause) {
+        grantStageWithCause(player, stageId, cause, null);
+    }
+
+    /** Records an already validated payment before grant notifications and rewards run. */
+    public boolean grantPurchasedStage(ServerPlayer player, StageId stageId,
+                                      com.enviouse.progressivestages.common.config.StageCost paidCost) {
+        return grantStageWithCause(player, stageId, StageCause.PURCHASE,
+            java.util.Objects.requireNonNull(paidCost));
+    }
+
+    private boolean grantStageWithCause(ServerPlayer player, StageId stageId, StageCause cause,
+                                       com.enviouse.progressivestages.common.config.StageCost paidCost) {
         Set<StageId> before = getStages(player);
         TeamStageData data = getTeamStageData();
         OwnerRef directOwner = owner(player, stageId);
@@ -919,7 +931,7 @@ public class StageManager {
                 publishMutation(player, stageId, true, "source_added", Set.of(directOwner));
                 captureProgression(player, stageId, before, before, cause, "source_added");
             }
-            return;
+            return false;
         }
         // For automatic grants (triggers, rewards), check dependencies unless linear_progression is on
         if (!StageConfig.isLinearProgression()) {
@@ -937,7 +949,7 @@ public class StageManager {
                             .replace("{dependencies}", missingStr)));
                 publishMutation(player, stageId, false, "dependency_denied", Set.of(owner(player, stageId)));
                 captureProgression(player, stageId, before, before, cause, "dependency_denied");
-                return;
+                return false;
             }
         }
 
@@ -946,8 +958,10 @@ public class StageManager {
             player.sendSystemMessage(TextUtil.parseColorCodes("&c" + result.denial()));
             publishMutation(player, stageId, false, "slot_denied", Set.of(owner(player, stageId)));
             captureProgression(player, stageId, before, before, cause, "slot_denied");
-            return;
+            return false;
         }
+        boolean committed = result.granted().contains(stageId);
+        if (committed && paidCost != null) markPurchased(player, stageId, paidCost);
         markMutation(!result.granted().isEmpty() || !result.replaced().isEmpty());
 
         for (StageId replaced : result.replaced()) {
@@ -986,6 +1000,7 @@ public class StageManager {
             result.granted().isEmpty() ? "already_owned" : "committed", affectedOwners);
         captureProgression(player, stageId, before, getStages(player), cause,
             result.granted().isEmpty() ? "already_owned" : "committed");
+        return committed;
     }
 
     /** v3.0: apply a newly-granted stage's [rewards] ONCE, to the player who earned/bought it. */

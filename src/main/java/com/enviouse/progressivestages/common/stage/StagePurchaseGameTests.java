@@ -35,6 +35,81 @@ public final class StagePurchaseGameTests {
     private StagePurchaseGameTests() {}
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    @SuppressWarnings("unchecked")
+    public static void rewardRevocationUsesTheCommittedPurchaseReceipt(GameTestHelper helper) throws Exception {
+        var server = helper.getLevel().getServer();
+        helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "Purchases require an isolated fixture server.");
+        UUID actorId = new UUID(0x5735, 5);
+        var actor = new FakePlayer(helper.getLevel(), new GameProfile(actorId, "purchase-reward"));
+        var lookup = PlayerList.class.getDeclaredField("playersByUUID");
+        lookup.setAccessible(true);
+        var players = (Map<UUID, ServerPlayer>) lookup.get(server.getPlayerList());
+        helper.assertTrue(!players.containsKey(actorId), "The purchase actor must be unused.");
+        var order = StageOrder.getInstance();
+        var definitions = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
+        var original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var originalPurchases = StagePurchaseData.get(server);
+        var stage = StageId.parse("progressivestages:purchase_reward_revoke");
+        var owner = new OwnerRef(OwnerKind.PERSONAL, actorId);
+        var cooldownField = NetworkHandler.class.getDeclaredField("lastPurchase");
+        cooldownField.setAccessible(true);
+        var cooldowns = (Map<UUID, Long>) cooldownField.get(null);
+        helper.assertTrue(!cooldowns.containsKey(actorId), "The purchase fixture cooldown must be unused.");
+        var clocks = StageRegressionData.get(server);
+        helper.assertTrue(clocks.getGrantTime(owner, stage) < 0, "The purchase fixture clock must be unused.");
+        var manager = StageManager.getInstance();
+        try {
+            var parsed = com.enviouse.progressivestages.server.loader.StageFileParser.parseText("""
+                [stage]
+                id = "progressivestages:purchase_reward_revoke"
+                team_stage = false
+                [cost]
+                xp_levels = 10
+                items = ["minecraft:bread:4"]
+                bypass_requirements = true
+                cooldown_seconds = 60
+                refund_percent = 50
+                [rewards]
+                items = ["minecraft:diamond:1"]
+                commands = ["stage revoke @s progressivestages:purchase_reward_revoke"]
+                """, "purchase_reward_revoke.toml", "purchase fixture", false);
+            helper.assertTrue(parsed.isSuccess(), "The reward revocation fixture must parse.");
+            order.clear();
+            order.registerStage(parsed.getStageDefinition());
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original.copy());
+            server.overworld().getDataStorage().set("progressivestages_purchases", new StagePurchaseData());
+            players.put(actorId, actor);
+            actor.giveExperienceLevels(20);
+            actor.getInventory().add(new ItemStack(Items.BREAD, 8));
+            purchase(actor, stage);
+            helper.assertTrue(!manager.hasStage(actor, stage) && actor.getInventory().countItem(Items.DIAMOND) == 1,
+                "The configured reward command must revoke the granted stage after its item reward.");
+            helper.assertTrue(actor.experienceLevel == 15 && actor.getInventory().countItem(Items.BREAD) == 6,
+                "A reward revocation must refund only the purchased share. Actual levels "
+                    + actor.experienceLevel + " and bread " + actor.getInventory().countItem(Items.BREAD) + ".");
+            helper.assertTrue(StagePurchaseData.get(server).getActorPurchase(owner, stage).isEmpty()
+                && StagePurchaseData.get(server).getPendingActorRefunds(actorId).isEmpty(),
+                "The reward command must consume the purchase receipt without leaving a later refund.");
+            purchase(actor, stage);
+            manager.revokeStageWithCause(actor, stage, StageCause.COMMAND);
+            helper.assertTrue(actor.experienceLevel == 15 && actor.getInventory().countItem(Items.BREAD) == 6
+                && actor.getInventory().countItem(Items.DIAMOND) == 1,
+                "The completed purchase must keep its cooldown and must not repeat rewards or refunds.");
+            helper.succeed();
+        } finally {
+            players.remove(actorId, actor);
+            actor.discard();
+            NetworkHandler.clearPlayerRuntimeState(actorId);
+            cooldowns.remove(actorId);
+            clocks.clear(owner, stage);
+            server.overworld().getDataStorage().set("progressivestages_purchases", originalPurchases);
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
+            order.clear();
+            definitions.forEach(order::registerStage);
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void refundsReturnOnlyToThePayerAcrossOfflineDelivery(GameTestHelper helper) throws Exception {
         verifyRefunds(helper, false);
     }

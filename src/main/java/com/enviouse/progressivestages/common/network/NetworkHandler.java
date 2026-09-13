@@ -743,16 +743,13 @@ public class NetworkHandler {
             }
             if (cost.xpLevels() > 0) player.giveExperienceLevels(-cost.xpLevels());
             for (var ic : cost.items()) consumeItem(player, ic.item(), ic.count());
-            StageManager.getInstance().grantStageWithCause(player, stageId,
-                com.enviouse.progressivestages.common.api.StageCause.PURCHASE);
-            if (!StageManager.getInstance().hasIndependentStage(player, stageId)) {
+            if (!StageManager.getInstance().grantPurchasedStage(player, stageId, cost)) {
                 restoreCost(player, cost);
                 player.sendSystemMessage(com.enviouse.progressivestages.common.util.TextUtil
                     .parseColorCodes("&cThe purchase could not be completed. Your cost was restored."));
                 sendStageGuiData(player);
                 return;
             }
-            StageManager.getInstance().markPurchased(player, stageId, cost);
             if (cost.cooldownSeconds() > 0) lastPurchase.put(player.getUUID(), System.currentTimeMillis());
             sendStageGuiData(player);
         });

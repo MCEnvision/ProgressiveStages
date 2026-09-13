@@ -23,6 +23,15 @@ reward and receipt, and the completed purchase must no longer be offered. Removi
 access must leave independent ownership and its receipt intact. Explicit stage revocation then
 returns five levels and two bread and restores the ordinary purchase offer.
 
+`rewardRevocationUsesTheCommittedPurchaseReceipt` parses a stage costing ten levels and four
+bread with a 50 percent refund and a sixty second cooldown. Its configured rewards give one
+diamond and run `stage revoke @s progressivestages:purchase_reward_revoke`. Starting with twenty
+levels and eight bread, the actual purchase handler must finish with fifteen levels, six bread,
+one diamond and no stage or outstanding receipt. An immediate second purchase and another revoke
+must not change those balances. The fixture restores its own cooldown entry as well as the
+registry, attachment, purchase data, actor lookup and grant clock. This exercises an actual
+reward command, not a simulated cancellation of the noncancellable grant notification.
+
 Prepare the repository's no GUI `forgeserverdev` launch with Java 21, Minecraft 1.21.1 and
 NeoForge 21.1.248, enabling the `progressivestages` and `minecraft` GameTest namespaces. The
 production launch does not register these tests. Run each case separately on a cleared platform:
@@ -33,7 +42,9 @@ fill -2 179 -2 12 179 15 stone
 execute positioned 0 180 0 run test run repeateditemcostsrequirethefullpaymentbeforeanymutation
 ```
 
-Verify the structure metadata names the intended test and inspect its success marker. Also run
+Ensure the platform chunks are loaded before setup. Verify the structure metadata names the
+intended test and inspect its success marker. Also run
+`rewardrevocationusesthecommittedpurchasereceipt`,
 `purchasescreateindependentownershipwithoutconsumingtemporaryaccess`,
 `refundsreturnonlytothepayeracrossofflinedelivery` and
 `serverpurchasespreservepayersandpersonalhistory` to protect payer isolation and stored refund

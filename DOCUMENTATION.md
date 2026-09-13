@@ -2098,6 +2098,14 @@ path after returning. Multiple purchases can retain separate pending receipts.
 An unpaid stage earned through a trigger, command, or quest has no purchase refund.
 A paid temporary stage follows the same refund rules when it expires.
 
+The server records the receipt before sending grant notifications or applying rewards.
+If a grant callback or reward command immediately revokes the purchased stage, that revocation
+uses the recorded refund terms. The original purchase remains completed and retains its
+cooldown. Later ownership is not used to misclassify the purchase as a failed grant and restore
+its entire cost after rewards have already run. The existing ordinary grant API remains unpaid;
+the purchase handler uses `StageManager.grantPurchasedStage` after validating and consuming the
+payment. Its result describes whether that grant committed, even if a callback changes ownership.
+
 The existing `progressivestages_purchases.dat` now records `purchase_schema = 1`,
 `actor_paid`, and `actor_pending_refunds` alongside the retained legacy `paid` and
 `pending_refunds` lists. Old entries have no recorded payer and retain their team

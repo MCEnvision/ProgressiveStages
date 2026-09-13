@@ -2943,8 +2943,8 @@ as derived in source explanations, but are not silently assigned to the current 
 Before evaluating new inbound grants, reconciliation removes the current subject's synchronized
 contributions under obsolete owners or deleted stage definitions. It uses a subject index rebuilt
 from existing source records during load and copy, then maintained by grant, revoke, bulk replacement
-and owner removal. No additional persistent schema field is introduced and a subject lookup does
-not scan every owner's saved stages. All obsolete contributions are removed before publishing
+and owner removal. This contribution index is reconstructed from saved sources and a subject lookup
+does not scan every owner's saved stages. The separate eligibility history below has its own persisted records. All obsolete contributions are removed before publishing
 owner invalidation and evaluating new grants. Online beneficiaries receive current views and a bulk
 change event, without an acquisition or refund operation. The existing FTB membership detector
 reconciles before its team synchronization path. Migration of unattributed labels, offline contributor
@@ -2963,9 +2963,41 @@ Storage access remains distinct from effective access. `TeamStageData` storage g
 records; its effective getters filter pending sources. `StageManager.hasStoredStage` and
 `getStoredStages` support explicit revocation. API revoke, command revoke-all and KubeJS revoke-all
 remove pending stored entitlements as well as active ones. Starter-stage eligibility also uses stored
-progression so pending access does not turn a returning player into a new-player grant. This does not
-implement positive-episode suppression or authoritative offline provider loading. The complete restart, context, expiry and
-provider convergence matrix remains open.
+progression so pending access does not turn a returning player into a new-player grant. Offline loading
+and eligibility history are described below. The complete real provider convergence matrix remains open.
+
+Permission eligibility history is stored in the level attachment as `permission_episode_schema = 1`
+and `permission_episodes`, separately from `stage_sources` and its runtime activation state. Each
+record identifies the owner kind, owner UUID, stage, subject and stable row. It retains an observation
+fingerprint, positive eligibility, administrative suppression, acquisition time and absolute expiry.
+The attachment serializer retains the entire original NBT payload if decoding fails, including an
+unknown ownership or episode schema. The resulting state exposes no effective grants and rejects
+mutations. Its save and copy paths preserve the unreadable payload rather than replacing it with
+empty progression. Recovery requires compatible software or a compatible backup.
+The fingerprint covers the independent conditions, their all or any policy, configured contexts and
+the actual query contexts. It contains no permission tree. Row order, retention mode and definition
+revision are not episode identity. A false observation in a different query context or under edited
+conditions cannot prove loss of the original eligibility. Unavailable input is not a false observation.
+
+Full revocation and bulk removal suppress positive episodes, including stored inactive sources.
+Source withdrawal preserves the history without suppressing it. A currently positive episode cannot
+refresh its first acquisition or expiry after reload, outage, context changes or source reactivation.
+Only authoritative false then true observations of the same conditions and contexts rearm it, or a
+deliberate administrative grant clears it. A first qualified source inherits an existing owner clock
+so adding another contributor or changing retention cannot extend the current stage lifetime.
+Permanent contributions survive permission loss, but still respect expiry and explicit revocation.
+Expired permission contributions are excluded from effective access even before reconciliation.
+
+Suppressed subjects remain in the bounded offline discovery cursor after their last contribution
+is removed. Offline observations use fixed server contexts and cannot infer a loss from a remembered
+world. A completion invalidated before its final guard restores the subject's prior episode records
+and leaves synchronized sources inactive. Successful offline grants restore the owner clock from
+active source history. Permission source changes publish effective view changes instead of ordinary
+acquisition events. Independently earning a previously derived stage still runs the normal dependency,
+slot and acquisition path once. There is no additional public configuration setting for suppression.
+The [episode regression](docs/verification/luckperms-bridge.md#permission-episode-regression) records the
+bounded checks; actual provider login, cache invalidation, membership revisions and client acceptance
+remain separate gates.
 
 Outbound output must use attributable transient contributions and preserve administrative nodes,
 independent membership and explicit negative permissions. The adapter now delegates mutations to

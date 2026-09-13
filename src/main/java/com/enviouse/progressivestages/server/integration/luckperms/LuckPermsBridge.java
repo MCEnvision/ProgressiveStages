@@ -211,24 +211,24 @@ public final class LuckPermsBridge {
         if (result.stale()) { adapter.completeOffline(subject); dirty.request(subject); return; }
         if (!result.snapshot().ready()) { adapter.completeOffline(subject); return; }
         Map<StageId, Set<String>> desired = new LinkedHashMap<>();
+        Map<StageId, Map<PermissionStageSource, StageManager.PermissionObservation>> observations = new LinkedHashMap<>();
         for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
             LuckPermsStageOptions options = StageOrder.getInstance().getStageDefinition(stage).orElseThrow().getLuckPerms();
             if (!options.present() || !options.enabled()) continue;
             for (var row : options.inbound()) {
-                List<Boolean> conditions = new ArrayList<>();
-                row.groups().forEach(group -> conditions.add(result.snapshot().groups().contains(group)));
-                row.permissions().forEach(permission -> conditions.add(result.snapshot().permissions().get(permission)
-                    == LuckPermsAdapter.PermissionValue.TRUE));
-                boolean matched = row.match() == LuckPermsStageOptions.Match.ANY
-                    ? conditions.stream().anyMatch(Boolean.TRUE::equals) : conditions.stream().allMatch(Boolean.TRUE::equals);
-                if (matched && contextMatches(row.contexts(), result.snapshot().contexts())) {
-                    desired.computeIfAbsent(stage, ignored -> new java.util.HashSet<>()).add(new PermissionStageSource(subject,
-                        row.id(), options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT).label());
+                var source = new PermissionStageSource(subject, row.id(),
+                    options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT);
+                var observation = PermissionEligibility.observe(row, result.snapshot());
+                if (observation != null) {
+                    observations.computeIfAbsent(stage, ignored -> new LinkedHashMap<>()).put(source, observation);
+                    if (observation.eligible() && contextMatches(row.contexts(), result.snapshot().contexts())) {
+                        desired.computeIfAbsent(stage, ignored -> new java.util.HashSet<>()).add(source.label());
+                    }
                 }
             }
         }
         try {
-            if (!manager.reconcileOfflinePermissionSources(context, desired, () -> adapter.isOfflineCurrent(subject))) dirty.request(subject);
+            if (!manager.reconcileOfflinePermissionSources(context, desired, observations, () -> adapter.isOfflineCurrent(subject))) dirty.request(subject);
         } finally {
             adapter.completeOffline(subject);
         }
@@ -265,13 +265,25 @@ public final class LuckPermsBridge {
             String synchronizedSource = new PermissionStageSource(subject, row.id(), false).label();
             boolean permanent = options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT;
             String selected = new PermissionStageSource(subject, row.id(), permanent).label();
-            boolean eligible = ready && options.present() && options.enabled() && matches(subject, row, snapshot)
+            var source = new PermissionStageSource(subject, row.id(), permanent);
+            var observation = ready && options.present() && options.enabled() ? observe(subject, row, snapshot) : null;
+            var owner = manager.getStageOwner(player, definition.getId());
+            if (observation != null) manager.observePermissionEligibility(owner, definition.getId(), source, observation);
+            String denial = manager.permissionEpisodeDenial(owner, definition.getId(), source);
+            boolean eligible = observation != null && observation.eligible() && denial.isEmpty()
+                && contextMatches(row.contexts(), snapshot.contexts())
                 && manager.canGrantStageFromSource(player, definition.getId());
+            if (!denial.isEmpty()) {
+                record(player, definition.getId(), row.id(), false, denial);
+                manager.revokeStageFromSource(player, definition.getId(),
+                    new PermissionStageSource(subject, row.id(), true).label(), StageCause.PERMISSION);
+            }
             if (eligible) {
                 activeRows.add(row.id());
                 boolean added = manager.grantStageFromSource(player, definition.getId(), selected, StageCause.PERMISSION);
                 if (!added && !manager.getStageSources(player, definition.getId()).contains(selected)) {
-                    record(player, definition.getId(), row.id(), false, "dependency_denied");
+                    String reason = manager.permissionEpisodeDenial(owner, definition.getId(), source);
+                    record(player, definition.getId(), row.id(), false, reason.isEmpty() ? "dependency_denied" : reason);
                 }
             }
             if (!eligible || permanent) {
@@ -285,21 +297,16 @@ public final class LuckPermsBridge {
         }
     }
 
-    private boolean matches(UUID player, LuckPermsStageOptions.InboundRule row,
-                            LuckPermsAdapter.SubjectSnapshot snapshot) {
-        List<Boolean> conditions = new ArrayList<>();
-        for (String group : row.groups()) {
-            conditions.add(snapshot.groups().contains(group));
-        }
+    StageManager.PermissionObservation observe(UUID player, LuckPermsStageOptions.InboundRule row,
+                                                       LuckPermsAdapter.SubjectSnapshot snapshot) {
+        Map<String, LuckPermsAdapter.PermissionValue> values = new LinkedHashMap<>();
         for (String permission : row.permissions()) {
             LuckPermsAdapter.PermissionResult result = adapter.permissionResult(player, permission);
-            conditions.add(result.ready() && result.value() == LuckPermsAdapter.PermissionValue.TRUE);
+            if (!result.ready()) return null;
+            values.put(permission, result.value());
         }
-        boolean conditionMatch = row.match() == LuckPermsStageOptions.Match.ANY
-            ? conditions.stream().anyMatch(Boolean.TRUE::equals)
-            : conditions.stream().allMatch(Boolean.TRUE::equals);
-        if (!conditionMatch) return false;
-        return contextMatches(row.contexts(), snapshot.contexts());
+        return PermissionEligibility.observe(row, new LuckPermsAdapter.SubjectSnapshot(
+            snapshot.ready(), snapshot.groups(), values, snapshot.contexts()));
     }
 
     private void reconcileOutbound(ServerPlayer player, LuckPermsAdapter.SubjectSnapshot snapshot, boolean ready,
@@ -368,7 +375,7 @@ public final class LuckPermsBridge {
         return combinations;
     }
 
-    private static boolean contextMatches(Map<String, List<String>> required,
+    static boolean contextMatches(Map<String, List<String>> required,
                                           Map<String, Set<String>> actual) {
         for (var entry : required.entrySet()) {
             Set<String> values = actual.getOrDefault(entry.getKey().toLowerCase(java.util.Locale.ROOT), Set.of());

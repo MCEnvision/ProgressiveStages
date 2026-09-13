@@ -75,6 +75,25 @@ class LuckPermsInboundQueryTest {
         }
     }
 
+    @Test
+    void eligibilityHistoryIgnoresOrderingButDistinguishesContextsAndMissingObservations() {
+        var first = row(List.of("chef", "baker"), List.of("cook", "serve"), Map.of("world", List.of("overworld", "nether")));
+        var reordered = row(List.of("baker", "chef"), List.of("serve", "cook"), Map.of("world", List.of("nether", "overworld")));
+        var positive = new SubjectSnapshot(true, Set.of("chef", "baker"), Map.of("cook", PermissionValue.TRUE,
+            "serve", PermissionValue.TRUE), Map.of("world", Set.of("overworld")));
+        var observation = PermissionEligibility.observe(first, positive);
+        assertTrue(observation.eligible());
+        assertEquals(observation, PermissionEligibility.observe(reordered, positive));
+        var lost = new SubjectSnapshot(true, Set.of(), Map.of("cook", PermissionValue.FALSE,
+            "serve", PermissionValue.UNDEFINED), positive.contexts());
+        assertFalse(PermissionEligibility.observe(first, lost).eligible());
+        assertEquals(observation.fingerprint(), PermissionEligibility.observe(first, lost).fingerprint());
+        var otherWorld = new SubjectSnapshot(true, lost.groups(), lost.permissions(), Map.of("world", Set.of("nether")));
+        assertNotEquals(observation.fingerprint(), PermissionEligibility.observe(first, otherWorld).fingerprint());
+        assertNull(PermissionEligibility.observe(first, SubjectSnapshot.unavailable()));
+        assertNull(PermissionEligibility.observe(first, new SubjectSnapshot(true, Set.of(), Map.of(), Map.of())));
+    }
+
     private static LuckPermsStageOptions.InboundRule row(List<String> groups, List<String> permissions,
                                                          Map<String, List<String>> contexts) {
         return new LuckPermsStageOptions.InboundRule("chef", groups, permissions,
@@ -83,9 +102,7 @@ class LuckPermsInboundQueryTest {
 
     private static boolean matches(LuckPermsBridge bridge, LuckPermsStageOptions.InboundRule row,
                                     SubjectSnapshot snapshot) throws Exception {
-        var method = LuckPermsBridge.class.getDeclaredMethod("matches", UUID.class,
-            LuckPermsStageOptions.InboundRule.class, SubjectSnapshot.class);
-        method.setAccessible(true);
-        return (boolean) method.invoke(bridge, SUBJECT, row, snapshot);
+        var observation = bridge.observe(SUBJECT, row, snapshot);
+        return observation != null && observation.eligible() && LuckPermsBridge.contextMatches(row.contexts(), snapshot.contexts());
     }
 }

@@ -91,6 +91,7 @@ public final class StageRegressionHandler {
 
     private static void checkPlayer(ServerPlayer player) {
         if (player.server == null) return;
+        StageManager.getInstance().expirePermissionSources(player);
         Set<StageId> owned = StageManager.getInstance().getStages(player);
         if (owned.isEmpty()) return;
         StageRegressionData data = StageRegressionData.get(player.server);

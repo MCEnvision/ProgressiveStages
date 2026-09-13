@@ -147,8 +147,24 @@ and timed source episodes.
 If a stage is not granted, check the stage dependency and slot policy first. Permission
 reconciliation must not charge costs, run rewards, increment trigger counters, refresh expiry
 episodes or grant prerequisites. Current source tests cover missing prerequisites, purchase denial
-without an XP charge and unchanged repeated grants; complete episode behavior remains unverified.
-A synchronized source is removed after an authoritative loss; permanent and independent sources remain.
+without an XP charge and unchanged repeated grants. The [episode regression](../verification/luckperms-bridge.md#permission-episode-regression)
+adds durable revocation and expiry checks. A synchronized source is removed after an authoritative
+loss; permanent and independent sources remain subject to normal stage expiry and explicit revocation.
+
+A manually revoked permission stage stays revoked while the same eligibility remains positive.
+Reloading, reconnecting, changing retention or temporarily losing the provider does not cancel that
+suppression. `suppressed_episode` identifies this denial in permission capture. `expired_episode`
+identifies a completed timed grant. To rearm through LuckPerms, the bridge must observe the original
+independent conditions becoming false and then true in the same query contexts. A context change or
+an edited row alone is not evidence of rank loss. A deliberate administrative stage grant also clears
+suppression. Offline checks use fixed server contexts, so they cannot prove loss of an earlier
+world dependent eligibility. No new stage setting is needed.
+
+Do not delete `permission_episodes` to work around a denial. These records preserve revocation and
+expiry even when `stage_sources` no longer contains the grant. Unsupported episode schema versions
+disable progression mutations and retain the entire unreadable attachment on subsequent saves.
+Restore a compatible backup before changing progression. This also protects malformed ownership
+and source records; the server log reports that the original data is retained.
 
 ## Command gates
 

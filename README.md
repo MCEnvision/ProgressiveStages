@@ -363,6 +363,13 @@ Stage expiry and held duration checks use separate personal, team and server clo
 profession cannot overwrite a team clock even when their UUIDs match. Legacy team and server
 timestamps remain readable without copying them into personal ownership.
 
+Permission grants retain eligibility history after their source is removed. Manual revocation
+suppresses the current positive grant, and reloads, provider outages or context changes do not
+renew its timer. A confirmed loss and return of the same independent permission conditions, or a
+deliberate administrative grant, can start a new grant. Timed permanent grants still expire.
+The [episode verification record](docs/verification/luckperms-bridge.md#permission-episode-regression)
+distinguishes these core checks from the remaining real provider acceptance.
+
 After loading saved data, synchronized grants wait for authoritative revalidation. Independent and
 permanent grants remain available. Pending synchronized grants stay stored so they can be rechecked
 or explicitly revoked; they do not satisfy access checks while pending.

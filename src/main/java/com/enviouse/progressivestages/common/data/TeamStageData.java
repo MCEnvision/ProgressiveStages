@@ -4,6 +4,7 @@ import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.stage.OwnerKind;
 import com.enviouse.progressivestages.common.stage.OwnerRef;
 import com.enviouse.progressivestages.common.stage.PermissionStageSource;
+import com.enviouse.progressivestages.common.stage.PermissionEpisode;
 import com.enviouse.progressivestages.common.stage.StageSourceKind;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -34,7 +35,10 @@ public class TeamStageData {
             ).optionalFieldOf("personal_stages", Map.of()).forGetter(TeamStageData::serializePersonalStages)
             , Codec.unboundedMap(Codec.STRING,
                 Codec.unboundedMap(Codec.STRING, Codec.list(Codec.STRING)))
-                .optionalFieldOf("stage_sources", Map.of()).forGetter(TeamStageData::serializeSources)
+                .optionalFieldOf("stage_sources", Map.of()).forGetter(TeamStageData::serializeSources),
+            Codec.intRange(0, 1).optionalFieldOf("permission_episode_schema", 0).forGetter(value -> 1),
+            PermissionEpisode.CODEC.listOf().optionalFieldOf("permission_episodes", List.of())
+                .forGetter(value -> List.copyOf(value.permissionEpisodes.values()))
         ).apply(instance, TeamStageData::new)
     );
 
@@ -49,21 +53,53 @@ public class TeamStageData {
     private final java.util.NavigableMap<UUID, Set<PermissionContribution>> permissionContributions = new java.util.TreeMap<>();
     private record ActiveSource(SourceOwner owner, StageId stage, String label) {}
     private final Set<ActiveSource> activeSynchronizedSources = new HashSet<>();
+    private record EpisodeKey(OwnerRef owner, StageId stage, UUID subject, String row) {
+        private static EpisodeKey of(PermissionEpisode episode) {
+            return new EpisodeKey(episode.owner(), episode.stage(), episode.subject(), episode.row());
+        }
+    }
+    private record OwnerStage(OwnerRef owner, StageId stage) {}
+    private final Map<EpisodeKey, PermissionEpisode> permissionEpisodes = new HashMap<>();
+    private final Map<OwnerStage, Set<EpisodeKey>> ownerEpisodes = new HashMap<>();
+    private final NavigableMap<UUID, Set<EpisodeKey>> subjectEpisodes = new TreeMap<>();
     private int ownershipSchema = CURRENT_SCHEMA;
+    private net.minecraft.nbt.Tag unreadable;
+
+    static TeamStageData preserveUnreadable(net.minecraft.nbt.Tag tag) {
+        TeamStageData data = new TeamStageData();
+        data.unreadable = tag.copy();
+        return data;
+    }
+
+    net.minecraft.nbt.Tag unreadableTag() { return unreadable == null ? null : unreadable.copy(); }
+
+    private void requireReadable() {
+        if (unreadable != null) throw new IllegalStateException("Stage ownership data is unreadable. Restore a compatible backup before changing progression.");
+    }
 
     public TeamStageData() {}
 
     private TeamStageData(int schema, Map<String, List<ResourceLocation>> serialized,
                           Map<String, List<ResourceLocation>> serializedPersonal,
-                          Map<String, Map<String, List<String>>> serializedSources) {
+                          Map<String, Map<String, List<String>>> serializedSources, int episodeSchema,
+                          List<PermissionEpisode> episodes) {
+        if (episodeSchema == 0 && !episodes.isEmpty()) {
+            throw new IllegalArgumentException("Permission episodes require a schema version");
+        }
         ownershipSchema = schema;
         readStages(serialized, teamStages);
         readStages(serializedPersonal, personalStages);
         readSources(serializedSources);
         indexPermissionSources();
+        for (PermissionEpisode episode : episodes) {
+            if (permissionEpisodes.containsKey(EpisodeKey.of(episode))) {
+                throw new IllegalArgumentException("Duplicate permission episode");
+            }
+            putPermissionEpisode(episode);
+        }
     }
 
-    public int getOwnershipSchema() { return ownershipSchema; }
+    public int getOwnershipSchema() { requireReadable(); return ownershipSchema; }
 
     private static void readStages(Map<String, List<ResourceLocation>> serialized,
                                    Map<UUID, Set<StageId>> destination) {
@@ -173,7 +209,9 @@ public class TeamStageData {
     }
 
     public boolean grantStageFromSource(UUID teamId, StageId stageId, String source) {
-        if (source == null || source.isBlank()) return false;
+        requireReadable();
+        if (source == null || source.isBlank()
+            || permissionSourceBlocked(new OwnerRef(teamKind(teamId), teamId), stageId, source)) return false;
         ownershipSchema = CURRENT_SCHEMA;
         Set<StageId> stages = teamStages.computeIfAbsent(teamId, k -> new HashSet<>());
         if (stages.contains(stageId) && getSources(teamId, stageId).isEmpty()) {
@@ -189,6 +227,8 @@ public class TeamStageData {
      * @return true if the stage was revoked, false if didn't have it
      */
     public boolean revokeStage(UUID teamId, StageId stageId) {
+        requireReadable();
+        suppressPermissionEpisodes(new OwnerRef(teamKind(teamId), teamId), stageId);
         Set<StageId> stages = teamStages.get(teamId);
         if (stages != null) {
             boolean removed = stages.remove(stageId);
@@ -206,7 +246,9 @@ public class TeamStageData {
     }
 
     public boolean grantPersonalStageFromSource(UUID playerId, StageId stageId, String source) {
-        if (source == null || source.isBlank()) return false;
+        requireReadable();
+        if (source == null || source.isBlank()
+            || permissionSourceBlocked(new OwnerRef(OwnerKind.PERSONAL, playerId), stageId, source)) return false;
         ownershipSchema = CURRENT_SCHEMA;
         Set<StageId> stages = personalStages.computeIfAbsent(playerId, k -> new HashSet<>());
         if (stages.contains(stageId)
@@ -219,6 +261,8 @@ public class TeamStageData {
     }
 
     public boolean revokePersonalStage(UUID playerId, StageId stageId) {
+        requireReadable();
+        suppressPermissionEpisodes(new OwnerRef(OwnerKind.PERSONAL, playerId), stageId);
         Set<StageId> stages = personalStages.get(playerId);
         if (stages == null) return false;
         boolean removed = stages.remove(stageId);
@@ -265,8 +309,9 @@ public class TeamStageData {
     }
 
     private boolean sourceIsActive(OwnerRef owner, StageId stage, String source) {
-        return StageSourceKind.fromLabel(source) != StageSourceKind.LUCKPERMS_SYNCHRONIZED
-            || activeSynchronizedSources.contains(new ActiveSource(new SourceOwner(owner.kind(), owner.id()), stage, source));
+        return !permissionSourceBlocked(owner, stage, source)
+            && (StageSourceKind.fromLabel(source) != StageSourceKind.LUCKPERMS_SYNCHRONIZED
+                || activeSynchronizedSources.contains(new ActiveSource(new SourceOwner(owner.kind(), owner.id()), stage, source)));
     }
 
     public boolean revokeStageFromSource(UUID owner, StageId stageId, String source, boolean personal) {
@@ -275,6 +320,7 @@ public class TeamStageData {
     }
 
     public boolean revokeStageFromSource(OwnerRef owner, StageId stageId, String source) {
+        requireReadable();
         Objects.requireNonNull(owner, "owner");
         OwnerKind kind = owner.kind();
         Map<StageId, Set<String>> stages = stageSources.get(new SourceOwner(kind, owner.id()));
@@ -284,8 +330,9 @@ public class TeamStageData {
         updatePermissionIndex(kind, owner.id(), stageId, source, false);
         activeSynchronizedSources.remove(new ActiveSource(new SourceOwner(kind, owner.id()), stageId, source));
         if (sources.isEmpty()) {
-            if (kind == OwnerKind.PERSONAL) revokePersonalStage(owner.id(), stageId);
-            else revokeStage(owner.id(), stageId);
+            Set<StageId> owned = (kind == OwnerKind.PERSONAL ? personalStages : teamStages).get(owner.id());
+            if (owned != null) owned.remove(stageId);
+            removeSources(kind, owner.id(), stageId);
         }
         return true;
     }
@@ -308,8 +355,76 @@ public class TeamStageData {
     }
 
     public UUID nextPermissionSubject(UUID previous) {
-        return permissionContributions.isEmpty() ? null
+        UUID contribution = permissionContributions.isEmpty() ? null
             : previous == null ? permissionContributions.firstKey() : permissionContributions.higherKey(previous);
+        UUID episode = subjectEpisodes.isEmpty() ? null
+            : previous == null ? subjectEpisodes.firstKey() : subjectEpisodes.higherKey(previous);
+        return contribution == null ? episode : episode == null ? contribution
+            : contribution.compareTo(episode) < 0 ? contribution : episode;
+    }
+
+    public PermissionEpisode getPermissionEpisode(OwnerRef owner, StageId stage, PermissionStageSource source) {
+        return permissionEpisodes.get(new EpisodeKey(owner, stage, source.subject(), source.row()));
+    }
+
+    public boolean putPermissionEpisode(PermissionEpisode episode) {
+        requireReadable();
+        EpisodeKey key = EpisodeKey.of(episode);
+        PermissionEpisode previous = permissionEpisodes.put(key, episode);
+        ownerEpisodes.computeIfAbsent(new OwnerStage(key.owner(), key.stage()), ignored -> new HashSet<>()).add(key);
+        subjectEpisodes.computeIfAbsent(key.subject(), ignored -> new HashSet<>()).add(key);
+        return !episode.equals(previous);
+    }
+
+    public List<PermissionEpisode> getPermissionEpisodes(UUID subject) {
+        return subjectEpisodes.getOrDefault(subject, Set.of()).stream().map(permissionEpisodes::get).toList();
+    }
+
+    public void restorePermissionEpisodes(UUID subject, List<PermissionEpisode> episodes) {
+        requireReadable();
+        if (episodes.stream().anyMatch(episode -> !episode.subject().equals(subject))) {
+            throw new IllegalArgumentException("Permission episode rollback contains another subject");
+        }
+        for (EpisodeKey key : Set.copyOf(subjectEpisodes.getOrDefault(subject, Set.of()))) {
+            permissionEpisodes.remove(key);
+            OwnerStage owner = new OwnerStage(key.owner(), key.stage());
+            Set<EpisodeKey> entries = ownerEpisodes.get(owner);
+            entries.remove(key);
+            if (entries.isEmpty()) ownerEpisodes.remove(owner);
+        }
+        subjectEpisodes.remove(subject);
+        episodes.forEach(this::putPermissionEpisode);
+    }
+
+    public boolean suppressPermissionEpisodes(OwnerRef owner, StageId stage) {
+        requireReadable();
+        boolean changed = false;
+        for (String label : getSources(owner, stage)) {
+            var source = PermissionStageSource.parse(label);
+            if (source.isPresent() && getPermissionEpisode(owner, stage, source.get()) == null) {
+                changed |= putPermissionEpisode(new PermissionEpisode(owner, stage, source.get().subject(),
+                    source.get().row(), "", true, true, 0, 0));
+            }
+        }
+        for (EpisodeKey key : ownerEpisodes.getOrDefault(new OwnerStage(owner, stage), Set.of())) {
+            changed |= putPermissionEpisode(permissionEpisodes.get(key).suppress());
+        }
+        return changed;
+    }
+
+    public boolean allowPermissionEpisodes(OwnerRef owner, StageId stage) {
+        requireReadable();
+        boolean changed = false;
+        for (EpisodeKey key : ownerEpisodes.getOrDefault(new OwnerStage(owner, stage), Set.of())) {
+            changed |= putPermissionEpisode(permissionEpisodes.get(key).administrativeGrant());
+        }
+        return changed;
+    }
+
+    private boolean permissionSourceBlocked(OwnerRef owner, StageId stage, String label) {
+        var source = PermissionStageSource.parse(label);
+        PermissionEpisode episode = source.isEmpty() ? null : getPermissionEpisode(owner, stage, source.get());
+        return episode != null && (episode.suppressed() || episode.expired(System.currentTimeMillis()));
     }
 
     public Set<OwnerRef> deactivatePermissionSources(UUID subject) {
@@ -377,12 +492,14 @@ public class TeamStageData {
      * Set stages for a team (replaces existing)
      */
     public void setStages(UUID teamId, Set<StageId> stages) {
+        requireReadable();
         ownershipSchema = CURRENT_SCHEMA;
         teamStages.put(teamId, new HashSet<>(stages));
         pruneSources(teamKind(teamId), teamId, stages);
     }
 
     public void setPersonalStages(UUID playerId, Set<StageId> stages) {
+        requireReadable();
         ownershipSchema = CURRENT_SCHEMA;
         personalStages.put(playerId, new HashSet<>(stages));
         pruneSources(OwnerKind.PERSONAL, playerId, stages);
@@ -390,10 +507,18 @@ public class TeamStageData {
 
     private void pruneSources(OwnerKind kind, UUID owner, Set<StageId> retained) {
         SourceOwner sourceOwner = new SourceOwner(kind, owner);
+        for (OwnerStage key : Set.copyOf(ownerEpisodes.keySet())) {
+            if (key.owner().kind() == kind && key.owner().id().equals(owner) && !retained.contains(key.stage())) {
+                suppressPermissionEpisodes(key.owner(), key.stage());
+            }
+        }
         Map<StageId, Set<String>> sources = stageSources.get(sourceOwner);
         if (sources == null) return;
         for (StageId stage : Set.copyOf(sources.keySet())) {
-            if (!retained.contains(stage)) removeSources(kind, owner, stage);
+            if (!retained.contains(stage)) {
+                suppressPermissionEpisodes(new OwnerRef(kind, owner), stage);
+                removeSources(kind, owner, stage);
+            }
         }
     }
 
@@ -401,11 +526,13 @@ public class TeamStageData {
      * Remove all data for a team
      */
     public void removeTeam(UUID teamId) {
+        requireReadable();
         teamStages.remove(teamId);
         pruneSources(teamKind(teamId), teamId, Set.of());
     }
 
     public void removePersonal(UUID playerId) {
+        requireReadable();
         personalStages.remove(playerId);
         pruneSources(OwnerKind.PERSONAL, playerId, Set.of());
     }
@@ -448,6 +575,7 @@ public class TeamStageData {
      * Create a copy of this data
      */
     public TeamStageData copy() {
+        if (unreadable != null) return preserveUnreadable(unreadable);
         TeamStageData copy = new TeamStageData();
         copy.ownershipSchema = ownershipSchema;
         for (Map.Entry<UUID, Set<StageId>> entry : teamStages.entrySet()) {
@@ -461,6 +589,7 @@ public class TeamStageData {
             entry.getValue().forEach((stage, sources) -> stages.put(stage, new HashSet<>(sources)));
             copy.stageSources.put(entry.getKey(), stages);
         }
+        permissionEpisodes.values().forEach(copy::putPermissionEpisode);
         copy.indexPermissionSources();
         copy.activeSynchronizedSources.addAll(activeSynchronizedSources);
         return copy;

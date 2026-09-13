@@ -501,3 +501,117 @@ libraries symlink was removed without following it; shared libraries and the pac
 were preserved. All 12 registered scratch files and their unique temporary directory were
 removed after evidence extraction, with absence verified. No laptop client, browser, renderer,
 watcher or audio resource was created. The plan, immutable goal and phase cursor were unchanged.
+
+
+## Legacy FTB helper import on NeoForge 21.1.248
+
+Source commit `629738ab5973e3d0dc13b3f32a8400c9a904162b` imports existing defined helper stages
+into their original team namespace. It replaces the old online player polling bridge, which
+snapshotted existing helper records without importing them and routed later changes through
+acquisition grants or revocations. That bridge could copy a shared profession into personal
+ownership, replay rewards or remove independently earned progression.
+
+After definitions are ready and both FTB integrations are enabled, the adapter reads all native
+teams, including offline teams, and submits one import to StageManager. Defined IDs become
+independent team grants. Current personal or server scope masks those preserved team records;
+changing back to team scope can expose them again. Foreign undefined IDs remain native. The
+original helper properties are unchanged, and subsequent helper edits are not an ongoing source.
+New defined quest rewards use the native storage hooks described above.
+
+The attachment stores `ftb_helper_import_schema = 1` and the imported team/stage map in
+`ftb_helper_imports`. StageManager validates and copies data before installing grants and their
+receipt together on the server thread. The receipt remains after revoke or team removal. An
+empty import also persists completion. Migration publishes an owner change without executing
+acquisition costs, prerequisites, rewards or grant clock initialization. Unsupported receipt
+versions and invalid owner records use the existing protected loading boundary.
+
+### Native provider assertions and actual restarts
+
+The runtime was `build/legacy-ftb-import-verification` in the active Phase 003 checkout on
+`node-1`. Minecraft 1.21.1, Java 21 and NeoForge 21.1.248 remained pinned. The development launch
+used `forgeserverdev`, `--nogui`, loopback port 25589 and authentication. Each launch verified
+`eula=true`. The exact FTB Teams 2101.1.9, FTB Library 2101.1.30, FTB Quests 2101.1.21 and
+Architectury 13.0.8 binaries matched both recorded digests before copying. No provider binary
+was modified. No client or renderer was launched.
+
+Two initial fixture failures are excluded from passing evidence. On September 13, 2026,
+America/Chicago, server PID `742969` failed the scope restoration assertion at 04:51:54 because
+the fixture attempted to overwrite a definition with a duplicate registration that StageOrder
+rejects. The fixture now rebuilds the definition map and explicitly verifies its configured
+experience reward before checking reward suppression. Server PID `746390` then failed at
+04:53:57 because earlier fixture player team files survived restart. Teardown now calls the
+native team deletion operation after removing its two known player entries, rather than only
+removing in memory map entries. Both failed servers exited normally before their disposable
+world was removed. These changes strengthen the assertions and cleanup rather than relaxing them.
+
+Corrected server PID `750299` reached readiness at 04:56:08. The actual helper import regression
+passed at 04:56:41 and again at 04:57:09. It verifies shared access for two detached actors,
+personal and server scope isolation, preserved masked team records, exclusion of foreign IDs,
+independent provenance, no configured experience reward replay, unchanged grant clocks, one
+committed owner notification, scope rollback, NBT receipt persistence and no resurrection after
+revoke. The native team quest storage regression then passed at 04:57:56.
+
+The three process restart fixture uses an explicitly enabled step property and an isolated stage
+`progressivestages:legacy_restart` with `team_stage = true`. Its fixture TOML SHA256 was
+`87bc198f779c7e1eb1e18c855d4dae7f00d60e94b4280fdc771c326d333e46d8`.
+Preparation disabled only the cached integration flag for the remainder of that owned process,
+created an offline native server team with a helper grant, and saved the native team files and
+an unimported attachment. Preparation passed at 04:58:44. The same world was retained through
+both restarts without rebuilding its data or copying state through a test codec.
+
+Server PID `759940` reached readiness at 05:03:28 with normal integration configuration. Startup
+imported the disk backed native grant as independent team ownership. The verification revoked
+that grant, saved the world and checked that the original helper record remained. This step
+passed at 05:03:54. Server PID `761839` reached readiness at 05:04:24 and confirmed that the
+persisted receipt prevented the stale helper grant from restoring access, passing at 05:04:47.
+Both restart assertions also confirmed the earlier fixture player identities were absent from
+native provider storage. Every passing invocation checked a fresh lime block at `-1 179 2` and
+matching test metadata at `0 180 3` after the server console command. Missing step properties
+skip these specialized tests and must never count as restart proof.
+
+This supplies bounded migration evidence for SHARED-003 and BIN-AC-011D. It supersedes the
+previous native storage record's open helper import gap within this tested scope. Detached
+actors do not prove authenticated client synchronization, quest reward claim tracking or all
+team lifecycle operations. Final combined acceptance, default branch integration and the
+remaining provider and graphical gates remain open.
+
+### Build and packaged absence checks
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed with
+410 tests in 106 suites and zero failures, errors or skips. The corrected fixture build took
+11 seconds; the reviewed precommit build and postcommit packaged build each took four seconds.
+No separate formatter is configured, no data provider changed, and `git diff --check` passed.
+
+The packaged JAR has SHA256 `5b9f285e4b925343c32702a6dcf7ad5429485a749152e240581771bef04dbdd8` and SHA512 `b3e00158b1f333dab8c1e32f368b8cbffdacdfa0416f76b904de9be57fe0311801ac6c3c2a391b71f32055ecef6a399e31049cd3d9c2544efbbabc43419de336`.
+Its manifest records `Build-Commit: 629738ab5973e3d0dc13b3f32a8400c9a904162b` and `Build-Dirty: false`.
+All 776 project classes match compiled output, including the isolated restart fixture.
+Neither FTB nor LuckPerms API classes are bundled. GitHub verified the pushed source signature.
+
+After the FTB restart sequence finished, only the four hash verified runtime provider copies
+were removed and the packaged candidate was installed. With all optional providers absent,
+production server PID `765839` reached readiness at 05:06:18 and answered `time query gametime`
+at 05:07:07. This verifies dedicated server classloading with the packaged artifact, not client
+or full provider acceptance. The existing world remained disposable throughout the suite.
+
+Plan validation passed with plan set SHA256
+`42ce0478a1e4c96021c72d0152224d5d883c9d7728eb92475ca380e05b862854`.
+DEC-006 already pins the build and both runtime hosts to NeoForge 21.1.248. No plan amendment,
+goal change or cursor transition was needed. The validator intake and its directory were removed.
+
+
+### Legacy import suite cleanup
+
+The two failed fixture servers saved all dimensions at 04:53:05 and 04:54:40. The corrected
+migration server saved at 05:03:13, followed by the import restart at 05:04:04 and the revoke
+restart at 05:04:53. The packaged absence server saved at 05:07:30. All six server processes
+exited normally and were confirmed absent before
+cleanup. No process retained the owned runtime as its working directory, and loopback port
+25589 was free. Cleanup removed 880 new build paths and 13 new local Gradle paths,
+preserving all 836 preexisting build paths and 26 preexisting Gradle paths. The runtime libraries
+symlink was removed without following it. Shared libraries, the packaged candidate, existing
+runtime data outside this suite and unrelated checkouts were preserved.
+
+All 17 registered scratch files and their unique temporary directory were removed after their
+last evidence consumer, and absence was verified. No laptop client, browser, renderer, watcher
+or audio resources were created. The immutable goal, authoritative plan and active cursor remain
+unchanged. No default branch merge, phase tag, wiki publication or release occurred.

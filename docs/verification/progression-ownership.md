@@ -898,3 +898,82 @@ It does not prove authenticated player login, client payload delivery, visual be
 offline actor mutations, actual LuckPerms qualification, or the final combined laptop matrix.
 Those acceptance gates remain separate. The immutable goal, plan and active phase cursor did not
 change. No default branch merge, phase tag, wiki publication or release occurred in this increment.
+
+
+## Explicit actor query verification, September 13, 2026
+
+Source commit `fa021a59f355d9933bd0bab2e4e47cd82a35b418` adds `resolveActorOwner(UUID, StageId)` and
+`getActorSnapshot(UUID)` without changing legacy UUID team APIs. GitHub reports the signed source
+commit valid on `envy/3.0.5-phase-003`. This is supporting evidence for BIN-AC-011C,
+BIN-AC-011D and SHARED-007. General offline actor mutations and their acquisition effects remain
+unfinished under BIN-AC-011B; `mutateStage` still rejects an offline actor with `actor_offline`.
+
+The build and dedicated runtime used Minecraft 1.21.1, NeoForge 21.1.248 and Java 21 on `node-1`.
+The applicable checkout was `.phase-worktrees/phase-003` beneath the existing project anchor.
+The owned runtime was its ignored `build/actor-query-verification` child. No laptop client,
+browser, renderer or authenticated player was used. EULA acceptance was written and read back
+before each launch. The loopback listener belonged to the recorded server process. KubeJS's web
+server was disabled before startup, with no listener on its default port.
+
+### Runtime assertions
+
+The exact optional matrix remains FTB Teams 2101.1.9, FTB Library 2101.1.30, Architectury 13.0.8,
+KubeJS 2101.7.2-build.348 and Rhino 2101.2.7-build.81. Installed dependency hashes matched the
+previous artifact records. The actual script fixture SHA-256 was
+`bc4bb9f220b51179b14235372fb9a1d7dd5cbf381f3c12240ea12e46cbab2d4c`.
+
+| Test | Result and server local time |
+|---|---|
+| `explicitofflinequeriespreservesourcesandrejectunknownowners` | Passed at 06:14:32 and again at 06:16:23 |
+| `actualkubescriptsrespectpersonalteamandserverownership` | Passed before reload at 06:14:50 and after reload at 06:15:33 |
+| `nativeftbmembershippreservespersonalandsharedownership` | Passed at 06:15:59 |
+
+Each invocation cleared the previous test area and ran through the registered `test run` command
+at `0 180 0`. Fresh lime success glass and matching structure metadata independently identified
+each result. The controlled server reached readiness at 06:14:14. Cold loading and both script
+loads during the normal reload reported zero script errors or warnings. The complete controlled
+console contained no error or exception lines and stopped normally at 06:16:40 with exit code zero.
+
+The isolated query fixture proves personal, team and server source selection; separate personal
+and legacy team records with equal UUIDs; exclusion of persisted inactive synchronized sources;
+immutable prior snapshots; parity with the connected actor query; registered stage validation;
+and explicit failure when the offline team owner is unresolved. Successful and rejected queries
+leave persisted records, the mutation revision and committed notifications unchanged. Provider
+unavailability is injected only inside this isolated core fixture and restored afterward.
+
+The native FTB fixture separately proves offline query parity against the actual team provider,
+then a changed fresh snapshot and context after an actual party leave while the old snapshot stays
+unchanged. The script fixture calls both new UUID actor methods through Rhino in personal, team
+and server cases alongside existing player and legacy UUID calls. It retains the ordinary player
+objects and test transport boundary documented in [the script procedure](../test/kubejs.md).
+These results do not prove authenticated login, client synchronization, offline grants or provider
+permission qualification.
+
+### Build, artifact and teardown
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed in 16 seconds.
+The 106 unit suites reported 410 tests, zero failures, errors or skips. No formatter is configured;
+`git diff --check` passed. A test import compilation error was corrected before the successful
+build. The first development launch inherited closed standard input, so its startup was not
+counted as test acceptance; its exact owned process received termination and exited before the
+corrected terminal preserving launcher started.
+
+The postcommit build passed in four seconds. Its manifest records the source commit above and
+`Build-Dirty: false`. All 782 packaged project classes matched compiled bytes. The JAR contains
+no bundled FTB, KubeJS, Rhino or LuckPerms API classes.
+
+- JAR SHA-256: `5dda313ba518c31a6d06ea31254179ce45a4d9f5263295adfec168e4ad3598ef`.
+- JAR SHA-512: `75fdafc69713b10197c5e5ebe132a73031c34c05a8aa4dcd0d7e7fb19799f2dc3808a923b5604e2d6b9084b98e00f5778fe0da9811894092cc78c59c1397c8aa`.
+
+After removing only hash verified owned optional JAR copies, the packaged candidate alone reached
+dedicated readiness at 06:17:44. Its console returned game time 4365 at 06:18:06 and stopped normally
+at 06:18:13 with exit code zero. The production console contained no error or exception lines.
+
+Owned process IDs 867991, 869996 and 876461 were absent after their last consumers. The test port
+was free, and no process working directory remained below the owned runtime. Cleanup removed
+1081 newly created build paths and 8 local Gradle paths, restoring the exact 836 path build and
+26 path local Gradle baselines. The runtime was absent afterward. Only the two known FTB fixture
+tombstones were removed between repeated uses of those identities; final teardown removed the
+remaining owned world. Preexisting `run-248`, its shared libraries and the verified candidate JAR
+were preserved. Temporary logs, launch scripts and metadata were removed after this record was
+saved. The plan, immutable goal, cursor, historical phase branches and tags remained unchanged.

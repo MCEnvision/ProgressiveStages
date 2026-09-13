@@ -1,0 +1,36 @@
+# Purchase accounting regression
+
+`StagePurchaseGameTests.repeatedItemCostsRequireTheFullPaymentBeforeAnyMutation` exercises the
+real server purchase payload handler with a personal stage parsed from TOML. The cost contains
+two rows of four bread, two iron ingots, ten experience levels and a 50 percent refund.
+
+With four bread, two iron ingots and twenty levels, the request must leave every balance,
+stage ownership and purchase receipt unchanged. After adding four more bread, it must consume
+eight bread, both ingots and ten levels. Repeating the purchase must not charge again. Revocation
+returns four bread, one ingot and five levels once. A second definition with two maximum integer
+bread costs must remain unaffordable without overflowing its quantity calculation.
+
+The fixture verifies that TOML retains the repeated cost rows. It restores the original stage
+registry, owner attachment, purchase data, actor lookup, grant clocks and network runtime state
+in a `finally` block. It requires an isolated dedicated server without real players.
+
+Prepare the repository's no GUI `forgeserverdev` launch with Java 21, Minecraft 1.21.1 and
+NeoForge 21.1.248, enabling the `progressivestages` and `minecraft` GameTest namespaces. The
+production launch does not register these tests. Run each case separately on a cleared platform:
+
+```text
+fill -2 180 -2 12 215 15 air
+fill -2 179 -2 12 179 15 stone
+execute positioned 0 180 0 run test run repeateditemcostsrequirethefullpaymentbeforeanymutation
+```
+
+Verify the structure metadata names the intended test and inspect its success marker. Also run
+`refundsreturnonlytothepayeracrossofflinedelivery` and
+`serverpurchasespreservepayersandpersonalhistory` to protect payer isolation and stored refund
+terms across logout, saved data reload and definition changes. The GUI response regression
+protects shared purchase feedback without claiming client presentation from a captured packet.
+
+Stop the exact owned process and remove the disposable runtime and temporary build output after
+preserving required results in the [security review](../verification/3.0.5-security-review.md).
+These server assertions do not replace the separate laptop purchase presentation or real provider
+acceptance matrix.

@@ -2047,6 +2047,13 @@ refund_percent      = 50                                  # New in 3.0 — % of 
 | `cooldown` / `cooldown_seconds` | string / int | **New in 3.0.** Per-player **rate limit** between skill-tree purchases. Use either `cooldown_seconds = 300` or a friendly `cooldown = "5m"` (units `s`/`m`/`h`/`d`, bare number = minutes). `0` (default) = no cooldown. |
 | `refund_percent` | int | **New in 3.0.** Percentage (`0`–`100`) of this purchased stage's **item / XP cost** returned to the player when the stage is later **revoked**. `0` (default) = no refund. |
 
+Repeated item rows are cumulative. For example,
+`items = ["minecraft:bread:4", "minecraft:bread:4"]` requires eight bread, not four.
+The server checks each row against the quantity remaining after earlier rows before changing
+inventory, experience, stage ownership or purchase receipts. Insufficient payment rejects the
+whole purchase. Cost rows remain unchanged in the definition and receipt, preserving existing
+refund calculation and rounding. See the [purchase accounting regression](docs/test/purchase-accounting.md).
+
 **`cooldown` (New in 3.0).** A **per-player** minimum interval between
 skill-tree purchases, enforced **server-side**. While the cooldown is active the
 purchase is rejected and the player is told how many seconds remain. Set it as

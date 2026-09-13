@@ -544,8 +544,11 @@ public class NetworkHandler {
             return false;
         }
         if (player.experienceLevel < cost.xpLevels()) return false;
+        Map<ResourceLocation, Integer> remainingItems = new HashMap<>();
         for (var ic : cost.items()) {
-            if (countItem(player, ic.item()) < ic.count()) return false;
+            int remaining = remainingItems.computeIfAbsent(ic.item(), item -> countItem(player, item));
+            if (remaining < ic.count()) return false;
+            remainingItems.put(ic.item(), remaining - ic.count());
         }
         return purchaseCooldownRemainingMillis(player, cost) <= 0L;
     }

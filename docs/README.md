@@ -20,6 +20,7 @@ Use this page to find the maintained project documentation.
 - [Editor external file changes](test/editor-external-changes.md)
 - [Snapshot acknowledgement and recovery handlers](test/snapshot-acknowledgements.md)
 - [GUI response budget, opening intent and laptop verification](test/gui-responses.md)
+- [Purchase accounting and refunds](test/purchase-accounting.md)
 - [Selling Bin artifact manifest](verification/selling-bin-artifacts.json)
 - [Selling Bin client observations and image hashes](verification/selling-bin-client/observations.json)
 - [Progression ownership](verification/progression-ownership.md)

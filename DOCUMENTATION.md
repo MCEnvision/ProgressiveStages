@@ -5456,3 +5456,21 @@ restored before notifications. A changed transaction advances one revision and p
 with its captured recipients and committed revision; an unchanged transaction publishes nothing.
 The existing synchronized and permanent retention, suppression and expiry rules are unchanged.
 Actual offline provider loads and complete multiplayer recovery remain separate acceptance gates.
+
+## Frontend development checks
+
+The editor source lives in `editor-ui`. Use Node.js 22 and `npm ci` to install the exact
+lockfile. `npm run typecheck` delegates to `npm run check`, which executes `tsc --noEmit`.
+Both command names remain supported. The shared quality workflow recognizes `typecheck`
+and runs it before `npm test` and `npm run build`; a type error stops the check runner.
+
+Vitest runs the node and jsdom tests. Vite writes the production assets to
+`src/main/resources/assets/progressivestages/editor` for normal mod packaging. Edit the
+TypeScript and styles, then rebuild through this pipeline instead of modifying bundled files
+directly. A Vite build alone does not replace the TypeScript check. No dependency version or
+lockfile update is needed to use the additional command name.
+
+Frontend checks do not prove actual browser behavior or close dependency advisories. See the
+[3.0.5 acceptance record](docs/verification/3.0.5-acceptance.md#frontend-type-checking-in-ci)
+and [dependency assessment](docs/verification/3.0.5-dependency-review.md) for their separate
+evidence and remaining limits.

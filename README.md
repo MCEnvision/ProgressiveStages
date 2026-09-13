@@ -869,6 +869,21 @@ compat/
 
 ---
 
+## Building the editor
+
+Use Node.js 22 and the checked in lockfile. From `editor-ui`, run:
+
+```sh
+npm ci
+npm run typecheck
+npm test
+npm run build
+```
+
+`typecheck` runs the existing `check` script and is recognized by the shared quality workflow.
+The build updates the editor assets packaged with the mod. See the
+[frontend verification reference](DOCUMENTATION.md#frontend-development-checks).
+
 ## Documentation
 
 - Beginner walkthrough: [GETTING_STARTED.md](GETTING_STARTED.md).

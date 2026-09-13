@@ -42,12 +42,15 @@ committed changes or alter stored stages.
 
 ## Quest provider ownership
 
-When `integration.ftbquests.team_mode` is enabled, provider checks, grants and removals delegate
-only for team owned stages. Personal and server stages use the same ProgressiveStages owner
-for all three operations. A stale FTB helper record does not authorize a personal stage.
-Per player quest rewards can be claimed separately by teammates without copying one player's
-profession to another. Native FTB reward and task settings that explicitly use FTB team storage
-bypass the stage provider and remain a separate compatibility gate. See the
+Defined stages use their ProgressiveStages owner for quest checks, grants and removals,
+including native FTB team reward and team stage task settings. A stale FTB helper record cannot
+authorize a defined stage. The legacy `integration.ftbquests.team_mode` option applies only to
+helper reads and removals for undefined stages.
+
+Stage ownership and reward distribution are separate. A team reward may be claimable once by
+the quest team, but a personal profession goes only to its actual claimant. Use per player
+rewards if each teammate should claim their own profession. The storage hooks preserve saved
+quest settings and FTB's handling of undefined external stages. See the
 [actual provider verification](../verification/progression-ownership.md) for tested boundaries.
 
 ## Permission contributors

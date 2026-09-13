@@ -3782,7 +3782,7 @@ compatibility with existing configurations.
 | `integration.ftbteams.enabled` | `true` | Master toggle for FTB Teams integration |
 | `integration.ftbquests.enabled` | `true` | Master toggle for FTB Quests integration |
 | `integration.ftbquests.recheck_budget_per_tick` | `10` | Max stage-task rechecks per tick (1–100) |
-| `integration.ftbquests.team_mode` | `false` | Delegate team owned quest provider operations to FTB Teams' `TeamStagesHelper`; personal and server owners use the local backend |
+| `integration.ftbquests.team_mode` | `false` | Retain legacy helper reads and removals for undefined stages; all defined stages use ProgressiveStages ownership |
 
 ### 6.8 `[messages]`
 
@@ -4038,15 +4038,23 @@ FTB Quests' built-in Stage Tasks. This means:
   stage triggers recheck → recheck completes quest → quest grants stage →
   etc.).
 
-Stage provider checks resolve ownership before consulting the optional team helper, matching
-provider grants and removals. With `integration.ftbquests.team_mode = true`, a personal
-profession still checks only the actual player's entitlement, and a server stage checks the
-server entitlement. A stale shared helper record cannot authorize a personal profession.
-Separately claimed per player rewards create independent personal records for each claimant.
-The native reward and task fixture is recorded in the
-[ownership verification](docs/verification/progression-ownership.md). Native FTB rewards and
-tasks explicitly configured to use their own team storage bypass this provider; that separate
-route remains an open compatibility gate.
+Defined stages always use the ProgressiveStages owner backend for provider checks, grants and
+removals. Personal professions stay with the claimant, team stages use their resolved team,
+and server stages use the server entitlement. A stale FTB helper record cannot authorize a
+defined stage. The legacy `integration.ftbquests.team_mode` setting permits helper reads and
+removals for undefined stages; it does not create stage definitions or bypass their ownership.
+
+Native FTB team rewards and team stage tasks normally use `TeamStagesHelper` directly. Two
+optional mixins redirect only those storage choices for registered ProgressiveStages IDs.
+They preserve FTB's reward distribution and saved quest settings. A team reward can still be
+claimable only once for the quest team while its personal stage belongs only to the actual
+claimant. Configure a per player reward when each teammate should claim a profession separately.
+Undefined external stages retain FTB's native storage, and disabling the integration leaves
+that native route unchanged. Existing helper records are preserved without being imported into
+ProgressiveStages. Upgrade migration for defined stages stored only in that helper remains an
+acceptance gate; the new routing is not proof that old quest entitlements have migrated. The exact native reward and task coverage, including remaining
+client acceptance boundaries, is recorded in the
+[ownership verification](docs/verification/progression-ownership.md).
 
 ### 9.2 As a stage-reward backend
 

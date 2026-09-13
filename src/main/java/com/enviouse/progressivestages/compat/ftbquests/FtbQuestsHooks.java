@@ -66,6 +66,12 @@ public final class FtbQuestsHooks {
 
     private FtbQuestsHooks() {}
 
+    public static boolean usesNativeTeamStorage(String stage) {
+        if (!com.enviouse.progressivestages.common.config.StageConfig.isFtbQuestsIntegrationEnabled()) return true;
+        StageId stageId = stage == null ? null : StageId.tryParse(stage.trim());
+        return stageId == null || !ProgressiveStagesAPI.stageExists(stageId);
+    }
+
     /**
      * Register ProgressiveStages as the FTB Library stage provider.
      *
@@ -218,6 +224,7 @@ public final class FtbQuestsHooks {
         // Use the same owner boundary as quest grants and removals.
         if (player instanceof ServerPlayer serverPlayer
                 && com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()
+                && usesNativeTeamStorage(stage)
                 && com.enviouse.progressivestages.common.stage.StageOwnership.isTeamOwned(serverPlayer, stageId)) {
             Boolean delegated = teamStagesHelperHas(serverPlayer, stage);
             if (delegated != null) {
@@ -360,8 +367,9 @@ public final class FtbQuestsHooks {
             return;
         }
 
-        // TeamStagesHelper is used only when this stage actually resolves to a team owner.
+        // Defined stages retain the authoritative owner backend.
         if (com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()
+                && usesNativeTeamStorage(stage)
                 && com.enviouse.progressivestages.common.stage.StageOwnership.isTeamOwned(player, stageId)) {
             Boolean delegated = teamStagesHelperAdd(player, stage.trim());
             if (delegated != null) {
@@ -403,6 +411,7 @@ public final class FtbQuestsHooks {
 
         LOGGER.info("[ProgressiveStages] FTB Provider remove() - normalized to: '{}'", stageId);
         if (com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()
+                && usesNativeTeamStorage(stage)
                 && com.enviouse.progressivestages.common.stage.StageOwnership.isTeamOwned(player, stageId)) {
             Boolean delegated = teamStagesHelperRemove(player, stage.trim());
             if (delegated != null) {

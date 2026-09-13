@@ -15,7 +15,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * v2.5: loads stage definitions shipped INSIDE datapacks, from
@@ -30,7 +29,6 @@ public final class DatapackStageLoader extends SimplePreparableReloadListener<Ma
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String DIR = "progressivestages/stages";
-    private static final Pattern STAGE_HEADER = Pattern.compile("(?m)^\\s*\\[stage]\\s*(?:#.*)?$");
 
     @Override
     protected Map<StageId, StageDefinition> prepare(ResourceManager resourceManager, ProfilerFiller profiler) {
@@ -72,7 +70,7 @@ public final class DatapackStageLoader extends SimplePreparableReloadListener<Ma
         }
 
         for (Map.Entry<ResourceLocation, String> entry : contents.entrySet()) {
-            if (consumed.contains(entry.getKey()) || !STAGE_HEADER.matcher(entry.getValue()).find()) continue;
+            if (consumed.contains(entry.getKey()) || !StagePackageDiscovery.hasStageDefinition(entry.getValue())) continue;
             String path = entry.getKey().getPath();
             String fileName = path.substring(path.lastIndexOf('/') + 1);
             StageFileParser.ParseResult parsed = StageFileParser.parseText(

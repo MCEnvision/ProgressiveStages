@@ -4,6 +4,8 @@ import com.enviouse.progressivestages.common.rehaul.LegacyStageCompiler;
 import com.enviouse.progressivestages.common.rehaul.RuleEffect;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,6 +19,49 @@ class StagePackageParserTest {
 
     @TempDir
     Path temporaryDirectory;
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "[\"stage\"]\nid = 'chef'\n",
+        "['stage']\nid = 'chef'\n",
+        "[ \"sta\\u0067e\" ] # Identity.\nid = 'chef'\n",
+        "stage.id = 'chef'\n",
+        "stage = { id = 'chef' }\n"
+    })
+    void discoversEverySupportedStageTableSpelling(String text) throws Exception {
+        Path file = temporaryDirectory.resolve("chef.toml");
+        Files.writeString(file, text);
+        var discovered = StagePackageDiscovery.discover(temporaryDirectory);
+        assertEquals(java.util.List.of(file), discovered.legacyFiles());
+        assertTrue(discovered.ignoredFiles().isEmpty());
+        var parsed = StageFileParser.parseWithErrors(file);
+        assertTrue(parsed.isSuccess(), parsed::getErrorMessage);
+    }
+
+    @Test
+    void ignoresStageHeadersInsideMultilineValues() throws Exception {
+        Path file = temporaryDirectory.resolve("notes.toml");
+        Files.writeString(file, "notes = \"\"\"\n[stage]\nid = 'not_a_stage'\n\"\"\"\n");
+        var discovered = StagePackageDiscovery.discover(temporaryDirectory);
+        assertTrue(discovered.legacyFiles().isEmpty());
+        assertEquals(java.util.List.of(file), discovered.ignoredFiles());
+    }
+
+    @Test
+    void retainsMalformedStageCandidatesForValidation() throws Exception {
+        Path file = temporaryDirectory.resolve("broken.toml");
+        Files.writeString(file, "[\"stage\"]\nid = \"unfinished\n");
+        var discovered = StagePackageDiscovery.discover(temporaryDirectory);
+        assertEquals(java.util.List.of(file), discovered.legacyFiles());
+        assertFalse(StageFileParser.parseWithErrors(file).isSuccess());
+    }
+
+    @Test
+    void retainsEmptyStageTablesAndIgnoresMalformedHelpers() {
+        assertTrue(StagePackageDiscovery.hasStageDefinition("[\"stage\"]\n"));
+        assertFalse(StagePackageDiscovery.hasStageDefinition("value = \"unfinished\n"));
+        assertFalse(StagePackageDiscovery.hasStageDefinition("[\"stage.extra\"]\nid = 'helper'\n"));
+    }
 
     @Test
     void discoversPackagesLegacyStagesAndIgnoresHelperToml() throws Exception {

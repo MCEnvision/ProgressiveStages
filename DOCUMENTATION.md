@@ -4791,6 +4791,12 @@ preserve omitted settings when their effective value is unchanged. Unterminated 
 guided mutation instead of guessing the next table boundary. Nested fields inside a general
 inline value still require source editing; context maps support their dedicated inline editor.
 
+Config and datapack discovery use parsed TOML to recognize stage definitions rather than a
+literal header match. Quoted and escaped stage keys, dotted assignments, and inline stage
+tables reach the normal domain parser. A header printed inside a valid multiline string does
+not create a stage. Malformed candidate declarations are retained for normal syntax diagnostics;
+unrelated helper files and hidden archives retain their discovery exclusions.
+
 `luckperms.enabled` and command `descendants` require actual TOML booleans. Inbound `groups` and
 `permissions` require arrays containing only strings. Omitted fields retain their documented
 true, false or empty defaults. The normal domain validation still rejects unsupported modes,

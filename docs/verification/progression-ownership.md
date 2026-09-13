@@ -312,3 +312,95 @@ consumer, with absence verified. No laptop resource, browser, client, renderer, 
 audio stream was created by this suite. The laptop capability inspection was read only and
 created no files or processes. The saved goal, phase cursor and authoritative plan stayed
 unchanged.
+
+
+## Native quest provider ownership regression on NeoForge 21.1.248
+
+Source commit `6928148c0565940c37c47f8e786b84068aad0db1` fixes a mismatch in the registered
+FTB Library stage provider. With `integration.ftbquests.team_mode = true`, grants and removals
+already resolved stage ownership before delegating to `TeamStagesHelper`, but checks delegated
+unconditionally. An actual per player quest reward could grant a personal profession that its
+stage task then rejected. Conversely, a stale shared helper record could authorize a profession
+that the player did not own. Checks now resolve ownership using the same boundary as grants and
+removals. Personal and server stages use ProgressiveStages; team owned stages retain delegation.
+
+### Actual provider fixture and scope
+
+The fixture uses FTB Quests 2101.1.21 `StageReward.claim` and `StageTask.canSubmit` with the
+actual registered `StageHelper` provider, a native FTB party and two detached server test players.
+It explicitly configures `team_reward = false` and leaves `team_stage` false. Each player claims
+the same per player reward separately. Assertions cover independent personal entitlements,
+claimant only removal, a stale shared helper record that must not authorize the personal stage,
+and server scope grant, check and removal across both actors. This is server provider evidence
+for BIN-AC-011D, not authenticated reward claim packets, player UI, full quest completion,
+client synchronization, script integration or the native FTB team storage route. Native rewards
+and tasks configured to use FTB team storage bypass the provider and remain an open gate.
+
+The fixture snapshots and restores the native quest team data map in addition to the membership
+fixture's existing owner data, definitions and clocks. It restores the temporary quest team mode
+setting in `finally`. Quest definitions are constructed only for the fixture and are not added to
+the saved quest definition collection. Provider binaries are unmodified.
+
+The FTB Teams, Library and Architectury versions, SHA256 and SHA512 values match the preceding
+native membership artifact table. The additional artifact is
+[ftb-quests-neoforge 2101.1.21](https://maven.ftb.dev/releases/dev/ftb/mods/ftb-quests-neoforge/2101.1.21/ftb-quests-neoforge-2101.1.21.jar),
+licensed All Rights Reserved. SHA256 `8559d32d03be276b156f843c8d56539668545c379462e557a9642370662cc294`.
+SHA512 `0ed6f2325db700a790ae856cc5da29ffb07118da1e711edc1f93b6218890f2d6d5a81f8dde86d45c0278e93082ec040e4967733bc54a5b7244524307d5201a34`.
+Its required NeoForge, Minecraft, Architectury, Library and Teams ranges admit this exact matrix;
+FTB XMod Compat is optional. ZIP integrity passed, with no nested JAR or native library. Bounded
+bytecode inspection found a direct Java network reference in the client quest description field
+and no `ProcessBuilder` reference. This is not a comprehensive third party security audit.
+No provider binary is redistributed.
+
+### Reproduction, correction and packaged smoke
+
+All times below are September 13, 2026, America/Chicago. The owned headless runtime was
+`build/quest-ownership-verification` in the active Phase 003 checkout on `node-1`, using Java 21,
+Minecraft 1.21.1 and NeoForge 21.1.248. The inspected development launch used `forgeserverdev`
+and `--nogui`. Each launch verified `eula=true`, preserved authentication and used only loopback
+port 25589. No client, renderer or desktop was launched.
+
+The baseline compiled the new regression before applying the production correction. Server PID
+`679702` reached readiness at 04:11:50. The actual reward granted the personal stage, then the
+quest check failed at 04:11:58 with
+`Quest stage checks must use personal ownership even with quest team mode enabled.`
+The provider log showed the incorrect `TeamStagesHelper=false` lookup. This baseline is failed
+evidence. All dimensions saved at 04:12:27 and the process exited before its owned world was
+removed for the corrected run.
+
+Corrected server PID `686642` reached readiness at 04:14:48. Two invocations of
+`execute positioned 0 180 0 run test run nativequestrewardsandchecksrespectpersonalownership`
+passed at 04:18:57 and 04:19:25. The existing
+`nativeftbmembershippreservespersonalandsharedownership` regression then passed at 04:19:54
+with Quests installed. Each invocation cleared its fixture area and verified both a fresh lime
+success marker at `-1 179 2` and matching structure metadata at `0 180 3`. All dimensions saved
+at 04:20:06 and the process exited normally.
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed for the
+corrected source, including 407 unit tests in 106 suites with zero failures, errors or skips.
+The final precommit build took 13 seconds; the postcommit packaged `build` took five seconds.
+No separate formatter is configured, no resource provider changed, and `git diff --check` passed.
+
+The packaged JAR has SHA256 `3d93fd6e4cf325a386323f9589c63c4ad5e2045d043bdb7c36ed7593d46e070f` and SHA512 `fc128151ce38befac227b524ef868e72a8d3b52b70a08aeea95745498b5839d64f4af4e7183f5fa1a4d53a350184efbbe74b6f86575238a285a609a36ddc6e45`.
+Its manifest records `Build-Commit: 6928148c0565940c37c47f8e786b84068aad0db1` and
+`Build-Dirty: false`. All 770 project classes match compiled output, and no FTB or LuckPerms
+API classes are bundled. Production server PID `696092` launched that JAR with all optional
+providers absent and reached readiness at 04:21:00. It answered `time query gametime` at
+04:21:09. An additional capture status command used an invalid command path and was rejected;
+no capture status evidence is claimed from it. The signed source commit was pushed and GitHub
+verified its signature. Full provider compatibility, final combined acceptance, default branch
+integration, phase tag, wiki publication and release remain unclaimed.
+
+
+### Quest provider suite cleanup
+
+The packaged server saved all dimensions at 04:22:05 and exited normally. All three
+recorded server processes were absent, no process retained the owned runtime as its working
+directory, and loopback port 25589 was free. Cleanup removed 1227 new build paths and
+13 new local Gradle paths, preserving all 836 preexisting build paths and 26 preexisting
+local Gradle paths. The runtime libraries symlink was removed without following it, preserving
+the shared libraries target and packaged candidate. All 12 registered scratch files were removed
+after evidence extraction, and the unique temporary directory was verified absent. No laptop,
+browser, client, renderer, watcher or audio resources were created. Plan validation passed with
+plan set SHA256 `42ce0478a1e4c96021c72d0152224d5d883c9d7728eb92475ca380e05b862854`;
+the validator intake was removed. The plan, immutable goal and phase cursor remained unchanged.

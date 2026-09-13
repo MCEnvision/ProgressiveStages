@@ -11,7 +11,7 @@ public final class InMemoryLuckPermsAdapter implements LuckPermsAdapter {
     private final Map<UUID, Set<String>> externalGroups = new LinkedHashMap<>();
     private final Map<UUID, Map<String, PermissionValue>> externalPermissions = new LinkedHashMap<>();
     private final Map<UUID, Map<NodeSpec, Set<String>>> transientNodes = new LinkedHashMap<>();
-    private final Map<UUID, Map<String, String>> contexts = new LinkedHashMap<>();
+    private final Map<UUID, Map<String, Set<String>>> contexts = new LinkedHashMap<>();
     private final Set<String> knownGroups = new LinkedHashSet<>();
     private State state = State.READY;
 
@@ -26,13 +26,18 @@ public final class InMemoryLuckPermsAdapter implements LuckPermsAdapter {
         return this;
     }
     public InMemoryLuckPermsAdapter context(UUID player, String key, String value) {
-        contexts.computeIfAbsent(player, ignored -> new LinkedHashMap<>()).put(key, value);
+        contexts.computeIfAbsent(player, ignored -> new LinkedHashMap<>()).put(key, Set.of(value));
         return this;
     }
     public InMemoryLuckPermsAdapter state(State value) { state = value == null ? State.FAILED : value; return this; }
 
     @Override public State state() { return state; }
     @Override public SubjectSnapshot snapshot(UUID player) {
+        if (state != State.READY) return SubjectSnapshot.unavailable();
+        return new SubjectSnapshot(true, externalGroups.getOrDefault(player, Set.of()),
+            externalPermissions.getOrDefault(player, Map.of()), contexts.getOrDefault(player, Map.of()));
+    }
+    public SubjectSnapshot effectiveSnapshot(UUID player) {
         if (state != State.READY) return SubjectSnapshot.unavailable();
         Set<String> groups = new LinkedHashSet<>(externalGroups.getOrDefault(player, Set.of()));
         Map<String, PermissionValue> permissions = new LinkedHashMap<>(externalPermissions.getOrDefault(player, Map.of()));
@@ -45,6 +50,9 @@ public final class InMemoryLuckPermsAdapter implements LuckPermsAdapter {
     }
     @Override public PermissionValue permission(UUID player, String node) {
         return snapshot(player).permissions().getOrDefault(node, PermissionValue.UNDEFINED);
+    }
+    public PermissionValue effectivePermission(UUID player, String node) {
+        return effectiveSnapshot(player).permissions().getOrDefault(node, PermissionValue.UNDEFINED);
     }
     @Override public boolean groupExists(String group) { return knownGroups.contains(group); }
     @Override public MutationResult addTransient(UUID player, NodeKind kind, String value,
@@ -75,6 +83,6 @@ public final class InMemoryLuckPermsAdapter implements LuckPermsAdapter {
 
     private boolean contextMatches(UUID player, NodeSpec node) {
         return node.contexts().entrySet().stream().allMatch(entry ->
-            entry.getValue().equals(contexts.getOrDefault(player, Map.of()).get(entry.getKey())));
+            contexts.getOrDefault(player, Map.of()).getOrDefault(entry.getKey(), Set.of()).contains(entry.getValue()));
     }
 }

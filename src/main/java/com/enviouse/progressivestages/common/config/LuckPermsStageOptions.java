@@ -154,12 +154,16 @@ public final class LuckPermsStageOptions {
         if (values == null || values.isEmpty()) return Map.of();
         if (values.size() > MAX_CONTEXT_KEYS) throw new IllegalArgumentException("Too many LuckPerms context keys");
         Map<String, List<String>> result = new LinkedHashMap<>();
+        java.util.Set<String> normalizedKeys = new java.util.HashSet<>();
         for (var entry : values.entrySet()) {
             String key = entry.getKey();
             if (key == null || key.isBlank() || key.length() > 256
                     || !key.matches("[A-Za-z0-9_.:-]{1,256}")
-                    || key.startsWith("progressivestages_bridge")) {
+                    || key.toLowerCase(java.util.Locale.ROOT).startsWith("progressivestages_bridge")) {
                 throw new IllegalArgumentException("Invalid or reserved LuckPerms context key");
+            }
+            if (!normalizedKeys.add(key.toLowerCase(java.util.Locale.ROOT))) {
+                throw new IllegalArgumentException("Duplicate LuckPerms context key ignoring case");
             }
             List<String> list = normalizeValues(entry.getValue(), "context " + key);
             if (list.isEmpty()) throw new IllegalArgumentException("A LuckPerms context key requires a value");

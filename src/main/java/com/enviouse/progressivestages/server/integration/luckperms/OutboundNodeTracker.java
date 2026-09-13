@@ -63,7 +63,4 @@ final class OutboundNodeTracker {
         return complete;
     }
 
-    boolean containsValue(UUID subject, String value) {
-        return owned.getOrDefault(subject, Map.of()).values().stream().anyMatch(node -> node.value().equals(value));
-    }
 }

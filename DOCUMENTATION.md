@@ -2871,8 +2871,8 @@ The current exact runtime candidate, LuckPerms 5.4.140, fails actual player logi
 ProgressiveStages is absent. The [dependency only verification](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
 records the failure. A separate [adapter source audit](docs/verification/luckperms-bridge.md#adapter-source-audit)
 also found persistent writes, incomplete context isolation, ownership and cleanup defects in
-ProgressiveStages. The outbound storage and reference repair below addresses part of that audit;
-context isolation and complete provider lifecycle acceptance remain open. The configuration
+ProgressiveStages. The outbound storage, reference and query repairs below address part of that audit;
+real provider context isolation and complete lifecycle acceptance remain open. The configuration
 below describes the accepted schema and intended runtime contract, not verified provider behavior.
 
 LuckPerms is an optional server integration. A stage may read inherited groups or true Boolean
@@ -2922,9 +2922,24 @@ Logout attempts to remove that subject's output. Shutdown cleans tracked and pen
 before dropping provider access. Incomplete cleanup reports a warning and retains the adapter and
 references; a later bind cannot silently replace them. Mutation diagnostics distinguish applied,
 unavailable, conflict and failed outcomes. These paths have isolated API and core regression
-coverage. Actual provider node behavior, marker invalidation, contextual inbound queries, explicit
-negative precedence, offline reconciliation and the complete lifecycle matrix remain unverified.
-The current noncontextual query and value based input exclusion still require repair.
+coverage. Actual provider node behavior, marker invalidation, explicit negative precedence,
+offline reconciliation and the complete lifecycle matrix remain unverified.
+
+`LuckPermsQueries` builds contextual queries from the loaded user's current provider query options,
+falling back to authoritative static options for a loaded offline user. It removes the reserved
+bridge marker while preserving other contexts, every value per key, and query flags. Group and
+permission queries use this policy without enumerating the permission tree or starting a user
+load. Inbound matching no longer rejects an independently held group merely because an outbound
+row names the same group. Context matching uses AND across keys and OR across values, with the
+provider's case insensitive context semantics. Configuration retains its original casing, but
+reserved marker aliases and duplicate keys differing only in case are rejected.
+
+Permission results distinguish unavailable data from authoritative TRUE, FALSE and UNDEFINED.
+Only ready TRUE results qualify inbound. An independent FALSE result or unavailable query prevents
+positive outbound publication and withdraws an existing contribution through the owned tracker.
+A ready UNDEFINED result permits the configured positive contribution. Core server fixtures verify
+these decisions and recovery with a controlled adapter. They do not prove actual LuckPerms negative
+precedence, inherited exclusion or marker activation. The real provider prerequisite remains open.
 
 `command_permissions` is evaluated inside Minecraft's command execution tasks after redirects.
 `ExecuteCommandMixin` checks ordinary execution immediately before `ContextChain.runExecutable`;

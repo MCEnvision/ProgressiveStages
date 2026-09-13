@@ -19,10 +19,10 @@ class LuckPermsBridgeShutdownTest {
             var node = new NodeSpec(NodeKind.GROUP, "chef", Map.of());
             assertTrue(tracker(bridge).reconcile(subject, Map.of("first", node, "second", node), adapter,
                 (owner, adding, result) -> {}));
-            assertTrue(adapter.snapshot(subject).groups().contains("chef"));
+            assertTrue(adapter.effectiveSnapshot(subject).groups().contains("chef"));
             bridge.shutdown();
-            assertFalse(adapter.snapshot(subject).groups().contains("chef"));
-            assertTrue(adapter.snapshot(subject).groups().contains("external"));
+            assertFalse(adapter.effectiveSnapshot(subject).groups().contains("chef"));
+            assertTrue(adapter.effectiveSnapshot(subject).groups().contains("external"));
         } finally {
             bridge.shutdown();
         }
@@ -43,7 +43,7 @@ class LuckPermsBridgeShutdownTest {
             assertThrows(IllegalStateException.class, () -> bridge.setAdapterForTests(new InMemoryLuckPermsAdapter()));
             adapter.state(State.READY);
             bridge.shutdown();
-            assertEquals(PermissionValue.UNDEFINED, adapter.permission(subject, "home.set"));
+            assertEquals(PermissionValue.UNDEFINED, adapter.effectivePermission(subject, "home.set"));
             bridge.setAdapterForTests(new InMemoryLuckPermsAdapter());
         } finally {
             adapter.state(State.READY);

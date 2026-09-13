@@ -4,12 +4,7 @@ import com.mojang.logging.LogUtils;
 import net.neoforged.fml.ModList;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /** optional luckperms adapter with guarded provider access. */
@@ -17,10 +12,9 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     private static final Logger LOGGER = LogUtils.getLogger();
     private Object api;
     private final GroupAvailabilityCache groupAvailability = new GroupAvailabilityCache();
-    private Method getUser;
+    private LuckPermsQueries queries;
     private LuckPermsTransientNodes transientNodes;
     private boolean closing;
-    private Class<?> queryOptionsClass;
 
     static ReflectiveLuckPermsAdapter create() {
         ReflectiveLuckPermsAdapter adapter = new ReflectiveLuckPermsAdapter();
@@ -33,9 +27,8 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
         try {
             Class<?> provider = Class.forName("net.luckperms.api.LuckPermsProvider");
             api = provider.getMethod("get").invoke(null);
-            getUser = Class.forName("net.luckperms.api.model.user.UserManager").getMethod("getUser", UUID.class);
+            queries = new LuckPermsQueries(api);
             transientNodes = new LuckPermsTransientNodes(api);
-            queryOptionsClass = Class.forName("net.luckperms.api.query.QueryOptions");
         } catch (ReflectiveOperationException | LinkageError exception) {
             LOGGER.warn("luckperms integration is unavailable", exception);
             api = null;
@@ -50,52 +43,30 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
 
     @Override
     public SubjectSnapshot snapshot(UUID player) {
-        if (api == null || player == null) return SubjectSnapshot.unavailable();
+        if (api == null || closing || player == null) return SubjectSnapshot.unavailable();
         try {
-            Object user = getUser.invoke(api.getClass().getMethod("getUserManager").invoke(api), player);
-            if (user == null) return SubjectSnapshot.unavailable();
-            Object query = queryOptionsClass.getMethod("nonContextual").invoke(null);
-            Object cached = user.getClass().getMethod("getCachedData").invoke(user);
-            Object permissions = cached.getClass().getMethod("getPermissionData", queryOptionsClass).invoke(cached, query);
-            Set<String> groups = new LinkedHashSet<>();
-            Object inherited = user.getClass().getMethod("getInheritedGroups", queryOptionsClass).invoke(user, query);
-            if (inherited instanceof Collection<?> collection) {
-                for (Object group : collection) {
-                    Object name = group.getClass().getMethod("getName").invoke(group);
-                    if (name != null) groups.add(String.valueOf(name));
-                }
-            }
-            Map<String, PermissionValue> values = new LinkedHashMap<>();
-            Map<String, String> contexts = new LinkedHashMap<>();
-            Object contextSet = queryOptionsClass.getMethod("context").invoke(query);
-            Object flattened = contextSet.getClass().getMethod("toFlattenedMap").invoke(contextSet);
-            if (flattened instanceof Map<?, ?> map) {
-                for (var entry : map.entrySet()) contexts.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
-            }
-            return new SubjectSnapshot(true, groups, values, contexts);
-        } catch (ReflectiveOperationException | RuntimeException exception) {
-            LOGGER.debug("unable to read luckperms user", exception);
+            return queries.snapshot(player);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.debug("Unable to read independent LuckPerms contexts and groups", exception);
             return SubjectSnapshot.unavailable();
         }
     }
 
     @Override
     public PermissionValue permission(UUID player, String node) {
-        if (api == null || player == null || node == null || node.isBlank()) return PermissionValue.UNDEFINED;
+        return permissionResult(player, node).value();
+    }
+
+    @Override
+    public PermissionResult permissionResult(UUID player, String node) {
+        if (api == null || closing || player == null || node == null || node.isBlank()) {
+            return PermissionResult.unavailable();
+        }
         try {
-            Object users = api.getClass().getMethod("getUserManager").invoke(api);
-            Object user = getUser.invoke(users, player);
-            if (user == null) return PermissionValue.UNDEFINED;
-            Object query = queryOptionsClass.getMethod("nonContextual").invoke(null);
-            Object cached = user.getClass().getMethod("getCachedData").invoke(user);
-            Object permissions = cached.getClass().getMethod("getPermissionData", queryOptionsClass).invoke(cached, query);
-            Object result = permissions.getClass().getMethod("checkPermission", String.class).invoke(permissions, node);
-            String value = String.valueOf(result).toUpperCase(java.util.Locale.ROOT);
-            if (value.contains("TRUE")) return PermissionValue.TRUE;
-            if (value.contains("FALSE")) return PermissionValue.FALSE;
-            return PermissionValue.UNDEFINED;
-        } catch (ReflectiveOperationException | RuntimeException exception) {
-            return PermissionValue.UNDEFINED;
+            return queries.permission(player, node);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.debug("Unable to read an independent LuckPerms permission", exception);
+            return PermissionResult.unavailable();
         }
     }
 

@@ -105,8 +105,8 @@ class OutboundNodeTrackerTest {
         boolean removeFails;
         boolean addFailsAfterWrite;
         @Override public State state() { return delegate.state(); }
-        @Override public SubjectSnapshot snapshot(UUID subject) { return delegate.snapshot(subject); }
-        @Override public PermissionValue permission(UUID subject, String value) { return delegate.permission(subject, value); }
+        @Override public SubjectSnapshot snapshot(UUID subject) { return delegate.effectiveSnapshot(subject); }
+        @Override public PermissionValue permission(UUID subject, String value) { return delegate.effectivePermission(subject, value); }
         @Override public boolean groupExists(String group) { return delegate.groupExists(group); }
         @Override public MutationResult addTransient(UUID subject, NodeKind kind, String value,
                                                       Map<String, String> contexts, String owner) {

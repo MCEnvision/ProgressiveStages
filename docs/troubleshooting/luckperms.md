@@ -9,8 +9,9 @@ ProgressiveStages absent. See the [provider login evidence](../verification/luck
 Successful server startup alone does not establish compatibility. The
 [adapter source audit](../verification/luckperms-bridge.md#adapter-source-audit) also identifies
 ProgressiveStages defects in persistence, context isolation, ownership and cleanup. Outbound
-storage and reference handling now have an isolated regression tested repair. Context isolation
-and full lifecycle acceptance remain open, so the provider integration is not ready for live use.
+storage, reference handling and contextual queries now have isolated regression coverage. Real
+provider context isolation and full lifecycle acceptance remain open, so the provider integration
+is not ready for live use.
 
 ## Configuration
 
@@ -42,7 +43,17 @@ descendants = true
 
 Inbound rows use `all` or `any` matching. Only a LuckPerms Boolean result of true qualifies a
 permission. False and undefined results do not qualify. Context tables use an AND between keys and
-an OR between values for each key. A reserved bridge marker is never accepted in configuration.
+an OR between values for each key. Context keys and values are compared without case sensitivity,
+while source casing is preserved. A reserved bridge marker, including differently cased aliases,
+and duplicate keys differing only in case are rejected in configuration.
+
+The query adapter uses current provider contexts for a loaded online user and static provider
+contexts for a loaded offline user. It preserves multiple values per key and removes the bridge
+marker from eligibility queries. An unloaded user or query failure is unavailable, not an
+authoritative undefined permission. A false or unavailable permission query prevents positive
+outbound output and withdraws an existing owned contribution. An authoritative undefined result
+can receive a configured positive contribution. These query decisions have isolated API and core
+server coverage; actual inherited exclusion and negative precedence still require provider proof.
 
 Outbound rows refer to an existing group or permission. The required behavior is to own only
 transient contributions, remove them when no longer required, and preserve administrative nodes

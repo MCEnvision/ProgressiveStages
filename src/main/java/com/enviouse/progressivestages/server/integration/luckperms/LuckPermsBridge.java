@@ -219,25 +219,17 @@ public final class LuckPermsBridge {
                             LuckPermsAdapter.SubjectSnapshot snapshot) {
         List<Boolean> conditions = new ArrayList<>();
         for (String group : row.groups()) {
-            conditions.add(snapshot.groups().contains(group) && !isBridgeOwned(player, group));
+            conditions.add(snapshot.groups().contains(group));
         }
         for (String permission : row.permissions()) {
-            LuckPermsAdapter.PermissionValue value = adapter.permission(player, permission);
-            conditions.add(value == LuckPermsAdapter.PermissionValue.TRUE && !isBridgeOwned(player, permission));
+            LuckPermsAdapter.PermissionResult result = adapter.permissionResult(player, permission);
+            conditions.add(result.ready() && result.value() == LuckPermsAdapter.PermissionValue.TRUE);
         }
         boolean conditionMatch = row.match() == LuckPermsStageOptions.Match.ANY
             ? conditions.stream().anyMatch(Boolean.TRUE::equals)
             : conditions.stream().allMatch(Boolean.TRUE::equals);
         if (!conditionMatch) return false;
-        for (var context : row.contexts().entrySet()) {
-            String actual = snapshot.contexts().get(context.getKey());
-            if (actual == null || !context.getValue().contains(actual)) return false;
-        }
-        return true;
-    }
-
-    private boolean isBridgeOwned(UUID player, String value) {
-        return outboundNodes.containsValue(player, value);
+        return contextMatches(row.contexts(), snapshot.contexts());
     }
 
     private void reconcileOutbound(ServerPlayer player, LuckPermsAdapter.SubjectSnapshot snapshot, boolean ready) {
@@ -252,6 +244,14 @@ public final class LuckPermsBridge {
                     if (!contextMatches(row.contexts(), snapshot.contexts())) continue;
                     if (row.kind() == LuckPermsStageOptions.OutboundKind.GROUP
                             && !adapter.groupExists(row.value())) continue;
+                    if (row.kind() == LuckPermsStageOptions.OutboundKind.PERMISSION) {
+                        var permission = adapter.permissionResult(id, row.value());
+                        if (!permission.ready() || permission.value() == LuckPermsAdapter.PermissionValue.FALSE) {
+                            record(player, stageId, row.id(), false,
+                                permission.ready() ? "permission_false" : "provider_unavailable");
+                            continue;
+                        }
+                    }
                     int contextIndex = 0;
                     for (Map<String, String> contexts : contextCombinations(row.contexts())) {
                         String key = stageId + "|" + row.id() + "|" + contextIndex++;
@@ -292,10 +292,11 @@ public final class LuckPermsBridge {
     }
 
     private static boolean contextMatches(Map<String, List<String>> required,
-                                          Map<String, String> actual) {
+                                          Map<String, Set<String>> actual) {
         for (var entry : required.entrySet()) {
-            String value = actual.get(entry.getKey());
-            if (value == null || !entry.getValue().contains(value)) return false;
+            Set<String> values = actual.getOrDefault(entry.getKey().toLowerCase(java.util.Locale.ROOT), Set.of());
+            if (entry.getValue().stream().map(value -> value.toLowerCase(java.util.Locale.ROOT))
+                    .noneMatch(values::contains)) return false;
         }
         return true;
     }

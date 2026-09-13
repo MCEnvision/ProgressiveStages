@@ -977,3 +977,76 @@ tombstones were removed between repeated uses of those identities; final teardow
 remaining owned world. Preexisting `run-248`, its shared libraries and the verified candidate JAR
 were preserved. Temporary logs, launch scripts and metadata were removed after this record was
 saved. The plan, immutable goal, cursor, historical phase branches and tags remained unchanged.
+
+
+## Purchase attribution and refund verification, September 13, 2026
+
+Source commit `cd2b20ef5b16ce4cc6d72eab2d1be97daffbf7a8` corrects purchase attribution under BIN-AC-011B.
+The previous receipt stored only an owner UUID and stage, losing personal versus team identity
+and the actual payer. Its refund path selected an online representative, allowing a teammate to
+receive the payer's refund. New receipts retain a typed owner, payer, unique purchase identity,
+and the original item cost, XP cost and refund percentage. Revocation retains the concrete typed
+owner through replacement and cascade processing. Legacy records remain team or server history.
+
+The actual purchase handler now passes the cost it charged into receipt recording. A repeated
+receipt cannot replace its payer. Revocation moves the exact receipt to the payer's pending queue
+before delivery. An online teammate cannot consume it; a returning payer receives it once, even
+after ownership or cost edits. Separate purchases can retain separate pending receipts. Schema 1
+preserves legacy lists, validates new records and rejects unsupported or malformed input without
+rewriting the input tag. Failed saved data loading cannot create an empty replacement over an
+existing purchase file. Refund percentage arithmetic uses a wide intermediate value.
+
+### Verification boundaries and results
+
+The isolated runtime was the active checkout's ignored `build/purchase-refund-verification`
+child on `node-1`. It used Java 21, Minecraft 1.21.1 and NeoForge 21.1.248 with no optional mods.
+EULA acceptance was written and read back before each launch. The loopback listener matched the
+owned process. No client, renderer, browser, authenticated login or third party provider was used.
+The team membership adapter was fixture controlled and restored after each test.
+
+The GameTest invokes the actual private `NetworkHandler.handlePurchaseServer` method with its
+real purchase payload and an isolated server context that runs the enqueued work on the server
+thread. It uses fake player objects, actual inventories and XP, actual StageManager revocation,
+actual purchase NBT save/load, and the normal `syncStagesOnLogin` method. It does not test packet
+transport or real client interaction. A purchase costs ten levels and four bread; its fifty
+percent refund returns exactly five levels and two bread to the payer. A teammate receives zero.
+
+| Final candidate test | Result and server local time |
+|---|---|
+| `refundsreturnonlytothepayeracrossofflinedelivery` | Passed at 06:34:12 and again at 06:37:59 |
+| `serverpurchasespreservepayersandpersonalhistory` | Passed at 06:34:55 |
+| `stalemembershipcannotgrantorrevokewiththesameowner` | Passed at 06:35:47 |
+| `independentearningafterpermissionaccessemitsoneacquisition` | Passed at 06:36:49 |
+
+Every run cleared the prior fixture area, invoked `test run` at `0 180 0`, and verified fresh lime
+success glass and matching structure metadata. The refund tests cover shared and global purchases,
+personal purchases, duplicate revocation, offline payer delivery, serialized pending receipts,
+changed cost and owner policy, another actor's login, repeated payer login, and a personal refund
+with colliding legacy team history. Definitions, ownership attachments, purchase data, grant clocks,
+player lookups and provider state were restored. The final development server reached readiness at
+06:33:30 and exited normally after `stop` at 06:38:27. Its console contained no errors or exceptions.
+An earlier smaller fixture also passed at 06:30:58 before the coverage expansion.
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed after the
+coverage expansion in thirteen seconds. All 413 tests in 106 unit suites passed with zero failures,
+errors or skips. Tests cover payer and namespace isolation, duplicate receipts, multiple pending
+purchases, immutable results, cost preservation, legacy history and malformed/versioned input.
+`git diff --check` passed; no formatter is configured. The postcommit build passed in six seconds.
+All 786 packaged project classes matched both compiled output and the exact bytes exercised by
+the final GameTests. The manifest records the source commit and `Build-Dirty: false`; no optional
+FTB, KubeJS, Rhino or LuckPerms API classes are bundled.
+
+- JAR SHA-256: `9a2925831153c38af5ebccb19f2ef8a8590fc9c916dc5a6c4b1b3a985ea4478a`.
+- JAR SHA-512: `3b5209a02d1639ad03fd7dbaa6274180b37e7ed070492ed7599195c4ac3cc5ce03d9b21d6ea5ccb5f1a5be1028f561f607161fa056a9c21c0b19514de44f3837`.
+
+The packaged candidate alone reached dedicated readiness at 06:40:13, returned game time 8334 at
+06:40:35, and exited normally after `stop` at 06:41:05. The production console had no errors or
+exceptions. GitHub verified the signed source commit on `envy/3.0.5-phase-003`.
+
+Cleanup confirmed owned PIDs 893694, 898866 and 908720 absent, no runtime working directory consumer,
+and the test port free. It removed 1239 new build paths and 8 local Gradle paths, restoring the exact
+836 path build and 26 path local Gradle baselines. The owned runtime and temporary logs, launch scripts
+and metadata were removed after this evidence was saved. Preexisting `run-248`, shared libraries,
+source and the source bound candidate JAR were preserved. The plan, immutable goal and cursor stayed
+unchanged. General offline actor grants and revocations, authenticated gameplay, real provider
+purchase compatibility and final phase integration remain separate unfinished gates.

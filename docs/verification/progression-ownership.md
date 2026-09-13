@@ -1229,3 +1229,97 @@ client and browser journeys, the broader lifecycle and recovery matrix, security
 integration remain separate unfinished gates. Normal receipt persistence evidence is not proof
 of crash atomicity across arbitrary external reward commands and separate player saves. This
 increment does not close BIN-AC-011B or claim plan wide completion.
+
+## Actual offline script verification, September 13, 2026
+
+Source commit `45fd104edf6799b81c780931217447c6b4823915` extends the existing actual KubeJS
+ownership regression for BIN-AC-011B, BIN-AC-011C and BIN-AC-011D. This increment changes the
+fixture and its instructions, not gameplay implementation. The script calls the public Java actor
+APIs through Rhino while its initiating player is absent from the connected UUID lookup. FTB Teams
+provides actual party membership and offline team resolution. Personal, team and server grants,
+queries and revocation preserve their separate owners. Duplicate operations publish no change,
+and snapshots captured before mutation remain immutable.
+
+The actual `NativeEvents.onEvent` listener receives six `StageActorChangeEvent` instances per run,
+one grant and one revoke for each scope, preserving actor context, stage and `SCRIPT` cause.
+The script's committed subscription receives six results on the server thread with strictly
+increasing revisions, then closes. Connected player grant, revoke and change callbacks remain
+silent during offline operations and deferred reward delivery. A native party leave invalidates a
+captured context even while its personal owner stays the same. Both operations return
+`stale_membership` without further events, and the script restores membership through native join.
+
+The three successful acquisitions reserve two, three and five XP levels. The other party member's
+return receives none. The original actor receives ten levels once through normal login
+synchronization, including when the acquired stages were subsequently revoked. Repeating that
+synchronization neither delivers rewards again nor replays native or legacy change events.
+The existing connected script, native `player.stages`, legacy UUID and membership assertions still
+run before these new checks.
+
+### Runtime and results
+
+The isolated `node-1` runtime was the active checkout's ignored `build/kube-offline-verification`
+child. It used Java 21, Minecraft 1.21.1 and NeoForge 21.1.248 with the exact previously reviewed
+KubeJS `2101.7.2-build.348`, Rhino `2101.2.7-build.81`, FTB Teams `2101.1.9`, FTB Library
+`2101.1.30` and Architectury `13.0.8` artifacts. Each installed SHA-256 matched the existing
+manifest before launch. KubeJS's web server was disabled before startup and port 61423 had no
+listener. The game listener remained loopback only on port 25589 with authentication enabled,
+RCON and query disabled. EULA acceptance was read back before every launch.
+
+The exact script SHA-256 is
+`2f8a36d9c48f7b29db5964d8c442cdce32a73935b81e7025bef23b5b57b9f4da`.
+The final server reached readiness at 07:44:29 local time. Each run cleared the prior structure,
+executed `actualkubescriptsrespectpersonalteamandserverownership` at `0 180 0`, and required fresh
+lime success glass plus exact structure metadata before its success marker.
+
+| Final script scenario | Confirmed success, server local time |
+|---|---|
+| Cold startup before reload | 07:44:58 |
+| First completed server script reload | 07:45:28 |
+| Second completed server script reload | 07:45:51 |
+
+Every final script load reported zero errors and warnings. The complete final server console had
+no error or exception lines. Native fixture cleanup completed each time. Only the two fixed
+player tombstones were removed between runs, after inspecting cleanup, to permit reuse without
+FTB's nonreplacing file move failing. The final server stopped normally at 07:45:52 with exit code
+zero. These remain ordinary server player fixtures with embedded transport, not authenticated
+clients. They prove actual scripting and native provider state, not packet delivery or rendering.
+
+The first launch attempt had an incorrect development mod folder argument and exited before
+readiness; correcting the resource group's argument resolved it. The initial reward fixture
+attempt registered duplicate definitions, so the registry retained the old empty rewards. Clearing
+the fixture definitions before installing the reward variant preserved the intended assertions.
+During the later stale context extension, the pinned Rhino interpreter rejected a local `const`
+declaration following nested callbacks. Using `let` for those four fixture locals resolved the
+observed error without changing the mutation, event, reward or stale context assertions.
+
+### Build, package and cleanup
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed after the
+Java fixture correction. The final postcommit run passed in ten seconds. All 415 unit tests in
+107 suites passed with zero failures, errors or skips. `git diff --check` passed; no formatter is
+configured. All 792 packaged project classes matched the compiled bytes used by the final
+GameTests. The manifest records the source commit above and `Build-Dirty: false`; GitHub verified
+the signed, pushed source commit.
+
+- JAR SHA-256: `97a10be4c4ec85154ab703c8891d8bd1f928374dda8a5e102c27bd54f1177d5b`.
+- JAR SHA-512: `fa72fbe0bbd1527a4c55959d92dcd55653ed90c0ee8893bf34fd2703783ea7f113e8d0496a67ee22d2820b5bdd144644f78198058bbc20787be582de5896b709`.
+
+After the optional fixture's final consumer, its five copied mod artifacts were removed. The same
+owned runtime then started the exact packaged candidate through the production dedicated launch
+target with optional providers absent. It reached readiness at 07:46:19, answered a game time
+query with 7699 at 07:46:34, and stopped normally at 07:46:45 with exit code zero. Its complete
+console had no error or exception lines.
+
+Cleanup verified all six owned server PIDs absent, the test port free and no process working
+directory under the runtime. Removing 1123 new build paths and eight local Gradle paths restored
+the exact 836 path build and 26 path local Gradle baselines. The runtime and temporary scratch
+outputs were removed after retaining this evidence. Its library symlink was unlinked without
+traversing the protected preexisting `run-248` library directory. The source bound candidate,
+shared caches, source and unrelated worktrees remain preserved. No client or browser was launched.
+The authoritative plan, immutable goal and active phase cursor remain unchanged.
+
+This supplies actual script and native membership evidence for the explicit offline API. The
+broader lifecycle and recovery matrix, authenticated client synchronization, LuckPerms runtime
+compatibility, browser journeys, security and final integration remain unfinished. Normal reward
+delivery does not prove crash atomicity across external commands and separate player saves.
+No phase completion, default branch integration or release publication is claimed.

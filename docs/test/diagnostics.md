@@ -38,7 +38,9 @@ runs normally during the enabled window, so contention remains observable.
 
 ## Run and Cleanup
 
-Start an owned dedicated server without a GUI and wait for readiness. Enable the
+Start an owned dedicated server through NeoForge's development launch without a GUI and wait
+for readiness. NeoForge 21.1.248 disables GameTests in a production launch. Compare the tested
+class bytes with the packaged candidate and verify production startup separately. Enable the
 `progressivestages,minecraft` GameTest namespaces. Use the owned console to prepare an empty
 test location and run the exact test, for example:
 

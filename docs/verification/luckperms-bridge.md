@@ -214,6 +214,89 @@ remained. The intended candidate JAR, source, evidence, preexisting runtimes and
 caches were preserved. The goal and cursor hashes remained unchanged. The owned Gradle runs were
 terminal and left no single use daemon running.
 
+## Projection context regression
+
+Source commit `b75c04e55364b0da477fb21165e46ab6bbf02807` supplies the reserved context needed
+by the existing outbound nodes. Previously those nodes required `progressivestages_bridge=active`,
+but the adapter registered no calculator to provide it. `LuckPermsProjectionContexts` now publishes
+the marker for the current platform player object after confirmed node reconciliation. A ticket
+captured before eligibility queries must still be valid at publication. Dirty subject processing,
+reload, disconnect and shutdown invalidate the marker before reevaluation or node cleanup.
+Unconfirmed writes and invalidated tickets cannot publish it. Replacement player objects do not
+inherit old tickets. Context notification and calculator teardown failures remain visible and
+retain the adapter for retry. No persistent permission mutation or new configuration field was
+introduced.
+
+The exact API 5.4 JAR was inspected with Java 21 `javap` for `ContextCalculator`, `ContextConsumer`
+and `ContextManager` signatures. The upstream
+[calculator contract](https://raw.githubusercontent.com/LuckPerms/LuckPerms/master/api/src/main/java/net/luckperms/api/context/ContextCalculator.java)
+requires fast concurrent lookups without recursive context queries. The implementation reads only
+its concurrent projection map in the calculator. The upstream
+[NeoForge context manager](https://raw.githubusercontent.com/LuckPerms/LuckPerms/master/neoforge/src/main/java/me/lucko/luckperms/neoforge/context/NeoForgeContextManager.java)
+identifies `ServerPlayer` as the platform target. These references and signature checks are static
+evidence, not exact runtime registration, cache invalidation or player login proof. CodeGraph
+returned mixed projects and historical worktrees; bounded active source inspection filled the
+missing adapter and caller coverage.
+
+On September 12, 2026, Java 21.0.11 `./gradlew test build --no-daemon --no-configuration-cache`
+passed with Minecraft 1.21.1 and NeoForge 21.1.248. All 374 tests in 101 suites passed without
+failures, errors or skips. Five calculator tests cover activation, unrelated targets, old tickets,
+replacement sessions, concurrent invalidation, failed notifications, all marker withdrawal before
+shutdown notifications, and retryable unregistration. A bridge shutdown regression proves that
+successful node removal cannot discard an adapter whose calculator teardown failed. No separate
+formatter or static analysis task is configured; `git diff --check` passed. The final source build
+and postcommit clean rebuild both passed.
+
+The development dedicated server reached readiness at 23:20:58 America/Chicago. Its inspected
+`runServer` graph started no client or renderer. The actual GameTest dispatcher ran these fixtures
+sequentially. Each result was checked against its structure metadata and fresh lime success marker;
+the previous marker was cleared before the next test, and the released test chunks were force
+loaded again before inspection.
+
+| Fixture | Started | Matching metadata and success marker observed |
+|---|---|---|
+| `overflowingpermissioneventsreacheveryonlinesubject` | 23:21:49 | 23:22:28, `permission_reload_budget_pass` |
+| `projectioncontextsfollowconfirmedoutputandlifecycle` | 23:22:49 | 23:23:49, `permission_projection_lifecycle_pass` |
+| `permissionquerieswithdrawdeniedandunavailableoutput` | 23:24:03 | 23:24:57, `permission_query_after_projection_pass` |
+
+The queue fixture retains its 300 synthetic online subjects and overflow assertions. It now also
+requests a reload scan, proves the reload call performs no immediate subject queries, revisits all
+300 subjects and asserts at most sixteen reconciliations on each simulated bridge tick. The
+projection fixture uses the real bridge with a recording adapter to prove inactive output during
+mutation and cleanup, failed write denial, confirmed publication, immediate reload invalidation,
+stale query rejection, dirty subject invalidation, disconnect cleanup, unavailable permission
+withdrawal, provider failure and recovery. The existing independent FALSE and unavailable query
+regression passed afterward. The server stopped at 23:25:09 and saved every dimension before
+normal exit. These are core fixtures and isolated API tests, not real provider event or client
+acceptance.
+
+The clean `progressivestages-3.0.5.jar` SHA256 is
+`87addfcbde61ac5e0a8fabb0e2d1d4f00cadbe5a60aaf256ef320cf76f807f83`.
+Its manifest identifies the source commit above with `Build-Dirty: false`; all 740 production
+classes match compiled output, and no LuckPerms API classes are bundled. GitHub verified the
+source commit's SSH signature. The production dedicated server with this JAR and no optional
+integration mods reached readiness at 23:27:48. At 23:28:31 it returned daytime 5876 and stopped
+permissions capture with zero records and an idle writer. It stopped at 23:28:51 and saved all
+dimensions before normal exit. Neither inspected runtime log contained an error or fatal failure.
+
+Both modes used `build/projection-context-verification` inside the existing Phase 003 worktree on
+`node-1`, authenticated mode, loopback port 25589 and read back `eula=true`. Production used the
+preexisting NeoForge 21.1.248 libraries through a read only link. No laptop, browser or live optional
+provider was launched. The selected provider's dependency only login failure remains open.
+Real provider calculator registration and cache behavior, complete user and group event coverage,
+inherited exclusion, native permission use, bounded offline work, source expiry and suppression,
+joined client behavior and full lifecycle convergence remain mandatory gates. This increment does
+not close BIN-REQ-012 or combined acceptance.
+
+Cleanup confirmed both owned server processes absent, every owned Gradle and server handle terminal,
+and port 25589 available. It removed 1001 added build paths and no added local Gradle paths,
+including the runtime, fixture JAR, world, logs, reports and compiled test output. The library
+symlink was removed without following its target. Both path inventories matched their pretest
+baselines exactly, with no missing preexisting path. The candidate retained its recorded hash;
+source, evidence, preexisting runtimes and shared caches were preserved. The temporary launch
+script, ownership receipt and scratch directory were removed. The plan, saved goal and active
+phase cursor hashes remained unchanged.
+
 ## Saved source activation regression
 
 Source commit `33373f85f233351c6181841b5b7bbbdad457bedd` separates stored permission sources

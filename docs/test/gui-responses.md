@@ -1,7 +1,7 @@
 # GUI response regression
 
 `GuiResponseGameTests` exercises the actual server GUI request handler, rejected purchase handler,
-public command dispatcher and server tick callback. A fixture connection captures outbound
+public command dispatcher, script binding and server tick callback. A fixture connection captures outbound
 `StageGuiDataPayload` packets before transport. It does not render a screen or establish client
 acceptance.
 
@@ -18,10 +18,11 @@ The disconnected player must receive none. Clearing the first player's connectio
 a fresh immediate response. Fixture players, queued requests and definitions are restored afterward.
 
 The third test invokes `stage gui` and `pstages` with an optional opening channel negotiated.
-Both explicit commands must send an opening instruction, including during the data cooldown.
+Both explicit commands and `ProgressiveStages.openGui(player)` must send an opening instruction,
+including during the data cooldown.
 An ordinary GUI request and rejected purchase must not send that instruction, and the queued
 response must contain data only. A second peer without the optional channel must receive the
-legacy data payload without an unsupported opening packet.
+legacy data payload without an unsupported opening packet for both command and script calls.
 
 Use a disposable no GUI development server on Java 21, Minecraft 1.21.1 and NeoForge 21.1.248,
 with the `progressivestages` and `minecraft` GameTest namespaces enabled. The production launch

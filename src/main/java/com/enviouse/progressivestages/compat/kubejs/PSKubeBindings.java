@@ -473,7 +473,7 @@ public final class PSKubeBindings {
     /** Open the vanilla-style stage map for a player. */
     public void openGui(Player player) {
         if (player instanceof ServerPlayer sp) {
-            com.enviouse.progressivestages.common.network.NetworkHandler.sendStageGuiData(sp);
+            com.enviouse.progressivestages.common.network.NetworkHandler.openStageGui(sp);
         }
     }
 

@@ -375,8 +375,8 @@ pending recovery. See the [snapshot handler tests](docs/test/snapshot-acknowledg
 
 Stage GUI requests, including purchase feedback and public GUI commands, share a response budget
 per player. The first view is immediate; repeated requests combine into one current view after
-20 server ticks. Matching clients open the screen only for an explicit command or keybind; a
-delayed refresh cannot reopen a screen the player closed. Disconnect cancels pending GUI work.
+20 server ticks. Matching clients open the screen for an explicit command, keybind or script
+`ProgressiveStages.openGui(player)` call. A delayed refresh cannot reopen a screen the player closed. Disconnect cancels pending GUI work.
 See the [GUI response tests](docs/test/gui-responses.md).
 
 Stages can optionally integrate with LuckPerms. Add `[luckperms]`, `[[luckperms.inbound]]`, and `[[luckperms.outbound]]` to read inherited groups or true Boolean permissions and to contribute existing groups or positive permissions. `inbound_mode = "synchronized"` removes access after a qualifying rank is lost. `inbound_mode = "permanent"` keeps the attributed stage. Native team changes withdraw the moving player's synchronized contribution from the old owner while preserving independent and permanent grants. Add `[[command_permissions]]` rows to require a stage at an actual literal command path while native command permissions remain required. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).

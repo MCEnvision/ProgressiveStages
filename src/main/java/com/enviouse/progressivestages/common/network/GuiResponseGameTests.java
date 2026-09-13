@@ -157,6 +157,10 @@ public final class GuiResponseGameTests {
             server.getCommands().performPrefixedCommand(source, "pstages");
             helper.assertTrue(capture.opens == 2 && capture.responses == 1,
                 "An explicit alias must reopen immediately while data remains queued.");
+            var scripts = new com.enviouse.progressivestages.compat.kubejs.PSKubeBindings();
+            scripts.openGui(player);
+            helper.assertTrue(capture.opens == 3 && capture.responses == 1,
+                "An explicit script call must reopen immediately while data remains queued.");
             var request = NetworkHandler.class.getDeclaredMethod("handleRequestStageGuiServer",
                 NetworkHandler.RequestStageGuiPayload.class, IPayloadContext.class);
             request.setAccessible(true);
@@ -166,15 +170,19 @@ public final class GuiResponseGameTests {
             purchase.setAccessible(true);
             purchase.invoke(null, new NetworkHandler.RequestPurchasePayload(
                 StageId.parse("progressivestages:missing_gui_test").getResourceLocation()), context(player));
-            helper.assertTrue(capture.opens == 2,
+            helper.assertTrue(capture.opens == 3,
                 "A data request or purchase response must not issue another screen opening.");
             server.getCommands().performPrefixedCommand(
                 legacy.createCommandSourceStack().withPermission(0).withSuppressedOutput(), "stages");
             helper.assertTrue(legacyCapture.opens == 0 && legacyCapture.responses == 1,
                 "A peer without the optional channel must receive only the legacy data payload.");
+            NetworkHandler.clearPlayerRuntimeState(legacy.getUUID());
+            scripts.openGui(legacy);
+            helper.assertTrue(legacyCapture.opens == 0 && legacyCapture.responses == 2,
+                "A script call must preserve legacy opening without an unsupported packet.");
             helper.runAfterDelay(25, () -> {
                 try {
-                    helper.assertTrue(capture.responses == 2 && capture.opens == 2,
+                    helper.assertTrue(capture.responses == 2 && capture.opens == 3,
                         "Queued data must refresh the view without repeating the opening instruction.");
                     helper.succeed();
                 } finally { cleanup.run(); }

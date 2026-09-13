@@ -4710,11 +4710,12 @@ and GUI data payload formats remain unchanged.
 
 The optional server to client `progressivestages:stage_gui_open` payload carries no fields.
 It uses the existing protocol version and is sent only when the peer negotiated that channel.
-`NetworkHandler.openStageGui` sends this explicit opening instruction for public GUI commands,
+`NetworkHandler.openStageGui` sends this explicit opening instruction for public GUI commands
+and the `ProgressiveStages.openGui(player)` script binding,
 then requests current data through the shared response budget. Matching clients open locally
 when the configured keybind is pressed. Incoming GUI data updates the cache and rebuilds an
 existing stage screen, checking the current screen on the client thread; it never opens a closed
-screen. An intentional command or keybind can reopen immediately during the data cooldown.
+screen. An intentional command, keybind or script call can reopen immediately during the data cooldown.
 Purchase feedback updates an open view without forcing it back after closure. Peers without
 the optional channel retain the legacy behavior of opening on data arrival. Both sides should
 use the matching build for the delayed response correction.

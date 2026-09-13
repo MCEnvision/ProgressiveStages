@@ -29,6 +29,12 @@ labels in `stage_sources`. A player's effective view is the union of their perso
 resolved team record, and server records. Personal records never move when team membership changes.
 Legacy team records remain in their original namespace and are not copied to every member.
 
+Native FTB membership events immediately withdraw the moving player's synchronized contributions
+from obsolete owners, including when the player is offline. Other contributors, independently
+earned stages, permanent grants and still compatible personal or server sources remain. The
+bridge invalidates old observations and queues current qualification for the new owner. Joining
+or rejoining alone does not restore a withdrawn synchronized source.
+
 An owner or provider change masks incompatible history while retaining the original record. Restoring
 the compatible setting reveals that history again. Use an explicit administrative regrant when a
 pack intentionally wants a new owner to receive a stage.

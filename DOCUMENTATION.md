@@ -3050,6 +3050,16 @@ before detaching every subscription. A failed detachment retains only failed sub
 for retry while late callbacks remain inactive. Bridge cleanup stops listeners before context and
 node cleanup, preventing teardown from enqueuing its own mutations into a replacement session.
 
+Native FTB membership changes invalidate the captured membership revision and queue that subject
+for current bridge qualification. The server event removes only their synchronized contributions
+whose resolved owners changed, before normal native membership handling returns. StageManager
+supports both online and offline explicit subjects for this withdrawal and publishes one committed
+owner change after removing all obsolete contributions. Other subjects, independent grants,
+permanent history and compatible personal or server sources remain. Old offline observations and
+outbound projections are invalidated before reevaluation. No new owner grant or acquisition effect
+runs merely because the player moved teams. The existing bounded queue handles current qualification;
+an offline member does not need to log in before the former team's derived access is withdrawn.
+
 `LuckPermsOfflineQueries` holds at most eight pending or unacknowledged user observations. It loads
 an absent user asynchronously, queries only the configured inbound permission keys and inherited
 groups under the provider's static context options, and returns immutable data. The reserved

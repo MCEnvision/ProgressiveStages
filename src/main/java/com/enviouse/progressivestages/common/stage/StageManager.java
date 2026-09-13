@@ -388,13 +388,24 @@ public class StageManager {
     }
 
     public boolean withdrawObsoletePermissionOwners(ServerPlayer player) {
-        if (player == null || server == null) return false;
+        return player != null && withdrawObsoletePermissionOwners(player.getUUID(), player);
+    }
+
+    public boolean withdrawObsoletePermissionOwners(UUID subject) {
+        if (subject == null || server == null) return false;
+        return withdrawObsoletePermissionOwners(subject, server.getPlayerList().getPlayer(subject));
+    }
+
+    private boolean withdrawObsoletePermissionOwners(UUID subject, ServerPlayer player) {
+        if (server == null || !server.isSameThread()) return false;
         TeamStageData data = getTeamStageData();
         Set<OwnerRef> affectedOwners = new LinkedHashSet<>();
-        for (TeamStageData.PermissionContribution contribution : data.getPermissionContributions(player.getUUID())) {
+        for (TeamStageData.PermissionContribution contribution : data.getPermissionContributions(subject)) {
             if (contribution.source().permanent()) continue;
             StageId stage = contribution.stage();
-            if (StageOrder.getInstance().stageExists(stage) && owner(player, stage).equals(contribution.owner())) continue;
+            Optional<OwnerRef> currentOwner = player == null ? StageOwnership.offlineOwner(subject, stage)
+                : StageOrder.getInstance().stageExists(stage) ? Optional.of(owner(player, stage)) : Optional.empty();
+            if (currentOwner.filter(contribution.owner()::equals).isPresent()) continue;
             if (data.revokeStageFromSource(contribution.owner(), stage, contribution.source().label())) {
                 affectedOwners.add(contribution.owner());
             }

@@ -65,6 +65,20 @@ public final class LuckPermsBridge {
     public static void initialize(MinecraftServer server) { getInstance().bind(server); }
     public static void tick(MinecraftServer server) { getInstance().drain(server); }
     public static void reconcile(ServerPlayer player) { getInstance().reconcileSubject(player); }
+    public static void membershipChanged(UUID subject) {
+        if (subject == null) return;
+        LuckPermsBridge bridge = getInstance();
+        synchronized (bridge) {
+            bridge.inputRevision.incrementAndGet();
+            bridge.offlineContexts.remove(subject);
+            if (bridge.adapter != null) {
+                bridge.adapter.invalidateOffline(subject);
+                bridge.adapter.invalidateProjection(subject);
+            }
+            bridge.dirty.request(subject);
+        }
+    }
+
     public static void disconnect(ServerPlayer player) {
         LuckPermsBridge bridge = getInstance();
         synchronized (bridge) {

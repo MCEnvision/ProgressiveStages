@@ -61,7 +61,17 @@ public final class FtbMembershipGameTests {
         helper.succeed();
     }
 
-    private enum FixtureKind { MEMBERSHIP, PLAYER_QUEST, TEAM_QUEST, LEGACY_IMPORT, CLAIM_TRACKING }
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void nativeTeamLeaveWithdrawsOnlyMovedSynchronizedContributions(GameTestHelper helper) throws Exception {
+        if (!ModList.get().isLoaded("ftbteams")) {
+            helper.succeed();
+            return;
+        }
+        Fixture.run(helper, FixtureKind.SOURCE_MOVE);
+        helper.succeed();
+    }
+
+    private enum FixtureKind { MEMBERSHIP, PLAYER_QUEST, TEAM_QUEST, LEGACY_IMPORT, CLAIM_TRACKING, SOURCE_MOVE }
 
     private static final class Fixture {
         static void run(GameTestHelper helper, FixtureKind kind) throws Exception {
@@ -157,6 +167,7 @@ public final class FtbMembershipGameTests {
                     }
                 } else if (kind == FixtureKind.LEGACY_IMPORT) LegacyFixture.run(helper, first, second, personal, shared);
                 else if (kind == FixtureKind.CLAIM_TRACKING) ClaimFixture.run(helper, first, second, personal);
+                else if (kind == FixtureKind.SOURCE_MOVE) SourceMoveFixture.run(helper, first, second, personal, shared);
                 else if (kind != FixtureKind.MEMBERSHIP) {
                     QuestFixture.run(helper, first, second, personal, shared, kind == FixtureKind.TEAM_QUEST);
                 }
@@ -268,6 +279,57 @@ public final class FtbMembershipGameTests {
             definitions.put(definition.getId(), definition);
             order.clear();
             definitions.values().forEach(order::registerStage);
+        }
+    }
+
+    private static final class SourceMoveFixture {
+        static void run(GameTestHelper helper, net.minecraft.server.level.ServerPlayer first,
+                        net.minecraft.server.level.ServerPlayer second,
+                        com.enviouse.progressivestages.common.api.StageId personal,
+                        com.enviouse.progressivestages.common.api.StageId shared) throws Exception {
+            var server = helper.getLevel().getServer();
+            var manager = com.enviouse.progressivestages.common.stage.StageManager.getInstance();
+            var data = server.overworld().getData(com.enviouse.progressivestages.common.data.StageAttachments.TEAM_STAGES);
+            var order = com.enviouse.progressivestages.common.stage.StageOrder.getInstance();
+            var party = (dev.ftb.mods.ftbteams.data.PartyTeam) dev.ftb.mods.ftbteams.api.FTBTeamsAPI.api()
+                .getManager().getTeamForPlayer(first).orElseThrow();
+            var multiple = com.enviouse.progressivestages.common.api.StageId.parse("progressivestages:membership_multiple");
+            var retained = com.enviouse.progressivestages.common.api.StageId.parse("progressivestages:membership_retained");
+            var independent = com.enviouse.progressivestages.common.api.StageId.parse("progressivestages:membership_independent");
+            for (var id : java.util.List.of(multiple, retained, independent)) {
+                order.registerStage(com.enviouse.progressivestages.common.config.StageDefinition.builder(id).teamStage(true).build());
+            }
+            manager.revokeStage(first, shared);
+            var departing = new com.enviouse.progressivestages.common.stage.PermissionStageSource(second.getUUID(), "membership", false);
+            var remaining = new com.enviouse.progressivestages.common.stage.PermissionStageSource(first.getUUID(), "membership", false);
+            var permanent = new com.enviouse.progressivestages.common.stage.PermissionStageSource(second.getUUID(), "retained", true);
+            data.grantStageFromSource(party.getId(), shared, departing.label());
+            data.grantStageFromSource(party.getId(), multiple, departing.label());
+            data.grantStageFromSource(party.getId(), multiple, remaining.label());
+            data.grantStageFromSource(party.getId(), retained, permanent.label());
+            data.grantStage(party.getId(), independent);
+            data.grantStageFromSource(party.getId(), independent, departing.label());
+            data.grantPersonalStageFromSource(second.getUUID(), personal, departing.label());
+            helper.assertTrue(manager.hasStage(first, shared) && manager.hasStage(second, shared),
+                "The departing member must initially contribute effective access to the actual party.");
+            var changes = new java.util.ArrayList<com.enviouse.progressivestages.common.stage.StageMutationResult>();
+            try (var listener = manager.subscribeCommittedStageChanges(changes::add)) {
+                party.leave(second.getUUID());
+                helper.assertTrue(!manager.hasStage(first, shared) && !manager.hasStage(second, shared),
+                    "A native team leave must withdraw the old synchronized contribution before returning.");
+                helper.assertTrue(manager.hasStage(first, multiple) && manager.hasStage(first, retained)
+                    && manager.hasStage(first, independent) && manager.hasStage(first, personal)
+                    && manager.hasStage(second, personal),
+                    "A membership change must preserve other contributors, permanent and independent grants, and personal sources.");
+                helper.assertTrue(data.getSources(party.getId(), multiple).equals(java.util.Set.of(remaining.label()))
+                    && data.getSources(party.getId(), retained).equals(java.util.Set.of(permanent.label()))
+                    && data.getSources(party.getId(), independent).equals(java.util.Set.of("independent"))
+                    && changes.size() == 1 && changes.getFirst().reason().equals("source_owner_changed"),
+                    "The native event must remove only moved synchronized sources and publish one committed owner change.");
+                party.join(null, second.getGameProfile());
+                helper.assertTrue(!manager.hasStage(first, shared) && !manager.hasStage(second, shared),
+                    "Rejoining alone must not restore a contribution before current provider qualification.");
+            }
         }
     }
 

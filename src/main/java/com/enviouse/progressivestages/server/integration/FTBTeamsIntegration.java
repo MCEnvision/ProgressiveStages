@@ -46,7 +46,20 @@ public class FTBTeamsIntegration {
     private static boolean initChecked = false;
     private static boolean registered = false;
     private static final java.util.function.Consumer<PlayerChangedTeamEvent> MEMBERSHIP_CHANGED =
-        event -> TeamProvider.getInstance().invalidateMembership();
+        FTBTeamsIntegration::onMembershipChanged;
+
+    private static void onMembershipChanged(PlayerChangedTeamEvent event) {
+        TeamProvider.getInstance().invalidateMembership();
+        MinecraftServer server = FTBTeamsAPI.api().getManager().getServer();
+        if (server == null) return;
+        UUID subject = event.getPlayerId();
+        Runnable update = () -> {
+            if (FTBTeamsAPI.api().getManager().getServer() != server) return;
+            com.enviouse.progressivestages.server.integration.luckperms.LuckPermsBridge.membershipChanged(subject);
+            StageManager.getInstance().withdrawObsoletePermissionOwners(subject);
+        };
+        if (server.isSameThread()) update.run(); else server.execute(update);
+    }
 
     // Track each player's current team to detect changes
     private static final Map<UUID, UUID> lastKnownTeams = new HashMap<>();

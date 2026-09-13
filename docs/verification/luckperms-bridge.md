@@ -1009,3 +1009,14 @@ All eleven scratch files and their unique directory were removed after evidence 
 current candidate JAR, source, worktrees, preexisting run directories and shared caches remain.
 No laptop, browser, client, renderer or audio resource was started. The final read only diff and
 receipt audit created no additional test resources. Goal and cursor digests remain unchanged.
+
+
+## Membership generation verification
+
+Commit `6eabe409d53b7ccfd1b50640fedb93232da6123b` adds membership revision checks to pending
+offline permission observations and public actor context mutations. The
+[membership regression](progression-ownership.md#membership-context-regression) records 399 passing
+unit tests, ten dedicated GameTest invocations, packaged startup and exact cleanup evidence on
+NeoForge 21.1.248. Stale observations with unchanged owner UUIDs cannot create synchronized or
+permanent access; current observations still reconcile. Actual FTB events, real provider login,
+online transactional reconciliation and laptop acceptance remain open.

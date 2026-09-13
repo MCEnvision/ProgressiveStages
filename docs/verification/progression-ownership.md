@@ -144,3 +144,76 @@ executing 21 tests. It reported 12 failures in the pre-existing inventory insert
 Phase 001 does not change those inventory test sources, and no ownership GameTest was present in
 the suite, so those failures remain an open baseline regression outside this phase's acceptance
 surface.
+
+
+## Membership context regression
+
+Source commit `6eabe409d53b7ccfd1b50640fedb93232da6123b` replaces the fixed zero membership
+revision in actor contexts with a monotonic server wide generation. Public context mutations
+reject stale membership before grants or revokes, including after returning to the same owner.
+They also reject a call outside the server thread before resolving the actor. Pending offline
+permission observations carry the same generation through their initial and final commit checks.
+The previous four argument offline context constructor remains available.
+
+Provider initialization, login, logout and server shutdown invalidate captured contexts. The optional
+FTB integration registers a native `TeamEvent.PLAYER_CHANGED` listener and unregisters both that
+listener and its runtime event subscription at shutdown. Inspection of the pinned FTB Teams
+2101.1.9 binary confirmed that `AbstractTeam.onPlayerChangeTeam` invokes this native event and that
+Architectury 13.0.8 provides matching register and unregister operations. This is static linkage
+and invocation evidence. Actual FTB membership event and listener lifecycle acceptance remains open.
+
+On September 13, 2026, `./gradlew test build --no-daemon --console=plain` passed with Java 21.0.11,
+Minecraft 1.21.1 and NeoForge 21.1.248. All 399 unit tests in 105 suites passed with no failures,
+errors or skips. The final postcommit `build` passed in six seconds. No separate formatter task
+is configured, no resource provider changed, and `git diff --check` passed.
+
+Dedicated development PID `527287` ran on `node-1` in the active Phase 003 checkout's
+`build/membership-verification` runtime. The inspected development launch uses `forgeserverdev`
+and `--nogui`, with the pinned compiled Minecraft artifact on its classpath. No client or renderer
+starts in that path. Both earlier launch setup processes exited with status 1 before readiness
+because the launch classpath lacked Minecraft classes. Their PIDs were `525847` and `526480`.
+Adding the exact pinned compiled artifact corrected the setup. A mistyped test name matched no
+test and is excluded from the passing count.
+
+The verified development server reached readiness at 02:36:50 America/Chicago. Authentication
+remained enabled, its listener stayed at loopback port 25589, and EULA readback was `eula=true`.
+Each test cleared its fixture area, ran through `execute positioned 0 180 0 run test run <method>`,
+and verified matching structure metadata at `0 180 3` plus a fresh lime success marker at
+`-1 179 2`. All ten invocations passed.
+
+| GameTest | Passing server time | Scope |
+|---|---|---|
+| `stalemembershipcannotgrantorrevokewiththesameowner` | 02:37:24, 02:37:46 | Public API grant and revoke across personal, team fallback and server owners, stale membership and definitions, owner mismatch, offline actor, provider reset, fresh recovery, unchanged revision and no committed event on rejection |
+| `offlinemembershipchangesrejectdelayedinputwithunchangedowners` | 02:37:43, 02:37:48 | Delayed input with unchanged shared owner, both retention modes, no stale eligibility episode, another contributor preserved, fresh observation recovery |
+| `offlineresultsrejectstaledefinitionsandunqualifiedgrants` | 02:37:50 | Existing definition and qualification guards, invalidation during reconciliation |
+| `offlinesourcesrevalidatewithoutaplayerandpreserveotherowners` | 02:37:52 | Contexts, source isolation, permanent and independent preservation |
+| `offlinerescanconvergeswhilecontributorsareremoved` | 02:37:54 | Bounded offline scan and contributor removal |
+| `permissionrevocationsurvivesreloadandonlyindependentlossrearms` | 02:37:57 | Existing suppression and recovery |
+| `administrativerevokessuppressunavailableandunqualifiedepisodes` | 02:37:59 | Administrative entry point regression |
+| `administrativegrantsrecordindependentownershipafterderivedaccess` | 02:38:01 | Independent grant and committed result regression |
+
+The development server saved all dimensions and exited normally at 02:38:43. The packaged JAR
+has SHA256 `d77c6de14082efca11d642c9b54b5eac1f615aec20673f5017c8e889f0445727` and names the
+source commit above with `Build-Dirty: false`. All 762 project classes match compiled output;
+no LuckPerms API classes are bundled. Production PID `533137` reached readiness at 02:40:00 with
+optional providers absent. At 02:40:27, `time query gametime` returned `2730`, both progression
+and permissions capture status reported stopped capture with zero records and an idle writer,
+and the server saved every dimension and exited normally.
+
+This closes the bounded context regression for BIN-AC-011B, BIN-AC-011C, BIN-AC-011E and
+BIN-AC-012F. The new guard does not establish complete FTB membership synchronization, the real
+LuckPerms provider, online reconciliation transactions, negative thread invocation coverage,
+client synchronization or the remaining combined acceptance matrix. Those gates remain open.
+No integration merge, phase tag, wiki update or release is claimed.
+
+### Membership suite cleanup
+
+After the final log and artifact consumers completed, all four recorded processes were absent,
+no process retained the owned runtime as its working directory, and loopback port 25589 was free.
+Exact comparison with the pretest ownership receipt removed 1034 new build paths and
+13 new local Gradle paths. All 836 preexisting build paths and 26 preexisting local
+Gradle paths remained. The disposable runtime was removed without following its libraries symlink;
+the preexisting `run-248/libraries` target and the verified packaged JAR were preserved.
+The 14 registered metadata and log files were removed after evidence extraction, and their
+unique temporary directory was removed and checked absent. No laptop resource, client, browser,
+renderer or audio stream was created by this suite.

@@ -103,6 +103,7 @@ public final class StageTreeScreen extends Screen {
     private boolean buyEnabled;
     private StageId buyStage;
     private final Map<String, List<ItemStack>> selectorIconCache = new HashMap<>();
+    private long stageRevision = ClientStageCache.revision();
 
     private record MapNode(StageId id, int x, int y, boolean owned, boolean available) {}
     private record PreviewRow(ItemStack icon, List<FormattedCharSequence> lines, int height) {}
@@ -124,6 +125,18 @@ public final class StageTreeScreen extends Screen {
         mc.execute(() -> {
             if (mc.screen instanceof StageTreeScreen current) current.rebuild(false);
         });
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        long revision = ClientStageCache.revision();
+        if (stageRevision == revision) return;
+        stageRevision = revision;
+        selectorIconCache.clear();
+        recomputeItemFilter();
+        rebuild(false);
+        ClientTriggerProgress.refreshFromServer();
     }
 
     @Override

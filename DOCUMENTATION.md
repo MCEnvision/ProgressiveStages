@@ -2060,6 +2060,18 @@ keeps its effective unlocked status while offering **Purchase** for independent 
 The offer remains visible but disabled when prerequisites, trigger requirements, affordability,
 slot rules or cooldown prevent purchase. Once independent ownership exists, the offer disappears.
 
+An open map notices full stage synchronizations, individual stage updates and definition reloads
+on its next client tick. It rebuilds node and detail state without recentering the map. Updates
+within the same tick share that rebuild. A full synchronization also invalidates the view when
+the effective stage set is unchanged, because independent ownership and purchase eligibility
+may have changed while another source preserves access.
+
+Peers that negotiate the separate GUI opening channel request fresh purchase and trigger data
+through the existing server response budget. The response updates only an open map and cannot
+reopen one closed before it arrives. Older peers retain their existing explicit opening and
+data response behavior; automatic offer requests are omitted because a legacy response also
+opens the screen. Server qualification and payment remain authoritative in either case.
+
 A successful purchase charges its initiator and applies ordinary acquisition rewards once.
 It leaves temporary lease sources separate, so leaving a leased area does not remove or refund
 the independently purchased stage. An explicit revoke or the stage's configured expiry still

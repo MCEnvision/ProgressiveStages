@@ -36,8 +36,10 @@ fill -2 179 -2 12 179 15 stone
 execute positioned 0 180 0 run test run guipacketpurchaseandcommandburstsshareoneresponsebudget
 ```
 
-Inspect the actual structure metadata and success marker. Clear and rebuild the same disposable
-platform before running `queuedguiresponsesusecurrentdataandstopafterdisconnect` and
+With the platform above and no rotation, inspect `data get block 0 180 3` for the exact test name.
+Require `minecraft:lime_stained_glass` at `-1 179 2` after the scheduled assertions finish. The
+command places the structure using the world surface and a Z offset, not the source position
+alone. Clear and rebuild the same disposable platform before running `queuedguiresponsesusecurrentdataandstopafterdisconnect` and
 `explicitguicommandsopenwhilequeuedresponsesonlyrefresh`. The platform
 fixes terrain dependent placement; the command's Y coordinate alone is not a result oracle.
 
@@ -57,3 +59,17 @@ Also exercise the configured keybind after reconnect. Capture only the owned gam
 A reduced tick rate may make the close interval observable, but record that fixture rate and
 restore normal ticks before the remaining tests. This case does not prove the full purchase,
 provider, builder or interaction acceptance matrix.
+
+## Live stage synchronization
+
+Keep a stage selected while its ownership changes through a normal command or provider update.
+The map must update its owned count, node style and details together. With matching peers, its
+purchase offer must converge through the existing server response queue. Repeat with several
+updates in one client tick, with a full sync whose effective stages are unchanged after an
+independent grant beside temporary access, and with changed stage definitions. Verify the map
+keeps its camera position and the selected stage when that stage remains visible.
+
+Close the map before a deferred offer response arrives and require that it stays closed. A map
+closed before the next client tick must not initiate an automatic request. Reconnect and repeat
+the grant and revoke case. The [purchase lease fixture](fixtures/purchase-lease/README.md) retains
+the real client baseline where the count changed but the cached details remained unlocked.

@@ -151,6 +151,12 @@ public final class ClientTriggerProgress {
         DATA.clear();
     }
 
+    public static void refreshFromServer() {
+        // Legacy responses also open the screen and cannot safely refresh after it closes.
+        if (Minecraft.getInstance().player == null || !supportsExplicitOpening()) return;
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(NetworkHandler.RequestStageGuiPayload.INSTANCE);
+    }
+
     /** request current gui data and open the screen. */
     public static void requestFromServer() {
         if (Minecraft.getInstance().player == null) return;

@@ -352,6 +352,11 @@ Matching clients suppress local item and block prediction for denied direct inte
 
 Stages can optionally integrate with LuckPerms. Add `[luckperms]`, `[[luckperms.inbound]]`, and `[[luckperms.outbound]]` to read inherited groups or true Boolean permissions and to contribute existing groups or positive permissions. `inbound_mode = "synchronized"` removes access after a qualifying rank is lost. `inbound_mode = "permanent"` keeps the attributed stage. Add `[[command_permissions]]` rows to require a stage at an actual literal command path while native command permissions remain required. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 
+Inbound grants track each contributing player and mapping separately. Losing one synchronized
+contribution preserves other contributors and independently earned access. Removing a mapping
+withdraws its synchronized source from the current owner; permanent grants remain retained.
+Legacy contributor migration and the full provider lifecycle remain under verification.
+
 Command gates now check Minecraft's command execution tasks after redirects resolve. Registered
 node and execution bindings identify aliases; namespace text alone does not establish equivalence.
 The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)

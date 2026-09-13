@@ -166,8 +166,12 @@ public class TeamStageData {
     }
 
     public boolean grantStageFromSource(UUID teamId, StageId stageId, String source) {
+        if (source == null || source.isBlank()) return false;
         ownershipSchema = CURRENT_SCHEMA;
         Set<StageId> stages = teamStages.computeIfAbsent(teamId, k -> new HashSet<>());
+        if (stages.contains(stageId) && getSources(teamId, stageId).isEmpty()) {
+            addSource(teamKind(teamId), teamId, stageId, "independent");
+        }
         boolean changed = stages.add(stageId);
         addSource(teamKind(teamId), teamId, stageId, source);
         return changed;
@@ -195,8 +199,13 @@ public class TeamStageData {
     }
 
     public boolean grantPersonalStageFromSource(UUID playerId, StageId stageId, String source) {
+        if (source == null || source.isBlank()) return false;
         ownershipSchema = CURRENT_SCHEMA;
         Set<StageId> stages = personalStages.computeIfAbsent(playerId, k -> new HashSet<>());
+        if (stages.contains(stageId)
+                && getSources(new OwnerRef(OwnerKind.PERSONAL, playerId), stageId).isEmpty()) {
+            addSource(OwnerKind.PERSONAL, playerId, stageId, "independent");
+        }
         boolean changed = stages.add(stageId);
         addSource(OwnerKind.PERSONAL, playerId, stageId, source);
         return changed;

@@ -2909,6 +2909,22 @@ qualifies a permission. The required reconciliation contract forbids acquisition
 including costs, rewards, prerequisite grants, expiry refreshes and counter scope changes.
 The complete lifecycle and source preservation matrix remains open.
 
+Inbound source labels now include the contributing player UUID, stable row ID and retention mode
+inside the resolved personal, team or server owner namespace. A first derived grant creates only
+that source. Adding a derived source to a preexisting legacy stage with no source labels preserves
+its independent meaning. Separate subjects and rows remain separate contributors, so losing one
+source cannot remove another source or an independent earning. Source changes notify the affected
+owner view without replaying an unchanged grant.
+
+Each reconciliation checks current dependencies, slots and purchase restrictions before adding a
+source. It does not grant prerequisites, replace another slot occupant or charge for a purchase.
+For a still registered definition and the current owner, removed rows or a removed LuckPerms table
+withdraw that subject's synchronized sources. Permanent history remains retained when mappings
+change or permission eligibility disappears. Legacy labels without a subject UUID are recognized
+as derived in source explanations, but are not silently assigned to the current player or deleted.
+Migration of those labels, old owner withdrawal after membership or scope changes, removed stage
+definitions, offline contributors and expiry episode recovery remain open lifecycle work.
+
 Outbound output must use attributable transient contributions and preserve administrative nodes,
 independent membership and explicit negative permissions. The adapter now delegates mutations to
 `LuckPermsTransientNodes`, which uses only `User.transientData()` and never saves a user. Each

@@ -5,6 +5,7 @@ import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.stage.StageManager;
+import com.enviouse.progressivestages.common.stage.PermissionStageSource;
 import com.enviouse.progressivestages.common.stage.StageOrder;
 import com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager;
 import com.mojang.logging.LogUtils;
@@ -27,7 +28,6 @@ public final class LuckPermsBridge {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final int MAX_SUBJECTS_PER_TICK = 16;
     private static final int MAX_QUEUE = 256;
-    private static final String SOURCE_PREFIX = "luckperms:";
     private static LuckPermsBridge INSTANCE;
 
     private final SubjectReconciliationQueue dirty = new SubjectReconciliationQueue(MAX_QUEUE);
@@ -159,38 +159,31 @@ public final class LuckPermsBridge {
     private void reconcileInbound(ServerPlayer player, StageDefinition definition,
                                   LuckPermsAdapter.SubjectSnapshot snapshot, boolean ready) {
         LuckPermsStageOptions options = definition.getLuckPerms();
-        if (!options.present() || options.inbound().isEmpty()) return;
+        StageManager manager = StageManager.getInstance();
+        UUID subject = player.getUUID();
+        var activeRows = new java.util.HashSet<String>();
         for (LuckPermsStageOptions.InboundRule row : options.inbound()) {
-            String synchronizedSource = source(LuckPermsStageOptions.InboundMode.SYNCHRONIZED, row.id());
-            String permanentSource = source(LuckPermsStageOptions.InboundMode.PERMANENT, row.id());
-            boolean eligible = ready && options.enabled() && matches(player.getUUID(), row, snapshot);
-            String selected = source(options.inboundMode(), row.id());
+            String synchronizedSource = new PermissionStageSource(subject, row.id(), false).label();
+            boolean permanent = options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT;
+            String selected = new PermissionStageSource(subject, row.id(), permanent).label();
+            boolean eligible = ready && options.present() && options.enabled() && matches(subject, row, snapshot)
+                && manager.canGrantStageFromSource(player, definition.getId());
             if (eligible) {
-                if (!StageManager.getInstance().grantStageFromSource(player, definition.getId(), selected,
-                        StageCause.TRIGGER)) {
+                activeRows.add(row.id());
+                boolean added = manager.grantStageFromSource(player, definition.getId(), selected, StageCause.PERMISSION);
+                if (!added && !manager.getStageSources(player, definition.getId()).contains(selected)) {
                     record(player, definition.getId(), row.id(), false, "dependency_denied");
                 }
-                if (!selected.equals(synchronizedSource)) {
-                    StageManager.getInstance().revokeStageFromSource(player, definition.getId(), synchronizedSource,
-                        StageCause.TRIGGER);
-                }
-            } else if (options.inboundMode() == LuckPermsStageOptions.InboundMode.SYNCHRONIZED) {
-                StageManager.getInstance().revokeStageFromSource(player, definition.getId(), synchronizedSource,
-                    StageCause.TRIGGER);
             }
-            if (!eligible && options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT) {
-                StageManager.getInstance().revokeStageFromSource(player, definition.getId(), synchronizedSource,
-                    StageCause.TRIGGER);
-            }
-            if (eligible && options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT) {
-                StageManager.getInstance().grantStageFromSource(player, definition.getId(), permanentSource,
-                    StageCause.TRIGGER);
+            if (!eligible || permanent) {
+                manager.revokeStageFromSource(player, definition.getId(), synchronizedSource, StageCause.PERMISSION);
             }
         }
-    }
-
-    private static String source(LuckPermsStageOptions.InboundMode mode, String row) {
-        return SOURCE_PREFIX + mode.label() + ":" + row;
+        for (String label : manager.getStageSources(player, definition.getId())) {
+            PermissionStageSource.parse(label).filter(source -> source.subject().equals(subject)
+                && !source.permanent() && !activeRows.contains(source.row())).ifPresent(source ->
+                    manager.revokeStageFromSource(player, definition.getId(), label, StageCause.PERMISSION));
+        }
     }
 
     private boolean matches(UUID player, LuckPermsStageOptions.InboundRule row,

@@ -68,6 +68,19 @@ not remove historical persistent nodes merely because their names match a mappin
 by an older development fixture needs its exact ownership established before removal. The new
 transient ledger does not retroactively claim or delete those historical nodes.
 
+## Inbound source ownership
+
+A contribution is stored under the stage's resolved owner and identifies its player, mapping row
+and retention mode. Two players qualifying through the same row remain separate contributors.
+Removing one synchronized contribution preserves other rows, other players and independent grants.
+A legacy stage without source labels keeps its independent meaning when a new contribution is added.
+
+For a registered stage and its current owner, deleting an inbound row or the LuckPerms table removes
+that player's synchronized contribution on reconciliation. Retained permanent contributions survive
+these changes. Older labels without player attribution are not guessed or deleted automatically.
+Old owner cleanup after a membership or scope change, removed stage definitions, offline contributors
+and expiry episode recovery still require the complete lifecycle repair and verification.
+
 ## Diagnosis
 
 Use the permissions capture to inspect provider state, stage, row, desired result and reconciliation
@@ -92,9 +105,10 @@ shutdown clears pending work. These bounds cover online event processing. They d
 bounded reload reconciliation, offline contributor recovery or actual provider event convergence.
 
 If a stage is not granted, check the stage dependency and slot policy first. Permission
-reconciliation never charges a cost, runs a reward, increments a trigger counter, refreshes an
-expiry, or grants a prerequisite. A synchronized source is removed after an authoritative loss;
-permanent and independent sources remain.
+reconciliation must not charge costs, run rewards, increment trigger counters, refresh expiry
+episodes or grant prerequisites. Current source tests cover missing prerequisites, purchase denial
+without an XP charge and unchanged repeated grants; complete episode behavior remains unverified.
+A synchronized source is removed after an authoritative loss; permanent and independent sources remain.
 
 ## Command gates
 

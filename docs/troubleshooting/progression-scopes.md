@@ -33,6 +33,16 @@ An owner or provider change masks incompatible history while retaining the origi
 the compatible setting reveals that history again. Use an explicit administrative regrant when a
 pack intentionally wants a new owner to receive a stage.
 
+## Permission contributors
+
+Source labels distinguish the contributing player, mapping row and retention mode within each
+owner namespace. Removing one synchronized source preserves other contributors and independently
+earned access. Adding the first derived source to an existing stage with no source labels preserves
+that legacy stage as independent. A newly derived stage receives no independent grant.
+
+The [LuckPerms guide](luckperms.md#inbound-source-ownership) describes current cleanup coverage and
+the remaining migration and membership lifecycle limitations.
+
 ## diagnostics
 
 Operators can inspect one resolved owner with:

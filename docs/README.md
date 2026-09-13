@@ -15,6 +15,7 @@ Use this page to find the maintained project documentation.
 - [Selling Bin transaction GameTests](test/selling-bin.md)
 - [KubeJS ownership regression](test/kubejs.md)
 - [Diagnostic capture performance](test/diagnostics.md)
+- [Authenticated diagnostic capture lifecycle](verification/capture-client/README.md)
 - [Editor session authorization](test/editor-authorization.md)
 - [Editor package import](test/editor-import.md)
 - [Editor external file changes](test/editor-external-changes.md)

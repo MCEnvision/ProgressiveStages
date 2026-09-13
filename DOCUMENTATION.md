@@ -5349,6 +5349,12 @@ provider and client acceptance remain separate gates.
 
 ### Diagnostic capture output lifecycle
 
+The [authenticated lifecycle verification](docs/verification/capture-client/README.md) records
+actual operator input, nonoperator rejection, manual stop, definition reload, idle timeout,
+connection loss and process restart on the pinned production client and dedicated server.
+These observations complement the recording benchmark and do not replace provider or browser
+acceptance, every limit, or output failure testing.
+
 The interaction, progression, and permission capture commands share the `/stage debug` parent.
 The shared capture manager accepts only its selected category and online target. Record timestamps,
 rate windows, and timeout checks use the server tick clock rather than persisted world game time.

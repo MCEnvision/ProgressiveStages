@@ -63,3 +63,7 @@ owned server, confirm its writer and server processes exited, and remove the own
 world, remaining logs and test build output while preserving source, shared dependencies,
 and requested candidate artifacts. A passing performance result does not close the separate
 capture control, lifecycle, privacy, browser, provider, and real client acceptance gates.
+
+The [authenticated capture lifecycle record](../verification/capture-client/README.md) separately
+exercises actual operator input, nonoperator denial, manual stop, reload, timeout, connection
+loss and process restart. It records the scope and limitations of those observations.

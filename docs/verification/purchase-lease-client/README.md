@@ -63,6 +63,11 @@ Repeat this live revoke scenario, grant/source changes, duplicate updates and cl
 response against the corrected artifact. BIN-AC-011B and final mixed client synchronization remain
 open to that extent.
 
+Source `5d68f06d86ad5e1a5e297bb1caae6c235614392f` implements revision driven map and offer
+refresh. Its build, server response GameTests and dedicated startup passed, as recorded in the
+[repair verification](../3.0.5-security-review.md#open-map-synchronization-repair). Corrected laptop
+acceptance remains pending; these screenshots continue to describe the earlier candidate.
+
 The direct Java script binding opened the actual client map from a closed screen. This does not
 prove KubeJS engine loading, an external provider implementation, LuckPerms behavior or the full
 Brave Easy Builder journey. No broad phase or plan completion is claimed.

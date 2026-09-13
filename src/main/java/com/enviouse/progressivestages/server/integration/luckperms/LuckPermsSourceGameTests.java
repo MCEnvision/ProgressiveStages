@@ -41,7 +41,13 @@ public final class LuckPermsSourceGameTests {
         var dependency = StageId.parse("progressivestages:permission_source_dependency");
         var order = StageOrder.getInstance();
         var previous = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
-        var data = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var data = original.copy();
+        data.restorePermissionEpisodes(first.getUUID(), data.getPermissionEpisodes(first.getUUID()).stream()
+            .filter(episode -> !episode.stage().equals(stage)).toList());
+        data.restorePermissionEpisodes(second.getUUID(), data.getPermissionEpisodes(second.getUUID()).stream()
+            .filter(episode -> !episode.stage().equals(stage)).toList());
+        server.overworld().setData(StageAttachments.TEAM_STAGES, data);
         var manager = StageManager.getInstance();
         var bridge = LuckPermsBridge.getInstance();
         var adapter = new InMemoryLuckPermsAdapter();
@@ -133,6 +139,7 @@ public final class LuckPermsSourceGameTests {
         } finally {
             data.revokeStage(StageManager.SERVER_TEAM, stage);
             data.revokeStage(StageManager.SERVER_TEAM, dependency);
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
             StageRegressionData.get(server).clear(StageManager.SERVER_TEAM, stage);
             StageRegressionData.get(server).clear(StageManager.SERVER_TEAM, dependency);
             LuckPermsBridge.disconnect(first);
@@ -155,7 +162,13 @@ public final class LuckPermsSourceGameTests {
         var stage = StageId.parse("progressivestages:permission_owner_regression");
         var order = StageOrder.getInstance();
         var previous = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
-        var data = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var data = original.copy();
+        for (UUID subject : List.of(actor.getUUID(), teammate)) {
+            data.restorePermissionEpisodes(subject, data.getPermissionEpisodes(subject).stream()
+                .filter(episode -> !episode.stage().equals(stage)).toList());
+        }
+        server.overworld().setData(StageAttachments.TEAM_STAGES, data);
         var manager = StageManager.getInstance();
         var bridge = LuckPermsBridge.getInstance();
         var adapter = new InMemoryLuckPermsAdapter();
@@ -208,6 +221,7 @@ public final class LuckPermsSourceGameTests {
             data.revokePersonalStage(actor.getUUID(), stage);
             data.revokeStage(oldTeam, stage);
             data.revokeStage(StageManager.SERVER_TEAM, stage);
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
             StageRegressionData.get(server).clear(StageManager.SERVER_TEAM, stage);
             LuckPermsBridge.disconnect(actor);
             bridge.setAdapterForTests(null);

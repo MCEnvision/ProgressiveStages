@@ -57,7 +57,7 @@ public record PermissionEpisode(OwnerRef owner, StageId stage, UUID subject, Str
                 ? new PermissionEpisode(owner, stage, subject, row, observation, false, false, acquiredAt, expiresAt) : this;
         }
         if (positive) {
-            return observation.isEmpty()
+            return observation.isEmpty() || acquiredAt == 0 && !suppressed
                 ? new PermissionEpisode(owner, stage, subject, row, fingerprint, true, suppressed, acquiredAt, expiresAt) : this;
         }
         return observation.equals(fingerprint)

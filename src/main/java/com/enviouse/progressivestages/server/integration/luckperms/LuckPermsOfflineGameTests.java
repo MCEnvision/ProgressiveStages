@@ -165,6 +165,7 @@ public final class LuckPermsOfflineGameTests {
         final StageManager manager = StageManager.getInstance();
         final LuckPermsBridge bridge = LuckPermsBridge.getInstance();
         final List<StageDefinition> previous;
+        final TeamStageData original;
         final TeamStageData data;
         final RecordingAdapter adapter = new RecordingAdapter();
         final SubjectReconciliationQueue queue;
@@ -174,7 +175,9 @@ public final class LuckPermsOfflineGameTests {
             helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The offline fixture requires an isolated server.");
             previous = order.getOrderedStages().stream().map(stage -> order.getStageDefinition(stage).orElseThrow()).toList();
             helper.assertTrue(STAGES.stream().noneMatch(order::stageExists), "Fixture definitions must be unused.");
-            data = server.overworld().getData(StageAttachments.TEAM_STAGES);
+            original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+            data = new TeamStageData();
+            server.overworld().setData(StageAttachments.TEAM_STAGES, data);
             var field = LuckPermsBridge.class.getDeclaredField("dirty");
             field.setAccessible(true);
             queue = (SubjectReconciliationQueue) field.get(bridge);
@@ -192,6 +195,7 @@ public final class LuckPermsOfflineGameTests {
                     data.revokeStage(subject, stage);
                 }
             }
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
             bridge.setAdapterForTests(null);
             queue.clear();
             order.clear();

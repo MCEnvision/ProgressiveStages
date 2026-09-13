@@ -36,8 +36,12 @@ public final class PermissionEpisodeGameTests {
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void permissionRevocationSurvivesReloadAndOnlyIndependentLossRearms(GameTestHelper helper) {
         try (Fixture fixture = new Fixture(helper)) {
-            fixture.define(false, -1);
+            fixture.define(false, -1, Map.of("world", List.of("overworld")));
             fixture.adapter.permission(fixture.subject, "professions.chef", TRUE);
+            fixture.adapter.context(fixture.subject, "world", "nether");
+            fixture.reconcile();
+            helper.assertTrue(!fixture.manager.hasStage(fixture.player, fixture.stage) && fixture.episode().acquiredAt() == 0,
+                "A matching permission outside the configured world must not start an acquisition.");
             fixture.adapter.context(fixture.subject, "world", "overworld");
             fixture.reconcile();
             helper.assertTrue(fixture.manager.hasStage(fixture.player, fixture.stage), "The initial eligible grant must succeed.");
@@ -53,7 +57,7 @@ public final class PermissionEpisodeGameTests {
             fixture.reconcile();
             fixture.adapter.context(fixture.subject, "world", "overworld");
             fixture.adapter.permission(fixture.subject, "professions.chef", TRUE);
-            fixture.define(true, -1);
+            fixture.define(true, -1, Map.of("world", List.of("overworld")));
             fixture.reconcile();
             helper.assertTrue(!fixture.manager.hasStage(fixture.player, fixture.stage),
                 "Provider loss, context changes and retention edits must not clear a suppression.");
@@ -123,6 +127,17 @@ public final class PermissionEpisodeGameTests {
                 fixture.manager.reconcileOfflinePermissionSources(fixture.manager.captureOfflinePermissionContext(fixture.subject),
                     Map.of(), Map.of(fixture.stage, Map.of(source, negative)), () -> ++observations[0] == 1);
                 helper.assertTrue(fixture.episode().equals(before), "An invalidated completion must not commit eligibility loss.");
+                if (permanent) {
+                    fixture.adapter.permission(fixture.subject, "professions.chef", FALSE);
+                    fixture.reconcile();
+                    fixture.data().putPermissionEpisode(new PermissionEpisode(fixture.owner, fixture.stage, fixture.subject,
+                        "chef", first.observation(), false, false, expiredStart, expiredStart + 60000));
+                    fixture.adapter.permission(fixture.subject, "professions.chef", TRUE);
+                    fixture.reconcile();
+                    helper.assertTrue(fixture.manager.hasStage(fixture.player, fixture.stage)
+                        && fixture.episode().acquiredAt() > expiredStart + 60000,
+                        "A returning rank must expire the old permanent source before opening its new episode.");
+                }
             }
         }
         helper.succeed();
@@ -211,10 +226,12 @@ public final class PermissionEpisodeGameTests {
             LuckPermsBridge.getInstance().setAdapterForTests(adapter);
         }
 
-        void define(boolean permanent, long duration) {
+        void define(boolean permanent, long duration) { define(permanent, duration, Map.of()); }
+
+        void define(boolean permanent, long duration, Map<String, List<String>> contexts) {
             order.clear();
             var row = new LuckPermsStageOptions.InboundRule("chef", List.of(), List.of("professions.chef"),
-                LuckPermsStageOptions.Match.ALL, Map.of());
+                LuckPermsStageOptions.Match.ALL, contexts);
             order.registerStage(StageDefinition.builder(stage).teamStage(false).durationMillis(duration)
                 .luckPerms(new LuckPermsStageOptions(true, true, permanent ? LuckPermsStageOptions.InboundMode.PERMANENT
                     : LuckPermsStageOptions.InboundMode.SYNCHRONIZED, List.of(row), List.of(), List.of())).build());

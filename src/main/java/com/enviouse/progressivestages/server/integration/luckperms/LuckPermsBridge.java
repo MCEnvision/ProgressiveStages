@@ -236,6 +236,7 @@ public final class LuckPermsBridge {
 
     private void reconcileSubject(ServerPlayer player) {
         if (player == null || adapter == null) return;
+        StageManager.getInstance().expirePermissionSources(player);
         boolean providerReady = adapter.state() == LuckPermsAdapter.State.READY;
         long ticket = providerReady ? adapter.prepareProjection(player.getUUID(), player) : -1;
         if (providerReady && ticket < 0) {

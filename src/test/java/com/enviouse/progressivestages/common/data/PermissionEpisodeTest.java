@@ -41,6 +41,16 @@ class PermissionEpisodeTest {
     }
 
     @Test
+    void unqualifiedObservationsDoNotAnchorTheFirstSuccessfulGrantToAnEarlierContext() {
+        var pending = episode().observe(OTHER, true);
+        assertEquals(OTHER, pending.observation());
+        var acquired = pending.acquire(1000, 0, 500).suppress();
+        assertEquals(acquired, acquired.observe(ORIGINAL, false));
+        assertFalse(acquired.observe(OTHER, false).observe(OTHER, true).suppressed());
+        assertEquals(ORIGINAL, episode().suppress().observe(OTHER, true).observation());
+    }
+
+    @Test
     void firstAcquisitionUsesTheExistingOwnerClockAndDoesNotRefreshForAnotherSource() {
         var started = episode().acquire(1000, 500, 500);
         assertEquals(500, started.acquiredAt());

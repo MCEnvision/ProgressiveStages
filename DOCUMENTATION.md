@@ -2922,8 +2922,16 @@ For a still registered definition and the current owner, removed rows or a remov
 withdraw that subject's synchronized sources. Permanent history remains retained when mappings
 change or permission eligibility disappears. Legacy labels without a subject UUID are recognized
 as derived in source explanations, but are not silently assigned to the current player or deleted.
-Migration of those labels, old owner withdrawal after membership or scope changes, removed stage
-definitions, offline contributors and expiry episode recovery remain open lifecycle work.
+Before evaluating new inbound grants, reconciliation removes the current subject's synchronized
+contributions under obsolete owners or deleted stage definitions. It uses a subject index rebuilt
+from existing source records during load and copy, then maintained by grant, revoke, bulk replacement
+and owner removal. No additional persistent schema field is introduced and a subject lookup does
+not scan every owner's saved stages. All obsolete contributions are removed before publishing
+owner invalidation and evaluating new grants. Online beneficiaries receive current views and a bulk
+change event, without an acquisition or refund operation. The existing FTB membership detector
+reconciles before its team synchronization path. Migration of unattributed labels, offline contributor
+invalidation, startup eligibility, exact membership event timing and expiry episode recovery remain
+open lifecycle work.
 
 Outbound output must use attributable transient contributions and preserve administrative nodes,
 independent membership and explicit negative permissions. The adapter now delegates mutations to

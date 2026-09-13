@@ -146,6 +146,7 @@ public final class LuckPermsBridge {
 
     private void reconcileSubject(ServerPlayer player) {
         if (player == null || adapter == null) return;
+        StageManager.getInstance().withdrawObsoletePermissionOwners(player);
         LuckPermsAdapter.SubjectSnapshot snapshot = adapter.snapshot(player.getUUID());
         boolean ready = adapter.state() == LuckPermsAdapter.State.READY && snapshot.ready();
         for (StageId stageId : StageOrder.getInstance().getOrderedStages()) {

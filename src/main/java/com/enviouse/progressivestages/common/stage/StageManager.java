@@ -263,6 +263,31 @@ public class StageManager {
         return true;
     }
 
+    public boolean withdrawObsoletePermissionOwners(ServerPlayer player) {
+        if (player == null || server == null) return false;
+        TeamStageData data = getTeamStageData();
+        Set<OwnerRef> affectedOwners = new LinkedHashSet<>();
+        for (TeamStageData.PermissionContribution contribution : data.getPermissionContributions(player.getUUID())) {
+            if (contribution.source().permanent()) continue;
+            StageId stage = contribution.stage();
+            if (StageOrder.getInstance().stageExists(stage) && owner(player, stage).equals(contribution.owner())) continue;
+            if (data.revokeStageFromSource(contribution.owner(), stage, contribution.source().label())) {
+                affectedOwners.add(contribution.owner());
+            }
+        }
+        if (affectedOwners.isEmpty()) return false;
+        markMutation(true);
+        for (UUID recipient : affectedPlayers(player, true, affectedOwners)) {
+            ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+            if (online != null) {
+                syncToPlayer(online);
+                fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
+            }
+        }
+        publishMutation(player, null, true, "source_owner_changed", Set.copyOf(affectedOwners));
+        return true;
+    }
+
     public boolean canGrantStageFromSource(ServerPlayer player, StageId stageId) {
         if (player == null || stageId == null) return false;
         StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);

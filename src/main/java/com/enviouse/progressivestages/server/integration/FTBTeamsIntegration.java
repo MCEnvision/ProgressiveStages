@@ -276,6 +276,7 @@ public class FTBTeamsIntegration {
 
             // Check if team changed
             if (!java.util.Objects.equals(currentTeamId, lastTeamId)) {
+                com.enviouse.progressivestages.server.integration.luckperms.LuckPermsBridge.reconcile(player);
                 LOGGER.debug("Team change detected for {}: {} -> {}",
                         player.getName().getString(),
                         lastTeamId != null ? lastTeamId : "none",

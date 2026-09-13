@@ -142,4 +142,63 @@ class TeamStageDataTest {
         assertFalse(data.hasStage(id, STAGE));
         assertFalse(data.hasPersonalStage(id, STAGE));
     }
+    @Test
+    void contributionLookupSeparatesOwnersAndSubjectsAndReturnsAnImmutableSnapshot() {
+        UUID first = new UUID(0, 10), second = new UUID(0, 11);
+        var data = new TeamStageData();
+        String label = new PermissionStageSource(first, "chef", false).label();
+        data.grantPersonalStageFromSource(first, STAGE, label);
+        data.grantStageFromSource(first, STAGE, label);
+        data.grantStageFromSource(first, STAGE, new PermissionStageSource(second, "chef", false).label());
+        var snapshot = data.getPermissionContributions(first);
+        assertEquals(2, snapshot.size());
+        assertEquals(Set.of(OwnerKind.PERSONAL, OwnerKind.TEAM), snapshot.stream()
+            .map(entry -> entry.owner().kind()).collect(java.util.stream.Collectors.toSet()));
+        assertEquals(1, data.getPermissionContributions(second).size());
+        assertThrows(UnsupportedOperationException.class, snapshot::clear);
+        data.revokePersonalStage(first, STAGE);
+        assertEquals(2, snapshot.size());
+        assertEquals(1, data.getPermissionContributions(first).size());
+    }
+
+    @Test
+    void contributionLookupSurvivesCodecAndCopyWithoutSharingMutableState() {
+        UUID id = new UUID(0, 12);
+        var data = new TeamStageData();
+        String label = new PermissionStageSource(id, "chef", false).label();
+        data.grantPersonalStageFromSource(id, STAGE, label);
+        data.grantStageFromSource(new UUID(0, 0), STAGE, label);
+        var loaded = TeamStageData.CODEC.parse(JsonOps.INSTANCE,
+            TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow()).getOrThrow();
+        var copy = loaded.copy();
+        assertEquals(data.getPermissionContributions(id), copy.getPermissionContributions(id));
+        loaded.revokeStageFromSource(id, STAGE, label, true);
+        assertEquals(1, loaded.getPermissionContributions(id).size());
+        assertEquals(2, copy.getPermissionContributions(id).size());
+        copy.removeTeam(new UUID(0, 0));
+        assertEquals(1, copy.getPermissionContributions(id).size());
+        copy.removePersonal(id);
+        assertTrue(copy.getPermissionContributions(id).isEmpty());
+    }
+
+    @Test
+    void contributionLookupTracksBulkReplacementAndIgnoresUnattributedLabels() {
+        UUID id = new UUID(0, 13);
+        var data = new TeamStageData();
+        String label = new PermissionStageSource(id, "chef", true).label();
+        data.grantStageFromSource(id, STAGE, label);
+        data.grantPersonalStageFromSource(id, STAGE, label);
+        data.grantPersonalStageFromSource(id, STAGE, "luckperms:synchronized:legacy");
+        assertEquals(2, data.getPermissionContributions(id).size());
+        data.setStages(id, Set.of());
+        assertEquals(1, data.getPermissionContributions(id).size());
+        data.setPersonalStages(id, Set.of(STAGE));
+        assertEquals(1, data.getPermissionContributions(id).size());
+        data.setPersonalStages(id, Set.of());
+        assertTrue(data.getPermissionContributions(id).isEmpty());
+        data.grantStageFromSource(id, STAGE, "luckperms:synchronized:legacy");
+        assertTrue(data.getPermissionContributions(id).isEmpty());
+        assertTrue(data.hasStage(id, STAGE));
+    }
+
 }

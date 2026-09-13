@@ -40,6 +40,11 @@ owner namespace. Removing one synchronized source preserves other contributors a
 earned access. Adding the first derived source to an existing stage with no source labels preserves
 that legacy stage as independent. A newly derived stage receives no independent grant.
 
+When the current subject reconciles after an owner change, obsolete synchronized contributions are
+removed from their original owner before new grants are evaluated. Deleting a definition also
+withdraws that subject's synchronized contribution. Independent and permanent owner history stays
+in place. This path does not migrate a contribution to another owner or grant an offline player.
+
 The [LuckPerms guide](luckperms.md#inbound-source-ownership) describes current cleanup coverage and
 the remaining migration and membership lifecycle limitations.
 

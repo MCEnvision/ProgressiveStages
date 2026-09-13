@@ -145,6 +145,78 @@ public final class LuckPermsSourceGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void permissionOwnerChangesWithdrawStaleContributions(GameTestHelper helper) throws Exception {
+        var server = helper.getLevel().getServer();
+        helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The owner fixture requires an isolated server.");
+        var actor = player(helper, new UUID(0x5721L, 1));
+        UUID teammate = new UUID(0x5721L, 2);
+        UUID oldTeam = new UUID(0x5721L, 3);
+        var stage = StageId.parse("progressivestages:permission_owner_regression");
+        var order = StageOrder.getInstance();
+        var previous = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
+        var data = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var manager = StageManager.getInstance();
+        var bridge = LuckPermsBridge.getInstance();
+        var adapter = new InMemoryLuckPermsAdapter();
+        String ownSource = new PermissionStageSource(actor.getUUID(), "chef", false).label();
+        String retained = new PermissionStageSource(actor.getUUID(), "chef", true).label();
+        String otherSource = new PermissionStageSource(teammate, "chef", false).label();
+        var personal = new com.enviouse.progressivestages.common.stage.OwnerRef(
+            com.enviouse.progressivestages.common.stage.OwnerKind.PERSONAL, actor.getUUID());
+        var events = new java.util.ArrayList<com.enviouse.progressivestages.common.stage.StageMutationResult>();
+        AutoCloseable subscription = manager.subscribeCommittedStageChanges(events::add);
+        bridge.setAdapterForTests(adapter);
+        try {
+            replaceDefinitions(definition(stage, false, "chef"));
+            data.grantPersonalStage(actor.getUUID(), stage);
+            data.grantPersonalStageFromSource(actor.getUUID(), stage, ownSource);
+            data.grantPersonalStageFromSource(actor.getUUID(), stage, retained);
+            data.grantPersonalStageFromSource(actor.getUUID(), stage, otherSource);
+            data.grantStageFromSource(oldTeam, stage, ownSource);
+            adapter.permission(actor.getUUID(), "professions.chef", TRUE);
+            LuckPermsBridge.reconcile(actor);
+            helper.assertTrue(data.getSources(personal, stage).equals(Set.of("independent", retained, otherSource)),
+                "Owner changes must preserve independent, permanent and other subject contributions.");
+            helper.assertTrue(!data.hasStage(oldTeam, stage), "The last old team contribution must be withdrawn.");
+            helper.assertTrue(data.getSources(StageManager.SERVER_TEAM, stage).equals(Set.of(ownSource)),
+                "The qualified source must resolve to the new owner.");
+            helper.assertTrue(events.size() == 2 && events.get(0).reason().equals("source_owner_changed")
+                && events.get(1).reason().equals("source_added"),
+                "Obsolete owner withdrawal must commit before the new owner grant.");
+            helper.assertTrue(events.get(0).affectedOwners().contains(personal)
+                && events.get(0).affectedOwners().stream().anyMatch(owner -> owner.id().equals(oldTeam)),
+                "Committed invalidation must identify the original owners.");
+            long revision = manager.getMutationRevision();
+            helper.assertTrue(!manager.withdrawObsoletePermissionOwners(actor)
+                && manager.getMutationRevision() == revision, "Repeated owner cleanup must be a no op.");
+
+            order.clear();
+            LuckPermsBridge.reconcile(actor);
+            helper.assertTrue(!data.hasStage(StageManager.SERVER_TEAM, stage),
+                "Deleted definitions must withdraw this subject's synchronized contributions.");
+            helper.assertTrue(data.getSources(personal, stage).equals(Set.of("independent", retained, otherSource)),
+                "Deleting a definition must preserve independent and permanent history and other subjects.");
+            adapter.permission(actor.getUUID(), "professions.chef", FALSE);
+            replaceDefinitions(definition(stage, false, "chef"));
+            LuckPermsBridge.reconcile(actor);
+            helper.assertTrue(!manager.hasStage(actor, stage),
+                "Restoring a definition must not resurrect a withdrawn ineligible contribution.");
+            helper.succeed();
+        } finally {
+            subscription.close();
+            data.revokePersonalStage(actor.getUUID(), stage);
+            data.revokeStage(oldTeam, stage);
+            data.revokeStage(StageManager.SERVER_TEAM, stage);
+            StageRegressionData.get(server).clear(StageManager.SERVER_TEAM, stage);
+            LuckPermsBridge.disconnect(actor);
+            bridge.setAdapterForTests(null);
+            order.clear();
+            previous.forEach(order::registerStage);
+            actor.discard();
+        }
+    }
+
     private static void replaceDefinitions(StageDefinition... definitions) {
         var order = StageOrder.getInstance();
         order.clear();

@@ -3,6 +3,7 @@ package com.enviouse.progressivestages.common.data;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.stage.OwnerKind;
 import com.enviouse.progressivestages.common.stage.OwnerRef;
+import com.enviouse.progressivestages.common.stage.PermissionStageSource;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
@@ -43,6 +44,8 @@ public class TeamStageData {
     /** Owner UUID to stage id to source labels. Empty source sets mean legacy ownership. */
     private record SourceOwner(OwnerKind kind, UUID id) {}
     private final Map<SourceOwner, Map<StageId, Set<String>>> stageSources = new HashMap<>();
+    public record PermissionContribution(OwnerRef owner, StageId stage, PermissionStageSource source) {}
+    private final Map<UUID, Set<PermissionContribution>> permissionContributions = new HashMap<>();
     private int ownershipSchema = CURRENT_SCHEMA;
 
     public TeamStageData() {}
@@ -54,6 +57,7 @@ public class TeamStageData {
         readStages(serialized, teamStages);
         readStages(serializedPersonal, personalStages);
         readSources(serializedSources);
+        indexPermissionSources();
     }
 
     public int getOwnershipSchema() { return ownershipSchema; }
@@ -245,6 +249,7 @@ public class TeamStageData {
         Set<String> sources = stages == null ? null : stages.get(stageId);
         if (sources == null || !sources.remove(source)) return false;
         ownershipSchema = CURRENT_SCHEMA;
+        updatePermissionIndex(kind, owner.id(), stageId, source, false);
         if (sources.isEmpty()) {
             if (kind == OwnerKind.PERSONAL) revokePersonalStage(owner.id(), stageId);
             else revokeStage(owner.id(), stageId);
@@ -254,8 +259,37 @@ public class TeamStageData {
 
     private void addSource(OwnerKind kind, UUID owner, StageId stageId, String source) {
         if (source == null || source.isBlank()) return;
-        stageSources.computeIfAbsent(new SourceOwner(kind, owner), ignored -> new HashMap<>())
-            .computeIfAbsent(stageId, ignored -> new HashSet<>()).add(source.trim());
+        String label = source.trim();
+        if (stageSources.computeIfAbsent(new SourceOwner(kind, owner), ignored -> new HashMap<>())
+                .computeIfAbsent(stageId, ignored -> new HashSet<>()).add(label)) {
+            updatePermissionIndex(kind, owner, stageId, label, true);
+        }
+    }
+
+    public Set<PermissionContribution> getPermissionContributions(UUID subject) {
+        Set<PermissionContribution> sources = permissionContributions.get(subject);
+        return sources == null ? Set.of() : Set.copyOf(sources);
+    }
+
+    private void indexPermissionSources() {
+        permissionContributions.clear();
+        stageSources.forEach((owner, stages) -> stages.forEach((stage, sources) ->
+            sources.forEach(source -> updatePermissionIndex(owner.kind(), owner.id(), stage, source, true))));
+    }
+
+    private void updatePermissionIndex(OwnerKind kind, UUID owner, StageId stage, String label, boolean adding) {
+        PermissionStageSource.parse(label).ifPresent(source -> {
+            var contribution = new PermissionContribution(new OwnerRef(kind, owner), stage, source);
+            if (adding) {
+                permissionContributions.computeIfAbsent(source.subject(), ignored -> new HashSet<>()).add(contribution);
+            } else {
+                Set<PermissionContribution> entries = permissionContributions.get(source.subject());
+                if (entries != null) {
+                    entries.remove(contribution);
+                    if (entries.isEmpty()) permissionContributions.remove(source.subject());
+                }
+            }
+        });
     }
 
     private static OwnerKind teamKind(UUID owner) {
@@ -265,7 +299,8 @@ public class TeamStageData {
     private void removeSources(OwnerKind kind, UUID owner, StageId stageId) {
         Map<StageId, Set<String>> stages = stageSources.get(new SourceOwner(kind, owner));
         if (stages == null) return;
-        stages.remove(stageId);
+        Set<String> removed = stages.remove(stageId);
+        if (removed != null) removed.forEach(source -> updatePermissionIndex(kind, owner, stageId, source, false));
         if (stages.isEmpty()) stageSources.remove(new SourceOwner(kind, owner));
     }
 
@@ -301,8 +336,9 @@ public class TeamStageData {
         SourceOwner sourceOwner = new SourceOwner(kind, owner);
         Map<StageId, Set<String>> sources = stageSources.get(sourceOwner);
         if (sources == null) return;
-        sources.keySet().removeIf(stage -> !retained.contains(stage));
-        if (sources.isEmpty()) stageSources.remove(sourceOwner);
+        for (StageId stage : Set.copyOf(sources.keySet())) {
+            if (!retained.contains(stage)) removeSources(kind, owner, stage);
+        }
     }
 
     /**
@@ -310,12 +346,12 @@ public class TeamStageData {
      */
     public void removeTeam(UUID teamId) {
         teamStages.remove(teamId);
-        stageSources.remove(new SourceOwner(teamKind(teamId), teamId));
+        pruneSources(teamKind(teamId), teamId, Set.of());
     }
 
     public void removePersonal(UUID playerId) {
         personalStages.remove(playerId);
-        stageSources.remove(new SourceOwner(OwnerKind.PERSONAL, playerId));
+        pruneSources(OwnerKind.PERSONAL, playerId, Set.of());
     }
 
     /**
@@ -369,6 +405,7 @@ public class TeamStageData {
             entry.getValue().forEach((stage, sources) -> stages.put(stage, new HashSet<>(sources)));
             copy.stageSources.put(entry.getKey(), stages);
         }
+        copy.indexPermissionSources();
         return copy;
     }
 }

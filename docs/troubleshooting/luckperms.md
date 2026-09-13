@@ -78,8 +78,12 @@ A legacy stage without source labels keeps its independent meaning when a new co
 For a registered stage and its current owner, deleting an inbound row or the LuckPerms table removes
 that player's synchronized contribution on reconciliation. Retained permanent contributions survive
 these changes. Older labels without player attribution are not guessed or deleted automatically.
-Old owner cleanup after a membership or scope change, removed stage definitions, offline contributors
-and expiry episode recovery still require the complete lifecycle repair and verification.
+Before checking new inbound eligibility, reconciliation removes the current player's synchronized
+contributions under obsolete owners or deleted definitions. Other players' contributions and
+independent or permanent history are preserved. The existing FTB membership detector invokes this
+path before team synchronization. Offline contributors, startup eligibility, unattributed legacy
+migration, exact membership event timing and expiry episode recovery still need complete lifecycle
+verification. A successful online reconciliation does not prove offline cleanup.
 
 ## Diagnosis
 

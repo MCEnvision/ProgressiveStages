@@ -355,7 +355,9 @@ Stages can optionally integrate with LuckPerms. Add `[luckperms]`, `[[luckperms.
 Inbound grants track each contributing player and mapping separately. Losing one synchronized
 contribution preserves other contributors and independently earned access. Removing a mapping
 withdraws its synchronized source from the current owner; permanent grants remain retained.
-Legacy contributor migration and the full provider lifecycle remain under verification.
+Reconciliation also removes that player's synchronized contributions from obsolete owners and
+deleted definitions before evaluating new grants. Legacy contributor migration, offline recovery
+and the full provider lifecycle remain under verification.
 
 Command gates now check Minecraft's command execution tasks after redirects resolve. Registered
 node and execution bindings identify aliases; namespace text alone does not establish equivalence.

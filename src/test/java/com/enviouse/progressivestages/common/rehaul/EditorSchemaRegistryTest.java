@@ -92,4 +92,13 @@ class EditorSchemaRegistryTest {
             assertEquals(LuckPermsStageOptions.MAX_CONTEXT_COMBINATIONS, field.controlHints().get("maxCombinations"));
         }
     }
+
+    @Test
+    void commandDescendantsSchemaMatchesTheParserDefault() {
+        var field = EditorSchemaRegistry.get().all().stream()
+            .filter(candidate -> candidate.path().equals("command_permissions[].descendants"))
+            .findFirst().orElseThrow();
+        assertEquals(SchemaValueType.BOOLEAN, field.type());
+        assertEquals(true, field.defaultValue());
+    }
 }

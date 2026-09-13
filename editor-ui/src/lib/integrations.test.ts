@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendRow, parseCommandPermissions, parseInteractions, parseLuckPerms, parseOwnership, replaceCommandPermissions, replaceInbound, serializeContainerInsertionPair, serializeInbound, serializeInteraction, updateInteractionBlock, writeLuckPermsSettings, writeOwnership } from "./integrations";
+import { appendRow, parseCommandPermissions, parseInteractions, parseLuckPerms, parseOwnership, replaceCommandPermissions, replaceInbound, serializeContainerInsertionPair, serializeInbound, serializeInteraction, updateInteractionBlock, updateCommandPermissionBlock, writeLuckPermsSettings, writeOwnership } from "./integrations";
 
 describe("guided integration configuration", () => {
   it("authors selective insertion together without adding a menu access or wildcard rule", () => {
@@ -80,5 +80,60 @@ describe("guided integration configuration", () => {
     expect(parseCommandPermissions(commands)[0].descendants).toBe(false);
     expect(commands).toContain('target_block = "id:selling_bin:selling_bin"');
     expect(serializeInteraction({ type: "item_on_block", heldItem: "all:*", targetBlock: "id:selling_bin:selling_bin", targetEntity: "", targetKind: "", target: "", effect: "lock", priority: 0, description: "all items" })).toContain('held_item = "all:*"');
+  });
+});
+
+
+describe("command and interaction row editing", () => {
+  it.each(["", "descendants = true # Include children.\n", "descendants = false # Only the exact literal.\n"])("preserves the command descendant selection and omission in %s", field => {
+    const source = "[[command_permissions]]\nid = 'home' # Keep the ID note.\npath = 'sethome' # Keep the path note.\n" + field;
+    const row = parseCommandPermissions(source)[0];
+    expect(row).toMatchObject({ id: "home", path: "sethome", descendants: !field.startsWith("descendants = false") });
+    expect(updateCommandPermissionBlock(source, row)).toBe(source);
+    const changed = updateCommandPermissionBlock(source, { ...row, path: "home" });
+    expect(changed).toBe(source.replace("path = 'sethome'", 'path = "home"'));
+    expect(parseCommandPermissions(changed)[0].path).toBe("home");
+  });
+
+  it("edits the selected command row without absorbing an extension or adjacent row", () => {
+    const source = "[stage]\nid = 'chef'\n[[command_permissions]]\nid = 'first'\npath = 'sethome'\n[command_permissions.future]\npath = 'preserve'\n[[command_permissions]]\nid = 'second'\npath = 'home'\ndescendants = false\n";
+    const rows = parseCommandPermissions(source);
+    expect(rows).toHaveLength(2);
+    const changed = replaceCommandPermissions(source, [
+      updateCommandPermissionBlock(rows[0].sourceText!, { ...rows[0], id: "renamed", descendants: false }), rows[1].sourceText!
+    ]);
+    expect(parseCommandPermissions(changed).map(row => [row.id, row.path, row.descendants]))
+      .toEqual([["renamed", "sethome", false], ["second", "home", false]]);
+    expect(changed).toContain("[command_permissions.future]\npath = 'preserve'");
+    expect(changed).toContain("[stage]\nid = 'chef'");
+  });
+
+  it.each(["item_on_block", "block_right_click", "item_on_entity", "item_into_inventory"])("edits a %s row without rewriting its activation", type => {
+    const target = type === "item_on_entity" ? "target_entity = 'id:minecraft:cow'"
+      : type === "item_into_inventory" ? "target_kind = 'block'\ntarget = 'id:minecraft:chest'\npriority = 1_280 # Keep the priority note."
+      : "target_block = 'id:selling_bin:selling_bin'";
+    const source = `[[interactions]]
+type = '${type}' # Keep the type note.
+held_item = 'id:minecraft:bread' # Keep the item note.
+${target}
+[interactions.while]
+type = 'dimension'
+id = 'minecraft:the_end'
+`;
+    const row = parseInteractions(source)[0];
+    expect(row.type).toBe(type);
+    if (type === "item_into_inventory") expect(row.priority).toBe(1280);
+    expect(updateInteractionBlock(source, row)).toBe(source);
+    const changed = updateInteractionBlock(source, { ...row, heldItem: "id:minecraft:carrot" });
+    expect(changed).toBe(source.replace("held_item = 'id:minecraft:bread'", 'held_item = "id:minecraft:carrot"'));
+    expect(parseInteractions(changed)[0].heldItem).toBe("id:minecraft:carrot");
+  });
+
+  it("changes priority and clears an optional description inside the selected interaction", () => {
+    const source = "[[interactions]]\ntype = 'item_into_inventory'\nheld_item = 'id:minecraft:bread'\ntarget_kind = 'block'\ntarget = 'id:minecraft:chest'\npriority = 100 # Priority note.\ndescription = 'old' # Description note.\n";
+    const row = parseInteractions(source)[0];
+    const changed = updateInteractionBlock(source, { ...row, priority: 150, description: "" });
+    expect(changed).toBe(source.replace("priority = 100", "priority = 150").replace("description = 'old'", 'description = ""'));
+    expect(parseInteractions(changed)[0]).toMatchObject({ priority: 150, description: "" });
   });
 });

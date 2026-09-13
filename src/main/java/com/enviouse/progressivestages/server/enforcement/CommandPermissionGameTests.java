@@ -6,6 +6,7 @@ import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.data.StageAttachments;
 import com.enviouse.progressivestages.common.stage.StageOrder;
 import com.enviouse.progressivestages.common.team.TeamProvider;
+import com.enviouse.progressivestages.server.loader.StageFileParser;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -83,5 +84,57 @@ public final class CommandPermissionGameTests {
             previous.forEach(order::registerStage);
             player.discard();
         }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void parsedCommandDefaultsReachActualExecution(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var cookie = CommonListenerCookie.createInitial(new GameProfile(UUID.randomUUID(), "command-default"), false);
+        var player = new ServerPlayer(server, helper.getLevel(), cookie.gameProfile(), cookie.clientInformation());
+        var source = player.createCommandSourceStack().withPermission(4).withSuppressedOutput();
+        var order = StageOrder.getInstance();
+        var previous = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
+        var stage = StageId.parse("progressivestages:command_default_regression");
+        var stages = helper.getLevel().getData(StageAttachments.TEAM_STAGES);
+        var owner = TeamProvider.getInstance().getTeamId(player);
+        var originalTimes = new LinkedHashMap<net.minecraft.server.level.ServerLevel, Long>();
+        server.getAllLevels().forEach(level -> originalTimes.put(level, level.getDayTime()));
+        try {
+            for (String selection : List.of("omitted", "true", "false")) {
+                String text = "[stage]\nid = \"" + stage + "\"\n[[command_permissions]]\nid = \"time_gate\"\npath = \"time\"\n"
+                    + (selection.equals("omitted") ? "" : "descendants = " + selection + "\n");
+                var parsed = StageFileParser.parseText(text, "stage.toml", "test", false);
+                helper.assertTrue(parsed.isSuccess(), "The configured command gate must parse.");
+                order.clear();
+                previous.forEach(order::registerStage);
+                order.registerStage(parsed.getStageDefinition());
+                helper.assertTrue(order.getStageDefinition(stage).orElseThrow() == parsed.getStageDefinition(),
+                    "Each configured selection must replace the previous fixture definition.");
+                helper.getLevel().setDayTime(100);
+                server.getCommands().performPrefixedCommand(source, "time set 200");
+                boolean descendants = !selection.equals("false");
+                helper.assertTrue(helper.getLevel().getDayTime() == (descendants ? 100 : 200),
+                    "Omitted and true descendants must gate children while explicit false excludes them.");
+                server.getCommands().performPrefixedCommand(source, "execute positioned ~ ~ ~ run time set 250");
+                helper.assertTrue(helper.getLevel().getDayTime() == (descendants ? 100 : 250),
+                    "Redirected execution must use the parsed descendant selection.");
+                stages.grantStage(owner, stage);
+                server.getCommands().performPrefixedCommand(source, "time set 300");
+                helper.assertTrue(helper.getLevel().getDayTime() == 300, "Stage ownership must permit the child command.");
+                server.getCommands().performPrefixedCommand(source.withPermission(0), "time set 350");
+                helper.assertTrue(helper.getLevel().getDayTime() == 300, "Native permission remains required.");
+                stages.revokeStage(owner, stage);
+                server.getCommands().performPrefixedCommand(source, "time set 400");
+                helper.assertTrue(helper.getLevel().getDayTime() == (descendants ? 300 : 400),
+                    "Revocation must restore the configured command gate.");
+            }
+        } finally {
+            originalTimes.forEach((level, time) -> level.setDayTime(time));
+            stages.revokeStage(owner, stage);
+            order.clear();
+            previous.forEach(order::registerStage);
+            player.discard();
+        }
+        helper.succeed();
     }
 }

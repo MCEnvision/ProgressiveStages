@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { discoverStages } from "../../lib/model";
-import { parseInteractions, parseLuckPerms } from "../../lib/integrations";
+import { parseInteractions, parseLuckPerms, parseCommandPermissions } from "../../lib/integrations";
 import { IntegrationsPanel } from "./IntegrationsPanel";
 
 const editor = vi.hoisted(() => ({
@@ -133,5 +133,71 @@ describe.each(["inbound", "outbound"] as const)("guided %s contexts", direction 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(editor.mutateFile).not.toHaveBeenCalled();
     expect(editor.closeDialog).toHaveBeenCalledOnce();
+  });
+});
+
+
+describe("guided command and interaction edits", () => {
+  function openCommand(existing = false) {
+    if (existing) editor.boot.draft.files[stagePath] += "[[command_permissions]]\nid = 'home_gate' # Keep this note.\npath = 'sethome'\n";
+    render(<IntegrationsPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    if (existing) fireEvent.click(within(screen.getByText("home_gate").closest("article")!).getByRole("button", { name: "Edit" }));
+    else fireEvent.click(screen.getByRole("button", { name: "Add command gate" }));
+    render(editor.openDialog.mock.calls[0][0].content);
+  }
+
+  it("defaults new command gates to descendants and saves an explicit opt out", async () => {
+    openCommand();
+    const toggle = screen.getByRole("checkbox", { name: /Gate descendants/ });
+    expect(toggle).toHaveProperty("checked", true);
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Save command gate" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const [, source] = editor.mutateFile.mock.calls[0] as unknown as [string, string];
+    expect(parseCommandPermissions(source)[0].descendants).toBe(false);
+  });
+
+  it("edits an existing command path without inserting an omitted default", async () => {
+    openCommand(true);
+    expect(screen.getByRole("checkbox", { name: /Gate descendants/ })).toHaveProperty("checked", true);
+    fireEvent.change(screen.getByLabelText(/Command literal path/), { target: { value: "home" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save command gate" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const [, source] = editor.mutateFile.mock.calls[0] as unknown as [string, string];
+    expect(parseCommandPermissions(source)[0]).toMatchObject({ id: "home_gate", path: "home", descendants: true });
+    expect(source).not.toContain("descendants =");
+    expect(source).toContain("# Keep this note.");
+  });
+
+  it("keeps command input available after a failed save", async () => {
+    openCommand(true);
+    editor.mutateFile.mockRejectedValueOnce(new Error("The draft revision changed."));
+    fireEvent.change(screen.getByLabelText(/Command literal path/), { target: { value: "home" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save command gate" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "The draft revision changed.");
+    expect(editor.closeDialog).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/Command literal path/)).toHaveProperty("value", "home");
+  });
+
+  it("edits inventory priority while preserving conditional activation", async () => {
+    render(<IntegrationsPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    render(editor.openDialog.mock.calls[0][0].content);
+    fireEvent.change(screen.getByLabelText("Priority"), { target: { value: "150" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save interaction" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const [, source] = editor.mutateFile.mock.calls[0] as unknown as [string, string];
+    expect(parseInteractions(source)[0]).toMatchObject({ type: "item_into_inventory", priority: 150 });
+    expect(source).toContain('[interactions.while]\ntype = "dimension"\nid = "minecraft:the_end"');
+  });
+
+  it("keeps interaction input available after a failed save", async () => {
+    openInteraction();
+    fireEvent.click(screen.getByRole("button", { name: "Armor tag" }));
+    editor.mutateFile.mockRejectedValueOnce(new Error("The draft revision changed."));
+    fireEvent.click(screen.getByRole("button", { name: "Save interaction" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "The draft revision changed.");
+    expect(editor.closeDialog).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/Held item selector/)).toHaveProperty("value", "tag:c:armors");
   });
 });

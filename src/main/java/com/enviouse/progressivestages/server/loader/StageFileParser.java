@@ -339,7 +339,7 @@ public final class StageFileParser {
             Config row = ruleTable(rows.get(index), field);
             String id = atField(field + ".id", null, () -> requiredString(row, "id", field));
             String path = atField(field + ".path", id, () -> requiredString(row, "path", field));
-            boolean descendants = strictBoolean(row, "descendants", false, field + ".descendants", id);
+            boolean descendants = strictBoolean(row, "descendants", true, field + ".descendants", id);
             commands.add(atField(field, id,
                 () -> new LuckPermsStageOptions.CommandPermissionRule(id, path, descendants)));
         }

@@ -53,8 +53,10 @@ function CommandForm({ row, onSave, onCancel }: { row?: CommandPermissionModel; 
   const [id, setId] = useState(row?.id || "home_gate");
   const [path, setPath] = useState(row?.path || "sethome");
   const [descendants, setDescendants] = useState(row?.descendants ?? true);
-  return <form className="dialog-form" onSubmit={event => { event.preventDefault(); void onSave({ id, path, descendants }); }}>
-    <div className="form-grid"><Field label="Rule id"><input value={id} onChange={event => setId(event.target.value)} required/></Field><Field label="Command literal path" help="Use literals separated by spaces, without a leading slash."><input value={path} onChange={event => setPath(event.target.value)} placeholder="sethome" required/></Field><Toggle label="Gate descendants" help="Also gate child literals and their argument values." checked={descendants} onChange={setDescendants}/></div>
+  const [error, setError] = useState("");
+  return <form className="dialog-form" onSubmit={async event => { event.preventDefault(); setError(""); try { await onSave({ id, path, descendants }); } catch (failure) { setError(failure instanceof Error ? failure.message : "The command gate was not saved."); } }}>
+    <div className="form-grid"><Field label="Rule id"><input value={id} onChange={event => setId(event.target.value)} required/></Field><Field label="Command literal path" help="Use literals separated by spaces, without a leading slash."><input value={path} onChange={event => setPath(event.target.value)} placeholder="sethome" required/></Field><Toggle label="Gate descendants" help="Enabled by default. Also gate child literals and their argument values." checked={descendants} onChange={setDescendants}/></div>
+    {error ? <p role="alert">{error}</p> : null}
     <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={onCancel}>Cancel</Button><Button type="submit" tone="primary">Save command gate</Button></footer>
   </form>;
 }
@@ -70,7 +72,8 @@ function InteractionForm({ row, onSave, onCancel }: { row?: InteractionModel; on
   const [priority, setPriority] = useState(row?.priority ?? 100);
   const [includeInventory, setIncludeInventory] = useState(false);
   const [description, setDescription] = useState(row?.description || "");
-  const save = (event: React.FormEvent) => { event.preventDefault(); void onSave({ type, heldItem, targetBlock, targetEntity, targetKind, target, effect, priority, description }, includeInventory && type === "item_on_block"); };
+  const [error, setError] = useState("");
+  const save = async (event: React.FormEvent) => { event.preventDefault(); setError(""); try { await onSave({ type, heldItem, targetBlock, targetEntity, targetKind, target, effect, priority, description }, includeInventory && type === "item_on_block"); } catch (failure) { setError(failure instanceof Error ? failure.message : "The interaction was not saved."); } };
   return <form className="dialog-form" onSubmit={save}>
     <div className="form-grid">
       <Field label="Interaction type"><select value={type} onChange={event => setType(event.target.value)}><option value="item_on_block">Use an item on a block</option><option value="block_right_click">Right click a block</option><option value="item_on_entity">Use an item on an entity</option><option value="item_into_inventory">Insert an item into an inventory</option></select></Field>
@@ -84,6 +87,7 @@ function InteractionForm({ row, onSave, onCancel }: { row?: InteractionModel; on
     {type === "block_right_click" ? <div className="rule-primer"><strong>Restrict access to the block</strong><p>This rule applies even with an empty hand. Use separate item and inventory insertion rules when only selected items should be restricted.</p></div> : null}
     {type === "item_into_inventory" ? <div className="rule-primer"><strong>Restrict insertion inside a menu</strong><p>This rule checks the item entering the destination. Add an item on block rule for mods that also accept held items directly. Conditional activation is available in the Rules tab.</p></div> : null}
     {type === "item_on_block" ? <div className="rule-primer"><strong>Quick Selling Bin selectors</strong><p><Button type="button" tone="quiet" onClick={() => { setHeldItem("tag:c:armors"); setTargetBlock("id:selling_bin:selling_bin"); }}>Armor tag</Button> <Button type="button" tone="quiet" onClick={() => { setHeldItem("all:*"); setTargetBlock("id:selling_bin:selling_bin"); }}>All items</Button></p></div> : null}
+    {error ? <p role="alert">{error}</p> : null}
     <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={onCancel}>Cancel</Button><Button type="submit" tone="primary">Save interaction</Button></footer>
   </form>;
 }

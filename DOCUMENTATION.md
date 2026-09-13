@@ -4773,6 +4773,14 @@ Targeted context edits preserve quoted keys, multiline arrays, value comments, u
 fields, omitted defaults, and unrelated child tables. Invalid existing context text stays intact
 and reports a source correction message. Failed saves retain input and keep the dialog open.
 
+Command `descendants` defaults to true in legacy files, packages, schema metadata, and guided
+controls. Explicit false restricts the gate to that literal and its arguments, excluding child
+literals. Native permissions remain required. Editing another command field preserves an omitted
+descendant setting. Command and interaction edits replace values inside the selected array row,
+retain field comments and unknown child tables, and leave conditional activation intact. Clearing
+a description writes an empty value; changing priority preserves the surrounding rule source.
+Failed saves keep their dialogs and entered values available.
+
 `luckperms.enabled` and command `descendants` require actual TOML booleans. Inbound `groups` and
 `permissions` require arrays containing only strings. Omitted fields retain their documented
 true, false or empty defaults. The normal domain validation still rejects unsupported modes,

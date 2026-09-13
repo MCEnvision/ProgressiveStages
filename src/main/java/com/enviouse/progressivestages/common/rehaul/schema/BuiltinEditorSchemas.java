@@ -76,6 +76,9 @@ final class BuiltinEditorSchemas {
         add(sink, "permissions.command_permissions", "stage.toml", "command_permissions", "Command gates",
             "Literal command paths that require this stage while native permissions remain required.", SchemaValueType.OBJECT,
             List.of(), false, catalog("commands"), Set.of(), List.of());
+        add(sink, "permissions.command_descendants", "stage.toml", "command_permissions[].descendants", "Gate descendants",
+            "Require the stage for child literals and their arguments. Enabled when omitted.", SchemaValueType.BOOLEAN,
+            true, false, null, Set.of(), List.of());
         add(sink, "display.background", "stage.toml", "display.background", "Background", "The stage map background texture.",
             SchemaValueType.RESOURCE_ID, "minecraft:textures/gui/advancements/backgrounds/stone.png", false,
             catalog("textures"), Set.of(), List.of());

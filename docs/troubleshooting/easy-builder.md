@@ -41,6 +41,14 @@ If validation reports a missing group, provider absence, invalid context, duplic
 unsupported command path, fix the row in the draft and review again. The source text and last valid
 runtime are retained when apply is rejected.
 
+## Command gates
+
+**Gate descendants** is enabled for new command gates and when `descendants` is omitted from
+existing source. Leave it enabled to require the stage for child literals and their arguments.
+Turn it off to gate only the selected literal and its arguments. A stage never replaces the
+command's native permission requirement. Editing a path preserves an omitted setting and the
+row's comments. If saving fails, the dialog keeps your input and displays the error.
+
 ## direct interactions
 
 Use Access, Direct interactions, Add interaction. For Selling Bin access, choose Use an item on a
@@ -54,6 +62,9 @@ also matches. Saving creates an `item_on_block` rule and a matching `item_into_i
 in one draft change. Both require the containing stage, and both remain independently editable.
 An independent empty hand click can still open the menu; other items follow their own rules.
 Use **Right click a block** as a separate rule when the whole bin should require a stage.
+
+Editing an existing interaction changes its own row and preserves conditional activation and
+comments. If saving fails, the dialog keeps the entered selectors and reports the error.
 
 The pairing option is available when adding a held item rule. For an existing rule, add its
 inventory counterpart with the same item, choose **Container block**, enter the same block

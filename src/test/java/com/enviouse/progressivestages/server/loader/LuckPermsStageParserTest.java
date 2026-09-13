@@ -46,6 +46,20 @@ class LuckPermsStageParserTest {
         assertEquals("chef_rank", diagnostic.ruleId().orElseThrow());
     }
 
+    @ParameterizedTest
+    @CsvSource({"omitted, true", "true, true", "false, false"})
+    void commandDescendantsDefaultAndExplicitValuesAgreeAcrossFormats(String setting, boolean expected) {
+        String source = "[stage]\nid = \"chef\"\n[[command_permissions]]\nid = \"time_gate\"\npath = \"time\"\n"
+            + (setting.equals("omitted") ? "" : "descendants = " + setting + " # Keep this choice.\n");
+        var legacy = StageFileParser.parseText(source, "chef.toml", "test", false);
+        var packaged = StagePackageParser.parseContents("test", "stage.toml", "[schema]\nversion = 4\n" + source,
+            "rules.toml", "", "progression.toml", "");
+        assertTrue(legacy.isSuccess(), legacy.getErrorMessage());
+        assertTrue(packaged.isSuccess(), packaged.getErrorMessage());
+        assertEquals(expected, legacy.getStageDefinition().getLuckPerms().commandPermissions().getFirst().descendants());
+        assertEquals(expected, packaged.getStageDefinition().getLuckPerms().commandPermissions().getFirst().descendants());
+    }
+
     @Test
     void packageAndLegacyValidationRetainTheSameCommandRowFailure() {
         String source = "[stage]\nid = \"chef\"\n[[command_permissions]]\nid = \"home_gate\"\npath = \"sethome\"\ndescendants = \"false\"\n";

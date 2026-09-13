@@ -4,11 +4,9 @@ import {
   appendTomlBlock,
   encodeToml,
   escapeRegex,
-  extractArrayBlocks,
   extractArrayGroups,
   lineValues,
   parseSimpleArray,
-  readBlockValue,
   readTomlValue,
   removeTomlValue,
   replaceArrayGroups,
@@ -156,7 +154,7 @@ function updateMappingValue(original: string, key: string, value: unknown): stri
   else {
     const remaining = original.slice(start);
     const boundary = remaining.search(/[\r\n#]/);
-    end = start + (boundary < 0 ? remaining.length : boundary);
+    end = start + remaining.slice(0, boundary < 0 ? remaining.length : boundary).trimEnd().length;
   }
   const notes = comments(original.slice(start, end));
   const lineStart = bodyStart + assignment.index;
@@ -183,16 +181,23 @@ export function updateOutboundBlock(original: string, row: OutboundModel): strin
 }
 
 export function updateCommandPermissionBlock(original: string, row: CommandPermissionModel): string {
-  let updated = upsertToml(original, "id", row.id.trim());
-  updated = upsertToml(updated, "path", row.path.trim());
-  return upsertToml(updated, "descendants", row.descendants);
+  const previous = parseCommandPermissions(original)[0];
+  let updated = original;
+  for (const key of ["id", "path", "descendants"] as const) {
+    if (!previous || previous[key] !== row[key]) updated = updateMappingValue(updated, key, row[key]);
+  }
+  return updated;
+}
+
+function mappingScalar(block: string, key: string): string {
+  return mappingField(block, key).split(/[\r\n#]/, 1)[0].trim();
 }
 
 export function parseCommandPermissions(text: string): CommandPermissionModel[] {
-  return extractArrayBlocks(text, "command_permissions").map(block => ({
-    id: stringValue(readBlockValue(block.text, "id")),
-    path: stringValue(readBlockValue(block.text, "path")),
-    descendants: readBlockValue(block.text, "descendants").trim().toLowerCase() === "true",
+  return extractArrayGroups(text, "command_permissions").map(block => ({
+    id: mappingString(block.text, "id"),
+    path: mappingString(block.text, "path"),
+    descendants: mappingScalar(block.text, "descendants") !== "false",
     sourceText: block.text
   }));
 }
@@ -207,31 +212,20 @@ export function serializeCommandPermission(row: CommandPermissionModel): string 
 }
 
 export function replaceCommandPermissions(text: string, rows: string[]): string {
-  const blocks = extractArrayBlocks(text, "command_permissions");
-  const lines = text.split(/\r?\n/);
-  for (let index = blocks.length - 1; index >= 0; index--) {
-    const block = blocks[index];
-    const replacement = rows[index];
-    lines.splice(block.start, block.end - block.start, ...(replacement ? replacement.split("\n") : []));
-  }
-  for (const replacement of rows.slice(blocks.length)) {
-    if (lines.at(-1)?.trim()) lines.push("");
-    lines.push(...replacement.split("\n"));
-  }
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+  return replaceArrayGroups(text, "command_permissions", rows);
 }
 
 export function parseInteractions(text: string): InteractionModel[] {
   return extractArrayGroups(text, "interactions").map(block => ({
-    type: stringValue(readBlockValue(block.text, "type")) || "item_on_block",
-    heldItem: stringValue(readBlockValue(block.text, "held_item")),
-    targetBlock: stringValue(readBlockValue(block.text, "target_block")),
-    targetEntity: stringValue(readBlockValue(block.text, "target_entity")),
-    targetKind: stringValue(readBlockValue(block.text, "target_kind")),
-    target: stringValue(readBlockValue(block.text, "target")),
-    effect: stringValue(readBlockValue(block.text, "effect")) || "lock",
-    priority: Number(readBlockValue(block.text, "priority")) || 0,
-    description: stringValue(readBlockValue(block.text, "description")),
+    type: mappingString(block.text, "type") || "item_on_block",
+    heldItem: mappingString(block.text, "held_item"),
+    targetBlock: mappingString(block.text, "target_block"),
+    targetEntity: mappingString(block.text, "target_entity"),
+    targetKind: mappingString(block.text, "target_kind"),
+    target: mappingString(block.text, "target"),
+    effect: mappingString(block.text, "effect") || "lock",
+    priority: Number(mappingScalar(block.text, "priority").replaceAll("_", "")) || 0,
+    description: mappingString(block.text, "description"),
     sourceText: block.text
   }));
 }
@@ -269,14 +263,18 @@ export function replaceInteractions(text: string, rows: string[]): string {
 }
 
 export function updateInteractionBlock(original: string, row: InteractionModel): string {
-  return serializeInteraction(row).split(/\r?\n/).reduce((result, line) => {
-    const match = line.match(/^([A-Za-z0-9_.-]+)\s*=\s*(.*)$/);
-    if (!match || match[1] === "type") return result;
-    const raw = match[2].trim();
-    const value = raw === "true" || raw === "false" ? raw === "true"
-      : /^-?\d+$/.test(raw) ? Number(raw) : stringValue(raw);
-    return upsertToml(result, match[1], value);
-  }, upsertToml(original, "type", row.type));
+  const previous = parseInteractions(original)[0];
+  let updated = original;
+  const fields: [keyof InteractionModel, string][] = [
+    ["type", "type"], ["heldItem", "held_item"], ["description", "description"]
+  ];
+  if (row.type === "item_into_inventory") {
+    fields.push(["targetKind", "target_kind"], ["target", "target"], ["effect", "effect"], ["priority", "priority"]);
+  } else fields.push(row.type === "item_on_entity" ? ["targetEntity", "target_entity"] : ["targetBlock", "target_block"]);
+  for (const [property, key] of fields) {
+    if (!previous || previous[property] !== row[property]) updated = updateMappingValue(updated, key, row[property]);
+  }
+  return updated;
 }
 
 export function appendRow(text: string, row: string): string {

@@ -178,7 +178,13 @@ public final class LuckPermsSourceGameTests {
         var personal = new com.enviouse.progressivestages.common.stage.OwnerRef(
             com.enviouse.progressivestages.common.stage.OwnerKind.PERSONAL, actor.getUUID());
         var events = new java.util.ArrayList<com.enviouse.progressivestages.common.stage.StageMutationResult>();
-        AutoCloseable subscription = manager.subscribeCommittedStageChanges(events::add);
+        var committedViews = new java.util.ArrayList<Boolean>();
+        AutoCloseable subscription = manager.subscribeCommittedStageChanges(result -> {
+            events.add(result);
+            committedViews.add(data.getSources(personal, stage).equals(Set.of("independent", retained, otherSource))
+                && !data.hasStage(oldTeam, stage)
+                && data.getSources(StageManager.SERVER_TEAM, stage).equals(Set.of(ownSource)));
+        });
         bridge.setAdapterForTests(adapter);
         try {
             replaceDefinitions(definition(stage, false, "chef"));
@@ -194,12 +200,15 @@ public final class LuckPermsSourceGameTests {
             helper.assertTrue(!data.hasStage(oldTeam, stage), "The last old team contribution must be withdrawn.");
             helper.assertTrue(data.getSources(StageManager.SERVER_TEAM, stage).equals(Set.of(ownSource)),
                 "The qualified source must resolve to the new owner.");
-            helper.assertTrue(events.size() == 2 && events.get(0).reason().equals("source_owner_changed")
-                && events.get(1).reason().equals("source_added"),
-                "Obsolete owner withdrawal must commit before the new owner grant.");
-            helper.assertTrue(events.get(0).affectedOwners().contains(personal)
-                && events.get(0).affectedOwners().stream().anyMatch(owner -> owner.id().equals(oldTeam)),
-                "Committed invalidation must identify the original owners.");
+            helper.assertTrue(events.size() == 1 && events.get(0).reason().equals("source_reconciled")
+                && committedViews.equals(List.of(true)),
+                "Old owner withdrawal and new owner acquisition must be visible together in one committed notification.");
+            helper.assertTrue(events.get(0).affectedOwners().equals(Set.of(personal,
+                new com.enviouse.progressivestages.common.stage.OwnerRef(
+                    com.enviouse.progressivestages.common.stage.OwnerKind.TEAM, oldTeam),
+                new com.enviouse.progressivestages.common.stage.OwnerRef(
+                    com.enviouse.progressivestages.common.stage.OwnerKind.SERVER, StageManager.SERVER_TEAM))),
+                "Committed invalidation must identify both original owners and the new owner.");
             long revision = manager.getMutationRevision();
             helper.assertTrue(!manager.withdrawObsoletePermissionOwners(actor)
                 && manager.getMutationRevision() == revision, "Repeated owner cleanup must be a no op.");

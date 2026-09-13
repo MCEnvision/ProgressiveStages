@@ -82,6 +82,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   The online update queue retains pending work on overflow and resumes its population scan
   within the existing per tick budget. Online reconciliation collects all inbound permissions
   before changing sources and retries the complete observation when input changes during queries.
+  Source and eligibility changes commit together before listeners or client updates run, preserving
+  deliberate administrative changes made by a listener after that commit.
   Runtime integration is not accepted. Command gates retain native
   permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 

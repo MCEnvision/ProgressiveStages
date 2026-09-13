@@ -311,4 +311,40 @@ class TeamStageDataTest {
         }
     }
 
+    @Test
+    void permissionDraftCommitsOnlyItsSubjectAndPreservesOtherOwnersAndSources() {
+        TeamStageData data = new TeamStageData();
+        UUID subject = new UUID(0, 101), other = new UUID(0, 102);
+        OwnerRef owner = new OwnerRef(OwnerKind.TEAM, subject);
+        OwnerRef personal = new OwnerRef(OwnerKind.PERSONAL, subject);
+        OwnerRef unrelated = new OwnerRef(OwnerKind.TEAM, other);
+        var nextStage = StageId.parse("progressivestages:next_chef");
+        var first = new PermissionStageSource(subject, "first", false);
+        var second = new PermissionStageSource(other, "second", false);
+        data.grantStage(owner.id(), STAGE);
+        data.grantStageFromSource(owner.id(), STAGE, first.label());
+        data.grantStageFromSource(owner.id(), STAGE, second.label());
+        data.grantPersonalStage(subject, STAGE);
+        data.grantStage(unrelated.id(), STAGE);
+        var draft = data.copyPermissionView(subject, java.util.Map.of(STAGE, owner, nextStage, owner));
+        assertFalse(draft.hasPersonalStage(subject, STAGE));
+        assertFalse(draft.hasStage(unrelated.id(), STAGE));
+        draft.revokeStageFromSource(owner, STAGE, first.label());
+        draft.grantStageFromSource(owner.id(), nextStage, first.label());
+        assertEquals(Set.of("independent", first.label(), second.label()), data.getSources(owner, STAGE));
+        assertFalse(data.hasStage(owner.id(), nextStage));
+        assertEquals(Set.of(owner), data.replacePermissionSubject(subject, draft));
+        assertEquals(Set.of("independent", second.label()), data.getEffectiveSources(owner, STAGE));
+        assertEquals(Set.of(first.label()), data.getEffectiveSources(owner, nextStage));
+        assertTrue(data.hasEffectiveStage(personal, STAGE));
+        assertTrue(data.hasEffectiveStage(unrelated, STAGE));
+        assertTrue(data.replacePermissionSubject(subject, draft).isEmpty());
+        var pending = data.copyPermissionView(subject, java.util.Map.of(nextStage, owner));
+        pending.deactivatePermissionSources(subject);
+        data.replacePermissionSubject(subject, pending);
+        assertEquals(Set.of(first.label()), data.getSources(owner, nextStage));
+        assertTrue(data.getEffectiveSources(owner, nextStage).isEmpty());
+        assertTrue(data.hasEffectiveStage(owner, STAGE));
+    }
+
 }

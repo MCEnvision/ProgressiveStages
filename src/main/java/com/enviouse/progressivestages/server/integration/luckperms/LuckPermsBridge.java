@@ -1,6 +1,5 @@
 package com.enviouse.progressivestages.server.integration.luckperms;
 
-import com.enviouse.progressivestages.common.api.StageCause;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import com.enviouse.progressivestages.common.config.StageDefinition;
@@ -255,7 +254,6 @@ public final class LuckPermsBridge {
             return;
         }
         StageManager manager = StageManager.getInstance();
-        manager.expirePermissionSources(player);
         LuckPermsAdapter inputAdapter = adapter;
         var providerState = inputAdapter.state();
         boolean providerReady = providerState == LuckPermsAdapter.State.READY;
@@ -274,65 +272,37 @@ public final class LuckPermsBridge {
         var owners = new LinkedHashMap<StageId, com.enviouse.progressivestages.common.stage.OwnerRef>();
         definitions.forEach(definition -> owners.put(definition.getId(), manager.getStageOwner(player, definition.getId())));
         var input = OnlinePermissionInput.capture(inputAdapter, player.getUUID(), definitions, providerReady);
-        boolean current = adapter == inputAdapter && inputAdapter.state() == providerState
+        java.util.function.BooleanSupplier current = () -> adapter == inputAdapter && inputAdapter.state() == providerState
             && inputRevision.get() == revision && TeamProvider.getInstance().membershipRevision() == membership
             && StageFileLoader.getInstance().getCompiledSnapshot().revision() == definitionsRevision
-            && manager.getMutationRevision() == stagesRevision
             && definitions.equals(StageOrder.getInstance().getOrderedStages().stream()
                 .map(id -> StageOrder.getInstance().getStageDefinition(id).orElseThrow()).toList())
             && owners.entrySet().stream().allMatch(entry -> entry.getValue().equals(manager.getStageOwner(player, entry.getKey())));
-        if (!current) {
+        if (!current.getAsBoolean() || manager.getMutationRevision() != stagesRevision) {
             dirty.request(player.getUUID());
             return;
         }
         if (providerReady && !input.snapshot().ready()) dirty.request(player.getUUID());
-        manager.withdrawObsoletePermissionOwners(player);
-        for (StageDefinition definition : definitions) {
-            reconcileInbound(player, definition, input.snapshot(), input.observations().getOrDefault(definition.getId(), Map.of()));
-        }
-        reconcileOutbound(player, input.snapshot(), input.snapshot().ready(), ticket);
-    }
-
-    private void reconcileInbound(ServerPlayer player, StageDefinition definition,
-                                  LuckPermsAdapter.SubjectSnapshot snapshot, Map<String, StageManager.PermissionObservation> observations) {
-        LuckPermsStageOptions options = definition.getLuckPerms();
-        StageManager manager = StageManager.getInstance();
-        UUID subject = player.getUUID();
-        var activeRows = new java.util.HashSet<String>();
-        for (LuckPermsStageOptions.InboundRule row : options.inbound()) {
-            String synchronizedSource = new PermissionStageSource(subject, row.id(), false).label();
-            boolean permanent = options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT;
-            String selected = new PermissionStageSource(subject, row.id(), permanent).label();
-            var source = new PermissionStageSource(subject, row.id(), permanent);
-            var observation = observations.get(row.id());
-            var owner = manager.getStageOwner(player, definition.getId());
-            if (observation != null) manager.observePermissionEligibility(owner, definition.getId(), source, observation);
-            String denial = manager.permissionEpisodeDenial(owner, definition.getId(), source);
-            boolean eligible = observation != null && observation.eligible() && denial.isEmpty()
-                && contextMatches(row.contexts(), snapshot.contexts())
-                && manager.canGrantStageFromSource(player, definition.getId());
-            if (!denial.isEmpty()) {
-                record(player, definition.getId(), row.id(), false, denial);
-                manager.revokeStageFromSource(player, definition.getId(),
-                    new PermissionStageSource(subject, row.id(), true).label(), StageCause.PERMISSION);
-            }
-            if (eligible) {
-                activeRows.add(row.id());
-                boolean added = manager.grantStageFromSource(player, definition.getId(), selected, StageCause.PERMISSION);
-                if (!added && !manager.getStageSources(player, definition.getId()).contains(selected)) {
-                    String reason = manager.permissionEpisodeDenial(owner, definition.getId(), source);
-                    record(player, definition.getId(), row.id(), false, reason.isEmpty() ? "dependency_denied" : reason);
+        Map<StageId, Set<String>> eligibleRows = new LinkedHashMap<>();
+        for (var definition : definitions) {
+            for (var row : definition.getLuckPerms().inbound()) {
+                if (contextMatches(row.contexts(), input.snapshot().contexts())) {
+                    eligibleRows.computeIfAbsent(definition.getId(), ignored -> new java.util.HashSet<>()).add(row.id());
                 }
             }
-            if (!eligible || permanent) {
-                manager.revokeStageFromSource(player, definition.getId(), synchronizedSource, StageCause.PERMISSION);
-            }
         }
-        for (String label : manager.getStageSources(player, definition.getId())) {
-            PermissionStageSource.parse(label).filter(source -> source.subject().equals(subject)
-                && !source.permanent() && !activeRows.contains(source.row())).ifPresent(source ->
-                    manager.revokeStageFromSource(player, definition.getId(), label, StageCause.PERMISSION));
+        var result = manager.reconcileOnlinePermissionSources(player, definitions, owners, input.observations(),
+            eligibleRows, stagesRevision, current);
+        if (!result.accepted()) {
+            dirty.request(player.getUUID());
+            return;
         }
+        result.denials().forEach(denial -> record(player, denial.stage(), denial.row(), false, denial.reason()));
+        if (!current.getAsBoolean() || manager.getMutationRevision() != result.revision()) {
+            dirty.request(player.getUUID());
+            return;
+        }
+        reconcileOutbound(player, input.snapshot(), input.snapshot().ready(), ticket);
     }
 
     StageManager.PermissionObservation observe(UUID player, LuckPermsStageOptions.InboundRule row,

@@ -107,6 +107,74 @@ public final class OnlinePermissionGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void onlinePermissionCommitPublishesCompleteStateAndPreservesCallbackMutations(GameTestHelper helper) throws Exception {
+        var server = helper.getLevel().getServer();
+        helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The commit fixture requires an isolated server.");
+        var manager = StageManager.getInstance();
+        var order = StageOrder.getInstance();
+        var originalDefinitions = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
+        var original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        UUID subject = new UUID(0x5730, 2);
+        var owner = new OwnerRef(OwnerKind.PERSONAL, subject);
+        var first = StageId.parse("progressivestages:online_commit_first");
+        var second = StageId.parse("progressivestages:online_commit_second");
+        var clocks = StageRegressionData.get(server);
+        long firstClock = clocks.getGrantTime(owner, first), secondClock = clocks.getGrantTime(owner, second);
+        var player = new FakePlayer(helper.getLevel(), new GameProfile(subject, "online-commit-test"));
+        var adapter = new QueryAdapter();
+        boolean[] callback = {false};
+        int[] observations = {0};
+        try (var subscription = manager.subscribeCommittedStageChanges(result -> {
+            if (!result.reason().equals("source_reconciled")) return;
+            observations[0]++;
+            if (callback[0]) {
+                callback[0] = false;
+                helper.assertTrue(manager.hasStage(player, first) && manager.hasStage(player, second)
+                    && clocks.getGrantTime(owner, first) > 0 && clocks.getGrantTime(owner, second) > 0,
+                    "A committed listener must observe both source grants and both clocks together.");
+                manager.revokeStageWithCause(player, first, com.enviouse.progressivestages.common.api.StageCause.COMMAND);
+            }
+        })) {
+            LuckPermsBridge.getInstance().setAdapterForTests(adapter);
+            for (var mode : LuckPermsStageOptions.InboundMode.values()) {
+                server.overworld().setData(StageAttachments.TEAM_STAGES, original.copy());
+                order.clear();
+                var definitions = List.of(definition(first, mode), definition(second, mode));
+                definitions.forEach(order::registerStage);
+                var owners = Map.of(first, owner, second, owner);
+                var input = OnlinePermissionInput.capture(adapter, subject, definitions, true);
+                int[] checks = {0};
+                long revision = manager.getMutationRevision();
+                int before = observations[0];
+                var rejected = manager.reconcileOnlinePermissionSources(player, definitions, owners, input.observations(),
+                    Map.of(first, Set.of("input"), second, Set.of("input")), revision, () -> ++checks[0] == 1);
+                helper.assertTrue(!rejected.accepted() && manager.getMutationRevision() == revision
+                    && observations[0] == before && !manager.hasStage(player, first) && !manager.hasStage(player, second)
+                    && server.overworld().getData(StageAttachments.TEAM_STAGES).getPermissionEpisodes(subject).isEmpty(),
+                    "An invalidated draft must leave all live ownership, history, revision and publication unchanged.");
+                callback[0] = true;
+                LuckPermsBridge.reconcile(player);
+                helper.assertTrue(!callback[0] && observations[0] == before + 1
+                    && !manager.hasStage(player, first) && manager.hasStage(player, second),
+                    "The complete batch must publish once and preserve a listener's deliberate revoke.");
+                LuckPermsBridge.reconcile(player);
+                helper.assertTrue(!manager.hasStage(player, first) && manager.hasStage(player, second),
+                    "Fresh reconciliation must retain the callback's administrative suppression.");
+            }
+            helper.succeed();
+        } finally {
+            LuckPermsBridge.disconnect(player);
+            LuckPermsBridge.getInstance().setAdapterForTests(null);
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
+            order.clear();
+            originalDefinitions.forEach(order::registerStage);
+            if (firstClock <= 0) clocks.clear(owner, first); else clocks.markGranted(owner, first, firstClock);
+            if (secondClock <= 0) clocks.clear(owner, second); else clocks.markGranted(owner, second, secondClock);
+            player.discard();
+        }
+    }
+
     private static StageDefinition definition(StageId stage, LuckPermsStageOptions.InboundMode mode) {
         var row = new LuckPermsStageOptions.InboundRule("input", List.of(), List.of(stage.getPath()),
             LuckPermsStageOptions.Match.ALL, Map.of());

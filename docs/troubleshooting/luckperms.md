@@ -204,3 +204,8 @@ Online permission input is collected before source changes. A provider event, me
 definition reload or stage mutation during collection discards the whole observation and queues a
 fresh attempt. A temporarily unavailable permission result cannot grant earlier matching rows from
 that incomplete observation. Permanent and independent ownership retain their existing semantics.
+
+Source changes now commit as one subject transaction after qualification in an isolated view.
+Listeners and client synchronization run after the complete source and eligibility state is committed.
+An administrative revoke from a listener remains effective; it is not overwritten by the original
+reconciliation. Callback invalidation schedules fresh work before outbound privileges are updated.

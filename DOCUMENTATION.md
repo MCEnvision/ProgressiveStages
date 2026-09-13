@@ -5165,6 +5165,22 @@ revision around those reads. A change discards the complete input and queues a f
 before any source or eligibility mutation. Native provider callbacks only advance a generation and
 request bounded queue work. Adapter replacement and shutdown also invalidate captured input.
 
-This boundary protects observation collection. It does not yet establish an atomic transaction for
-reentrant stage event callbacks during application or outbound provider mutations. Those remain part
-of the final concurrency acceptance gate.
+After collection, `StageManager.reconcileOnlinePermissionSources` evaluates expiration, old owner
+withdrawal, row eligibility, dependencies, slots, purchases and retention in an isolated permission
+view. The view contains the actor's resolved stage owners and existing permission contribution and
+episode locations, including other contributors at those same owner and stage pairs. It does not
+copy unrelated players or replace the world attachment. Invalidating the draft leaves live sources,
+episodes, acquisition clocks and committed revisions unchanged.
+
+The final guard checks the provider context, attachment identity and expected stage revision before
+`TeamStageData.replacePermissionSubject` applies only that subject's contributions and episode history.
+The server thread completes this mutation and restores acquisition clocks before synchronization,
+bulk events or committed listeners. A changed batch advances one mutation revision and publishes one
+committed result; an unchanged batch performs no publication. Independent grants, other contributors
+and equal UUIDs in distinct ownership namespaces are preserved.
+
+Listeners see the complete committed source state and may deliberately revoke or grant stages. Those
+later mutations are preserved. The bridge compares the committed revision and input context again
+before starting outbound reconciliation, so a callback invalidation queues a fresh attempt instead
+of publishing output from the earlier context. Atomic outbound provider mutations and actual provider
+concurrency acceptance remain separate open gates.

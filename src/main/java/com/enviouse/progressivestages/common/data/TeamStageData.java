@@ -354,6 +354,80 @@ public class TeamStageData {
         return sources == null ? Set.of() : Set.copyOf(sources);
     }
 
+    public TeamStageData copyPermissionView(UUID subject, Map<StageId, OwnerRef> owners) {
+        requireReadable();
+        TeamStageData draft = new TeamStageData();
+        draft.ownershipSchema = ownershipSchema;
+        Set<OwnerStage> selected = new HashSet<>();
+        owners.forEach((stage, owner) -> selected.add(new OwnerStage(owner, stage)));
+        getPermissionContributions(subject).forEach(source -> selected.add(new OwnerStage(source.owner(), source.stage())));
+        getPermissionEpisodes(subject).forEach(episode -> selected.add(new OwnerStage(episode.owner(), episode.stage())));
+        for (OwnerStage selectedStage : selected) {
+            OwnerRef owner = selectedStage.owner();
+            StageId stage = selectedStage.stage();
+            Map<UUID, Set<StageId>> stored = owner.kind() == OwnerKind.PERSONAL ? personalStages : teamStages;
+            if (stored.getOrDefault(owner.id(), Set.of()).contains(stage)) {
+                var target = owner.kind() == OwnerKind.PERSONAL ? draft.personalStages : draft.teamStages;
+                target.computeIfAbsent(owner.id(), ignored -> new HashSet<>()).add(stage);
+            }
+            SourceOwner sourceOwner = new SourceOwner(owner.kind(), owner.id());
+            for (String label : getSources(owner, stage)) {
+                draft.stageSources.computeIfAbsent(sourceOwner, ignored -> new HashMap<>())
+                    .computeIfAbsent(stage, ignored -> new HashSet<>()).add(label);
+                draft.updatePermissionIndex(owner.kind(), owner.id(), stage, label, true);
+                ActiveSource active = new ActiveSource(sourceOwner, stage, label);
+                if (activeSynchronizedSources.contains(active)) draft.activeSynchronizedSources.add(active);
+            }
+            for (EpisodeKey key : ownerEpisodes.getOrDefault(selectedStage, Set.of())) {
+                draft.putPermissionEpisode(permissionEpisodes.get(key));
+            }
+        }
+        return draft;
+    }
+
+    public Set<OwnerRef> replacePermissionSubject(UUID subject, TeamStageData draft) {
+        requireReadable();
+        draft.requireReadable();
+        Set<PermissionContribution> previous = getPermissionContributions(subject);
+        Set<PermissionContribution> next = draft.getPermissionContributions(subject);
+        Set<OwnerRef> changed = new HashSet<>();
+        var previousEpisodes = new HashSet<>(getPermissionEpisodes(subject));
+        var nextEpisodes = new HashSet<>(draft.getPermissionEpisodes(subject));
+        for (PermissionEpisode episode : previousEpisodes) {
+            if (!nextEpisodes.contains(episode)) changed.add(episode.owner());
+        }
+        for (PermissionEpisode episode : nextEpisodes) {
+            if (!previousEpisodes.contains(episode)) changed.add(episode.owner());
+        }
+        if (!previousEpisodes.equals(nextEpisodes)) restorePermissionEpisodes(subject, List.copyOf(nextEpisodes));
+        for (PermissionContribution source : previous) {
+            if (!next.contains(source) && revokeStageFromSource(source.owner(), source.stage(), source.source().label())) {
+                changed.add(source.owner());
+            }
+        }
+        for (PermissionContribution source : next) {
+            OwnerRef owner = source.owner();
+            String label = source.source().label();
+            ActiveSource active = new ActiveSource(new SourceOwner(owner.kind(), owner.id()), source.stage(), label);
+            boolean wasActive = activeSynchronizedSources.contains(active);
+            if (!previous.contains(source)) {
+                var stored = owner.kind() == OwnerKind.PERSONAL ? personalStages : teamStages;
+                Set<StageId> stages = stored.computeIfAbsent(owner.id(), ignored -> new HashSet<>());
+                if (stages.contains(source.stage()) && getSources(owner, source.stage()).isEmpty()) {
+                    addSource(owner.kind(), owner.id(), source.stage(), "independent");
+                }
+                stages.add(source.stage());
+                addSource(owner.kind(), owner.id(), source.stage(), label);
+                ownershipSchema = CURRENT_SCHEMA;
+                changed.add(owner);
+            }
+            boolean nowActive = draft.activeSynchronizedSources.contains(active);
+            if (nowActive) activeSynchronizedSources.add(active); else activeSynchronizedSources.remove(active);
+            if (wasActive != nowActive) changed.add(owner);
+        }
+        return Set.copyOf(changed);
+    }
+
     public UUID nextPermissionSubject(UUID previous) {
         UUID contribution = permissionContributions.isEmpty() ? null
             : previous == null ? permissionContributions.firstKey() : permissionContributions.higherKey(previous);

@@ -135,6 +135,9 @@ documentation and this sanitized evidence are retained. No new runtime acceptanc
 
 ## Outbound node regression
 
+Source commit `23d5733fc2b5a2d6b5018740f7af19e13e2d4c75` contains this repair and its regression
+fixtures. The final packaged artifact below was built from that clean source revision.
+
 The outbound repair replaces reflective persistent writes with an optional typed helper using
 API 5.4 `User.transientData()`. It does not call `data()` or `saveUser`. Created nodes carry a
 random private metadata token, with separate reference sets for each subject, node kind, value
@@ -181,6 +184,34 @@ input exclusion, missing marker lifecycle and independent negative checks, and i
 event, offline and stale generation handling. Their existing BIN-AC-012 gates remain open. This
 repair does not initialize the live bridge before P002-TASK-001 or change the selected runtime,
 NeoForge 21.1.248, Minecraft 1.21.1 or other platform pins.
+
+The resulting `progressivestages-3.0.5.jar` SHA256 is
+`9148c753e669740865fead68abda8c5e9e81ed9eedd37ea28a8c90148c994e37`. Its manifest identifies the
+source commit above and `Build-Dirty: false`. All 726 project class entries matched the compiled
+output byte for byte, and the JAR contains no `net/luckperms/` API classes. API 5.4 was added only
+to the test dependencies so the interface fixtures can execute; it remains compile only for
+production packaging.
+
+On September 12, 2026, the exact packaged candidate ran in the disposable
+`build/luckperms-node-verification` runtime inside the Phase 003 worktree on `node-1`. It used
+Java 21.0.11, the existing read only NeoForge 21.1.248 library link, the verified `forgeserver`
+launch target and `--nogui`, loopback port 25589, online authentication and a read back
+`eula=true`. Only ProgressiveStages was installed. The server reached `Done` at 21:14:39
+America/Chicago, initialized `neoforge:default_handler` and loaded 50 default stage definitions.
+At 21:15:07, console `time query daytime` returned 562 and `stage debug permissions status`
+reported stopped capture with zero records and an idle writer. This proves packaged common and
+dedicated server classloading with LuckPerms absent, not provider mutations or player login.
+No client, display, renderer or live LuckPerms bridge was launched.
+
+The server stopped through standard input, saved every dimension and exited normally at 21:15:15.
+The owned process and port listener were absent before cleanup. The disposable runtime, world,
+logs, generated configuration, added test and build paths, and temporary ownership receipt were
+removed after their final consumers. The build pruned the obsolete compiled
+`LuckPermsBridge$OutboundEntry.class` because that nested record was removed from source; it was
+not restored as stale bytecode. No other baseline paths were missing and no new disposable paths
+remained. The intended candidate JAR, source, evidence, preexisting runtimes and shared dependency
+caches were preserved. The goal and cursor hashes remained unchanged. The owned Gradle runs were
+terminal and left no single use daemon running.
 
 ## Command execution regression
 

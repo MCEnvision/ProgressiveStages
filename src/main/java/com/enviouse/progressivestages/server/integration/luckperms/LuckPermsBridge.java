@@ -15,13 +15,10 @@ import net.neoforged.neoforge.event.entity.player.PermissionsChangedEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import org.slf4j.Logger;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,10 +30,8 @@ public final class LuckPermsBridge {
     private static final String SOURCE_PREFIX = "luckperms:";
     private static LuckPermsBridge INSTANCE;
 
-    private final Queue<UUID> dirty = new ArrayDeque<>();
-    private final Set<UUID> queued = new HashSet<>();
+    private final SubjectReconciliationQueue dirty = new SubjectReconciliationQueue(MAX_QUEUE);
     private final OutboundNodeTracker outboundNodes = new OutboundNodeTracker();
-    private boolean rescanRequested;
     private MinecraftServer server;
     private LuckPermsAdapter adapter;
     private AutoCloseable stageSubscription;
@@ -56,7 +51,7 @@ public final class LuckPermsBridge {
         LuckPermsBridge bridge = getInstance();
         synchronized (bridge) {
             bridge.dirty.remove(player.getUUID());
-            bridge.queued.remove(player.getUUID());
+            bridge.dirty.requestRescan();
             if (bridge.adapter != null && !bridge.outboundNodes.reconcile(player.getUUID(), Map.of(),
                     bridge.adapter, (owner, adding, result) -> {})) {
                 LOGGER.warn("LuckPerms output cleanup is incomplete after disconnect. Owned references are retained.");
@@ -65,7 +60,7 @@ public final class LuckPermsBridge {
     }
     public static void reconcileAll() {
         LuckPermsBridge bridge = getInstance();
-        if (bridge.server != null) bridge.server.getPlayerList().getPlayers().forEach(bridge::markAndReconcile);
+        if (bridge.server != null) bridge.server.getPlayerList().getPlayers().forEach(bridge::reconcileSubject);
     }
     public static StageCapabilitiesView capabilities() { return getInstance().capabilitiesView(); }
     public static boolean groupExists(String group) {
@@ -124,8 +119,6 @@ public final class LuckPermsBridge {
             registered = false;
         }
         dirty.clear();
-        queued.clear();
-        rescanRequested = false;
         if (cleaned) adapter = null;
         else LOGGER.warn("LuckPerms output cleanup is incomplete. The bridge remains unavailable until cleanup succeeds.");
         server = null;
@@ -133,38 +126,23 @@ public final class LuckPermsBridge {
     }
 
     private synchronized void markDirty(UUID subject) {
-        if (subject == null || queued.contains(subject)) return;
-        if (dirty.size() >= MAX_QUEUE) {
-            dirty.clear();
-            queued.clear();
-            rescanRequested = true;
-        }
-        dirty.add(subject);
-        queued.add(subject);
+        dirty.request(subject);
     }
 
     private void drain(MinecraftServer current) {
         if (server != current || adapter == null) return;
-        synchronized (this) {
-            if (rescanRequested) {
-                rescanRequested = false;
-                for (ServerPlayer player : current.getPlayerList().getPlayers()) markDirty(player.getUUID());
-            }
-        }
+        List<ServerPlayer> players = current.getPlayerList().getPlayers();
         int count = 0;
         while (count++ < MAX_SUBJECTS_PER_TICK) {
             UUID id;
             synchronized (this) {
-                id = dirty.poll();
+                id = dirty.poll(players::size, index -> players.get(index).getUUID());
                 if (id == null) return;
-                queued.remove(id);
             }
             ServerPlayer player = current.getPlayerList().getPlayer(id);
             if (player != null) reconcileSubject(player);
         }
     }
-
-    private void markAndReconcile(ServerPlayer player) { reconcileSubject(player); }
 
     private void reconcileSubject(ServerPlayer player) {
         if (player == null || adapter == null) return;

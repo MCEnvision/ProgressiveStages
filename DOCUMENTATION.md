@@ -2941,6 +2941,15 @@ A ready UNDEFINED result permits the configured positive contribution. Core serv
 these decisions and recovery with a controlled adapter. They do not prove actual LuckPerms negative
 precedence, inherited exclusion or marker activation. The real provider prerequisite remains open.
 
+The online reconciliation queue coalesces repeated subject updates and retains at most 256 pending
+subjects. Overflow requests a resumable scan rather than clearing pending updates or filling the
+queue from the entire online population. Dirty work and scan work alternate within the bridge's
+limit of sixteen reconciliations per tick. Further overflow requests another complete pass without
+resetting an active cursor. Disconnect requests a followup pass to cover changes in player list
+indices, and shutdown clears both pending work and scan state. This repair covers online event
+overflow. Immediate full reconciliation on reload remains separate; bounded offline loads,
+persisted contributor rescans, provider event invalidation and stale completion guards remain open.
+
 `command_permissions` is evaluated inside Minecraft's command execution tasks after redirects.
 `ExecuteCommandMixin` checks ordinary execution immediately before `ContextChain.runExecutable`;
 `BuildContextsMixin` checks custom command executors before their `run` call. Both use the effective

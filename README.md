@@ -79,6 +79,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   tracked ownership and cleanup retries. Queries preserve current context values and separate
   unavailable data from an authoritative permission result. Real provider context isolation and
   lifecycle verification remain open, and the selected provider fails player login on NeoForge 21.1.248.
+  The online update queue retains pending work on overflow and resumes its population scan
+  within the existing per tick budget.
   Runtime integration is not accepted. Command gates retain native
   permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 

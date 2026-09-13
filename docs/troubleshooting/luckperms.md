@@ -85,6 +85,12 @@ query, successful mutation, cleanup or login. Missing provider and group warning
 configuration. Reload, restart, provider loss and source retention still require the complete
 runtime acceptance matrix.
 
+The online update queue retains pending subjects when its 256 entry limit is reached and requests
+a resumable scan. Dirty updates and scan entries share the limit of sixteen subjects per tick;
+continued event traffic does not reset an active scan. Disconnect requests a followup pass, and
+shutdown clears pending work. These bounds cover online event processing. They do not yet prove
+bounded reload reconciliation, offline contributor recovery or actual provider event convergence.
+
 If a stage is not granted, check the stage dependency and slot policy first. Permission
 reconciliation never charges a cost, runs a reward, increments a trigger counter, refreshes an
 expiry, or grants a prerequisite. A synchronized source is removed after an authoritative loss;

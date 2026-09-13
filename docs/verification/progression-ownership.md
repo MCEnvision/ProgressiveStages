@@ -776,3 +776,125 @@ unrelated runtime data remain. All 11 registered scratch files and their unique 
 removed after evidence extraction, with absence verified. No laptop client, browser, renderer,
 watcher or audio resources were created. The authoritative plan, immutable goal and active
 cursor remain unchanged. No default branch merge, phase tag, wiki publication or release occurred.
+
+
+## Actual KubeJS scripts and startup callback preservation
+
+Source commit `8e2e083f34443dd86403fef646e68c5e920449b9` corrects the KubeJS callback lifecycle and adds
+an actual script fixture for BIN-AC-011D and the final BIN-REQ-014 regression matrix. The plugin
+now resets callbacks and extension metadata in `beforeScriptsLoaded` for server scripts.
+`registerBindings` only supplies the global binding. Creating another execution context can no
+longer erase registrations from a script that has already loaded.
+
+The exact installed KubeJS bytecode and a temporary reset stack probe established the failure.
+`ScriptManager.reload` calls `beforeScriptsLoaded` before collecting and loading scripts, while
+`KubeJSContext` calls `registerBindings` whenever a thread creates its context. At 05:47:40 on
+September 13, 2026, the loading thread registered the script. At 05:47:41, the server thread
+created a context through `MinecraftServerKJS.kjs$afterResourcesLoaded`, `ConsoleJS.info` and
+`ContextFactory.enter`. The former binding hook reset all callbacks at that point. The first
+unmodified lifecycle fixture had failed at 05:43:38 because no ownership callback completed.
+The diagnostic probe was removed before the final build and is absent from the committed source.
+
+The [tracked script procedure](../test/kubejs.md) and
+[actual server script](../../src/test/resources/kubejs/ownership.js) cover personal, team and
+server queries, grants and revocation, duplicate grants, owner explanation, colliding personal
+and legacy team UUID records, native `player.stages.add/has/remove`, and explicit actor Java API
+mutations called from Rhino. Exactly one callback must finish all assertions on every invocation.
+The installed script and tracked fixture both have SHA256 `43ca3a666ef63043690882e8a354136d279a8cd1afa96c245d29d838b7a8b82f`.
+
+The fixture initially used NeoForge fake players. Exact KubeJS `StageEvents.create` bytecode
+returns `NoStages.NULL_INSTANCE` for those players before dispatching the stage creation event.
+The final fixture instead constructs ordinary server player objects with embedded transports and
+an explicit test packet sink. It temporarily registers their UUID lookup entries for actor API
+resolution, without authenticating or connecting a client. A missing embedded channel and an
+unnegotiated payload send were fixture setup failures corrected before the final assertions.
+The script uses KubeJS's `uuid` property, matching its exposed player wrapper. None of these
+transport changes modify production networking or bypass gameplay authorization.
+
+The final dedicated development run used `node-1`, Minecraft 1.21.1, NeoForge 21.1.248, and
+Java 21.0.11. Its owned runtime was
+`/mnt/hermes/projects/ProgressiveStages/.phase-worktrees/phase-003/build/kubejs-ownership-verification`.
+The inspected `forgeserverdev` launch used `--nogui` and no client or renderer. Authentication
+remained enabled on `127.0.0.1:25589`; EULA true was read back before each launch. The initial
+launcher omitted the ordinary classpath and stopped before mod loading; adding the exact
+prepared classpath corrected that harness error. No platform or provider version changed.
+
+Five exact cached dependencies were hash verified before copying into the owned runtime. ZIP
+integrity and embedded artifacts were inspected. FTB Teams `2101.1.9`, FTB Library `2101.1.30`,
+Architectury `13.0.8`, KubeJS `2101.7.2-build.348`, and Rhino `2101.2.7-build.81` match the earlier
+recorded publisher artifacts. FTB Quests and LuckPerms were absent in this bounded script run.
+The current SHA256 values are:
+
+| Artifact | SHA256 |
+|---|---|
+| `ftb-teams-neoforge` | `c0e4fcb2e349dd24dd3bddb1bcda6c61dad3c1db38e3bf1100e5da9c2753e571` |
+| `ftb-library-neoforge` | `8d3ad0eaaae5f71cfbe9062bb9a03223a2db4aafa5243da486b65afa13fb24ad` |
+| `architectury-neoforge` | `2eb06668281be9c57ed6ba8b2ca39b155567063c3096aa94a1c2140694f787df` |
+| `kubejs-neoforge` | `490b14231dbe0036037915e4863aab9895a441eade22e28cde6ebc1b31306d54` |
+| `rhino` | `a02abde402b5cea16f31dea4026d630f95a3369134d891a196c014d1daf492c3` |
+
+KubeJS includes two nested libraries. The publisher Maven POM confirms
+`dev.latvian.apps:tiny-java-server:1.0.0-build.33`; the
+[upstream project license](https://github.com/latvian-dev/tiny-http/blob/main/LICENSE) is MIT.
+The embedded GIF artifact is `com.github.rtyley:animated-gif-lib-for-java:animated-gif-lib-1.7`.
+Its [upstream README](https://github.com/rtyley/animated-gif-lib-for-java) documents the original
+free use permission and Apache 2.0 licensing for subsequent alterations. No third party binaries
+were modified or bundled into ProgressiveStages.
+
+| Nested artifact | SHA256 | SHA512 |
+|---|---|---|
+| `tiny-java-server-1.0.0-build.33.jar` | `e5eb5d6dd6444cf99ecbbda7db0345e13d619b1e7ca87db7561ddf605d68b6bc` | `45e868e86aef64448057879206f80eec4cd5c3d8bfeee4c5105246f32fd95b1034da297245a9e885a2236f6da7182a328947b4331a1329f18967c79237dd7989` |
+| `animated-gif-lib-for-java-animated-gif-lib-1.7.jar` | `9bae7c1154cec27d65f0ab91e307255789a2c76b73fd3425c211b52c1de3a343` | `dd5a02d59f76428cd92abd8c19f8b7e8863534045218b565f7c3142b44b5da4d9ae30f1db1f31722aa594b42f44067747b7e621e9a9de971a5ca214d34f8ab3d` |
+
+The bounded security inspection identified KubeJS's script file access and optional local web
+service. Only the supplied trusted fixture executed. The exact `KubeJSPaths`,
+`WebServerProperties` and `KubeJSServerEventHandler` bytecode identified
+`kubejs/config/web_server.json` and its `enabled` guard. That value was set to false before launch.
+Listener inspection found the owned Minecraft listener only, with no KubeJS listener on 61423.
+This review does not claim a comprehensive third party security audit.
+
+The final run loaded one server script with zero errors and warnings before reaching readiness
+at 05:51:17 America/Chicago. Every result below used freshly cleared success glass and matching
+structure metadata at `0 180 3`, with success glass at `-1 179 2`.
+
+| Scenario | Authoritative success marker time |
+|---|---|
+| Cold startup before any manual reload | 05:52:15, `kubejs_cold_start_pass` |
+| First actual reload | 05:53:02, `kubejs_reload_pass` |
+| Second actual reload | 05:53:56, `kubejs_second_reload_pass` |
+| Related native FTB membership and disband regression | 05:54:27, `kubejs_native_membership_pass` |
+
+The final console had no ERROR entries. The two fixed test identities' inspected FTB deletion
+tombstones were removed between invocations; no unrelated provider record was removed. Earlier
+fixture retries exposed FTB's refusal to replace an existing tombstone, which is why this cleanup
+step is explicit in the procedure. The final server stopped normally at 05:54:27 and completed
+shutdown at 05:54:28.
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed after the
+final Java change, with 410 tests across 106 suites and zero failures, errors or skips. The final
+run took 11 seconds; the clean postcommit wrapper build passed in 4 seconds. No separate formatter
+or static analysis task is configured. `git diff --check` and affected documentation links passed.
+The production JAR identifies the source commit above with `Build-Dirty: false`. All 780
+project classes match compiled output byte for byte. It contains no KubeJS, FTB or LuckPerms API
+classes. SHA256 is `90eef2a39119871e3492631c72ec3cc804728d0a0e5e24c5803e81948d0c99e4` and SHA512 is
+`f75cadede47e3be6a2693b9bf55b8125b13f91a0a3983928b02bb922dec030daa0824b05d050c2daa26f205c95d7fc0cffa690de9c6a28cc545627073a3b2946`.
+
+After the provider matrix finished, only the five verified runtime mod copies were removed and
+the exact clean candidate was installed. Production `forgeserver` startup without optional mods
+reached readiness at 05:55:34. At 05:56:06, `time query gametime` returned 10086, then the server
+stopped normally with exit zero. This verifies the optional integration remains isolated during
+packaged dedicated startup.
+
+All six owned launch processes, 821912, 822333, 830010, 834402, 837008 and 844258, were confirmed
+absent before final cleanup. The first process exited during launcher setup. The loopback port
+was free and no process working directory remained under the runtime. Cleanup removed 1116 new
+build paths and 18 new `.gradle` paths, restoring the exact preexisting 836 and 26 path inventories.
+The runtime and 12 metadata scratch files were removed after their final consumer. The current
+candidate, preexisting `run-248`, shared libraries, dependency caches, sources and unrelated
+worktrees were preserved.
+
+This is actual KubeJS loading and execution with native FTB ownership on the dedicated server.
+It does not prove authenticated player login, client payload delivery, visual behavior, general
+offline actor mutations, actual LuckPerms qualification, or the final combined laptop matrix.
+Those acceptance gates remain separate. The immutable goal, plan and active phase cursor did not
+change. No default branch merge, phase tag, wiki publication or release occurred in this increment.

@@ -80,7 +80,8 @@ public final class StageActorContextGameTests {
                     current.definitionRevision(), current.membershipRevision());
                 assertRejected(helper, results, wrongOwner, stage, StageOperation.REVOKE, "owner_mismatch");
                 players.remove(subject, player);
-                assertRejected(helper, results, current, stage, StageOperation.REVOKE, "actor_offline");
+                ServerEventHandler.onPlayerLogout(new PlayerEvent.PlayerLoggedOutEvent(player));
+                assertRejected(helper, results, current, stage, StageOperation.REVOKE, "stale_membership");
                 players.put(subject, player);
                 provider.initialize();
                 assertRejected(helper, results, current, stage, StageOperation.REVOKE, "stale_membership");

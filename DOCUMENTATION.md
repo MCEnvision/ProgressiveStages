@@ -4450,14 +4450,29 @@ query throw `IllegalStateException`; they do not guess an owner or return a part
 disabled or absent provider retains the normal solo fallback. Querying personal or server
 ownership does not require a team lookup. These explicitly named methods leave legacy UUID
 team queries unchanged. They read state without granting access, publishing mutation events,
-or replaying acquisition effects. Offline mutation remains separately rejected as described below.
+or replaying acquisition effects. Offline revocation uses the explicit mutation context described below.
 
 `resolveStageOwner` captures the current membership revision along with the definition revision
-and typed owner. `mutateStage` rejects calls outside the server thread with `wrong_thread`, an
-offline actor with `actor_offline`, stale membership with `stale_membership`, a different owner
-with `owner_mismatch`, and stale definitions with `stale_revision`. Rejection changes no stage,
-mutation revision or committed event. Resolve a new context and reevaluate the intended operation
-on the server thread before retrying.
+and typed owner. `mutateStage` rejects calls outside the server thread with `wrong_thread`, stale
+membership with `stale_membership`, a different owner with `owner_mismatch`, and stale definitions
+with `stale_revision`. Rejection changes no stage, mutation revision or committed event. Resolve
+a new context and reevaluate the intended operation on the server thread before retrying.
+
+An explicit offline context supports `StageOperation.REVOKE`. It resolves the actor's current
+owners before modifying state; an unavailable required owner returns `owner_unavailable` without
+partial revocation. Personal cascades preserve independently earned shared milestones and another
+actor's records. Shared and server cascades use the existing concrete owner rules. Removed owners
+lose their grant clocks immediately. Purchase refunds retain their original payer and terms;
+offline payers receive pending refunds through the normal return path. Repeating the revoke does
+not emit another change or refund. Legacy UUID team APIs retain their existing meaning.
+
+Each concrete offline removal emits `StageActorChangeEvent` with the explicit actor context,
+removed owner, stage, change type and cause. It has no player entity. The existing
+`StageChangeEvent` and player based script callbacks remain connected player interfaces and are
+not replayed on login or delivered through a teammate. The committed mutation subscription
+reports the offline actor and affected online recipients; online stage views and bulk listeners
+refresh after the mutation. General offline grants still return `actor_offline`; deferred
+acquisition effects and their complete script lifecycle remain unfinished acceptance work.
 
 The membership revision is a conservative server wide generation. Provider initialization, player
 login/logout, server shutdown and the native FTB Teams `PLAYER_CHANGED` event invalidate previously

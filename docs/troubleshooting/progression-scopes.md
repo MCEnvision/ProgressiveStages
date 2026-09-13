@@ -51,7 +51,9 @@ Use `ProgressiveStagesAPI.resolveActorOwner(actorId, stageId)` and
 is offline. Call them on the running server thread. An unavailable offline team lookup raises
 an error rather than returning guessed or partial access. The snapshot reports active sources,
 so persisted synchronized grants awaiting revalidation stay excluded. These queries preserve
-legacy UUID team API meanings and do not authorize offline mutations. See the
+legacy UUID team API meanings. A freshly resolved context can revoke offline ownership through
+`mutateStage` with `StageOperation.REVOKE`; unavailable required owners reject without partial
+changes. Offline grants remain unsupported. See the
 [Java API contract](../../DOCUMENTATION.md#151-progressivestagesapi) for errors and examples.
 
 ## Quest provider ownership

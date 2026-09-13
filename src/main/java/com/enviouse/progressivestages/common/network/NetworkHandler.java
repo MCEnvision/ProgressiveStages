@@ -703,7 +703,7 @@ public class NetworkHandler {
                 sendStageGuiData(player);
                 return;
             }
-            StageManager.getInstance().markPurchased(player, stageId);
+            StageManager.getInstance().markPurchased(player, stageId, cost);
             if (cost.cooldownSeconds() > 0) lastPurchase.put(player.getUUID(), System.currentTimeMillis());
             sendStageGuiData(player);
         });

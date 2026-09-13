@@ -45,7 +45,11 @@ public class StageManager {
     public static final UUID SERVER_TEAM = new UUID(0L, 0L);
 
     /** One concrete stage removal from its real persistence owner. */
-    private record RevokedStage(UUID owner, StageId stageId) {}
+    private record RevokedStage(OwnerRef owner, StageId stageId) {
+        private RevokedStage(UUID owner, StageId stageId) {
+            this(new OwnerRef(SERVER_TEAM.equals(owner) ? OwnerKind.SERVER : OwnerKind.TEAM, owner), stageId);
+        }
+    }
 
     private record GrantResult(List<StageId> granted, List<StageId> replaced, String denial) {
         private GrantResult {
@@ -818,7 +822,7 @@ public class StageManager {
             UUID owner = owner(player, replaced).id();
             fireStageChangeEvent(player, owner, replaced,
                 StageChangeType.REVOKED, StageCause.GROUP_POLICY);
-            refundPurchasedStage(player, new RevokedStage(owner, replaced));
+            refundPurchasedStage(player, new RevokedStage(owner(player, replaced), replaced));
         }
 
         // Fire events for each newly granted stage
@@ -859,15 +863,22 @@ public class StageManager {
     }
 
     /**
-     * v3.0: record that {@code player}'s team actually PAID for a stage (called from the purchase
-     * handler), so {@code refund_percent} only refunds stages that were bought — not ones earned via
-     * trigger/command/quest, which would otherwise mint free items on every revoke/expiry.
+     * Record the actual payer and stage owner after a successful purchase.
+     * Refund terms belong to that purchase and cannot be collected by another member.
+     * Earned stages do not acquire a purchase receipt.
      */
     public void markPurchased(ServerPlayer player, StageId stageId) {
         if (player.server == null) return;
-        UUID storeTeam = owner(player, stageId).id();
+        StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
+        if (definition == null || !definition.isPurchasable()) return;
+        markPurchased(player, stageId, definition.getCost());
+    }
+
+    public void markPurchased(ServerPlayer player, StageId stageId,
+                              com.enviouse.progressivestages.common.config.StageCost paidCost) {
+        if (player.server == null) return;
         com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(player.server)
-            .markPaid(storeTeam, stageId);
+            .markActorPurchase(owner(player, stageId), stageId, player.getUUID(), paidCost);
     }
 
     /**
@@ -1082,7 +1093,7 @@ public class StageManager {
             UUID owner = owner(player, replaced).id();
             fireStageChangeEvent(player, owner, replaced,
                 StageChangeType.REVOKED, StageCause.GROUP_POLICY);
-            refundPurchasedStage(player, new RevokedStage(owner, replaced));
+            refundPurchasedStage(player, new RevokedStage(owner(player, replaced), replaced));
         }
 
         // Fire events for each newly granted stage
@@ -1132,7 +1143,7 @@ public class StageManager {
             if (revokeOwned(getTeamStageData(), replacedOwner, replaced)) {
                 fireStageChangeEvent(player, replacedOwner.id(), replaced,
                     StageChangeType.REVOKED, StageCause.GROUP_POLICY);
-                refundPurchasedStage(player, new RevokedStage(replacedOwner.id(), replaced));
+                refundPurchasedStage(player, new RevokedStage(replacedOwner, replaced));
             }
         }
         OwnerRef stageOwner = owner(player, stageId);
@@ -1214,17 +1225,18 @@ public class StageManager {
         // regression clocks and integration state stale for every other team.
         for (RevokedStage change : revoked) {
             StageId revokedStage = change.stageId();
-            ServerPlayer affectedPlayer = onlineRepresentative(change.owner(), player).orElse(player);
-            fireStageChangeEvent(affectedPlayer, change.owner(), revokedStage, StageChangeType.REVOKED, cause);
+            ServerPlayer affectedPlayer = change.owner().kind() == OwnerKind.PERSONAL ? player
+                : onlineRepresentative(change.owner().id(), player).orElse(player);
+            fireStageChangeEvent(affectedPlayer, change.owner().id(), revokedStage, StageChangeType.REVOKED, cause);
             refundPurchasedStage(player, change);
         }
 
         boolean affectedMultipleTeams = serverScoped || rootOwner.kind() == OwnerKind.TEAM && revoked.stream()
-            .anyMatch(change -> SERVER_TEAM.equals(change.owner()) || !teamId.equals(change.owner()));
+            .anyMatch(change -> change.owner().kind() == OwnerKind.SERVER || !teamId.equals(change.owner().id()));
         if (affectedMultipleTeams) syncAllPlayers();
         else if (revoked.stream().anyMatch(change -> owner(player, change.stageId()).kind() == OwnerKind.TEAM)) syncToTeamMembers(teamId, player);
         else syncToPlayer(player);
-        Set<OwnerRef> affectedOwners = revoked.stream().map(change -> owner(player, change.stageId()))
+        Set<OwnerRef> affectedOwners = revoked.stream().map(RevokedStage::owner)
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         if (suppressed) affectedOwners.add(rootOwner);
         boolean changed = suppressed || !revoked.isEmpty();
@@ -1234,26 +1246,38 @@ public class StageManager {
     }
 
     private void refundPurchasedStage(ServerPlayer player, RevokedStage change) {
+        if (player.server == null) return;
+        var purchaseData = com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(player.server);
+        var purchase = purchaseData.deferActorRefund(change.owner(), change.stageId());
+        if (purchase.isPresent()) {
+            var receipt = purchase.orElseThrow();
+            ServerPlayer payer = player.getUUID().equals(receipt.payer()) ? player
+                : player.server.getPlayerList().getPlayer(receipt.payer());
+            if (payer != null && purchaseData.consumeActorRefund(receipt.receiptId(), payer.getUUID())) {
+                refundCost(payer, receipt.cost());
+            }
+            return;
+        }
+        if (change.owner().kind() == OwnerKind.PERSONAL) return;
         StageDefinition definition = StageOrder.getInstance().getStageDefinition(change.stageId()).orElse(null);
         if (definition == null || !definition.isPurchasable() || definition.getCost().refundPercent() <= 0
                 || player.server == null) return;
-        var purchaseData = com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(player.server);
-        if (!purchaseData.isPaid(change.owner(), change.stageId())) return;
-        Optional<ServerPlayer> recipient = onlineRepresentative(change.owner(), player);
-        if (recipient.isPresent() && purchaseData.consumePaid(change.owner(), change.stageId())) {
+        if (!purchaseData.isPaid(change.owner().id(), change.stageId())) return;
+        Optional<ServerPlayer> recipient = onlineRepresentative(change.owner().id(), player);
+        if (recipient.isPresent() && purchaseData.consumePaid(change.owner().id(), change.stageId())) {
             refundCost(recipient.get(), definition.getCost());
         } else {
-            purchaseData.deferRefund(change.owner(), change.stageId());
+            purchaseData.deferRefund(change.owner().id(), change.stageId());
         }
     }
 
     /** v3.0: return refund_percent of a purchased stage's item/xp cost to the player. */
     private void refundCost(ServerPlayer player, com.enviouse.progressivestages.common.config.StageCost cost) {
         int pct = cost.refundPercent();
-        int xp = cost.xpLevels() * pct / 100;
+        int xp = (int) ((long) cost.xpLevels() * pct / 100);
         if (xp > 0) player.giveExperienceLevels(xp);
         for (var ic : cost.items()) {
-            int give = ic.count() * pct / 100;
+            int give = (int) ((long) ic.count() * pct / 100);
             if (give <= 0) continue;
             net.minecraft.world.item.Item item =
                 net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(ic.item()).orElse(null);
@@ -1283,7 +1307,7 @@ public class StageManager {
         OwnerRef rootOwner = owner(player, stageId);
         if (!revokeOwned(data, rootOwner, stageId)) return Collections.emptyList();
         List<RevokedStage> revoked = new ArrayList<>();
-        revoked.add(new RevokedStage(rootOwner.id(), stageId));
+        revoked.add(new RevokedStage(rootOwner, stageId));
         StageDefinition rootDefinition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
         boolean cascade = StageConfig.isLinearProgression()
             || (rootDefinition != null && rootDefinition.getRevoke().cascade());
@@ -1296,7 +1320,7 @@ public class StageManager {
             OwnerRef dependentOwner = owner(player, dependent);
             if (!dependentOwner.equals(rootOwner)) continue;
             if (revokeOwned(data, dependentOwner, dependent)) {
-                revoked.add(new RevokedStage(dependentOwner.id(), dependent));
+                revoked.add(new RevokedStage(dependentOwner, dependent));
                 remaining.remove(dependent);
             }
         }
@@ -1330,7 +1354,7 @@ public class StageManager {
 
         while (!pending.isEmpty()) {
             RevokedStage change = pending.removeFirst();
-            if (!data.revokeStage(change.owner(), change.stageId())) continue;
+            if (!data.revokeStage(change.owner().id(), change.stageId())) continue;
             revoked.add(change);
             if (!cascade) continue;
 
@@ -1349,8 +1373,8 @@ public class StageManager {
                     continue;
                 }
 
-                Collection<UUID> owners = SERVER_TEAM.equals(change.owner())
-                    ? new ArrayList<>(data.getAllTeamIds()) : List.of(change.owner());
+                Collection<UUID> owners = change.owner().kind() == OwnerKind.SERVER
+                    ? new ArrayList<>(data.getAllTeamIds()) : List.of(change.owner().id());
                 for (UUID owner : owners) {
                     if (SERVER_TEAM.equals(owner) || !data.hasStage(owner, dependent)) continue;
                     if (!definition.dependenciesSatisfied(effectiveStages(data, owner))) {
@@ -1673,10 +1697,13 @@ public class StageManager {
         // Grant starting stage if needed (this is a single operation, not bulk)
         grantStartingStage(player);
 
-        // A global revoke cascade may have removed a purchased team stage while every member was
-        // offline. Deliver its persisted refund to the first member who returns.
+        // Deliver actor receipts only to their payer after an offline revocation.
+        // Legacy receipts without payer information retain their team delivery policy.
         if (player.server != null) {
             var purchaseData = com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(player.server);
+            for (var receipt : purchaseData.getPendingActorRefunds(player.getUUID())) {
+                if (purchaseData.consumeActorRefund(receipt.receiptId(), player.getUUID())) refundCost(player, receipt.cost());
+            }
             UUID teamId = TeamProvider.getInstance().getTeamId(player);
             Set<StageId> pendingStages = new LinkedHashSet<>(purchaseData.getPendingRefunds(teamId));
             pendingStages.addAll(purchaseData.getPendingRefunds(TeamProvider.getInstance().getFtbTeamId(player)));
@@ -1684,7 +1711,8 @@ public class StageManager {
             for (StageId pending : pendingStages) {
                 StageDefinition def = StageOrder.getInstance().getStageDefinition(pending).orElse(null);
                 UUID refundOwner = owner(player, pending).id();
-                if (def != null && def.isPurchasable() && def.getCost().refundPercent() > 0
+                if (def != null && owner(player, pending).kind() != OwnerKind.PERSONAL
+                        && def.isPurchasable() && def.getCost().refundPercent() > 0
                         && purchaseData.consumePendingRefund(refundOwner, pending)) {
                     refundCost(player, def.getCost());
                 }

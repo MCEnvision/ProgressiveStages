@@ -2057,11 +2057,23 @@ player.
 
 **`refund_percent` (New in 3.0).** When a stage that was **actually purchased**
 via its `[cost]` is later **revoked** (by command, regression, cascade, etc.),
-this percentage of its `items` + `xp_levels` cost is **returned** to the player.
-The mod records each real purchase (persisted) and consumes that record on
-refund, so a stage **earned** via a trigger / command / quest reward — or a
-temporary purchasable stage that auto-expires — is **never** refunded (no free
-items), and each purchase is refunded at most once.
+this percentage of its `items` + `xp_levels` cost is **returned** to the payer.
+New purchases persist the typed personal, team, or server owner, the payer UUID,
+and the item cost, XP cost, and refund percentage used by that purchase. A later
+cost or ownership edit cannot increase an existing refund or redirect it to a
+teammate. The payer receives it immediately when online, or once through the login
+path after returning. Multiple purchases can retain separate pending receipts.
+An unpaid stage earned through a trigger, command, or quest has no purchase refund.
+A paid temporary stage follows the same refund rules when it expires.
+
+The existing `progressivestages_purchases.dat` now records `purchase_schema = 1`,
+`actor_paid`, and `actor_pending_refunds` alongside the retained legacy `paid` and
+`pending_refunds` lists. Old entries have no recorded payer and retain their team
+or server meaning and existing refund behavior. They never become personal
+purchase receipts. Unknown newer schemas and malformed new receipts fail loading;
+preserve the original file and restore a compatible backup instead of creating
+empty replacement purchase data. Receipt delivery does not replay a stage grant,
+reward, trigger counter, or grant clock.
 
 **`bypass_requirements`:**
 

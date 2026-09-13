@@ -94,6 +94,17 @@ dependencies or appear as effective source kinds.
 The [LuckPerms guide](luckperms.md#inbound-source-ownership) describes current cleanup coverage and
 the remaining migration and membership lifecycle limitations.
 
+## Purchase refunds
+
+New skill tree purchases retain the actual payer and typed owner in a separate receipt. A teammate
+revoking a shared stage cannot collect that payer's refund. When the payer is offline, the receipt
+survives saving and loading and is delivered once through their login path, even if membership or
+the definition has since changed. Item amounts, XP levels and the refund percentage come from the
+original purchase. Legacy receipts have no payer information and retain their old team or server
+behavior; they cannot be consumed as personal purchase history. See
+[purchase persistence](../../DOCUMENTATION.md#426-cost--skill-tree-purchasable-stages) before recovery
+from a schema or receipt error.
+
 ## Grant clocks
 
 Temporary expiry, slot age and both held duration condition paths read the resolved stage owner's

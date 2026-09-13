@@ -2006,6 +2006,24 @@ Expiry is a regression like any other: it reports `StageCause.REGRESSION`, and
 if the stage's `[revoke].cascade = true`, expiring it also cascades to
 dependents.
 
+Grant clocks now use the complete owner kind and UUID. A personal profession and a team stage
+with the same UUID have separate timestamps, as do server records. Stage expiry, slot replacement
+by age, legacy `stage_held_for` triggers and compiled held duration conditions all use the resolved
+stage owner. Changing scope does not copy the old owner's clock into the new namespace.
+
+`world/data/progressivestages_regression.dat` retains legacy `grant_times` and adds
+`clock_schema = 1` with `owner_grant_times`. Typed keys contain the lowercase owner kind, UUID and
+stage ID. Legacy UUID methods remain available and address team owners, with the zero UUID reserved
+for the server owner. They never read or clear a personal clock. Legacy timestamps remain readable
+in their original team or server namespace, and a new typed write replaces only its matching
+legacy timestamp. Unrecognized legacy keys remain preserved. Unsupported clock schema versions
+and malformed clock maps or timestamps are rejected without changing the supplied data. An unreadable
+existing regression save cannot fall through to an empty replacement; loading reports an error
+and leaves the file available for recovery.
+
+This owner separation does not complete the LuckPerms expiry episode and manual suppression
+contract. Those lifecycle gates remain tracked in the [bridge verification record](docs/verification/luckperms-bridge.md).
+
 ### 4.26 `[cost]` — skill-tree purchasable stages
 
 **New in 2.4.** A `[cost]` table turns a stage into a **purchasable node** that

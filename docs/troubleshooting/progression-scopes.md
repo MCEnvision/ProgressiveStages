@@ -53,6 +53,20 @@ dependencies or appear as effective source kinds.
 The [LuckPerms guide](luckperms.md#inbound-source-ownership) describes current cleanup coverage and
 the remaining migration and membership lifecycle limitations.
 
+## Grant clocks
+
+Temporary expiry, slot age and both held duration condition paths read the resolved stage owner's
+clock. Personal, team and server clocks remain separate even when UUIDs match. Changing a stage's
+ownership setting does not copy its old clock. Legacy UUID timestamps remain team or server history;
+they are never inferred to be personal history. A personal timed stage with no personal clock
+follows the existing missing timestamp behavior and starts its clock when checked.
+
+The regression save now includes `clock_schema = 1` and `owner_grant_times` alongside retained
+legacy `grant_times`. Do not rewrite owner prefixes to transfer progression. Keep the original
+save if loading reports an unsupported clock schema or malformed timestamp. The current file must
+be read by a compatible version before restarting the server and retrying. LuckPerms expiry episodes and manual revoke
+suppression still require the separate lifecycle work recorded in the bridge verification guide.
+
 ## diagnostics
 
 Operators can inspect one resolved owner with:

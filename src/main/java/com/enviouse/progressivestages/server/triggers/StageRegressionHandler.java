@@ -41,10 +41,9 @@ public final class StageRegressionHandler {
         StageDefinition def = StageOrder.getInstance().getStageDefinition(event.getStageId()).orElse(null);
         if (def == null) return;
         StageRegressionData data = StageRegressionData.get(player.server);
-        // Server-scoped stages live under SERVER_TEAM, so their grant time must be keyed there too —
-        // otherwise each team that sees the stage (via the SERVER_TEAM union) would record its own
-        // clock and the stage would expire at a different wall-clock time per team.
-        UUID key = def.isServerScope() ? StageManager.SERVER_TEAM : event.getTeamId();
+        var resolved = StageManager.getInstance().getStageOwner(player, event.getStageId());
+        var key = new com.enviouse.progressivestages.common.stage.OwnerRef(resolved.kind(),
+            def.isServerScope() ? StageManager.SERVER_TEAM : event.getTeamId());
         if (event.getChangeType() == com.enviouse.progressivestages.common.api.StageChangeType.GRANTED) {
             // v3.0: record the grant time for EVERY stage (not only temporary ones) so the
             // stage_held_for trigger and temporary-expiry both have a timestamp to read.
@@ -104,7 +103,7 @@ public final class StageRegressionHandler {
             // Temporary stage expiry (real wall-clock, runs while offline). Server-scoped stages
             // are keyed under SERVER_TEAM so every team shares one synchronized expiry clock.
             if (def.isTemporary()) {
-                UUID grantKey = StageManager.getInstance().getStorageOwner(player, id);
+                var grantKey = StageManager.getInstance().getStageOwner(player, id);
                 long grantTime = data.getGrantTime(grantKey, id);
                 if (grantTime <= 0) {
                     // No record (e.g. granted before this feature, or by command) — start the clock now.

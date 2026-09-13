@@ -359,6 +359,10 @@ Reconciliation also removes that player's synchronized contributions from obsole
 deleted definitions before evaluating new grants. Legacy contributor migration, offline recovery
 and the full provider lifecycle remain under verification.
 
+Stage expiry and held duration checks use separate personal, team and server clocks. A personal
+profession cannot overwrite a team clock even when their UUIDs match. Legacy team and server
+timestamps remain readable without copying them into personal ownership.
+
 After loading saved data, synchronized grants wait for authoritative revalidation. Independent and
 permanent grants remain available. Pending synchronized grants stay stored so they can be rechecked
 or explicitly revoked; they do not satisfy access checks while pending.

@@ -370,7 +370,7 @@ public class StageManager {
             Set<StageId> effective = new HashSet<>();
             context.owners().forEach((id, owner) -> { if (data.hasEffectiveStage(owner, id)) effective.add(id); });
             StageSlotResolver.Decision slot = StageSlotResolver.resolve(definition, effective,
-                id -> StageOrder.getInstance().getStageDefinition(id), id -> grantTime(context.owners().get(id).id(), id));
+                id -> StageOrder.getInstance().getStageDefinition(id), id -> grantTime(context.owners().get(id), id));
             boolean qualified = StageOrder.getInstance().getMissingDependencies(effective, stage).isEmpty()
                 && slot.allowed() && slot.replacements().isEmpty()
                 && (!definition.isPurchasable() || hasOwned(data, resolved, stage));
@@ -688,7 +688,7 @@ public class StageManager {
                                                      Set<StageId> owned) {
         return StageSlotResolver.resolve(definition, owned,
             id -> StageOrder.getInstance().getStageDefinition(id),
-            id -> grantTime(owner(player, id).id(), id));
+            id -> grantTime(owner(player, id), id));
     }
 
     private StageSlotResolver.Decision slotDecision(UUID teamId, StageDefinition definition,
@@ -699,9 +699,13 @@ public class StageManager {
     }
 
     private long grantTime(UUID teamId, StageId stageId) {
+        UUID storage = storageTeam(teamId, stageId);
+        return grantTime(new OwnerRef(SERVER_TEAM.equals(storage) ? OwnerKind.SERVER : OwnerKind.TEAM, storage), stageId);
+    }
+
+    private long grantTime(OwnerRef owner, StageId stageId) {
         if (server == null) return -1L;
-        return com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server)
-            .getGrantTime(storageTeam(teamId, stageId), stageId);
+        return com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server).getGrantTime(owner, stageId);
     }
 
     private void collectRequiredGrantPlan(StageId stageId, Set<StageId> effectiveOwned,

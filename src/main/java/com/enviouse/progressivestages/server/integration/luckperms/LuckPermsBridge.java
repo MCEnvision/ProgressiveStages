@@ -52,15 +52,22 @@ public final class LuckPermsBridge {
         synchronized (bridge) {
             bridge.dirty.remove(player.getUUID());
             bridge.dirty.requestRescan();
-            if (bridge.adapter != null && !bridge.outboundNodes.reconcile(player.getUUID(), Map.of(),
-                    bridge.adapter, (owner, adding, result) -> {})) {
-                LOGGER.warn("LuckPerms output cleanup is incomplete after disconnect. Owned references are retained.");
+            if (bridge.adapter != null) {
+                boolean complete = bridge.adapter.invalidateProjection(player.getUUID());
+                complete &= bridge.outboundNodes.reconcile(player.getUUID(), Map.of(),
+                    bridge.adapter, (owner, adding, result) -> {});
+                if (!complete) LOGGER.warn("LuckPerms output cleanup is incomplete after disconnect. Owned references are retained.");
             }
         }
     }
     public static void reconcileAll() {
         LuckPermsBridge bridge = getInstance();
-        if (bridge.server != null) bridge.server.getPlayerList().getPlayers().forEach(bridge::reconcileSubject);
+        synchronized (bridge) {
+            if (bridge.adapter != null && !bridge.adapter.invalidateProjections()) {
+                LOGGER.warn("LuckPerms projection invalidation is incomplete after reload.");
+            }
+            bridge.dirty.requestRescan();
+        }
     }
     public static StageCapabilitiesView capabilities() { return getInstance().capabilitiesView(); }
     public static boolean groupExists(String group) {
@@ -76,11 +83,19 @@ public final class LuckPermsBridge {
     }
 
     public synchronized void setAdapterForTests(LuckPermsAdapter replacement) {
-        if (adapter != null && (!outboundNodes.cleanup(adapter) || !adapter.cleanupTransientNodes())) {
+        if (!closeAdapter()) {
             throw new IllegalStateException("Owned LuckPerms output cleanup is incomplete");
         }
-        if (adapter != null) adapter.shutdown();
         adapter = replacement == null ? ReflectiveLuckPermsAdapter.create() : replacement;
+    }
+
+    private boolean closeAdapter() {
+        if (adapter == null) return true;
+        boolean complete = adapter.invalidateProjections();
+        complete &= outboundNodes.cleanup(adapter);
+        complete &= adapter.cleanupTransientNodes();
+        complete &= adapter.shutdown();
+        return complete;
     }
 
     private synchronized void bind(MinecraftServer value) {
@@ -109,11 +124,7 @@ public final class LuckPermsBridge {
             try { stageSubscription.close(); } catch (Exception ignored) {}
             stageSubscription = null;
         }
-        boolean cleaned = adapter == null || outboundNodes.cleanup(adapter);
-        if (adapter != null) {
-            cleaned &= adapter.cleanupTransientNodes();
-            adapter.shutdown();
-        }
+        boolean cleaned = closeAdapter();
         if (registered) {
             NeoForge.EVENT_BUS.unregister(this);
             registered = false;
@@ -126,6 +137,7 @@ public final class LuckPermsBridge {
     }
 
     private synchronized void markDirty(UUID subject) {
+        if (subject != null && adapter != null) adapter.invalidateProjection(subject);
         dirty.request(subject);
     }
 
@@ -146,15 +158,23 @@ public final class LuckPermsBridge {
 
     private void reconcileSubject(ServerPlayer player) {
         if (player == null || adapter == null) return;
+        boolean providerReady = adapter.state() == LuckPermsAdapter.State.READY;
+        long ticket = providerReady ? adapter.prepareProjection(player.getUUID(), player) : -1;
+        if (providerReady && ticket < 0) {
+            dirty.request(player.getUUID());
+            return;
+        }
+        if (!providerReady) adapter.invalidateProjection(player.getUUID());
         StageManager.getInstance().withdrawObsoletePermissionOwners(player);
-        LuckPermsAdapter.SubjectSnapshot snapshot = adapter.snapshot(player.getUUID());
-        boolean ready = adapter.state() == LuckPermsAdapter.State.READY && snapshot.ready();
+        LuckPermsAdapter.SubjectSnapshot snapshot = providerReady
+            ? adapter.snapshot(player.getUUID()) : LuckPermsAdapter.SubjectSnapshot.unavailable();
+        boolean ready = providerReady && adapter.state() == LuckPermsAdapter.State.READY && snapshot.ready();
         for (StageId stageId : StageOrder.getInstance().getOrderedStages()) {
             StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
             if (definition == null) continue;
             reconcileInbound(player, definition, snapshot, ready);
         }
-        reconcileOutbound(player, snapshot, ready);
+        reconcileOutbound(player, snapshot, ready, ticket);
     }
 
     private void reconcileInbound(ServerPlayer player, StageDefinition definition,
@@ -204,10 +224,11 @@ public final class LuckPermsBridge {
         return contextMatches(row.contexts(), snapshot.contexts());
     }
 
-    private void reconcileOutbound(ServerPlayer player, LuckPermsAdapter.SubjectSnapshot snapshot, boolean ready) {
+    private void reconcileOutbound(ServerPlayer player, LuckPermsAdapter.SubjectSnapshot snapshot, boolean ready,
+                                   long ticket) {
         UUID id = player.getUUID();
         Map<String, LuckPermsAdapter.NodeSpec> desired = new LinkedHashMap<>();
-        if (ready) {
+        if (ready && ticket >= 0) {
             for (StageId stageId : StageManager.getInstance().getStages(player)) {
                 StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
                 if (definition == null || !definition.getLuckPerms().present()
@@ -235,7 +256,7 @@ public final class LuckPermsBridge {
                 }
             }
         }
-        outboundNodes.reconcile(id, desired, adapter, (owner, adding, result) -> {
+        boolean complete = outboundNodes.reconcile(id, desired, adapter, (owner, adding, result) -> {
             int separator = owner.indexOf('|');
             StageId stage = separator > 0 ? StageId.tryParse(owner.substring(0, separator)) : null;
             String row = separator > 0 ? owner.substring(separator + 1) : owner;
@@ -244,6 +265,12 @@ public final class LuckPermsBridge {
                 : "owned_node_" + result.name().toLowerCase(java.util.Locale.ROOT);
             record(player, stage, row, adding, reason);
         });
+        if (complete && ready && adapter.state() == LuckPermsAdapter.State.READY && ticket >= 0 && !desired.isEmpty()) {
+            if (!adapter.publishProjection(id, ticket)) dirty.request(id);
+        } else {
+            adapter.invalidateProjection(id);
+            if (!complete || ready && ticket < 0) dirty.request(id);
+        }
     }
 
     private static List<Map<String, String>> contextCombinations(Map<String, List<String>> contexts) {

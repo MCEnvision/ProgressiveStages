@@ -363,6 +363,11 @@ After loading saved data, synchronized grants wait for authoritative revalidatio
 permanent grants remain available. Pending synchronized grants stay stored so they can be rechecked
 or explicitly revoked; they do not satisfy access checks while pending.
 
+Outbound privileges use a reserved provider context that becomes active only after their current
+node changes are confirmed. Dirty state, reload, disconnect and shutdown invalidate that context
+before cleanup or reevaluation. Reload work shares the bounded reconciliation queue. Actual
+provider and combined gameplay verification remain open.
+
 Command gates now check Minecraft's command execution tasks after redirects resolve. Registered
 node and execution bindings identify aliases; namespace text alone does not establish equivalence.
 The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)

@@ -67,6 +67,18 @@ public final class LuckPermsQueueGameTests {
             }
             helper.assertTrue(adapter.visited.size() == 300, "Every queued and overflow subject must reach reconciliation.");
             helper.assertTrue(queue.size() == 0 && !queue.hasRescan(), "The completed scan must leave no pending work.");
+            adapter.visited.clear();
+            int beforeReload = adapter.queries;
+            LuckPermsBridge.reconcileAll();
+            helper.assertTrue(adapter.queries == beforeReload && queue.hasRescan(),
+                "Reload must schedule a bounded scan without immediate subject queries.");
+            for (int tick = 0; tick < 32; tick++) {
+                int before = adapter.queries;
+                LuckPermsBridge.tick(server);
+                helper.assertTrue(adapter.queries - before <= 16, "Reload may reconcile at most sixteen subjects per tick.");
+            }
+            helper.assertTrue(adapter.visited.size() == 300 && queue.size() == 0 && !queue.hasRescan(),
+                "The reload scan must revisit every subject and complete.");
             helper.succeed();
         } finally {
             for (var player : fixturePlayers) {

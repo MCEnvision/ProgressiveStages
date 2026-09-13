@@ -52,6 +52,10 @@ public interface LuckPermsAdapter {
             ? new PermissionResult(true, permission(player, node)) : PermissionResult.unavailable();
     }
     boolean groupExists(String group);
+    default long prepareProjection(UUID subject, Object target) { return 0; }
+    default boolean publishProjection(UUID subject, long ticket) { return true; }
+    default boolean invalidateProjection(UUID subject) { return true; }
+    default boolean invalidateProjections() { return true; }
     default com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus groupStatus(String group) {
         return groupExists(group)
             ? com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.PRESENT
@@ -62,5 +66,5 @@ public interface LuckPermsAdapter {
     MutationResult removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
                          String ownerKey);
     default boolean cleanupTransientNodes() { return true; }
-    default void shutdown() {}
+    default boolean shutdown() { return true; }
 }

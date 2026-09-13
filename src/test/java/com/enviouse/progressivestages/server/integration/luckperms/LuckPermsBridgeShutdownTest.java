@@ -56,4 +56,41 @@ class LuckPermsBridgeShutdownTest {
         field.setAccessible(true);
         return (OutboundNodeTracker) field.get(bridge);
     }
+
+    @Test
+    void failedCalculatorShutdownRetainsTheAdapterAfterNodeCleanup() throws Exception {
+        LuckPermsBridge bridge = LuckPermsBridge.getInstance();
+        boolean[] allowShutdown = {false};
+        boolean[] invalidated = {false};
+        var adapter = new LuckPermsAdapter() {
+            @Override public State state() { return State.READY; }
+            @Override public SubjectSnapshot snapshot(UUID subject) { return SubjectSnapshot.unavailable(); }
+            @Override public boolean groupExists(String group) { return false; }
+            @Override public boolean invalidateProjections() { invalidated[0] = true; return true; }
+            @Override public MutationResult addTransient(UUID subject, NodeKind kind, String value,
+                                                          Map<String, String> contexts, String owner) {
+                return MutationResult.APPLIED;
+            }
+            @Override public MutationResult removeTransient(UUID subject, NodeKind kind, String value,
+                                                             Map<String, String> contexts, String owner) {
+                assertTrue(invalidated[0], "Contexts must be invalid before node cleanup");
+                return MutationResult.APPLIED;
+            }
+            @Override public boolean shutdown() { return allowShutdown[0]; }
+        };
+        bridge.setAdapterForTests(adapter);
+        try {
+            assertTrue(tracker(bridge).reconcile(new UUID(0, 61), Map.of("home",
+                new NodeSpec(NodeKind.PERMISSION, "home.set", Map.of())), adapter, (owner, adding, result) -> {}));
+            bridge.shutdown();
+            assertTrue(invalidated[0]);
+            assertThrows(IllegalStateException.class, () -> bridge.setAdapterForTests(new InMemoryLuckPermsAdapter()));
+            allowShutdown[0] = true;
+            bridge.shutdown();
+            bridge.setAdapterForTests(new InMemoryLuckPermsAdapter());
+        } finally {
+            allowShutdown[0] = true;
+            bridge.shutdown();
+        }
+    }
 }

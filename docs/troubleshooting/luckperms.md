@@ -63,6 +63,15 @@ separate references, row replacement removes the old contribution first, and fai
 remain retryable. Logout and shutdown attempt exact owned cleanup. A cleanup warning means the
 adapter and references remain retained, and another bind cannot silently replace them.
 
+The reserved `progressivestages_bridge=active` context is published for the exact current player
+object only after the intended node mutations are confirmed. Dirty state, reload, disconnect and
+shutdown invalidate it before cleanup. An old reconciliation ticket cannot activate a replacement
+session. Failed publication or cleanup leaves the projection unavailable and retains retry state.
+Reload schedules a bounded online scan with at most sixteen subject reconciliations per tick;
+it no longer queries every player directly inside the reload call. Context calculator cleanup is
+part of shutdown completion. These controls still require real provider and native permission
+acceptance alongside the core and isolated API checks.
+
 Actual provider behavior is still unverified. Do not treat restarting as proof of cleanup, and do
 not remove historical persistent nodes merely because their names match a mapping. Any node left
 by an older development fixture needs its exact ownership established before removal. The new

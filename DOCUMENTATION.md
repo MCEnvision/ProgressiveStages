@@ -2965,6 +2965,19 @@ unavailable, conflict and failed outcomes. These paths have isolated API and cor
 coverage. Actual provider node behavior, marker invalidation, explicit negative precedence,
 offline reconciliation and the complete lifecycle matrix remain unverified.
 
+`LuckPermsProjectionContexts` registers the reserved context calculator through API 5.4. The
+calculator reads only concurrent projection state for the exact platform player object; it does
+not query provider contexts, the world or stage state. A reconciliation ticket is captured before
+eligibility queries. The marker is published only after all intended node mutations are confirmed
+and the ticket remains current. Dirty events, reload and disconnect invalidate the ticket and
+marker before queued work or node removal. Replacing a player object cannot reuse its old ticket.
+Failed publication leaves the marker inactive and schedules a retry. Shutdown invalidates every
+marker before signaling context updates, removes exact nodes, and unregisters the calculator.
+An incomplete context notification or calculator shutdown preserves the adapter for cleanup retry.
+The adapter reports shutdown completion explicitly, so successful node removal alone cannot discard
+a failed calculator teardown. Core and isolated API verification remain distinct from actual
+provider cache, event, inherited graph and native command behavior.
+
 `LuckPermsQueries` builds contextual queries from the loaded user's current provider query options,
 falling back to authoritative static options for a loaded offline user. It removes the reserved
 bridge marker while preserving other contexts, every value per key, and query flags. Group and
@@ -2987,8 +3000,10 @@ queue from the entire online population. Dirty work and scan work alternate with
 limit of sixteen reconciliations per tick. Further overflow requests another complete pass without
 resetting an active cursor. Disconnect requests a followup pass to cover changes in player list
 indices, and shutdown clears both pending work and scan state. This repair covers online event
-overflow. Immediate full reconciliation on reload remains separate; bounded offline loads,
-persisted contributor rescans, provider event invalidation and stale completion guards remain open.
+overflow and reload. Reload invalidates outbound projections immediately and requests the same
+resumable online scan, without querying the full population in the reload call. Bounded offline
+loads, persisted contributor rescans, complete provider event invalidation and asynchronous load
+completion guards remain open.
 
 `command_permissions` is evaluated inside Minecraft's command execution tasks after redirects.
 `ExecuteCommandMixin` checks ordinary execution immediately before `ContextChain.runExecutable`;

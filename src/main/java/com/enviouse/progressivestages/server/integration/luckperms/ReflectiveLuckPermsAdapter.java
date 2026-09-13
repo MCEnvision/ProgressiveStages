@@ -14,6 +14,7 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     private final GroupAvailabilityCache groupAvailability = new GroupAvailabilityCache();
     private LuckPermsQueries queries;
     private LuckPermsTransientNodes transientNodes;
+    private LuckPermsProjectionContexts projectionContexts;
     private boolean closing;
 
     static ReflectiveLuckPermsAdapter create() {
@@ -29,8 +30,16 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
             api = provider.getMethod("get").invoke(null);
             queries = new LuckPermsQueries(api);
             transientNodes = new LuckPermsTransientNodes(api);
-        } catch (ReflectiveOperationException | LinkageError exception) {
+            projectionContexts = new LuckPermsProjectionContexts(api);
+            projectionContexts.register();
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             LOGGER.warn("luckperms integration is unavailable", exception);
+            if (projectionContexts != null) {
+                try { projectionContexts.close(); }
+                catch (RuntimeException | LinkageError cleanup) {
+                    LOGGER.warn("LuckPerms projection context cleanup is incomplete", cleanup);
+                }
+            }
             api = null;
         }
     }
@@ -111,17 +120,66 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     }
 
     @Override
+    public long prepareProjection(UUID subject, Object target) {
+        if (api == null || closing || projectionContexts == null) return -1;
+        try {
+            return projectionContexts.prepare(subject, target);
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.debug("Unable to invalidate the previous LuckPerms projection", failure);
+            return -1;
+        }
+    }
+
+    @Override
+    public boolean publishProjection(UUID subject, long ticket) {
+        if (api == null || closing || projectionContexts == null) return false;
+        try {
+            return projectionContexts.publish(subject, ticket);
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.debug("Unable to publish the LuckPerms projection context", failure);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean invalidateProjection(UUID subject) {
+        if (projectionContexts == null) return true;
+        try {
+            projectionContexts.invalidate(subject);
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.debug("Unable to invalidate the LuckPerms projection context", failure);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean invalidateProjections() {
+        return projectionContexts == null || projectionContexts.invalidateAll();
+    }
+
+    @Override
     public boolean cleanupTransientNodes() {
-        boolean complete = transientNodes == null || transientNodes.cleanup();
+        boolean complete = invalidateProjections();
+        complete &= transientNodes == null || transientNodes.cleanup();
         if (!complete) LOGGER.warn("LuckPerms output cleanup is incomplete. Owned references are retained for retry.");
         return complete;
     }
 
     @Override
-    public void shutdown() {
+    public boolean shutdown() {
         closing = true;
         groupAvailability.clear();
-        if (cleanupTransientNodes()) api = null;
+        boolean complete = cleanupTransientNodes();
+        if (projectionContexts != null) {
+            try { projectionContexts.close(); }
+            catch (RuntimeException | LinkageError failure) {
+                complete = false;
+                LOGGER.warn("LuckPerms projection context cleanup is incomplete", failure);
+            }
+        }
+        if (complete) api = null;
+        return complete;
     }
 
     @Override

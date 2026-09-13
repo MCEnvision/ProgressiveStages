@@ -58,3 +58,18 @@ Stop the owned server after the suite and remove its exact runtime, worlds, logs
 build outputs after retaining sanitized evidence in the [acceptance record](../verification/3.0.5-acceptance.md).
 Preserve shared dependency caches and unrelated processes. The
 [security review](../verification/3.0.5-security-review.md) tracks other packet resource boundaries.
+
+
+## Client assembly byte limits
+
+`ClientSnapshotAssemblerTest.rejectsExcessBytesBeforeRetainingAllAdvertisedChunks` announces
+4096 chunks with only three compressed bytes. After accepting two bytes, an identical duplicate
+and an unrelated revision must consume no further budget. A second unique two byte chunk must
+reject immediately, without waiting for the other advertised chunks. The scaled fixture proves
+the admission condition without allocating a large malicious snapshot.
+
+`ignoresDuplicateChunksWithoutConsumingTheRemainingByteBudget` completes a real compressed
+snapshot in reverse chunk order with a duplicate, using exactly its advertised byte count.
+Existing tests retain protocol rejection, checksum verification, valid deltas and exact base
+requirements. These are pure Java tests of the assembly and cache boundaries, not evidence of
+packet transport, a rendered client, disconnect behavior or the remaining mixed gameplay matrix.

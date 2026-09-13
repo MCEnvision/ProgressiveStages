@@ -4667,6 +4667,14 @@ The existing 16 MiB snapshot limit and 24 KiB compressed chunks remain unchanged
 Only a complete, checksum verified snapshot activates its interaction rules. A malformed section
 cannot replace the previous valid rules. Snapshot deltas require the exact acknowledged revision
 and checksum, including when an enforcement setting changes without a different stage revision.
+The server records the exact revision, checksum and interaction enforcement policy offered to
+each player after sending the snapshot. An acknowledgement must match that offer and the current
+compiled revision and policy. Unsolicited, stale, wrong player and incorrect checksum acknowledgements
+cannot establish a new delta base. Repeated acknowledgements perform the same bounded metadata
+comparison without encoding, compressing or hashing the snapshot again. Player disconnect and
+server shutdown clear offers along with acknowledged bases. The payload format is unchanged.
+The [snapshot acknowledgement tests](docs/test/snapshot-acknowledgements.md) exercise the actual
+server handler; their evidence does not replace laptop reconnect acceptance.
 The cache clears on disconnect. Definition reloads replace the rules, while ordinary effective
 stage updates immediately change their missing stage checks. Creative bypass uses the existing
 server supplied bypass flag.

@@ -366,6 +366,10 @@ For `item_on_block` and `block_right_click`, selectors are checked against the l
 
 Matching clients suppress local item and block prediction for denied direct interactions using synchronized rules and stage ownership. The server still checks the ordinary request and resends authoritative inventory state when it denies the interaction. Selective restrictions inside an open GUI use a separate `item_into_inventory` rule; `block_right_click` controls access independently. The [real Selling Bin transaction tests](docs/test/selling-bin.md) cover server insertion and sale paths. Client acceptance remains open in the [verification record](docs/verification/selling-bin-interaction-repair.md).
 
+Client snapshot acknowledgements must match the revision, checksum and enforcement policy sent
+to that player. Repeated acknowledgements reuse the stored offer instead of rebuilding the
+snapshot. Disconnect clears the offer. See the [snapshot handler tests](docs/test/snapshot-acknowledgements.md).
+
 Stages can optionally integrate with LuckPerms. Add `[luckperms]`, `[[luckperms.inbound]]`, and `[[luckperms.outbound]]` to read inherited groups or true Boolean permissions and to contribute existing groups or positive permissions. `inbound_mode = "synchronized"` removes access after a qualifying rank is lost. `inbound_mode = "permanent"` keeps the attributed stage. Native team changes withdraw the moving player's synchronized contribution from the old owner while preserving independent and permanent grants. Add `[[command_permissions]]` rows to require a stage at an actual literal command path while native command permissions remain required. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 
 Inbound grants track each contributing player and mapping separately. Losing one synchronized

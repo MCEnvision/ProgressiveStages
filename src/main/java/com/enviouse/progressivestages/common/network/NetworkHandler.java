@@ -544,8 +544,9 @@ public class NetworkHandler {
     /** v3.0: per-player skill-tree purchase cooldown tracking (transient, in-memory). */
     private static final java.util.Map<java.util.UUID, Long> lastPurchase = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private record SnapshotAcknowledgement(long revision, String checksum) {}
+    private record SnapshotAcknowledgement(long revision, String checksum, boolean blockInteractions) {}
     private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> acknowledgedClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> offeredClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<java.util.UUID, Integer> challengeHudFingerprints = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<Long, byte[]> clientSnapshotHistory = java.util.Collections.synchronizedMap(
         new java.util.LinkedHashMap<>() {
@@ -557,12 +558,14 @@ public class NetworkHandler {
     public static void clearServerRuntimeState() {
         lastPurchase.clear();
         acknowledgedClientSnapshots.clear();
+        offeredClientSnapshots.clear();
         challengeHudFingerprints.clear();
         clientSnapshotHistory.clear();
     }
 
     public static void clearPlayerRuntimeState(java.util.UUID player) {
         acknowledgedClientSnapshots.remove(player);
+        offeredClientSnapshots.remove(player);
         challengeHudFingerprints.remove(player);
     }
 
@@ -590,6 +593,8 @@ public class NetworkHandler {
         for (var chunk : prepared.chunks()) {
             PacketDistributor.sendToPlayer(player, new ClientSnapshotChunkPayload(chunk));
         }
+        offeredClientSnapshots.put(player.getUUID(), new SnapshotAcknowledgement(snapshot.revision(),
+            prepared.manifest().checksum(), blockInteractions));
     }
 
     private static void handleClientSnapshotManifest(ClientSnapshotManifestPayload payload, IPayloadContext context) {
@@ -616,12 +621,12 @@ public class NetworkHandler {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
                 var snapshot = com.enviouse.progressivestages.server.loader.StageFileLoader.getInstance().getCompiledSnapshot();
-                var expected = com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.prepare(
-                    snapshot, 0, null,
-                    com.enviouse.progressivestages.common.config.StageConfig.isBlockInteractions()).manifest();
-                if (payload.revision() == snapshot.revision() && payload.checksum().equals(expected.checksum())) {
-                    acknowledgedClientSnapshots.put(player.getUUID(),
-                        new SnapshotAcknowledgement(payload.revision(), payload.checksum()));
+                var offered = offeredClientSnapshots.get(player.getUUID());
+                if (offered != null && payload.revision() == snapshot.revision()
+                        && offered.revision() == snapshot.revision()
+                        && offered.blockInteractions() == com.enviouse.progressivestages.common.config.StageConfig.isBlockInteractions()
+                        && offered.checksum().equals(payload.checksum())) {
+                    acknowledgedClientSnapshots.put(player.getUUID(), offered);
                 }
             }
         });

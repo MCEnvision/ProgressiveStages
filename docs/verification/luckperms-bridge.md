@@ -42,6 +42,92 @@ the server reached `Done`. A second run with the LuckPerms jar absent reached `D
 dormant. The laptop login, provider-managed rank changes and real command side-effect matrix remain
 unverified because the required laptop session was not available on the headless execution host.
 
+## Offline contributor regression
+
+Source commit `37b597704e49e91e80ff0bdbe4606a4b8c916c5f` adds bounded offline provider observations to
+P003-TASK-005 correction work for BIN-REQ-011 and BIN-REQ-012. The loader retains at most eight
+pending or unacknowledged results. It queries configured inbound Boolean keys and inherited groups
+using static provider contexts, excluding the reserved bridge marker and any remembered player
+world. Existing loaded users are borrowed; a user loaded for the query receives `cleanupUser`
+after observation. Cleanup failure retains the reference and prevents trusted application.
+Shutdown suppresses late notifications and cannot replace an adapter with unfinished cleanup.
+Owned load and cache eviction events do not create a repeated offline reload cycle.
+
+Server reconciliation captures definition identity, compiled revision and resolved owners, then
+rejects a changed context before mutation. A provider event can invalidate a completed observation
+until acknowledgement. Invalidation during application removes newly added permanent sources and
+leaves synchronized input inactive. Current dependencies, slot policy and purchase qualification
+remain enforced without granting prerequisites, buying stages or firing acquisition events.
+Independent and permanent sources remain separate from each subject's synchronized contribution.
+Online beneficiaries receive a fresh effective snapshot and bulk change notification.
+
+The persisted contributor index supports a UUID cursor that continues after earlier subjects are
+removed. Online players and offline contributors share the 256 entry queue and sixteen subject
+operations per tick. The exact [FTB Teams 2101.1.9 artifact](https://maven.ftb.dev/releases/dev/ftb/mods/ftb-teams-neoforge/2101.1.9/ftb-teams-neoforge-2101.1.9.jar),
+SHA256 `c0e4fcb2e349dd24dd3bddb1bcda6c61dad3c1db38e3bf1100e5da9c2753e571`,
+was inspected with `javap`. Its API exposes `TeamManager.getTeamForPlayerID(UUID)` and `Team.getId`.
+The optional boundary uses these signatures for offline ownership and treats lookup failure as
+unknown ownership. This signature check does not prove real FTB membership event behavior.
+
+On September 13, 2026, Java 21.0.11 `./gradlew test build --no-daemon --no-configuration-cache`
+passed on Minecraft 1.21.1 and NeoForge 21.1.248. All 386 tests across 103 suites passed with zero
+failures, errors or skips. Seven new isolated API tests cover bounded loads, acknowledged slots,
+static contextual queries, borrowed users, provider failures, cleanup retries, invalidation,
+owned and external cache lifecycle events, shutdown and late results. A source index test covers
+removal during scanning and pending source preservation. No separate formatter or static analysis
+task is configured; `git diff --check` passed. The final postcommit build passed and produced a
+clean source manifest. No platform dependency or data generation provider changed.
+
+The inspected `runServer` graph starts no client or renderer. The final development server reached
+readiness at 00:27:54 America/Chicago and ran these actual GameTest dispatcher fixtures.
+
+| Fixture | Started | Matching metadata and fresh lime marker observed |
+|---|---|---|
+| `offlineresultsrejectstaledefinitionsandunqualifiedgrants` | 00:28:49 | 00:31:09, `offline_stale_results_pass` |
+| `offlinerescanconvergeswhilecontributorsareremoved` | 00:31:09 | 00:35:32, `offline_rescan_pass` |
+| `offlinesourcesrevalidatewithoutaplayerandpreserveotherowners` | 00:35:32 | 00:35:57, `offline_sources_final_pass` |
+| `overflowingpermissioneventsreacheveryonlinesubject` | 00:35:57 | 00:36:23, `offline_online_queue_regression_pass` |
+| `permissionsourcespreserveothersubjectsandindependentearnings` | 00:36:23 | 00:36:48, `offline_online_sources_regression_pass` |
+
+The structure block was at `0 181 3` and the success glass at `-1 180 2`. Released chunks were
+force loaded before inspection, and the success glass was cleared before each subsequent test.
+The offline scan fixture visits all 300 persisted contributors exactly once within 128 simulated
+bridge ticks, respects both work limits, removes obsolete sources and leaves no jobs, queue or
+rescan. The source fixture verifies personal and server owners, fixed server context qualification,
+world context loss, two contributing subjects, permanent retention and independent preservation.
+The stale result fixture rejects old definitions and owners, refuses unqualified dependency and
+purchase grants, then checks that invalidated input cannot leave a permanent entitlement.
+
+An earlier development run failed the stale definition fixture at 00:23:12 because the fixture
+attempted duplicate registration, which `StageOrder` rejects. Clearing the isolated stage registry
+before replacement correctly models reload and preserves the same denial assertion. That run
+stopped normally at 00:25:54; the corrected fixture passed in the final run above. The final
+development server stopped at 00:36:48, saved all dimensions and exited normally.
+
+The packaged `progressivestages-3.0.5.jar` has SHA256
+`25f286ac6ce06792f368ae8444523fb45d2c6dfd8a2e627d56014f301558cb8d`. Its manifest identifies the source
+commit above and `Build-Dirty: false`. All 752 project classes match compiled output byte for
+byte, and no `net/luckperms` API classes are bundled. The same artifact without optional mods
+reached production dedicated readiness at 00:38:33. At 00:38:54, `time query gametime` returned
+16455 and `stage debug permissions status` reported stopped capture, zero records and an idle
+writer. The owned runtime uses online authentication and `127.0.0.1:25589`, with EULA true read
+back before every launch. Both development runs and the packaged smoke used only `node-1` at
+`/mnt/hermes/projects/ProgressiveStages/.phase-worktrees/phase-003/build/offline-permissions-verification`.
+
+The production server stopped at 00:39:56, saved all dimensions and exited normally. Cleanup
+confirmed all three owned server processes were absent and the loopback port was available.
+All 1,020 added build paths were removed, restoring the exact 836 path baseline. The 26 preexisting
+`.gradle` paths remained unchanged with no additions. The runtime and three metadata scratch
+files were removed after their final consumer. The preexisting `run`, `run-248`, shared libraries,
+dependency caches, source and candidate artifact were preserved. No cleanup resource remains.
+
+This bounded evidence does not close BIN-REQ-012 or combined acceptance. The exact provider login
+failure remains separate. Real provider and FTB lifecycle behavior, complete membership revision
+guards, source expiry and suppression episodes, native cached permissions, real convergence time,
+and matched client and browser acceptance remain open. The recording adapters and constructed
+players do not substitute for those gates. No laptop or browser resource was created, and no
+release or phase integration is claimed. The plan, immutable goal and cursor remain unchanged.
+
 ## Provider event regression
 
 Source commit `55eae9800a0062611929dee4acd006a08d8d1850` connects provider user, node,

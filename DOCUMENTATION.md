@@ -4803,6 +4803,16 @@ are retained once when rows are removed, and unknown nested values remain in edi
 Mixed arrays containing values that are not tables reject guided mutation rather than discarding
 entries omitted by the guided view.
 
+The Rules tab discovers inventory insertion rules in inline arrays and quoted array tables.
+Existing inventory rules are updated by changed field rather than serialized as a replacement
+row. Priority, destination, lifetime, activation, and reset edits retain unrelated settings.
+Condition target edits keep the existing `id`, `value`, or `callback` spelling and unknown
+condition fields. Child condition tables remain tables when their scalar fields change.
+Choosing no activation removes that condition explicitly while retaining surrounding comments
+and unrelated sections. Missing condition counts use the documented default of one. Failed
+saves retain the form, and a changed source row must be reopened before saving. Rule removal
+and reordering use parsed table boundaries rather than scanning apparent headers inside text.
+
 Config and datapack discovery use parsed TOML to recognize stage definitions rather than a
 literal header match. Quoted and escaped stage keys, dotted assignments, and inline stage
 tables reach the normal domain parser. A header printed inside a valid multiline string does

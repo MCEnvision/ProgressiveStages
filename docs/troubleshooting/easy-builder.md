@@ -75,6 +75,11 @@ inline arrays of interactions, command gates, and permission mappings. You can e
 remove rows and configure their contexts without converting the file to array table syntax.
 The paired Selling Bin preset works inside an existing inline interaction array.
 
+The Rules tab also opens inline inventory insertion rules. Editing their priority, destination,
+activation, or reset preserves the other fields and existing condition aliases. A failed save
+keeps your input available. If the source row changed while the form was open, reopen the rule
+before saving to avoid overwriting that edit.
+
 The pairing option is available when adding a held item rule. For an existing rule, add its
 inventory counterpart with the same item, choose **Container block**, enter the same block
 selector, and select **Deny until stage is owned**. Conditional activation remains editable in

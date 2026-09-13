@@ -1,3 +1,4 @@
+import { extractRows, replaceRows } from "../../lib/tomlRows";
 import { useMemo, useState } from "react";
 import { ACTION_LABELS, CATEGORIES, CONDITIONS, EFFECTS, ruleEffects } from "../../data";
 import { InlineCatalogSearch } from "../../components/CatalogPicker";
@@ -11,7 +12,7 @@ import {
   validateEnchantmentGenerationRule,
   writeEnchantmentGenerationRules
 } from "../../lib/enchantments";
-import { serializeInventoryCondition, serializeInventoryInsertionRule } from "../../lib/inventoryInsertion";
+import { serializeInventoryCondition, serializeInventoryInsertionRule, updateInventoryInsertionRule } from "../../lib/inventoryInsertion";
 import { ruleModels, selectorMode, title } from "../../lib/model";
 import { appendTomlBlock, conditionToml, encodeToml, extractArrayGroups, parseSimpleArray, readTomlValue, replaceArrayGroups, upsertToml } from "../../lib/toml";
 import { useEditor } from "../../store/EditorContext";
@@ -66,38 +67,26 @@ function effectLabel(category: string, effect: string, action = ""): string {
   return EFFECTS.find(value => value.value === effect)?.label || title(effect);
 }
 
-function ruleGroups(text: string, table: "rules" | "temporary_rules"): Array<{ start: number; end: number; text: string }> {
-  const lines = text.split(/\r?\n/);
-  const starts: number[] = [];
-  const header = new RegExp(`^\\s*\\[\\[${table}\\]\\]\\s*(?:#.*)?$`);
-  lines.forEach((line, index) => { if (header.test(line)) starts.push(index); });
-  return starts.map((start, index) => {
-    let end = index + 1 < starts.length ? starts[index + 1] : lines.length;
-    if (index + 1 >= starts.length) {
-      for (let cursor = start + 1; cursor < lines.length; cursor++) {
-        const match = lines[cursor].match(/^\s*\[\[([^\]]+)\]\]/);
-        if (match && match[1] !== `${table}.exceptions` && match[1] !== table) { end = cursor; break; }
-      }
-    }
-    return { start, end, text: lines.slice(start, end).join("\n").trimEnd() };
-  });
+function ruleGroups(text: string, table: "rules" | "temporary_rules"): { text: string }[] {
+  return extractArrayGroups(text, table);
 }
 
 function replaceRuleGroup(text: string, table: "rules" | "temporary_rules", index: number, replacement: string | null): string {
-  const lines = text.split(/\r?\n/);
-  const group = ruleGroups(text, table)[index];
-  if (!group) throw new Error("The rule changed in another edit. Reopen it and try again.");
-  lines.splice(group.start, group.end - group.start, ...(replacement ? replacement.trim().split("\n") : []));
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+  const groups = ruleGroups(text, table);
+  if (!groups[index]) throw new Error("The rule changed in another edit. Reopen it and try again.");
+  const replacements = groups.map(entry => entry.text);
+  if (replacement == null) replacements.splice(index, 1);
+  else replacements[index] = replacement;
+  return replaceArrayGroups(text, table, replacements);
 }
 
 function replaceInteractionGroup(text: string, index: number, replacement: string | null): string {
-  const groups = extractArrayGroups(text, "interactions");
-  const group = groups[index];
-  if (!group) throw new Error("The interaction changed in another edit. Reopen it and try again.");
+  const groups = extractRows(text, "interactions");
+  if (!groups[index]) throw new Error("The interaction changed in another edit. Reopen it and try again.");
   const replacements = groups.map(entry => entry.text);
-  replacements[index] = replacement || "";
-  return replaceArrayGroups(text, "interactions", replacements);
+  if (replacement == null) replacements.splice(index, 1);
+  else replacements[index] = replacement;
+  return replaceRows(text, "interactions", replacements);
 }
 
 function removeClassicRule(text: string, rule: RuleModel): string {
@@ -152,7 +141,7 @@ function saveCanonicalRecipeRule(text: string, draft: RuleDraft, previous?: Rule
 }
 
 function saveInventoryInsertionRule(text: string, draft: RuleDraft, previous?: RuleModel): string {
-  const block = serializeInventoryInsertionRule({
+  const next = {
     id: draft.ruleId,
     selector: draft.selector,
     targetKind: draft.targetKind,
@@ -163,15 +152,27 @@ function saveInventoryInsertionRule(text: string, draft: RuleDraft, previous?: R
     duration: draft.duration,
     condition: serializeInventoryCondition(draft.conditionSource, draft.conditionType, draft.conditionTarget, draft.count),
     resetCondition: serializeInventoryCondition(draft.resetConditionSource, draft.resetConditionType, draft.resetConditionTarget, draft.resetCount)
-  });
-  if (previous?.table === "interactions") return replaceInteractionGroup(text, previous.tableIndex, block);
+  };
+  const block = serializeInventoryInsertionRule(next);
+  if (previous?.table === "interactions") {
+    if (extractRows(text, "interactions")[previous.tableIndex]?.text !== previous.sourceText) throw new Error("The interaction changed in another edit. Reopen it and try again.");
+    const prior = {
+      id: previous.id || "", selector: previous.selector,
+      targetKind: previous.targetKind || "block", destination: previous.destination || "",
+      effect: (previous.effect === "deny" ? "lock" : previous.effect === "unlock" ? "allow" : previous.effect) as "lock" | "allow" | "exclude",
+      priority: previous.priority, lifetime: previous.lifetime, duration: previous.duration,
+      condition: serializeInventoryCondition(previous.conditionSource || "", previous.conditionType, previous.conditionTarget, previous.count),
+      resetCondition: serializeInventoryCondition(previous.resetConditionSource || "", previous.resetConditionType || "none", previous.resetConditionTarget || "", previous.resetCount || 1)
+    };
+    return replaceInteractionGroup(text, previous.tableIndex, updateInventoryInsertionRule(previous.sourceText, next, prior));
+  }
   if (previous) {
     const withoutPrevious = previous.table === "classic" || previous.table === "recipe_items" || previous.table === "recipe_ids"
       ? removeClassicRule(text, previous)
       : replaceRuleGroup(text, previous.table as "rules" | "temporary_rules", previous.tableIndex, null);
-    return appendTomlBlock(withoutPrevious, block);
+    return replaceRows(withoutPrevious, "interactions", [...extractRows(withoutPrevious, "interactions").map(row => row.text), block]);
   }
-  return appendTomlBlock(text, block);
+  return replaceRows(text, "interactions", [...extractRows(text, "interactions").map(row => row.text), block]);
 }
 
 function serializeRule(stage: StagePackage, draft: RuleDraft, table: "rules" | "temporary_rules", previous?: RuleModel): string {
@@ -202,6 +203,7 @@ function serializeRule(stage: StagePackage, draft: RuleDraft, table: "rules" | "
 
 function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const { boot, mutateFile, closeDialog } = useEditor();
+  const [saveError, setSaveError] = useState("");
   const initialCategory = rule?.category || "items";
   const [draft, setDraft] = useState<RuleDraft>({
     ruleId: rule?.id || "",
@@ -248,32 +250,35 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     : "Selected target";
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (ambiguousRecipe) throw new Error("[recipes].locked is ambiguous. Remove it, then create either a recipe output item or exact recipe identifier lock.");
-    if (!draft.selector || inventoryInsertion && !draft.destination) return;
-    let content = boot?.draft.files[stage.rulesPath] || "";
-    if (inventoryInsertion) {
-      content = saveInventoryInsertionRule(content, draft, rule);
-    } else if (canonicalRecipe) {
-      content = saveCanonicalRecipeRule(content, draft, rule);
-    } else {
-      const table: "rules" | "temporary_rules" = temporary ? "temporary_rules" : "rules";
-      const block = serializeRule(stage, draft, table, rule);
-      if (rule?.table === "interactions") content = replaceInteractionGroup(content, rule.tableIndex, null);
-      else if (rule?.table === "classic" || rule?.table === "recipe_items" || rule?.table === "recipe_ids") content = removeClassicRule(content, rule);
-      else if (rule && rule.table !== table) {
-        content = replaceRuleGroup(content, rule.table as "rules" | "temporary_rules", rule.tableIndex, null);
-        content = appendTomlBlock(content, block);
-      } else if (rule) content = replaceRuleGroup(content, table, rule.tableIndex, block);
-      else if (stage.legacy) {
-        if (temporary) throw new Error("Temporary rules need a three file stage package.");
-        const field = ["allow", "unlock"].includes(draft.effect) ? "always_unlocked" : "locked";
-        const values = parseSimpleArray(readTomlValue(content, `${draft.category}.${field}`));
-        values.push(`${draft.selector}${draft.priority ? `|priority=${draft.priority}` : ""}`);
-        content = upsertToml(content, `${draft.category}.${field}`, values);
-      } else content = appendTomlBlock(content, block);
-    }
-    await mutateFile(stage.rulesPath, content, "Rule saved to the draft");
-    closeDialog();
+    setSaveError("");
+    try {
+      if (ambiguousRecipe) throw new Error("[recipes].locked is ambiguous. Remove it, then create either a recipe output item or exact recipe identifier lock.");
+      if (!draft.selector || inventoryInsertion && !draft.destination) return;
+      let content = boot?.draft.files[stage.rulesPath] || "";
+      if (inventoryInsertion) {
+        content = saveInventoryInsertionRule(content, draft, rule);
+      } else if (canonicalRecipe) {
+        content = saveCanonicalRecipeRule(content, draft, rule);
+      } else {
+        const table: "rules" | "temporary_rules" = temporary ? "temporary_rules" : "rules";
+        const block = serializeRule(stage, draft, table, rule);
+        if (rule?.table === "interactions") content = appendTomlBlock(replaceInteractionGroup(content, rule.tableIndex, null), block);
+        else if (rule?.table === "classic" || rule?.table === "recipe_items" || rule?.table === "recipe_ids") content = appendTomlBlock(removeClassicRule(content, rule), block);
+        else if (rule && rule.table !== table) {
+          content = replaceRuleGroup(content, rule.table as "rules" | "temporary_rules", rule.tableIndex, null);
+          content = appendTomlBlock(content, block);
+        } else if (rule) content = replaceRuleGroup(content, table, rule.tableIndex, block);
+        else if (stage.legacy) {
+          if (temporary) throw new Error("Temporary rules need a three file stage package.");
+          const field = ["allow", "unlock"].includes(draft.effect) ? "always_unlocked" : "locked";
+          const values = parseSimpleArray(readTomlValue(content, `${draft.category}.${field}`));
+          values.push(`${draft.selector}${draft.priority ? `|priority=${draft.priority}` : ""}`);
+          content = upsertToml(content, `${draft.category}.${field}`, values);
+        } else content = appendTomlBlock(content, block);
+      }
+      await mutateFile(stage.rulesPath, content, "Rule saved to the draft");
+      closeDialog();
+    } catch (failure) { setSaveError(failure instanceof Error ? failure.message : "The rule was not saved."); }
   };
   return <form className="dialog-form" onSubmit={save}>
     <div className="rule-sentence"><span>When a player tries to</span><strong>{ACTION_LABELS[draft.action] || title(draft.action)}</strong><span>the server will</span><strong>{effectLabel(draft.category, draft.effect, draft.action)}</strong></div>
@@ -336,6 +341,7 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
       <Field label="Optional exception selector"><input value={draft.exception} onChange={event => update("exception", event.target.value)} placeholder="tag:c:swords"/></Field>
       <Field label="Exception priority"><input type="number" value={draft.exceptionPriority} onChange={event => update("exceptionPriority", Number(event.target.value))}/></Field>
     </div></section> : null}
+    {saveError ? <p role="alert">{saveError}</p> : null}
     {ambiguousRecipe ? <div className="form-errors" role="alert"><strong>This legacy recipe field is ambiguous.</strong><p>Remove it, then create a recipe output item or exact recipe identifier lock.</p></div> : null}
     <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={closeDialog}>Cancel</Button><Button type="submit" tone="primary" disabled={ambiguousRecipe || !draft.selector || inventoryInsertion && !draft.destination}>{rule ? "Update rule" : "Add rule"}</Button></footer>
   </form>;
@@ -450,9 +456,7 @@ export function RulesPanel({ stage }: { stage: StagePackage }) {
     if (target < 0 || target >= groups.length) return;
     const values = groups.map(group => group.text);
     [values[rule.tableIndex], values[target]] = [values[target], values[rule.tableIndex]];
-    let updated = content;
-    for (let index = groups.length - 1; index >= 0; index--) updated = replaceRuleGroup(updated, rule.table, index, null);
-    for (const value of values) updated = appendTomlBlock(updated, value);
+    const updated = replaceArrayGroups(content, rule.table, values);
     await mutateFile(stage.rulesPath, updated, "Rule order saved");
   };
   const removeEnchantmentRule = (rule: EnchantmentGenerationRule) => openDialog({

@@ -188,7 +188,9 @@ export function booleanValue(raw: string): boolean {
 }
 
 export function numberValue(raw: string, fallback = 0): number {
-  const value = Number(stringValue(raw));
+  const scalar = stringValue(raw);
+  if (!scalar) return fallback;
+  const value = Number(scalar);
   return Number.isFinite(value) ? value : fallback;
 }
 
@@ -210,8 +212,7 @@ export function readBlockValue(block: string, key: string): string {
 }
 
 export function inlineObjectValue(raw: string, key: string): string {
-  const match = raw.match(new RegExp(`(?:^|[,\\s{])${escapeRegex(key)}\\s*=\\s*("(?:\\\\.|[^"\\\\])*"|'[^']*'|[^,}]+)`));
-  return match ? stringValue(match[1]) : "";
+  return stringValue(readBlockValue(raw, key));
 }
 
 export function conditionToml(type: string, target: string, count: number): string {

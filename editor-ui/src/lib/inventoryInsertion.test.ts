@@ -48,4 +48,15 @@ reset_condition = { type = "boolean", expected = false }`);
     expect(serializeInventoryCondition('{ type = "boolean", expected = false }', "boolean", "", 1))
       .toBe('{ type = "boolean", expected = false }');
   });
+
+  it("updates a quoted condition target without replacing its alias or nested fields", () => {
+    const source = '{ "type" = "script", "callback" = "first", extension = { type = "dimension", value = "keep" } }';
+    expect(serializeInventoryCondition(source, "script", "second", 1))
+      .toBe(source.replace('"first"', '"second"'));
+  });
+
+  it("does not mistake a nested type for the condition type", () => {
+    const source = '{ extension = { type = "dimension", id = "nested" }, type = "boolean", expected = false }';
+    expect(serializeInventoryCondition(source, "boolean", "", 1)).toBe(source);
+  });
 });

@@ -61,7 +61,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   recognize quoted stage headers as well as dotted and inline stage definitions. Ownership
   and retention controls also edit fields inside inline tables while preserving their structure.
   The Access tab supports inline arrays of interactions, command gates, and permission mappings,
-  including additions, removals, contexts, and the paired Selling Bin preset.
+  including additions, removals, contexts, and the paired Selling Bin preset. Inventory rule
+  condition edits in the Rules tab retain descriptions, aliases, and unknown nested fields.
 - **Strict access configuration validation.** Incorrect LuckPerms booleans and non-string
   group or permission entries are rejected instead of silently changing their meaning. The
   builder places returned diagnostics beside ownership and access rules, with a full validation

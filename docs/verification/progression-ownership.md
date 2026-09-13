@@ -615,3 +615,76 @@ All 17 registered scratch files and their unique temporary directory were remove
 last evidence consumer, and absence was verified. No laptop client, browser, renderer, watcher
 or audio resources were created. The immutable goal, authoritative plan and active cursor remain
 unchanged. No default branch merge, phase tag, wiki publication or release occurred.
+
+
+## Native reward claim tracking and disband verification
+
+Source commit `bde7bd89eee01099530f9d98397a2b2e5d8700a7` extends the native provider regression fixtures without
+changing production ownership or reward behavior. `TeamData.claimReward` is the actual FTB
+Quests 2101.1.21 wrapper around claim tracking and the stage reward body. Its claim key retains
+FTB's configured team or per player distribution. The new fixture calls this wrapper for two
+detached actors on the same real quest team, rather than calling the reward body directly.
+
+Both `team_reward = true` and `false` are exercised. The first claim records the native receipt
+and grants only the claimant's profession. A team reward is recorded for the entire quest team,
+so the second claimant receives no personal grant from that already claimed reward. A per player
+reward permits the second claimant's separate entitlement. After stage revocation, a duplicate
+claim neither restores the stage nor changes the original claim time. Explicit native reward
+reset permits a new claim. A separate removal reward removes only its claimant's personal stage.
+These checks distinguish reward distribution from the stage ownership setting.
+
+The existing membership test now calls native `PartyTeam.forceDisband` and creates a replacement
+party with the other player as owner. Disband invalidates captured membership, restores solo
+provider identities and removes both actors' effective access to the former party stage. The
+old grant remains preserved under the former party UUID. The first player's profession remains
+personal throughout disband and joining the replacement party, and that replacement party does
+not inherit the former party's stages. This supplies server evidence for the disband and
+replacement portions of BIN-AC-011C, alongside the existing creation, join, leave and rejoin
+assertions. Claim tracking supplies the independently configured reward portion of BIN-AC-011D.
+
+### Runtime and build results
+
+On September 13, 2026, America/Chicago, development server PID `777592` reached readiness at
+05:13:43. `nativequestclaimtrackingpreservesrewarddistribution` passed at 05:13:58 and 05:14:22.
+The expanded `nativeftbmembershippreservespersonalandsharedownership` passed at 05:14:31 and
+05:14:56. Each invocation cleared its fixture area and checked a fresh lime success block at
+`-1 179 2` plus matching structure metadata at `0 180 3`. The server saved all dimensions at
+05:15:00 and exited normally. Fixture teardown restored the original definitions, attachment,
+quest team map and affected personal clocks, removed native fixture teams and their player
+files, and discarded the detached actors before success.
+
+The owned runtime was `build/ftb-claim-verification` in the active Phase 003 checkout on
+`node-1`. It used Java 21, Minecraft 1.21.1, NeoForge 21.1.248, `forgeserverdev`, `--nogui`,
+authentication and loopback port 25589. `eula=true` was read back before every launch. The four
+cached FTB/Architectury artifacts matched the exact versions and SHA256 values recorded above;
+SHA512 values and ZIP integrity were also recorded before copying. No dependency pin changed.
+
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build` passed in
+18 seconds with 410 tests in 106 suites and zero failures, errors or skips. No formatter is
+configured, no data provider changed, and `git diff --check` passed. The source commit is signed,
+pushed and verified by GitHub. Postcommit packaging records `Build-Commit: bde7bd89eee01099530f9d98397a2b2e5d8700a7`
+and `Build-Dirty: false`. All 777 project classes match compiled output, and no FTB or
+LuckPerms API classes are bundled. JAR SHA256 is `54bf2669a24138ce2d3b8b0d089b0481d014c4c7c39f30739a539bd099a0acb1` and SHA512 is
+`70e9d912d5f8e95c1d4a7b0c228e69976f2e79a9b9fadd80028f472409218b87cb44abd2bf4ded37439788e6a9ff5a791d0e5cfa943cd260027b0d1ff0cef0de`.
+
+The claim fixture uses the actual native claim ledger and reward bodies. It does not exercise
+authenticated claim request packets, quest completion gameplay, automatic claims to online
+members or the client quest screen. The disband assertions prove authoritative owner queries,
+not packet delivery, attributes or rendered lock state. Those remaining client and lifecycle
+gates, Java/KubeJS compatibility and final combined acceptance remain open. Earlier narrower
+claim and disband limitations are superseded only by the passing scope recorded here.
+
+
+After the native suite finished, the four hash checked runtime provider copies were removed
+and the packaged artifact was installed alone. Production server PID `782076` reached
+readiness at 05:16:08 and answered `time query gametime` at 05:16:52. It then saved all dimensions
+and exited normally. This confirms optional absence classloading for the added nested fixture.
+The postcommit build passed in four seconds. Both owned server processes were confirmed absent,
+no process retained the runtime working directory, and loopback port 25589 was free.
+
+Cleanup removed 1052 new build paths, 13 new local Gradle paths and all 9 registered
+scratch files, with runtime and scratch directory absence verified. All 836 preexisting build
+paths and 26 preexisting local Gradle paths were preserved. The runtime libraries symlink was
+removed without following it; shared libraries and the candidate remain. No laptop, browser,
+client, renderer, watcher or audio resource was created. The plan, goal and cursor stayed
+unchanged. No default branch merge, tag, wiki update or release occurred.

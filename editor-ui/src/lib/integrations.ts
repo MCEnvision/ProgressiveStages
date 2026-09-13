@@ -68,7 +68,7 @@ export function parseLuckPerms(text: string): LuckPermsView {
   const sectionRaw = readTomlValue(text, "luckperms.enabled");
   const source = scanToml(text);
   const sectionPresent = source.tables.some(table => !table.array && samePath(table.path, ["luckperms"]))
-    || source.values.some(value => !value.table && value.key.length > 1 && value.key[0] === "luckperms");
+    || source.values.some(value => !value.table && value.key[0] === "luckperms");
   const inbound = extractArrayGroups(text, "luckperms.inbound").map((block): InboundModel => ({
     id: mappingString(block.text, "id"),
     groups: mappingArray(block.text, "groups"),

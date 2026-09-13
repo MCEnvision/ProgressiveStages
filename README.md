@@ -58,7 +58,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   Duplicate keys and failed saves retain editable input. Existing source
   comments and unrelated files remain in the draft. Quoted table paths and multiline values
   remain intact when editing access settings and interaction rows. Config and datapack discovery
-  recognize quoted stage headers as well as dotted and inline stage definitions.
+  recognize quoted stage headers as well as dotted and inline stage definitions. Ownership
+  and retention controls also edit fields inside inline tables while preserving their structure.
 - **Strict access configuration validation.** Incorrect LuckPerms booleans and non-string
   group or permission entries are rejected instead of silently changing their meaning. The
   builder places returned diagnostics beside ownership and access rules, with a full validation

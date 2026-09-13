@@ -68,8 +68,10 @@ comments. If saving fails, the dialog keeps the entered selectors and reports th
 
 Quoted table paths and multiline text are supported by the access row editors. Text that looks
 like a table header inside a string stays part of that string. An unterminated string or array
-must be corrected in source before a guided edit can safely find its field. General inline
-values containing nested fields still use source editing; inline context maps have guided support.
+must be corrected in source before a guided edit can safely find its field. Ownership and
+retention controls support inline tables such as `stage = { id = "chef", team_stage = false }`.
+Editing these fields preserves other keys and nested values. Inline arrays of interaction or
+permission mapping tables still use source editing; inline context maps have guided support.
 
 The pairing option is available when adding a held item rule. For an existing rule, add its
 inventory counterpart with the same item, choose **Container block**, enter the same block

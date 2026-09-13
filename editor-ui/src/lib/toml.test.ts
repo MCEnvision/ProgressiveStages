@@ -59,7 +59,8 @@ describe("TOML source boundaries", () => {
       .toBe("stage.id = 'chef'\nstage.team_stage = false\n[extension]\nvalue = 'keep'\n");
     expect(upsertToml("stage.display.name = 'Chef'\n", "stage.team_stage", false))
       .toBe("stage.display.name = 'Chef'\nstage.team_stage = false\n");
-    expect(() => upsertToml("stage = { id = 'chef' }\n", "stage.team_stage", false)).toThrow(/inline value/);
+    expect(upsertToml("stage = { id = 'chef' }\n", "stage.team_stage", false))
+      .toBe("stage = { id = 'chef', team_stage = false }\n");
   });
 
   it("refuses an edit when an unterminated value makes source boundaries ambiguous", () => {

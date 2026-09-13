@@ -1,4 +1,4 @@
-import { comments, findValue, newline, quoted, replaceValue, requireEditable, samePath, scanToml, type TableSpan } from "./tomlSource";
+import { comments, findValue, inlineValues, retainValueComments, newline, quoted, replaceValue, requireEditable, samePath, scanToml, type TableSpan } from "./tomlSource";
 
 export function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -23,8 +23,10 @@ export function tomlBalance(value: string): number {
 }
 
 export function readTomlValue(text: string, path: string): string {
-  const value = findValue(scanToml(text), path.split("."));
-  return value ? text.slice(value.valueStart, value.valueEnd) : "";
+  try {
+    const value = findValue(scanToml(text), path.split("."));
+    return value ? text.slice(value.valueStart, value.valueEnd) : "";
+  } catch { return ""; }
 }
 
 export function encodeToml(value: unknown): string {
@@ -46,11 +48,16 @@ export function upsertToml(text: string, path: string, value: unknown): string {
   const section = parts.slice(0, -1);
   const table = source.tables.find(entry => !entry.array && samePath(entry.path, section));
   const eol = newline(text);
-  const parentValue = source.values.find(entry => {
-    const parent = [...(entry.table?.path || []), ...entry.key];
-    return parent.length < parts.length && samePath(parent, parts.slice(0, parent.length));
-  });
-  if (parentValue) throw new Error("This field belongs to an inline value. Edit that value in source to preserve its structure.");
+  for (let length = parts.length - 1; length > 0; length--) {
+    const parent = findValue(source, parts.slice(0, length));
+    if (!parent) continue;
+    const entries = inlineValues(text, parent);
+    const last = entries.at(-1);
+    const position = last?.valueEnd ?? parent.valueStart + 1;
+    const field = parts.slice(length).join(".");
+    return text.slice(0, position) + `${last ? ", " : " "}${field} = ${encoded}`
+      + (text[position] === "}" ? " " : "") + text.slice(position);
+  }
   const dotted = table ? undefined : source.values.find(entry => {
     const parent = entry.table?.path || [];
     const remaining = section.slice(parent.length);
@@ -70,6 +77,13 @@ export function removeTomlValue(text: string, path: string): string {
   requireEditable(source);
   const value = findValue(source, path.split("."));
   if (!value) return text;
+  if (value.inline) {
+    const entries = inlineValues(text, value.inline);
+    const index = entries.findIndex(entry => entry.start === value.start);
+    const start = index ? entries[index - 1].valueEnd : value.start;
+    const end = index === 0 && entries.length > 1 ? entries[1].start : value.valueEnd;
+    return retainValueComments(text, value, text.slice(0, start) + text.slice(end));
+  }
   const notes = comments(text.slice(value.valueStart, value.end));
   return text.slice(0, value.start) + (notes.length ? notes.join(newline(text)) + newline(text) : "") + text.slice(value.end);
 }
@@ -78,7 +92,7 @@ export function removeTomlSection(text: string, section: string): string {
   const source = scanToml(text);
   requireEditable(source);
   const index = source.tables.findIndex(table => !table.array && samePath(table.path, section.split(".")));
-  if (index < 0) return text;
+  if (index < 0) return removeTomlValue(text, section);
   return text.slice(0, source.tables[index].start) + text.slice(source.tables[index + 1]?.start ?? text.length);
 }
 

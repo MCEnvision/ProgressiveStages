@@ -36,6 +36,18 @@ function openInteraction() {
 }
 
 describe("guided selective insertion", () => {
+  it("changes ownership and retention through the controls for inline stage source", async () => {
+    const source = "stage={id='chef', team_stage=false}\nluckperms={enabled=false, inbound_mode='permanent', extension={note='keep'}} # Keep.\n";
+    editor.boot.draft.files[stagePath] = source;
+    render(<IntegrationsPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    expect(screen.getByLabelText(/Stage ownership/)).toHaveProperty("value", "personal");
+    expect(screen.getByLabelText(/Inbound retention/)).toHaveProperty("value", "permanent");
+    fireEvent.change(screen.getByLabelText(/Stage ownership/), { target: { value: "team" } });
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledWith(stagePath, source.replace("team_stage=false", "team_stage=true"), "Stage ownership saved"));
+    fireEvent.change(screen.getByLabelText(/Inbound retention/), { target: { value: "synchronized" } });
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledWith(stagePath, source.replace("inbound_mode='permanent'", 'inbound_mode="synchronized"'), "LuckPerms retention saved"));
+  });
+
   it("edits a quoted interaction without touching multiline text or its activation", async () => {
     const fixture = JSON.parse(fixtureText).find((entry: { operation: string }) => entry.operation === "interaction");
     editor.boot.draft.files[rulesPath] = fixture.before;

@@ -56,8 +56,8 @@ export function comments(text: string): string[] {
 }
 
 export interface TableSpan { path: string[]; array: boolean; start: number; end: number }
-export interface ValueSpan { key: string[]; table?: TableSpan; start: number; valueStart: number; valueEnd: number; end: number }
-export interface TomlSource { tables: TableSpan[]; values: ValueSpan[]; error?: string }
+export interface ValueSpan { key: string[]; table?: TableSpan; inline?: ValueSpan; start: number; valueStart: number; valueEnd: number; end: number }
+export interface TomlSource { text: string; tables: TableSpan[]; values: ValueSpan[]; error?: string }
 
 export function samePath(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((part, index) => part === right[index]);
@@ -96,11 +96,12 @@ function lineEnd(text: string, start: number): number {
   return end < 0 ? text.length : end + 1;
 }
 
-function valueEnd(text: string, start: number): number {
+function valueEnd(text: string, start: number, inline = false): number {
   const closers: string[] = [];
   let index = start;
   while (index < text.length) {
     const character = text[index];
+    if (inline && !closers.length && (character === "," || character === "}")) break;
     if (character === '"' || character === "'") { index = quoted(text, index).end; continue; }
     if (character === "#") {
       if (!closers.length) break;
@@ -118,7 +119,7 @@ function valueEnd(text: string, start: number): number {
 }
 
 export function scanToml(text: string): TomlSource {
-  const source: TomlSource = { tables: [], values: [] };
+  const source: TomlSource = { text, tables: [], values: [] };
   let index = 0;
   let table: TableSpan | undefined;
   try {
@@ -155,12 +156,55 @@ export function requireEditable(source: TomlSource): void {
   if (source.error) throw new Error(`${source.error} Correct the source before editing its fields.`);
 }
 
+export function inlineValues(text: string, parent: ValueSpan): ValueSpan[] {
+  if (text[parent.valueStart] !== "{") throw new Error("The parent value must be a TOML table to edit this field.");
+  const entries: ValueSpan[] = [];
+  let index = horizontal(text, parent.valueStart + 1);
+  while (index < parent.valueEnd - 1) {
+    const start = index;
+    const key = keyPath(text, start);
+    if (text[key.end] !== "=") throw new Error("An inline TOML assignment is missing its equals sign.");
+    const valueStart = horizontal(text, key.end + 1);
+    const end = valueEnd(text, valueStart, true);
+    if (end === valueStart) throw new Error("An inline TOML assignment is missing its value.");
+    if ((text[valueStart] === '"' || text[valueStart] === "'") && quoted(text, valueStart).end !== end) {
+      throw new Error("Unexpected text after an inline TOML string.");
+    }
+    entries.push({ key: key.path, inline: parent, start, valueStart, valueEnd: end, end });
+    index = horizontal(text, end);
+    if (text[index] === "}") break;
+    if (text[index] !== ",") throw new Error("Inline TOML fields must be separated by commas.");
+    index = horizontal(text, index + 1);
+    if (text[index] === "}") throw new Error("An inline TOML table cannot have a trailing comma.");
+  }
+  if (index !== parent.valueEnd - 1 || text[index] !== "}") throw new Error("An inline TOML table is not closed.");
+  return entries;
+}
+
 export function findValue(source: TomlSource, path: string[]): ValueSpan | undefined {
-  return source.values.find(value => !value.table?.array && samePath([...(value.table?.path || []), ...value.key], path));
+  function descend(entries: ValueSpan[], remaining: string[]): ValueSpan | undefined {
+    for (const entry of entries) {
+      const key = entry.inline ? entry.key : [...(entry.table?.path || []), ...entry.key];
+      if (entry.table?.array) continue;
+      if (samePath(key, remaining)) return entry;
+      if (key.length < remaining.length && samePath(key, remaining.slice(0, key.length)) && source.text[entry.valueStart] === "{") {
+        const found = descend(inlineValues(source.text, entry), remaining.slice(key.length));
+        if (found) return found;
+      }
+    }
+    return undefined;
+  }
+  return descend(source.values, path);
+}
+
+export function retainValueComments(text: string, span: ValueSpan, updated: string): string {
+  const notes = comments(text.slice(span.valueStart, span.valueEnd));
+  if (!notes.length) return updated;
+  let root = span;
+  while (root.inline) root = root.inline;
+  return updated.slice(0, root.start) + notes.join(newline(text)) + newline(text) + updated.slice(root.start);
 }
 
 export function replaceValue(text: string, span: ValueSpan, encoded: string): string {
-  const notes = comments(text.slice(span.valueStart, span.valueEnd));
-  const retained = notes.length ? notes.join(newline(text)) + newline(text) : "";
-  return text.slice(0, span.start) + retained + text.slice(span.start, span.valueStart) + encoded + text.slice(span.valueEnd);
+  return retainValueComments(text, span, text.slice(0, span.valueStart) + encoded + text.slice(span.valueEnd));
 }

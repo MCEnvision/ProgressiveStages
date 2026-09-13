@@ -4788,8 +4788,13 @@ dot remain distinct from dotted paths. Targeted access edits retain line endings
 field comments, adjacent tables, and blank lines inside unrelated multiline values. Array row
 replacement no longer normalizes whitespace across the file. Ownership and retention edits
 preserve omitted settings when their effective value is unchanged. Unterminated values reject
-guided mutation instead of guessing the next table boundary. Nested fields inside a general
-inline value still require source editing; context maps support their dedicated inline editor.
+guided mutation instead of guessing the next table boundary. Scalar field controls, including
+ownership and LuckPerms retention, read and edit nested inline tables and dotted fields inside
+them. Adding or removing a field preserves sibling values and the enclosing inline structure.
+Comments inside a replaced array move before the containing assignment so they remain valid
+TOML. A scalar or array cannot be silently replaced with a table to create a nested field.
+Inline arrays of rule or mapping tables still require source editing; context maps support
+their dedicated inline editor.
 
 Config and datapack discovery use parsed TOML to recognize stage definitions rather than a
 literal header match. Quoted and escaped stage keys, dotted assignments, and inline stage

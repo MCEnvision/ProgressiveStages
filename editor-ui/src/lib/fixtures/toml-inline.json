@@ -1,0 +1,100 @@
+[
+  {
+    "name": "quoted nested scalar",
+    "before": "stage = { id = 'chef', \"display\" = { \"name\" = 'Chef, {expert}', icon = 'minecraft:bread' }, team_stage = false } # Keep.\r\n",
+    "after": "stage = { id = 'chef', \"display\" = { \"name\" = \"Master Chef\", icon = 'minecraft:bread' }, team_stage = false } # Keep.\r\n",
+    "path": "stage.display.name",
+    "value": "Master Chef",
+    "operation": "upsert"
+  },
+  {
+    "name": "new ownership field",
+    "before": "stage = { id = 'chef' }\n",
+    "after": "stage = { id = 'chef', team_stage = false }\n",
+    "path": "stage.team_stage",
+    "value": false,
+    "operation": "upsert"
+  },
+  {
+    "name": "empty nested table",
+    "before": "stage = { id = 'chef', display={} }\n",
+    "after": "stage = { id = 'chef', display={ name = \"Chef\" } }\n",
+    "path": "stage.display.name",
+    "value": "Chef",
+    "operation": "upsert"
+  },
+  {
+    "name": "new dotted field",
+    "before": "stage = { id = 'chef', display.name = 'Chef' }\n",
+    "after": "stage = { id = 'chef', display.name = 'Chef', display.icon = \"minecraft:bread\" }\n",
+    "path": "stage.display.icon",
+    "value": "minecraft:bread",
+    "operation": "upsert"
+  },
+  {
+    "name": "inline below explicit table",
+    "before": "[stage]\nid = 'chef'\ndisplay = { name = 'Chef', icon = 'minecraft:bread' }\n",
+    "after": "[stage]\nid = 'chef'\ndisplay = { name = \"Master Chef\", icon = 'minecraft:bread' }\n",
+    "path": "stage.display.name",
+    "value": "Master Chef",
+    "operation": "upsert"
+  },
+  {
+    "name": "literal dotted key remains separate",
+    "before": "stage = { \"display.name\" = 'literal', display = { name = 'Chef' } }\n",
+    "after": "stage = { \"display.name\" = 'literal', display = { name = \"Master Chef\" } }\n",
+    "path": "stage.display.name",
+    "value": "Master Chef",
+    "operation": "upsert"
+  },
+  {
+    "name": "remove first",
+    "before": "stage = { team_stage=false, id='chef' }\n",
+    "after": "stage = { id='chef' }\n",
+    "path": "stage.team_stage",
+    "value": null,
+    "operation": "remove"
+  },
+  {
+    "name": "remove middle",
+    "before": "stage = { id='chef', team_stage=false, scope='team' }\n",
+    "after": "stage = { id='chef', scope='team' }\n",
+    "path": "stage.team_stage",
+    "value": null,
+    "operation": "remove"
+  },
+  {
+    "name": "remove last",
+    "before": "stage = { id='chef', team_stage=false }\n",
+    "after": "stage = { id='chef' }\n",
+    "path": "stage.team_stage",
+    "value": null,
+    "operation": "remove"
+  },
+  {
+    "name": "remove only",
+    "before": "stage = {team_stage=false}\n",
+    "after": "stage = {}\n",
+    "path": "stage.team_stage",
+    "value": null,
+    "operation": "remove"
+  },
+  {
+    "name": "remove nested table",
+    "before": "stage = { id='chef', display={name='Chef'}, team_stage=false }\n",
+    "after": "stage = { id='chef', team_stage=false }\n",
+    "path": "stage.display",
+    "value": null,
+    "operation": "remove"
+  },
+  {
+    "name": "array comments stay outside inline syntax",
+    "before": "stage = { id=\"chef\", tags=[\n \"food\", # Keep food.\n \"craft\"\n], team_stage=false } # End.\n",
+    "after": "# Keep food.\nstage = { id=\"chef\", tags=[\"profession\"], team_stage=false } # End.\n",
+    "path": "stage.tags",
+    "value": [
+      "profession"
+    ],
+    "operation": "upsert"
+  }
+]

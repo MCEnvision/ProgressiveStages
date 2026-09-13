@@ -323,7 +323,8 @@ public class NetworkHandler {
 
     private static CostInfo computeCostInfo(ServerPlayer player, StageId stageId) {
         var defOpt = StageOrder.getInstance().getStageDefinition(stageId);
-        if (defOpt.isEmpty() || !defOpt.get().isPurchasable()) return CostInfo.NONE;
+        if (defOpt.isEmpty() || !defOpt.get().isPurchasable()
+                || StageManager.getInstance().hasIndependentStage(player, stageId)) return CostInfo.NONE;
         com.enviouse.progressivestages.common.config.StageCost cost = defOpt.get().getCost();
         StringBuilder sb = new StringBuilder();
         if (cost.xpLevels() > 0) sb.append(cost.xpLevels()).append(" lvl");
@@ -531,11 +532,11 @@ public class NetworkHandler {
             .toList();
     }
 
-    /** Authoritative purchase check: purchasable, not owned, prereq stages met, triggers met (unless bypass), affordable. */
+    /** Checks independent ownership and the ordinary purchase requirements. */
     private static boolean canPurchase(ServerPlayer player, StageDefinition def) {
         if (!def.isPurchasable()) return false;
         StageManager sm = StageManager.getInstance();
-        if (sm.hasStage(player, def.getId())) return false;
+        if (sm.hasIndependentStage(player, def.getId())) return false;
         if (!sm.getMissingDependencies(player, def.getId()).isEmpty()) return false;
         if (!sm.getSlotDecision(player, def).allowed()) return false;
         com.enviouse.progressivestages.common.config.StageCost cost = def.getCost();
@@ -744,7 +745,7 @@ public class NetworkHandler {
             for (var ic : cost.items()) consumeItem(player, ic.item(), ic.count());
             StageManager.getInstance().grantStageWithCause(player, stageId,
                 com.enviouse.progressivestages.common.api.StageCause.PURCHASE);
-            if (!StageManager.getInstance().hasStage(player, stageId)) {
+            if (!StageManager.getInstance().hasIndependentStage(player, stageId)) {
                 restoreCost(player, cost);
                 player.sendSystemMessage(com.enviouse.progressivestages.common.util.TextUtil
                     .parseColorCodes("&cThe purchase could not be completed. Your cost was restored."));
@@ -1538,7 +1539,7 @@ public class NetworkHandler {
         );
     }
 
-    /** v2.4: a purchasable stage's cost summary + whether the player can buy it right now. */
+    /** A purchase offer for the recipient and whether its requirements are met. */
     public record CostInfo(boolean purchasable, int costXp, String summary, boolean canPurchase) {
         public static final CostInfo NONE = new CostInfo(false, 0, "", false);
         public static final StreamCodec<FriendlyByteBuf, CostInfo> STREAM_CODEC = StreamCodec.composite(

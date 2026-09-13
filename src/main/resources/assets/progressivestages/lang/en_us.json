@@ -45,6 +45,7 @@
   "gui.progressivestages.tree.prerequisites.count": "Prerequisites. %s required.",
   "gui.progressivestages.tree.unlocks": "Unlocks. %s total.",
   "gui.progressivestages.tree.purchase": "Unlock. %s",
+  "gui.progressivestages.tree.purchase.ownership": "Purchase: %s",
   "gui.progressivestages.tree.purchase.need": "Need. %s",
   "gui.progressivestages.tree.inventory_button": "Open Progression Map",
   "gui.progressivestages.tree.inventory_button.tooltip": "Open Progression Map\nDrag to pan. Scroll to zoom.",

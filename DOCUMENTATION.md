@@ -2054,6 +2054,19 @@ inventory, experience, stage ownership or purchase receipts. Insufficient paymen
 whole purchase. Cost rows remain unchanged in the definition and receipt, preserving existing
 refund calculation and rounding. See the [purchase accounting regression](docs/test/purchase-accounting.md).
 
+A purchase earns independent ownership at the stage's resolved personal, team or server owner.
+Temporary access does not count as an existing purchase or independent grant. The stage map
+keeps its effective unlocked status while offering **Purchase** for independent acquisition.
+The offer remains visible but disabled when prerequisites, trigger requirements, affordability,
+slot rules or cooldown prevent purchase. Once independent ownership exists, the offer disappears.
+
+A successful purchase charges its initiator and applies ordinary acquisition rewards once.
+It leaves temporary lease sources separate, so leaving a leased area does not remove or refund
+the independently purchased stage. An explicit revoke or the stage's configured expiry still
+applies normally. A purchase whose grant fails to establish independent ownership restores its
+cost and records no purchase receipt. This distinction does not make timed stages permanent
+or cause permission reconciliation to purchase stages automatically.
+
 **`cooldown` (New in 3.0).** A **per-player** minimum interval between
 skill-tree purchases, enforced **server-side**. While the cooldown is active the
 purchase is rejected and the player is told how many seconds remain. Set it as
@@ -2084,7 +2097,7 @@ reward, trigger counter, or grant clock.
 
 **`bypass_requirements`:**
 
-- `false` (default) — the GUI's **Unlock** button only appears once the stage's
+- `false` (default) — the GUI's purchase button is enabled only once the stage's
   prerequisites **and** its `[[triggers]]` are all met. Paying the cost is the
   **final confirmation** of an already-earned stage.
 - `true` — paying the cost unlocks the stage **immediately even if the
@@ -3655,8 +3668,8 @@ background = "mypack:gui/progression"
 
 **Skill-tree Unlock button — New in 2.4.** When a stage declares a `[cost]`
 table (§4.26), its detail pane shows an **Unlock** button: the GUI doubles as a
-**skill tree** where players *buy* stages. The button appears according to the
-stage's `[cost].bypass_requirements` setting, and clicking it runs a
+**skill tree** where players *buy* stages. The button is enabled according to the
+stage's requirements, affordability and `[cost].bypass_requirements` setting, and clicking it runs a
 **server-validated purchase** (consuming the `xp_levels` / `items`) that grants
 the stage with `StageCause.PURCHASE`. The map is otherwise read-only; the
 Unlock button is the **only** way it mutates stages, and only for `[cost]`
@@ -4719,6 +4732,13 @@ screen. An intentional command, keybind or script call can reopen immediately du
 Purchase feedback updates an open view without forcing it back after closure. Peers without
 the optional channel retain the legacy behavior of opening on data arrival. Both sides should
 use the matching build for the delayed response correction.
+
+The existing `CostInfo` payload now represents the recipient's purchase offer. An independently
+owned or nonpurchasable stage receives `CostInfo.NONE`. An offered stage includes its full cost
+summary even when it cannot currently be purchased. The client uses this offer flag instead of
+effective unlocked status to decide whether to show a purchase control. Its stage node still
+reflects effective access. The payload fields and codec remain unchanged; matching builds are
+required for the updated purchase presentation.
 
 The [GUI response tests](docs/test/gui-responses.md) cover server response budgeting, optional
 opening negotiation and the separate laptop presentation regression.

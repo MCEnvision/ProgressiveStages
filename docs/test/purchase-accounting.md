@@ -14,6 +14,15 @@ The fixture verifies that TOML retains the repeated cost rows. It restores the o
 registry, owner attachment, purchase data, actor lookup, grant clocks and network runtime state
 in a `finally` block. It requires an isolated dedicated server without real players.
 
+`purchasesCreateIndependentOwnershipWithoutConsumingTemporaryAccess` starts with a personal
+stage held only through its temporary source. It proves that missing prerequisites and insufficient
+experience reject a purchase without charges or a receipt, while keeping a disabled GUI offer.
+After qualification, the purchase must add independent ownership, charge ten levels and four bread,
+and award one diamond. Both sources remain stored. A duplicate purchase must preserve the balances,
+reward and receipt, and the completed purchase must no longer be offered. Removing only temporary
+access must leave independent ownership and its receipt intact. Explicit stage revocation then
+returns five levels and two bread and restores the ordinary purchase offer.
+
 Prepare the repository's no GUI `forgeserverdev` launch with Java 21, Minecraft 1.21.1 and
 NeoForge 21.1.248, enabling the `progressivestages` and `minecraft` GameTest namespaces. The
 production launch does not register these tests. Run each case separately on a cleared platform:
@@ -25,6 +34,7 @@ execute positioned 0 180 0 run test run repeateditemcostsrequirethefullpaymentbe
 ```
 
 Verify the structure metadata names the intended test and inspect its success marker. Also run
+`purchasescreateindependentownershipwithoutconsumingtemporaryaccess`,
 `refundsreturnonlytothepayeracrossofflinedelivery` and
 `serverpurchasespreservepayersandpersonalhistory` to protect payer isolation and stored refund
 terms across logout, saved data reload and definition changes. The GUI response regression

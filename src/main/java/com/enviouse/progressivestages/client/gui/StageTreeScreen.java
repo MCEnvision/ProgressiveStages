@@ -700,7 +700,7 @@ public final class StageTreeScreen extends Screen {
         int x = panelX + 8;
         int contentTop = panelY + 31;
         ClientTriggerProgress.StageData data = ClientTriggerProgress.get(selected);
-        boolean showBuy = data.purchasable() && !node.owned();
+        boolean showBuy = data.purchasable();
         int contentBottom = panelY + panelH - 7 - (showBuy ? 20 : 0);
         int innerW = panelW - 16;
         int nameColor = stageColorOr(selected,
@@ -919,9 +919,10 @@ public final class StageTreeScreen extends Screen {
             buyEnabled = data.canPurchase();
             boolean hover = buyEnabled && inside(mouseX, mouseY, buyX, buyY, buyW, buyH);
             renderControl(g, buyX, buyY, buyW, buyH, hover, buyEnabled, buyEnabled);
-            Component label = Component.translatable(buyEnabled
-                ? "gui.progressivestages.tree.purchase"
-                : "gui.progressivestages.tree.purchase.need", data.costSummary());
+            String purchaseLabel = !buyEnabled ? "gui.progressivestages.tree.purchase.need"
+                : node.owned() ? "gui.progressivestages.tree.purchase.ownership"
+                : "gui.progressivestages.tree.purchase";
+            Component label = Component.translatable(purchaseLabel, data.costSummary());
             String visibleLabel = font.plainSubstrByWidth(label.getString(), buyW - 8);
             g.drawCenteredString(font, visibleLabel, buyX + buyW / 2, buyY + 4,
                 buyEnabled ? 0xFFFFFFFF : 0xFFB0B0B0);

@@ -46,6 +46,112 @@ public final class StagePurchaseGameTests {
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     @SuppressWarnings("unchecked")
+    public static void purchasesCreateIndependentOwnershipWithoutConsumingTemporaryAccess(GameTestHelper helper) throws Exception {
+        var server = helper.getLevel().getServer();
+        helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "Purchases require an isolated fixture server.");
+        UUID actorId = new UUID(0x5735, 4);
+        var actor = new FakePlayer(helper.getLevel(), new GameProfile(actorId, "purchase-lease"));
+        var lookup = PlayerList.class.getDeclaredField("playersByUUID");
+        lookup.setAccessible(true);
+        var players = (Map<UUID, ServerPlayer>) lookup.get(server.getPlayerList());
+        helper.assertTrue(!players.containsKey(actorId), "The purchase actor must be unused.");
+        var order = StageOrder.getInstance();
+        var definitions = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
+        var original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var originalPurchases = StagePurchaseData.get(server);
+        var stage = StageId.parse("progressivestages:purchase_with_lease");
+        var prerequisite = StageId.parse("progressivestages:purchase_lease_prerequisite");
+        var owner = new OwnerRef(OwnerKind.PERSONAL, actorId);
+        var clocks = StageRegressionData.get(server);
+        helper.assertTrue(clocks.getGrantTime(owner, stage) < 0 && clocks.getGrantTime(owner, prerequisite) < 0,
+            "The purchase fixture clocks must be unused.");
+        var cost = new StageCost(10, List.of(new StageCost.ItemCost(ResourceLocation.parse("minecraft:bread"), 4)), true, 0, 50);
+        var reward = new com.enviouse.progressivestages.common.config.StageRewards(
+            List.of(new StageCost.ItemCost(ResourceLocation.parse("minecraft:diamond"), 1)), List.of(), List.of(), "", 0, 0);
+        var manager = StageManager.getInstance();
+        try {
+            order.clear();
+            order.registerStage(StageDefinition.builder(prerequisite).teamStage(false).build());
+            order.registerStage(StageDefinition.builder(stage).teamStage(false).addDependency(prerequisite)
+                .cost(cost).rewards(reward).build());
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original.copy());
+            server.overworld().getDataStorage().set("progressivestages_purchases", new StagePurchaseData());
+            players.put(actorId, actor);
+            actor.giveExperienceLevels(20);
+            actor.getInventory().add(new ItemStack(Items.BREAD, 8));
+            helper.assertTrue(manager.grantTemporaryStage(actor, stage, StageCause.STRUCTURE_ENTER)
+                && manager.hasStage(actor, stage) && !manager.hasIndependentStage(actor, stage),
+                "The actor must begin with temporary access and no independent ownership.");
+            helper.assertTrue(purchaseOffer(actor, stage).purchasable() && !purchaseOffer(actor, stage).canPurchase(),
+                "Temporary access must retain a disabled offer while prerequisites are missing.");
+            purchase(actor, stage);
+            helper.assertTrue(!manager.hasIndependentStage(actor, stage) && actor.experienceLevel == 20
+                && actor.getInventory().countItem(Items.BREAD) == 8
+                && StagePurchaseData.get(server).getActorPurchase(owner, stage).isEmpty(),
+                "Temporary access must not bypass purchase prerequisites or incur a partial charge.");
+            manager.grantStageWithCause(actor, prerequisite, StageCause.COMMAND);
+            actor.giveExperienceLevels(-15);
+            helper.assertTrue(purchaseOffer(actor, stage).purchasable() && !purchaseOffer(actor, stage).canPurchase(),
+                "The offer must remain visible but disabled when the actor cannot afford it.");
+            purchase(actor, stage);
+            helper.assertTrue(!manager.hasIndependentStage(actor, stage) && actor.experienceLevel == 5
+                && actor.getInventory().countItem(Items.BREAD) == 8
+                && StagePurchaseData.get(server).getActorPurchase(owner, stage).isEmpty(),
+                "Temporary access must not bypass affordability or create a receipt.");
+            actor.giveExperienceLevels(15);
+            helper.assertTrue(purchaseOffer(actor, stage).purchasable() && purchaseOffer(actor, stage).canPurchase(),
+                "A qualified actor must receive an enabled offer despite temporary access.");
+            purchase(actor, stage);
+            helper.assertTrue(manager.hasIndependentStage(actor, stage),
+                "A qualified purchase must earn independent ownership while temporary access is active.");
+            helper.assertTrue(actor.experienceLevel == 10 && actor.getInventory().countItem(Items.BREAD) == 4
+                && actor.getInventory().countItem(Items.DIAMOND) == 1,
+                "Independent acquisition must charge once and give its ordinary reward once.");
+            var data = server.overworld().getData(StageAttachments.TEAM_STAGES);
+            helper.assertTrue(data.getSources(owner, stage).equals(Set.of("temporary", "independent")),
+                "Purchasing must retain the separate temporary source.");
+            var receipt = StagePurchaseData.get(server).getActorPurchase(owner, stage).orElseThrow();
+            helper.assertTrue(receipt.payer().equals(actorId) && receipt.owner().equals(owner)
+                && receipt.stage().equals(stage) && receipt.cost().xpLevels() == cost.xpLevels()
+                && receipt.cost().items().equals(cost.items())
+                && receipt.cost().refundPercent() == cost.refundPercent(),
+                "The purchase must retain its initiating player and exact refund terms.");
+            helper.assertTrue(!purchaseOffer(actor, stage).purchasable(),
+                "The GUI must stop offering a stage after independent acquisition.");
+            purchase(actor, stage);
+            helper.assertTrue(actor.experienceLevel == 10 && actor.getInventory().countItem(Items.BREAD) == 4
+                && actor.getInventory().countItem(Items.DIAMOND) == 1
+                && StagePurchaseData.get(server).getActorPurchase(owner, stage).orElseThrow().equals(receipt),
+                "A duplicate purchase must not charge, reward or replace its receipt.");
+            helper.assertTrue(manager.revokeTemporaryStage(actor, stage, StageCause.STRUCTURE_LEAVE)
+                && manager.hasIndependentStage(actor, stage) && manager.hasStage(actor, stage)
+                && data.getSources(owner, stage).equals(Set.of("independent")),
+                "Leaving temporary access must preserve purchased ownership.");
+            helper.assertTrue(actor.experienceLevel == 10 && actor.getInventory().countItem(Items.BREAD) == 4,
+                "Removing the lease must not refund an independent purchase.");
+            manager.revokeStageWithCause(actor, stage, StageCause.COMMAND);
+            helper.assertTrue(!manager.hasStage(actor, stage) && actor.experienceLevel == 15
+                && actor.getInventory().countItem(Items.BREAD) == 6
+                && actor.getInventory().countItem(Items.DIAMOND) == 1,
+                "Explicit revocation must apply the purchased refund once without repeating its reward.");
+            helper.assertTrue(purchaseOffer(actor, stage).purchasable() && purchaseOffer(actor, stage).canPurchase(),
+                "Revocation must restore the ordinary purchase offer.");
+            helper.succeed();
+        } finally {
+            players.remove(actorId, actor);
+            actor.discard();
+            NetworkHandler.clearPlayerRuntimeState(actorId);
+            clocks.clear(owner, stage);
+            clocks.clear(owner, prerequisite);
+            server.overworld().getDataStorage().set("progressivestages_purchases", originalPurchases);
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
+            order.clear();
+            definitions.forEach(order::registerStage);
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    @SuppressWarnings("unchecked")
     public static void repeatedItemCostsRequireTheFullPaymentBeforeAnyMutation(GameTestHelper helper) throws Exception {
         var server = helper.getLevel().getServer();
         helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "Purchases require an isolated fixture server.");
@@ -230,6 +336,12 @@ public final class StagePurchaseGameTests {
             order.clear();
             definitions.forEach(order::registerStage);
         }
+    }
+
+    private static NetworkHandler.CostInfo purchaseOffer(ServerPlayer player, StageId stage) throws Exception {
+        var method = NetworkHandler.class.getDeclaredMethod("computeCostInfo", ServerPlayer.class, StageId.class);
+        method.setAccessible(true);
+        return (NetworkHandler.CostInfo) method.invoke(null, player, stage);
     }
 
     private static void purchase(ServerPlayer player, StageId stage) throws Exception {

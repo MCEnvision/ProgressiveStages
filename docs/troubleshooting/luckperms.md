@@ -6,8 +6,10 @@ optional and remains dormant when LuckPerms is absent. It uses the compile only 
 was developed against the selected LuckPerms NeoForge 5.4.140 candidate on Minecraft 1.21.1.
 That exact candidate currently fails actual player login on NeoForge 21.1.248 even with
 ProgressiveStages absent. See the [provider login evidence](../verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure).
-Successful server startup alone does not establish compatibility, and the integration's
-full runtime acceptance remains open.
+Successful server startup alone does not establish compatibility. The
+[adapter source audit](../verification/luckperms-bridge.md#adapter-source-audit) also identifies
+ProgressiveStages defects in persistence, context isolation, ownership and cleanup. The
+configuration schema is available, but the provider integration is not ready for live acceptance.
 
 ## Configuration
 
@@ -41,9 +43,13 @@ Inbound rows use `all` or `any` matching. Only a LuckPerms Boolean result of tru
 permission. False and undefined results do not qualify. Context tables use an AND between keys and
 an OR between values for each key. A reserved bridge marker is never accepted in configuration.
 
-Outbound rows refer to an existing group or permission. ProgressiveStages owns only the transient
-contribution it created, and removes it when the effective stage or provider context no longer
-requires it. Existing administrative nodes and independent membership are preserved.
+Outbound rows refer to an existing group or permission. The required behavior is to own only
+transient contributions, remove them when no longer required, and preserve administrative nodes
+and independent membership. The current adapter does not fulfill that contract: it writes through
+`User.data()` and attempts `saveUser`, while shutdown drops the ownership manifest without removing
+nodes. Do not treat disabling the bridge or restarting as proof of cleanup. Any node left by a
+development fixture needs its exact ownership established before removal; a matching permission
+or group name alone does not establish ownership.
 
 ## Diagnosis
 
@@ -56,10 +62,11 @@ reason.
 /stage debug permissions off
 ```
 
-The provider states are absent, starting, ready and failed. A missing provider, disabled stage, or
-missing group leaves the source configuration intact and performs no stage mutation. Reload and
-restart revalidate synchronized sources before they become effective. Permanent and independent
-sources remain effective while the provider is unavailable.
+The adapter interface defines absent, starting, ready and failed states. Its current reflective
+implementation reports ready after obtaining the API; this is not proof of a working player
+query, successful mutation, cleanup or login. Missing provider and group warnings preserve source
+configuration. Reload, restart, provider loss and source retention still require the complete
+runtime acceptance matrix.
 
 If a stage is not granted, check the stage dependency and slot policy first. Permission
 reconciliation never charges a cost, runs a reward, increments a trigger counter, refreshes an

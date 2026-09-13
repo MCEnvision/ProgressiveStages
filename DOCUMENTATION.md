@@ -2869,8 +2869,10 @@ The generated [fifty stage showcase](SHOWCASE_PACK.md) contains all three common
 The current exact runtime candidate, LuckPerms 5.4.140, fails actual player login on NeoForge
 21.1.248 with `Invalid player data` and an uninitialized capability exception, including when
 ProgressiveStages is absent. The [dependency only verification](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
-records the failure. The configuration below describes the implemented integration; its full
-runtime acceptance and a compatible replacement candidate remain unverified.
+records the failure. A separate [adapter source audit](docs/verification/luckperms-bridge.md#adapter-source-audit)
+also found persistent writes, incomplete context isolation, ownership and cleanup defects in
+ProgressiveStages. These defects remain even if provider login is repaired. The configuration
+below describes the accepted schema and intended runtime contract, not verified provider behavior.
 
 LuckPerms is an optional server integration. A stage may read inherited groups or true Boolean
 permissions through `[[luckperms.inbound]]` rows and may contribute an existing group or positive
@@ -2902,10 +2904,16 @@ descendants = true
 ```
 
 Rows support `all` and `any` matching, bounded context maps, and stable IDs. Only a Boolean true
-qualifies a permission. Reconciliation has no acquisition effects. It does not charge a cost,
-execute a reward, grant a prerequisite, refresh an expiry, or rewrite trigger counter scope.
-Outbound output is transient and reference counted. It never overwrites administrative nodes or
-external membership, and bridge-created output is excluded from inbound feedback queries.
+qualifies a permission. The required reconciliation contract forbids acquisition effects,
+including costs, rewards, prerequisite grants, expiry refreshes and counter scope changes.
+The complete lifecycle and source preservation matrix remains open.
+
+Outbound output must use attributable transient contributions and preserve administrative nodes,
+independent membership and explicit negative permissions. The current adapter instead calls
+`User.data()` and `saveUser`, ignores its `ownerKey` parameter and uses noncontextual inbound
+queries. Shutdown clears its manifest without removing owned nodes. Therefore transient
+persistence, complete feedback exclusion and safe cleanup are not implemented guarantees in this
+candidate. Keep provider dependent acceptance open until these paths are repaired and verified.
 
 `command_permissions` is evaluated inside Minecraft's command execution tasks after redirects.
 `ExecuteCommandMixin` checks ordinary execution immediately before `ContextChain.runExecutable`;

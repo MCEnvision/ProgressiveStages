@@ -12,10 +12,10 @@ The artifact checks are bound to the following bytes. The API SHA 256 is
 
 Automated coverage parses valid and invalid inbound, outbound and command tables, rejects duplicate
 row IDs and reserved contexts, preserves source configuration, and validates the optional boundary
-when the provider is absent. Stage sources are attributed by owner, stage and inbound row. The
-bridge supports synchronized and permanent retention, overlapping rows, true versus false or
-undefined Boolean results, context matching, outbound reference counting, provider loss and a
-bounded reconciliation queue.
+when the provider is absent. Core and in memory fixtures exercise source attribution, retention,
+Boolean results and reconciliation. They do not prove the reflective adapter's provider behavior.
+The [adapter source audit](#adapter-source-audit) records concrete discrepancies in persistence,
+context queries, ownership, mutation acknowledgement and cleanup. Those gates remain open.
 
 Command gates run inside Minecraft command execution tasks after redirects and before execution
 side effects. Literal descendants, argument values, aliases and namespaced literals bind to the
@@ -83,6 +83,55 @@ The original three mod files, options, launcher configuration, logs and crash re
 restored. The runtime path inventory matched its baseline with no added or missing paths,
 and both hosts' temporary recovery files were removed. This bounded suite is cleaned up;
 the failed provider login gate remains open.
+
+## Adapter source audit
+
+This audit inspected the Phase 003 tree at commit
+`ae61f6f3ba32f2c2a4faee6abf2bdb6e79339c2f`, whose latest production source commit is
+`50ef36d55d4346f1bdcf1e196820ef04bf688bae`. It used current source, a repository search for
+provider callbacks and marker lifecycle, and Java 21 `javap` against the existing API 5.4 JAR.
+The API SHA256 matched `086e3971ea63c0b5ad567881b2dfd955acbbffa24fe85ceac8abf54b114ce986`.
+The code index returned mixed historical worktrees, so only the identified Phase 003 source and
+bounded direct inspection were used for findings. No live bridge or provider was initialized.
+
+The API exposes distinct `data()` and `transientData()` methods, plus subject query options,
+context calculator registration and context invalidation. Its
+[version 5.4 permission holder documentation](https://www.javadocs.dev/net.luckperms/api/5.4/net/luckperms/api/model/PermissionHolder.html)
+identifies normal data separately from session scoped transient data, which is never stored.
+The [query mode documentation](https://www.javadocs.dev/net.luckperms/api/5.4/net/luckperms/api/query/QueryMode.html)
+distinguishes contextual queries from queries that disregard context. API presence and source
+inspection are not successful linkage, node mutation or runtime permission evidence.
+
+| Finding | Current source evidence | Consequence and open acceptance |
+|---|---|---|
+| Persistent output and discarded ownership | `ReflectiveLuckPermsAdapter.mutate` invokes `data()`, adds or removes a node, then invokes `saveUser`. Its `ownerKey` argument is unused. | The adapter attempts persistent writes. The generic reserved context is not an exact ownership manifest. BIN-AC-012E and BIN-AC-012F remain open, including administrative equal nodes and restart cleanup. |
+| Context and input exclusion mismatch | Both `snapshot` and `permission` use `QueryOptions.nonContextual()`. The snapshot copies that query's contexts. `LuckPermsBridge.matches` then excludes values by name through `isBridgeOwned`. No reserved marker calculator registration was found in the production source. | These queries do not implement authoritative current contexts or exclusion of bridge only inherited paths. A same name external contribution is also rejected when the manifest contains that value. BIN-AC-012B, BIN-AC-012E and BIN-AC-012F require real contextual and independent source proof. |
+| Unacknowledged provider mutation | Adapter mutation methods return `void`, silently return for an unavailable user, and catch reflection or runtime failures. The bridge records success and replaces the manifest regardless. | Diagnostics and the manifest can claim an addition or removal that did not happen. A failed addition can suppress a later retry because it is recorded as already owned. BIN-AC-012E and BIN-AC-012F need explicit outcomes, retry and failure visibility. |
+| Same row replacement leaves the old node | `reconcileOutbound` adds a changed value under the same stage, row and context index key. Its removal loop skips an old entry whenever that key still exists. | Changing a row from permission A to B can leave A while the manifest retains only B. The same issue applies to changed context values. BIN-AC-012E and BIN-AC-012F require replacement and subsequent disable cleanup coverage. |
+| Shutdown forgets output before cleanup | `LuckPermsBridge.shutdown` shuts down the adapter and clears `outboundManifest`. Adapter shutdown clears the group cache and API reference. Neither path removes the recorded nodes. | Shutdown is not an owned node cleanup path. The normal data writes above can outlive the in memory record if provider calls succeed. BIN-AC-012E and BIN-AC-012F remain open. |
+| Missing negative check and incomplete event convergence | Outbound permission publication has no independent explicit negative query. The bridge subscribes to stage changes and NeoForge `PermissionsChangedEvent`; no LuckPerms user or group event subscription was found. Queue overflow clears entries and requests an online player rescan without a resumable cursor. | Explicit negative precedence, provider event invalidation, offline contributors, stale completion guards and bounded overflow convergence are not established. BIN-AC-012C through BIN-AC-012F require their planned fixtures. |
+
+The empty permission map in `SubjectSnapshot` is not evidence that every permission condition
+fails: `matches` calls `adapter.permission` separately. Reflection through concrete implementation
+classes may present additional linkage problems, but that remains a hypothesis until exercised
+against the exact provider. This audit does not claim that a particular production account was
+modified or that the failed login fixture executed any ProgressiveStages adapter code.
+
+These are existing BIN-REQ-012 and SHARED-004 implementation gaps, consumed by the final
+BIN-REQ-014 acceptance and P003-TASK-005 through P003-TASK-007. The saved plan, goal and phase cursor
+remain unchanged. P002-TASK-001 still requires dependency only and disabled bridge login, exact
+API linkage and provider query exclusion before live bridge initialization. NeoForge remains
+21.1.248; changing the provider candidate is not an implicit part of repairing this adapter.
+
+The next repair must cover acknowledged transient mutations, exact owned references, replacement
+and cleanup before dropping provider access, authoritative contextual queries and independent
+input exclusion together with their affected lifecycle tests. A method rename from `data()` to
+`transientData()` alone cannot close these gates. The runtime candidate's dependency only login
+failure remains a separate prerequisite.
+
+This bounded audit created no test runtime, world, process, downloaded artifact, scratch report
+or cache. It read the preexisting shared API cache without changing it. Only the requested
+documentation and this sanitized evidence are retained. No new runtime acceptance was claimed.
 
 ## Command execution regression
 

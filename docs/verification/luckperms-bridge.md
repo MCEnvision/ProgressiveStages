@@ -1218,3 +1218,69 @@ Actual provider cache invalidation and permission consumption, the known provide
 remaining offline concurrency and lifecycle cases, FTB native events, joined clients, complete
 Brave authoring and the combined Selling Bin sale matrix remain open. No default integration,
 phase tag, wiki publication or release is claimed.
+
+
+## Offline source transaction verification
+
+Source `68f8333dd07c6f387a8596efd3443fc8084c11e1` was signed, pushed to
+`envy/3.0.5-phase-003` and verified by GitHub on September 13, 2026. Offline reconciliation now
+uses the existing subject limited draft and replacement boundary. It no longer mutates live sources
+and episode history before final validation or attempts partial rollback after rejection. The final
+check includes provider validity, server identity, the mutation generation and revision, attachment
+identity, online status, definitions, resolved owners and membership. A valid changed draft restores
+clocks and publishes one committed result. Independent and permanent retention semantics remain.
+
+Java 21 and Wrapper 8.8 ran `./gradlew --no-daemon test build` on Minecraft 1.21.1 and NeoForge
+21.1.248. All 407 unit tests in 106 suites passed with no failures, errors or skips. The build
+finished in 17 seconds, and the postcommit build passed in four seconds. No formatter is configured,
+no resource provider changed, and `git diff --check` passed. The two new regressions are GameTests
+because their assertions require the live server attachment, manager, clocks and committed listeners.
+
+Development PID 631300 ran on `node-1` in the Phase 003 checkout's
+`build/offline-commit-verification` runtime. The inspected launch remained `forgeserverdev --nogui`
+with the exact compiled loader, Java 21 and test namespaces. EULA readback was `eula=true`,
+authentication remained enabled and the listener used loopback port 25589. It reached readiness at
+03:44:17 America/Chicago. Twelve invocations passed:
+
+| GameTest | Verified time |
+|---|---|
+| `offlinedraftrejectionpreserveslivestateandcommitsoncewhencurrent` | 03:44:56, 03:45:01 |
+| `offlinedraftrejectsaconcurrentstagemutationwithoutundoingit` | 03:44:58, 03:45:03 |
+| `offlinesourcesrevalidatewithoutaplayerandpreserveotherowners` | 03:45:06 |
+| `offlineresultsrejectstaledefinitionsandunqualifiedgrants` | 03:45:09 |
+| `offlinemembershipchangesrejectdelayedinputwithunchangedowners` | 03:45:13 |
+| `offlinerescanconvergeswhilecontributorsareremoved` | 03:45:16 |
+| `permissionrevocationsurvivesreloadandonlyindependentlossrearms` | 03:45:19 |
+| `permissionexpirysurvivescontextlossandofflinereconciliation` | 03:45:22 |
+| `onlinepermissioncommitpublishescompletestateandpreservescallbackmutations` | 03:45:24 |
+| `outboundchangesrejectstalewritesandpublication` | 03:45:27 |
+
+Every scenario reset the owned structure area, ran at `0 180 0`, verified its exact method in
+structure metadata at `0 180 3` and waited for a fresh lime success marker at `-1 179 2` before
+the next invocation. The new rejection fixture compares complete serialized attachment state,
+active sources, mutation revision, clocks and publication counts before, during and after rejected
+evaluation. Its fresh control requires one complete withdrawal and permanent grant, a restored clock
+visible to the listener, preservation of another subject and an independent source, and no change
+on repeat. The second fixture performs an explicit independent grant during final validation and
+requires the stale draft to be rejected while that grant survives. Both ran twice. The related
+300 subject rescan, retention, expiry and current online paths also passed. These deterministic
+adapter and manager fixtures do not prove actual provider loading or multiplayer behavior.
+
+The development server saved all dimensions and exited normally at 03:45:54. The clean packaged JAR
+has SHA256 `012d85c46dcbfbba5e348194c2242570bdf841affcff9f478d6477262139a79f`, reports the source
+commit above with `Build-Dirty: false`, and contains 767 project classes matching compiled output.
+No LuckPerms API classes are bundled. Production PID 637264 reached readiness with optional providers
+absent at 03:46:51. A time query returned 2844 at 03:47:38, followed by normal shutdown and complete
+dimension saving at 03:47:39.
+
+Cleanup verified both PIDs absent, no process working directory under the owned runtime and port
+25589 free. Exact comparison removed 1026 new build paths and 13 local Gradle paths, preserving all
+836 preexisting build paths and 26 local Gradle paths. The runtime was removed without following
+its libraries symlink. Existing `run-248/libraries`, the candidate JAR, source, shared caches and
+worktrees remain. All nine scratch files and their unique directory were removed after their final
+evidence consumer. No laptop, browser, client, renderer or audio resource was created.
+
+This advances the offline source transaction portions of BIN-AC-011B, BIN-AC-012C and BIN-AC-012F.
+Actual provider login and caches, complete provider and FTB lifecycle behavior, joined client
+synchronization, guided browser acceptance and the combined Selling Bin sale matrix remain open.
+No default merge, phase tag, wiki publication or release is claimed.

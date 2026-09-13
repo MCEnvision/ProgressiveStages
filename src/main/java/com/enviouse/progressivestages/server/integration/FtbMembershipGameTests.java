@@ -51,7 +51,17 @@ public final class FtbMembershipGameTests {
         helper.succeed();
     }
 
-    private enum FixtureKind { MEMBERSHIP, PLAYER_QUEST, TEAM_QUEST, LEGACY_IMPORT }
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void nativeQuestClaimTrackingPreservesRewardDistribution(GameTestHelper helper) throws Exception {
+        if (!ModList.get().isLoaded("ftbquests")) {
+            helper.succeed();
+            return;
+        }
+        Fixture.run(helper, FixtureKind.CLAIM_TRACKING);
+        helper.succeed();
+    }
+
+    private enum FixtureKind { MEMBERSHIP, PLAYER_QUEST, TEAM_QUEST, LEGACY_IMPORT, CLAIM_TRACKING }
 
     private static final class Fixture {
         static void run(GameTestHelper helper, FixtureKind kind) throws Exception {
@@ -122,7 +132,31 @@ public final class FtbMembershipGameTests {
                 party.join(null, secondProfile);
                 helper.assertTrue(provider.membershipRevision() == revision + 1 && manager.hasStage(second, shared)
                     && !manager.hasStage(second, personal), "Rejoining must recover shared access without copying a personal stage.");
-                if (kind == FixtureKind.LEGACY_IMPORT) LegacyFixture.run(helper, first, second, personal, shared);
+                if (kind == FixtureKind.MEMBERSHIP) {
+                    var formerTeam = party.getId();
+                    captured = manager.captureOfflinePermissionContext(firstId);
+                    revision = provider.membershipRevision();
+                    party.forceDisband(server.createCommandSourceStack());
+                    helper.assertTrue(provider.membershipRevision() > revision && teams.getTeamByID(formerTeam).isEmpty()
+                        && provider.getFtbTeamId(first).equals(firstId) && provider.getFtbTeamId(second).equals(secondId)
+                        && !captured.equals(manager.captureOfflinePermissionContext(firstId))
+                        && !manager.hasStage(first, shared) && !manager.hasStage(second, shared)
+                        && manager.hasStage(first, personal) && !manager.hasStage(second, personal)
+                        && manager.hasStage(formerTeam, shared),
+                        "Disband must invalidate membership and mask former team grants while preserving personal ownership.");
+                    var replacement = teams.createParty(secondId, null, "replacement fixture", "",
+                        dev.ftb.mods.ftblibrary.icon.Color4I.WHITE);
+                    try {
+                        replacement.join(null, firstProfile);
+                        helper.assertTrue(!replacement.getId().equals(formerTeam)
+                            && !manager.hasStage(first, shared) && !manager.hasStage(second, shared)
+                            && manager.hasStage(first, personal) && !manager.hasStage(second, personal),
+                            "A replacement party must not inherit the former party grants or another player's profession.");
+                    } finally {
+                        replacement.forceDisband(server.createCommandSourceStack());
+                    }
+                } else if (kind == FixtureKind.LEGACY_IMPORT) LegacyFixture.run(helper, first, second, personal, shared);
+                else if (kind == FixtureKind.CLAIM_TRACKING) ClaimFixture.run(helper, first, second, personal);
                 else if (kind != FixtureKind.MEMBERSHIP) {
                     QuestFixture.run(helper, first, second, personal, shared, kind == FixtureKind.TEAM_QUEST);
                 }
@@ -234,6 +268,67 @@ public final class FtbMembershipGameTests {
             definitions.put(definition.getId(), definition);
             order.clear();
             definitions.values().forEach(order::registerStage);
+        }
+    }
+
+    private static final class ClaimFixture {
+        static void run(GameTestHelper helper, net.minecraft.server.level.ServerPlayer first,
+                        net.minecraft.server.level.ServerPlayer second,
+                        com.enviouse.progressivestages.common.api.StageId personal) {
+            var manager = com.enviouse.progressivestages.common.stage.StageManager.getInstance();
+            var file = dev.ftb.mods.ftbquests.quest.ServerQuestFile.INSTANCE;
+            var chapter = new dev.ftb.mods.ftbquests.quest.Chapter(0x573110, file, file.getDefaultChapterGroup());
+            var quest = new dev.ftb.mods.ftbquests.quest.Quest(0x573111, chapter);
+            var data = file.getTeamData(first).orElseThrow();
+            helper.assertTrue(data == file.getTeamData(second).orElseThrow(),
+                "Both claimants must use the same actual quest team data.");
+            var clocks = com.enviouse.progressivestages.server.triggers.StageRegressionData.get(helper.getLevel().getServer());
+            var secondOwner = new com.enviouse.progressivestages.common.stage.OwnerRef(
+                com.enviouse.progressivestages.common.stage.OwnerKind.PERSONAL, second.getUUID());
+            long secondClock = clocks.getGrantTime(secondOwner, personal);
+            try {
+                for (boolean teamReward : new boolean[] { true, false }) {
+                    manager.revokeStage(first, personal);
+                    manager.revokeStage(second, personal);
+                    var reward = new dev.ftb.mods.ftbquests.quest.reward.StageReward(teamReward ? 0x573112 : 0x573113, quest);
+                    var config = new net.minecraft.nbt.CompoundTag();
+                    config.putString("stage", personal.toString());
+                    config.putBoolean("team_reward", teamReward);
+                    reward.readData(config, helper.getLevel().registryAccess());
+                    quest.addReward(reward);
+                    helper.assertTrue(!data.isRewardClaimed(first.getUUID(), reward)
+                        && !data.isRewardClaimed(second.getUUID(), reward), "Each native reward must start unclaimed.");
+                    data.claimReward(first, reward, false, 1000L);
+                    helper.assertTrue(manager.hasStage(first, personal) && !manager.hasStage(second, personal)
+                        && data.isRewardClaimed(first.getUUID(), reward)
+                        && data.isRewardClaimed(second.getUUID(), reward) == teamReward,
+                        "The first claim must preserve the native claim key while granting only the claimant's profession.");
+                    data.claimReward(second, reward, false, 2000L);
+                    helper.assertTrue(manager.hasStage(second, personal) == !teamReward,
+                        "Only a separately configured per player reward may grant the second claimant's profession.");
+                    manager.revokeStage(first, personal);
+                    long revision = manager.getMutationRevision();
+                    data.claimReward(first, reward, false, 3000L);
+                    helper.assertTrue(!manager.hasStage(first, personal) && manager.getMutationRevision() == revision
+                        && data.getRewardClaimTime(first.getUUID(), reward).orElseThrow().getTime() == 1000L,
+                        "A duplicate native claim must not restore a revoked stage or replace its original claim receipt.");
+                    helper.assertTrue(data.resetReward(first.getUUID(), reward), "An explicit native claim reset must succeed.");
+                    data.claimReward(first, reward, false, 4000L);
+                    helper.assertTrue(manager.hasStage(first, personal)
+                        && data.getRewardClaimTime(first.getUUID(), reward).orElseThrow().getTime() == 4000L,
+                        "An explicit native claim reset must allow a new legitimate reward claim.");
+                    var removal = new dev.ftb.mods.ftbquests.quest.reward.StageReward(teamReward ? 0x573114 : 0x573115, quest);
+                    config.putBoolean("remove", true);
+                    removal.readData(config, helper.getLevel().registryAccess());
+                    quest.addReward(removal);
+                    data.claimReward(first, removal, false, 5000L);
+                    helper.assertTrue(!manager.hasStage(first, personal)
+                        && manager.hasStage(second, personal) == !teamReward,
+                        "A native removal claim must preserve other players' personal entitlements.");
+                }
+            } finally {
+                if (secondClock <= 0) clocks.clear(secondOwner, personal); else clocks.markGranted(secondOwner, personal, secondClock);
+            }
         }
     }
 

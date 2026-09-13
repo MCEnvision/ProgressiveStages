@@ -11,6 +11,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,13 +24,13 @@ public final class EditorApplyGameTests {
     private EditorApplyGameTests() {}
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
-    public static void applyWritesReloadsAndRestoresCanonicalRules(GameTestHelper helper) {
+    public static void applyWritesReloadsAndRestoresCanonicalRules(GameTestHelper helper) throws IOException {
         StageFileLoader loader = StageFileLoader.getInstance();
         Path root = ConfigPaths.rootDirectory();
         Path stageDirectory = root.resolve(FOLDER);
         UUID operator = UUID.randomUUID();
         long baselineRevision = loader.getCompiledSnapshot().revision();
-        EditorDraft draft = new EditorDraft(UUID.randomUUID(), operator, baselineRevision, 0, Map.of());
+        EditorDraft draft = new EditorDraft(UUID.randomUUID(), operator, baselineRevision, 0, snapshotFiles(root));
         EditorApplyResult result = null;
 
         try {
@@ -120,6 +121,19 @@ public final class EditorApplyGameTests {
             display_name = "Editor Apply GameTest"
             icon = "minecraft:crafting_table"
             """;
+    }
+
+    private static Map<String, String> snapshotFiles(Path root) throws IOException {
+        Map<String, String> files = new LinkedHashMap<>();
+        files.put("progressivestages.toml", Files.readString(root.resolve("progressivestages.toml")));
+        try (var paths = Files.walk(root.resolve("stages"))) {
+            for (Path path : paths.filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(".toml"))
+                    .filter(path -> !EditorPaths.isMigrationPath(root, path)).toList()) {
+                files.put(root.relativize(path).toString().replace('\\', '/'), Files.readString(path));
+            }
+        }
+        return files;
     }
 
     private static String rulesToml() {

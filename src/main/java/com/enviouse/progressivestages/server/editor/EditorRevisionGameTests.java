@@ -24,6 +24,60 @@ public final class EditorRevisionGameTests {
     private EditorRevisionGameTests() {}
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void sessionApplyRejectsExternalChangesBeforeReload(GameTestHelper helper) throws Exception {
+        var level = helper.getLevel();
+        var cookie = CommonListenerCookie.createInitial(new GameProfile(UUID.randomUUID(), "editor-test"), false);
+        var operator = new ServerPlayer(level.getServer(), level, cookie.gameProfile(), cookie.clientInformation()) {
+            @Override public boolean hasPermissions(int permissionLevel) { return permissionLevel <= 3; }
+        };
+        var sessions = EditorSessionService.get();
+        var loader = StageFileLoader.getInstance();
+        String folder = "external_edit_" + UUID.randomUUID().toString().replace("-", "");
+        String relative = "stages/" + folder + "/stage.toml";
+        Path file = ConfigPaths.rootDirectory().resolve(relative);
+        EditorSessionOpen session = null;
+        String transaction = "";
+        try {
+            Files.createDirectories(file.getParent());
+            String source = "[schema]\nversion = 4\n[stage]\nid = \"progressivestages:" + folder
+                + "\"\ndisplay_name = \"Original\"\n";
+            Files.writeString(file, source);
+            helper.assertTrue(loader.reload(), "The original fixture must load before opening its draft.");
+            session = sessions.open(operator);
+            JsonObject initial = request(operator, session, "{\"action\":\"bootstrap\"}");
+            JsonObject edit = new JsonObject();
+            edit.addProperty("action", "mutate");
+            edit.addProperty("path", relative);
+            edit.addProperty("content", source.replace("Original", "Draft edit"));
+            edit.addProperty("revision", initial.getAsJsonObject("draft").get("revision").getAsLong());
+            request(operator, session, edit.toString());
+            JsonObject review = request(operator, session, "{\"action\":\"review\"}");
+            long configuration = loader.getCompiledSnapshot().revision();
+            String external = source.replace("Original", "External edit");
+            Files.writeString(file, external);
+            JsonObject result = request(operator, session,
+                "{\"action\":\"apply\",\"confirmed\":true,\"revision\":" + review.get("revision").getAsLong() + "}");
+            if (result.has("transactionId")) transaction = result.get("transactionId").getAsString();
+            helper.assertTrue(result.has("code") && "configuration_conflict".equals(result.get("code").getAsString()),
+                "External file edits must conflict even before the server reloads them.");
+            helper.assertTrue(Files.readString(file).equals(external), "Rejected apply must preserve the external edit.");
+            helper.assertTrue(loader.getCompiledSnapshot().revision() == configuration,
+                "Rejected apply must preserve the last valid compiled snapshot.");
+            JsonObject retained = request(operator, session, "{\"action\":\"bootstrap\"}").getAsJsonObject("draft");
+            helper.assertTrue(retained.get("revision").getAsLong() == review.get("revision").getAsLong()
+                    && retained.getAsJsonObject("files").get(relative).getAsString().contains("Draft edit"),
+                "Rejected apply must preserve the editable draft and its revision.");
+            helper.succeed();
+        } finally {
+            if (session != null) sessions.discard(operator.getUUID(), session.draftId());
+            deleteTree(file.getParent());
+            if (!transaction.isEmpty()) deleteTree(ConfigPaths.rootDirectory().resolve(".editor-backups").resolve(transaction));
+            loader.reload();
+            operator.discard();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void sessionApplyRejectsUnreviewedChanges(GameTestHelper helper) throws Exception {
         var level = helper.getLevel();
         var server = level.getServer();

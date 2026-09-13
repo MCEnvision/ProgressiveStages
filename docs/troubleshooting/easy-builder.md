@@ -87,6 +87,13 @@ the Rules tab. Use the same activation on both rules when they should apply toge
 
 ## browser and draft recovery
 
+`configuration_conflict` means the live files differ from the snapshot taken when the draft
+opened. This includes manual edits that have not yet been reloaded. Apply preserves those files,
+the draft and the last valid runtime. Keep the draft source, open a new draft from the current
+files, and reconcile the intended changes before validating and reviewing again. Refreshing the
+review on the old draft does not replace its original file snapshot. Avoid simultaneous external
+file writes during apply; the comparison is not a filesystem lock.
+
 If a field disappears after reload, reopen the stage from the current session. Do not copy the
 generated source over the original package. Targeted edits preserve comments, unknown sections,
 and unrelated files. A stale revision or failed reload leaves the editable draft and reports the

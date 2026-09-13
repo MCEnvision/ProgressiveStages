@@ -5082,7 +5082,12 @@ The authenticated session `apply` request includes `revision`, taken from the di
 The session service checks it while holding the draft monitor through validation and apply.
 A missing or stale revision returns `draft_conflict`, the current revision, and recovery feedback
 before invoking the file transaction or loader. Other draft mutations use the same monitor.
-The existing configuration conflict check still protects live files changed outside the draft.
+Every apply also compares live configuration files with the draft's original file snapshot.
+An external edit, addition or deletion returns `configuration_conflict` before writing files or
+reloading, even when the compiled configuration revision has not changed. Both the external files
+and editable draft remain intact. A revision change with identical source files alone does not
+produce a file conflict. This comparison detects changes present when apply starts; it does not
+lock out another process writing files during the transaction.
 
 On a conflict, the Easy Builder clears the rejected review and refreshes the server draft. It
 requires a fresh review before another apply attempt. An older cached editor that omits the

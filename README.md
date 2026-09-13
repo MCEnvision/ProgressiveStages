@@ -293,6 +293,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 The editor's package export and import preserve nested TOML includes and helper TOML files,
 including comments and quoted keys. Import requires `stage.toml` and safe relative TOML paths.
 An invalid package leaves the draft and its undo history unchanged.
+Apply also rejects external configuration file changes made since the draft opened, even when
+those changes have not been reloaded. The external files and editable draft are preserved.
 
 ---
 

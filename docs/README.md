@@ -17,6 +17,7 @@ Use this page to find the maintained project documentation.
 - [Diagnostic capture performance](test/diagnostics.md)
 - [Editor session authorization](test/editor-authorization.md)
 - [Editor package import](test/editor-import.md)
+- [Editor external file changes](test/editor-external-changes.md)
 - [Selling Bin artifact manifest](verification/selling-bin-artifacts.json)
 - [Selling Bin client observations and image hashes](verification/selling-bin-client/observations.json)
 - [Progression ownership](verification/progression-ownership.md)

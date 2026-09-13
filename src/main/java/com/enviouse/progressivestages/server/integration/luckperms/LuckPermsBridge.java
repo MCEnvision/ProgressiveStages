@@ -7,6 +7,8 @@ import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.common.stage.PermissionStageSource;
 import com.enviouse.progressivestages.common.stage.StageOrder;
+import com.enviouse.progressivestages.common.team.TeamProvider;
+import com.enviouse.progressivestages.server.loader.StageFileLoader;
 import com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.MinecraftServer;
@@ -31,6 +33,7 @@ public final class LuckPermsBridge {
     private static LuckPermsBridge INSTANCE;
 
     private final SubjectReconciliationQueue dirty = new SubjectReconciliationQueue(MAX_QUEUE);
+    private final java.util.concurrent.atomic.AtomicLong inputRevision = new java.util.concurrent.atomic.AtomicLong();
     private final OutboundNodeTracker outboundNodes = new OutboundNodeTracker();
     private final Map<UUID, StageManager.OfflinePermissionContext> offlineContexts = new LinkedHashMap<>();
     private final SubjectReconciliationQueue.ScanSource scanSource = new SubjectReconciliationQueue.ScanSource() {
@@ -107,10 +110,11 @@ public final class LuckPermsBridge {
         }
         adapter = replacement == null ? ReflectiveLuckPermsAdapter.create() : replacement;
         offlineContexts.clear();
-        adapter.subscribeChanges(dirty::request, dirty::requestRescan);
+        adapter.subscribeChanges(this::providerChanged, this::providerChanged);
     }
 
     private boolean closeAdapter() {
+        inputRevision.incrementAndGet();
         if (adapter == null) return true;
         boolean complete = adapter.stopListening();
         complete &= adapter.invalidateProjections();
@@ -124,7 +128,7 @@ public final class LuckPermsBridge {
         if (!shutdownOwnedOutput()) return;
         server = value;
         adapter = ReflectiveLuckPermsAdapter.create();
-        adapter.subscribeChanges(dirty::request, dirty::requestRescan);
+        adapter.subscribeChanges(this::providerChanged, this::providerChanged);
         dirty.requestRescan();
         try {
             stageSubscription = StageManager.getInstance().subscribeCommittedStageChanges(result -> {
@@ -159,6 +163,16 @@ public final class LuckPermsBridge {
         else LOGGER.warn("LuckPerms output cleanup is incomplete. The bridge remains unavailable until cleanup succeeds.");
         server = null;
         return cleaned;
+    }
+
+    private void providerChanged(UUID subject) {
+        inputRevision.incrementAndGet();
+        dirty.request(subject);
+    }
+
+    private void providerChanged() {
+        inputRevision.incrementAndGet();
+        dirty.requestRescan();
     }
 
     private synchronized void markDirty(UUID subject) {
@@ -236,28 +250,51 @@ public final class LuckPermsBridge {
 
     private void reconcileSubject(ServerPlayer player) {
         if (player == null || adapter == null) return;
-        StageManager.getInstance().expirePermissionSources(player);
-        boolean providerReady = adapter.state() == LuckPermsAdapter.State.READY;
-        long ticket = providerReady ? adapter.prepareProjection(player.getUUID(), player) : -1;
+        if (!player.server.isSameThread()) {
+            dirty.request(player.getUUID());
+            return;
+        }
+        StageManager manager = StageManager.getInstance();
+        manager.expirePermissionSources(player);
+        LuckPermsAdapter inputAdapter = adapter;
+        var providerState = inputAdapter.state();
+        boolean providerReady = providerState == LuckPermsAdapter.State.READY;
+        long ticket = providerReady ? inputAdapter.prepareProjection(player.getUUID(), player) : -1;
         if (providerReady && ticket < 0) {
             dirty.request(player.getUUID());
             return;
         }
-        if (!providerReady) adapter.invalidateProjection(player.getUUID());
-        StageManager.getInstance().withdrawObsoletePermissionOwners(player);
-        LuckPermsAdapter.SubjectSnapshot snapshot = providerReady
-            ? adapter.snapshot(player.getUUID()) : LuckPermsAdapter.SubjectSnapshot.unavailable();
-        boolean ready = providerReady && adapter.state() == LuckPermsAdapter.State.READY && snapshot.ready();
-        for (StageId stageId : StageOrder.getInstance().getOrderedStages()) {
-            StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
-            if (definition == null) continue;
-            reconcileInbound(player, definition, snapshot, ready);
+        if (!providerReady) inputAdapter.invalidateProjection(player.getUUID());
+        long revision = inputRevision.get();
+        long membership = TeamProvider.getInstance().membershipRevision();
+        long definitionsRevision = StageFileLoader.getInstance().getCompiledSnapshot().revision();
+        long stagesRevision = manager.getMutationRevision();
+        List<StageDefinition> definitions = StageOrder.getInstance().getOrderedStages().stream()
+            .map(id -> StageOrder.getInstance().getStageDefinition(id).orElseThrow()).toList();
+        var owners = new LinkedHashMap<StageId, com.enviouse.progressivestages.common.stage.OwnerRef>();
+        definitions.forEach(definition -> owners.put(definition.getId(), manager.getStageOwner(player, definition.getId())));
+        var input = OnlinePermissionInput.capture(inputAdapter, player.getUUID(), definitions, providerReady);
+        boolean current = adapter == inputAdapter && inputAdapter.state() == providerState
+            && inputRevision.get() == revision && TeamProvider.getInstance().membershipRevision() == membership
+            && StageFileLoader.getInstance().getCompiledSnapshot().revision() == definitionsRevision
+            && manager.getMutationRevision() == stagesRevision
+            && definitions.equals(StageOrder.getInstance().getOrderedStages().stream()
+                .map(id -> StageOrder.getInstance().getStageDefinition(id).orElseThrow()).toList())
+            && owners.entrySet().stream().allMatch(entry -> entry.getValue().equals(manager.getStageOwner(player, entry.getKey())));
+        if (!current) {
+            dirty.request(player.getUUID());
+            return;
         }
-        reconcileOutbound(player, snapshot, ready, ticket);
+        if (providerReady && !input.snapshot().ready()) dirty.request(player.getUUID());
+        manager.withdrawObsoletePermissionOwners(player);
+        for (StageDefinition definition : definitions) {
+            reconcileInbound(player, definition, input.snapshot(), input.observations().getOrDefault(definition.getId(), Map.of()));
+        }
+        reconcileOutbound(player, input.snapshot(), input.snapshot().ready(), ticket);
     }
 
     private void reconcileInbound(ServerPlayer player, StageDefinition definition,
-                                  LuckPermsAdapter.SubjectSnapshot snapshot, boolean ready) {
+                                  LuckPermsAdapter.SubjectSnapshot snapshot, Map<String, StageManager.PermissionObservation> observations) {
         LuckPermsStageOptions options = definition.getLuckPerms();
         StageManager manager = StageManager.getInstance();
         UUID subject = player.getUUID();
@@ -267,7 +304,7 @@ public final class LuckPermsBridge {
             boolean permanent = options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT;
             String selected = new PermissionStageSource(subject, row.id(), permanent).label();
             var source = new PermissionStageSource(subject, row.id(), permanent);
-            var observation = ready && options.present() && options.enabled() ? observe(subject, row, snapshot) : null;
+            var observation = observations.get(row.id());
             var owner = manager.getStageOwner(player, definition.getId());
             if (observation != null) manager.observePermissionEligibility(owner, definition.getId(), source, observation);
             String denial = manager.permissionEpisodeDenial(owner, definition.getId(), source);
@@ -402,6 +439,9 @@ public final class LuckPermsBridge {
 
     @SubscribeEvent
     public void onPermissionsChanged(PermissionsChangedEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) markDirty(player.getUUID());
+        if (event.getEntity() instanceof ServerPlayer player) {
+            inputRevision.incrementAndGet();
+            markDirty(player.getUUID());
+        }
     }
 }

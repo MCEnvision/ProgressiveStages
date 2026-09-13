@@ -94,6 +94,38 @@ class LuckPermsInboundQueryTest {
         assertNull(PermissionEligibility.observe(first, new SubjectSnapshot(true, Set.of(), Map.of(), Map.of())));
     }
 
+    @Test
+    void onlineCollectionReadsEachPermissionOnceAndDiscardsPartialProviderResults() {
+        var stage = com.enviouse.progressivestages.common.api.StageId.parse("test:online_input");
+        var first = row(List.of(), List.of("cook", "serve"), Map.of());
+        var repeated = new LuckPermsStageOptions.InboundRule("repeated", List.of(), List.of("cook"),
+            LuckPermsStageOptions.Match.ALL, Map.of());
+        var definition = com.enviouse.progressivestages.common.config.StageDefinition.builder(stage)
+            .luckPerms(new LuckPermsStageOptions(true, true, LuckPermsStageOptions.InboundMode.SYNCHRONIZED,
+                List.of(first, repeated), List.of(), List.of())).build();
+        var delegate = new InMemoryLuckPermsAdapter().permission(SUBJECT, "cook", PermissionValue.TRUE)
+            .permission(SUBJECT, "serve", PermissionValue.TRUE);
+        var calls = new java.util.ArrayList<String>();
+        boolean[] available = {true};
+        LuckPermsAdapter adapter = (LuckPermsAdapter) java.lang.reflect.Proxy.newProxyInstance(
+            LuckPermsAdapter.class.getClassLoader(), new Class<?>[] {LuckPermsAdapter.class}, (proxy, method, arguments) -> {
+                if (method.getName().equals("permissionResult")) {
+                    String permission = (String) arguments[1];
+                    calls.add(permission);
+                    if (!available[0] && permission.equals("serve")) return PermissionResult.unavailable();
+                }
+                return method.invoke(delegate, arguments);
+            });
+        var input = OnlinePermissionInput.capture(adapter, SUBJECT, List.of(definition), true);
+        assertEquals(List.of("cook", "serve"), calls);
+        assertTrue(input.observations().get(stage).values().stream().allMatch(observation -> observation.eligible()));
+        assertThrows(UnsupportedOperationException.class, () -> input.observations().get(stage).clear());
+        available[0] = false;
+        var incomplete = OnlinePermissionInput.capture(adapter, SUBJECT, List.of(definition), true);
+        assertFalse(incomplete.snapshot().ready());
+        assertTrue(incomplete.observations().isEmpty());
+    }
+
     private static LuckPermsStageOptions.InboundRule row(List<String> groups, List<String> permissions,
                                                          Map<String, List<String>> contexts) {
         return new LuckPermsStageOptions.InboundRule("chef", groups, permissions,

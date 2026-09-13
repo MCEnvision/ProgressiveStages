@@ -5149,3 +5149,22 @@ response retains its complete list. Only bounded roles, field keys, row IDs and 
 without source paths or message text. Operations without diagnostics keep the draft field and
 NONE severity. Full capability detail, positive joined player controls and packaged browser
 acceptance remain separate gates. See the [editor capture procedure](docs/troubleshooting/easy-builder.md).
+
+
+### Online permission observation consistency
+
+Online reconciliation reads each distinct inbound permission once for the complete active definition
+set before changing sources or eligibility history. An unavailable permission result invalidates the
+whole observation, so earlier successful queries cannot grant access from a partial provider view.
+Unavailable input withdraws synchronized access without recording authoritative rank loss and preserves
+permanent and independent ownership under the existing retention rules.
+
+The bridge captures its provider event revision, adapter identity and readiness, membership generation,
+compiled definition revision, ordered definition objects, concrete stage owners and stage mutation
+revision around those reads. A change discards the complete input and queues a fresh reconciliation
+before any source or eligibility mutation. Native provider callbacks only advance a generation and
+request bounded queue work. Adapter replacement and shutdown also invalidate captured input.
+
+This boundary protects observation collection. It does not yet establish an atomic transaction for
+reentrant stage event callbacks during application or outbound provider mutations. Those remain part
+of the final concurrency acceptance gate.

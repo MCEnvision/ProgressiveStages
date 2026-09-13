@@ -198,3 +198,9 @@ Capture status distinguishes stopped recording from completed output. Wait for `
 before reading the finished support file. `Writer: failed` leaves the capture incomplete; a later
 write failure remains visible after manual stop. The [shared capture procedure](interaction-locks.md)
 describes category isolation, fixed limits, server tick timing, and bounded JSON fields.
+
+
+Online permission input is collected before source changes. A provider event, membership change,
+definition reload or stage mutation during collection discards the whole observation and queues a
+fresh attempt. A temporarily unavailable permission result cannot grant earlier matching rows from
+that incomplete observation. Permanent and independent ownership retain their existing semantics.

@@ -1020,3 +1020,63 @@ unit tests, ten dedicated GameTest invocations, packaged startup and exact clean
 NeoForge 21.1.248. Stale observations with unchanged owner UUIDs cannot create synchronized or
 permanent access; current observations still reconcile. Actual FTB events, real provider login,
 online transactional reconciliation and laptop acceptance remain open.
+
+
+## Online input collection verification
+
+Source commit `2f858ee18191700f8eceb6a60ac73aafee5d9f70` collects all enabled inbound permission results before
+changing stage sources or eligibility history. Each distinct permission is queried once. Provider
+callbacks and replacement, membership changes, definition revisions or objects, concrete owners and
+stage mutation revisions invalidate the complete collected input. A rejected observation queues a
+fresh attempt. Query unavailability discards partial positive input without inventing authoritative
+rank loss. Existing synchronized, permanent and independent ownership semantics remain in force.
+
+On September 13, 2026, Java 21.0.11, Minecraft 1.21.1 and NeoForge 21.1.248 passed the final
+`./gradlew test build --no-daemon --console=plain` in 12 seconds. All 400 unit tests in 105 suites
+passed with zero failures, errors or skips. The new collection unit test verifies one read per distinct
+permission, immutable observations and complete rejection after a later unavailable permission query.
+The initial implementation build passed in 17 seconds and the clean postcommit build in four seconds.
+No separate formatter is configured, no resource provider changed, and `git diff --check` passed.
+
+Dedicated development PID `551738` ran on `node-1` in the Phase 003 checkout's
+`build/online-input-verification` runtime, using the inspected `forgeserverdev` launch, `--nogui`,
+Java 21 and the pinned compiled Minecraft artifact. Readiness occurred at 02:53:04 America/Chicago.
+Authentication remained enabled, the listener stayed at loopback port 25589, and EULA readback was
+`eula=true`. Each verified test reset the owned structure area, ran at `0 180 0`, confirmed the exact
+method in structure metadata at `0 180 3`, and observed a fresh lime success marker at `-1 179 2`.
+Earlier automated probes ran before the markers appeared and are excluded from the verified count.
+The corrected harness waited for each test's success marker before starting the next scenario.
+
+| GameTest | Verified time |
+|---|---|
+| `staleonlinequeriescannotpartiallygrantorwithdrawstages` | 02:53:29, 02:54:36 |
+| `permissionrevocationsurvivesreloadandonlyindependentlossrearms` | 02:54:38 |
+| `permissionexpirysurvivescontextlossandofflinereconciliation` | 02:54:41 |
+| `independentearningafterpermissionaccessemitsoneacquisition` | 02:54:45 |
+| `administrativerevokessuppressunavailableandunqualifiedepisodes` | 02:54:49 |
+| `administrativegrantsrecordindependentownershipafterderivedaccess` | 02:54:52 |
+| `offlinemembershipchangesrejectdelayedinputwithunchangedowners` | 02:54:55 |
+
+All eight verified invocations passed. The new test covers both retention modes, membership and
+definition changes, individual and population provider callbacks, stale positive and negative input,
+unchanged ownership and history on rejection, no rejected mutation publication, and fresh recovery.
+It uses a deterministic adapter and a fake player through the real bridge and manager; it is not
+real provider, native FTB event, network login or client evidence.
+
+The development server saved every dimension and exited normally at 02:55:46. The clean packaged JAR
+has SHA256 `0a65d2475baf06715baf5eb4ff5640d31304be53b3e369f8e1b42e7df210a522` and reports the source
+commit above with `Build-Dirty: false`. All 765 project classes match compiled output and no
+LuckPerms API classes are bundled. Packaged production PID `560407` reached readiness at 02:57:13
+with optional providers absent. Its console time query returned `3514` at 02:57:29; it saved every
+dimension and exited normally at 02:57:30.
+
+Cleanup verified both PIDs absent, no process working directory beneath the owned runtime, and port
+25589 free. Exact ownership comparison removed 1029 new build paths and 13 new local Gradle
+paths while preserving all 836 and 26 preexisting paths respectively. The runtime was removed without
+following its libraries symlink. The preexisting `run-248/libraries`, current packaged JAR, source,
+worktrees and shared caches remain. All nine owned scratch files and their unique directory were
+removed after evidence extraction. No laptop, client, browser, renderer or audio resource was created.
+
+This advances BIN-AC-012C, BIN-AC-012D and BIN-AC-012F for observation collection. Reentrant stage
+callbacks during application, atomic outbound changes, real LuckPerms login, FTB lifecycle and the
+full laptop and browser matrix remain open. No phase integration, tag, wiki update or release is claimed.

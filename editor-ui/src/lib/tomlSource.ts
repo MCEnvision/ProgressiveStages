@@ -56,7 +56,7 @@ export function comments(text: string): string[] {
 }
 
 export interface TableSpan { path: string[]; array: boolean; start: number; end: number }
-export interface ValueSpan { key: string[]; table?: TableSpan; inline?: ValueSpan; start: number; valueStart: number; valueEnd: number; end: number }
+export interface ValueSpan { key: string[]; table?: TableSpan; inline?: ValueSpan; start: number; valueStart: number; valueEnd: number; end: number; separator?: number }
 export interface TomlSource { text: string; tables: TableSpan[]; values: ValueSpan[]; error?: string }
 
 export function samePath(left: string[], right: string[]): boolean {
@@ -101,7 +101,7 @@ function valueEnd(text: string, start: number, inline = false): number {
   let index = start;
   while (index < text.length) {
     const character = text[index];
-    if (inline && !closers.length && (character === "," || character === "}")) break;
+    if (inline && !closers.length && (character === "," || character === "}" || character === "]")) break;
     if (character === '"' || character === "'") { index = quoted(text, index).end; continue; }
     if (character === "#") {
       if (!closers.length) break;
@@ -207,4 +207,46 @@ export function retainValueComments(text: string, span: ValueSpan, updated: stri
 
 export function replaceValue(text: string, span: ValueSpan, encoded: string): string {
   return retainValueComments(text, span, text.slice(0, span.valueStart) + encoded + text.slice(span.valueEnd));
+}
+
+export function skipTrivia(text: string, start: number): number {
+  let index = start;
+  while (index < text.length) {
+    if (/\s/.test(text[index])) index++;
+    else if (text[index] === "#") index = lineEnd(text, index);
+    else break;
+  }
+  return index;
+}
+
+export function arrayValues(text: string, parent: ValueSpan): ValueSpan[] {
+  if (text[parent.valueStart] !== "[") throw new Error("The row collection must be a TOML array.");
+  const entries: ValueSpan[] = [];
+  let index = skipTrivia(text, parent.valueStart + 1);
+  while (index < parent.valueEnd - 1) {
+    const end = valueEnd(text, index, true);
+    if (end === index) throw new Error("A TOML array entry is missing its value.");
+    const entry: ValueSpan = { key: [], start: index, valueStart: index, valueEnd: end, end };
+    entries.push(entry);
+    index = skipTrivia(text, end);
+    if (text[index] === "]") break;
+    if (text[index] !== ",") throw new Error("TOML array entries must be separated by commas.");
+    entry.separator = index;
+    index = skipTrivia(text, index + 1);
+  }
+  if (index !== parent.valueEnd - 1 || text[index] !== "]") throw new Error("A TOML array is not closed.");
+  return entries;
+}
+
+export function isInlineRow(text: string): boolean { return text[skipTrivia(text, 0)] === "{"; }
+
+export function inlineRowSource(row: string): { text: string; root: ValueSpan; prefix: string; suffix: string } {
+  const prefix = "rows = [\n";
+  const suffix = "\n]";
+  const text = prefix + row + suffix;
+  const source = scanToml(text);
+  requireEditable(source);
+  const entries = arrayValues(text, source.values[0]);
+  if (entries.length !== 1 || text[entries[0].valueStart] !== "{") throw new Error("Expected one inline TOML row.");
+  return { text, root: entries[0], prefix, suffix };
 }

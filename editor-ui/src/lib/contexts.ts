@@ -1,5 +1,6 @@
-import { encodeToml } from "./toml";
-import { comments, quoted, scanToml, samePath, newline } from "./tomlSource";
+import { updateInlineRow } from "./tomlRows";
+import { encodeToml, readBlockValue } from "./toml";
+import { inlineRowSource, inlineValues, isInlineRow, comments, quoted, scanToml, samePath, newline } from "./tomlSource";
 export { comments, quoted } from "./tomlSource";
 
 export interface ContextRow { key: string; values: string[] }
@@ -49,6 +50,19 @@ interface Assignment { key: string; values: string[]; start: number; valueStart:
 interface ContextSource { values: Record<string, string[]>; assignments: Assignment[]; start: number; end: number; inlineStart?: number; error?: string }
 
 export function readContexts(block: string, section: string): ContextSource {
+  if (isInlineRow(block)) {
+    const contexts = readBlockValue(block, "contexts");
+    if (!contexts) {
+      try {
+        const { text, root } = inlineRowSource(block);
+        const fields = inlineValues(text, root).filter(entry => entry.key.length > 1 && entry.key[0] === "contexts");
+        if (fields.length) return readContexts(`[${section}]\n` + fields.map(entry => `${entry.key.slice(1).map(key => encodeToml(key)).join(".")} = ${text.slice(entry.valueStart, entry.valueEnd)}`).join("\n"), section);
+      } catch (failure) {
+        return { values: {}, assignments: [], start: -1, end: block.length, error: failure instanceof Error ? failure.message : "Contexts could not be read." };
+      }
+    }
+    return readContexts(contexts ? `contexts = ${contexts}` : "", section);
+  }
   const values: Record<string, string[]> = Object.create(null);
   const assignments: Assignment[] = [];
   const source = scanToml(block);
@@ -122,6 +136,7 @@ export function replaceContexts(block: string, section: string, contexts: Record
   const source = readContexts(block, section);
   if (JSON.stringify(source.values) === JSON.stringify(contexts)) return block;
   if (source.error) throw new Error(`${source.error} Correct the existing context source before changing its values.`);
+  if (isInlineRow(block)) return updateInlineRow(block, "contexts", `{ ${contextAssignments(contexts).join(", ")} }`);
   if (source.inlineStart != null) {
     const notes = comments(block.slice(source.inlineStart, source.end));
     const lineStart = block.lastIndexOf("\n", source.inlineStart) + 1;

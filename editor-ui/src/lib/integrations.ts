@@ -1,16 +1,15 @@
-import { newline, replaceValue, requireEditable, samePath, scanToml } from "./tomlSource";
+import { extractRows as extractArrayGroups, replaceRows as replaceArrayGroups, updateInlineRow } from "./tomlRows";
+import { isInlineRow, newline, replaceValue, requireEditable, samePath, scanToml } from "./tomlSource";
 import { contextAssignments, quoted, readContexts, replaceContexts, stringArray } from "./contexts";
 import type { InteractionModel, InboundModel, OutboundModel, CommandPermissionModel } from "../types";
 import {
   appendTomlBlock,
   encodeToml,
-  extractArrayGroups,
   lineValues,
   parseSimpleArray,
   readBlockValue,
   readTomlValue,
   removeTomlValue,
-  replaceArrayGroups,
   stringValue,
   upsertToml
 } from "./toml";
@@ -141,6 +140,7 @@ export function replaceOutbound(text: string, rows: string[]): string {
 
 
 function updateMappingValue(original: string, key: string, value: unknown): string {
+  if (isInlineRow(original)) return updateInlineRow(original, key, encodeToml(value));
   const source = scanToml(original);
   requireEditable(source);
   const root = source.tables[0];
@@ -152,7 +152,7 @@ function updateMappingValue(original: string, key: string, value: unknown): stri
 }
 
 export function updateInboundBlock(original: string, row: InboundModel): string {
-  const previous = parseLuckPerms(original).inbound[0];
+  const previous = parseLuckPerms(rowDocument(original, "luckperms.inbound")).inbound[0];
   let updated = original;
   for (const key of ["id", "groups", "permissions", "match"] as const) {
     if (!previous || JSON.stringify(previous[key]) !== JSON.stringify(row[key])) updated = updateMappingValue(updated, key, row[key]);
@@ -161,7 +161,7 @@ export function updateInboundBlock(original: string, row: InboundModel): string 
 }
 
 export function updateOutboundBlock(original: string, row: OutboundModel): string {
-  const previous = parseLuckPerms(original).outbound[0];
+  const previous = parseLuckPerms(rowDocument(original, "luckperms.outbound")).outbound[0];
   let updated = original;
   for (const key of ["id", "kind", "value"] as const) {
     if (!previous || previous[key] !== row[key]) updated = updateMappingValue(updated, key, row[key]);
@@ -170,7 +170,7 @@ export function updateOutboundBlock(original: string, row: OutboundModel): strin
 }
 
 export function updateCommandPermissionBlock(original: string, row: CommandPermissionModel): string {
-  const previous = parseCommandPermissions(original)[0];
+  const previous = parseCommandPermissions(rowDocument(original, "command_permissions"))[0];
   let updated = original;
   for (const key of ["id", "path", "descendants"] as const) {
     if (!previous || previous[key] !== row[key]) updated = updateMappingValue(updated, key, row[key]);
@@ -252,7 +252,7 @@ export function replaceInteractions(text: string, rows: string[]): string {
 }
 
 export function updateInteractionBlock(original: string, row: InteractionModel): string {
-  const previous = parseInteractions(original)[0];
+  const previous = parseInteractions(rowDocument(original, "interactions"))[0];
   let updated = original;
   const fields: [keyof InteractionModel, string][] = [
     ["type", "type"], ["heldItem", "held_item"], ["description", "description"]
@@ -268,4 +268,8 @@ export function updateInteractionBlock(original: string, row: InteractionModel):
 
 export function appendRow(text: string, row: string): string {
   return appendTomlBlock(text, row);
+}
+
+function rowDocument(row: string, table: string): string {
+  return isInlineRow(row) ? `${table} = [\n${row}\n]` : row;
 }

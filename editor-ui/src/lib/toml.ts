@@ -1,4 +1,4 @@
-import { comments, findValue, inlineValues, retainValueComments, newline, quoted, replaceValue, requireEditable, samePath, scanToml, type TableSpan } from "./tomlSource";
+import { isInlineRow, inlineRowSource, comments, findValue, inlineValues, retainValueComments, newline, quoted, replaceValue, requireEditable, samePath, scanToml, type TableSpan } from "./tomlSource";
 
 export function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -39,11 +39,14 @@ export function encodeToml(value: unknown): string {
 }
 
 export function upsertToml(text: string, path: string, value: unknown): string {
+  return upsertTomlEncoded(text, path, encodeToml(value));
+}
+
+export function upsertTomlEncoded(text: string, path: string, encoded: string): string {
   const parts = path.split(".");
   const source = scanToml(text);
   requireEditable(source);
   const existing = findValue(source, parts);
-  const encoded = encodeToml(value);
   if (existing) return replaceValue(text, existing, encoded);
   const section = parts.slice(0, -1);
   const table = source.tables.find(entry => !entry.array && samePath(entry.path, section));
@@ -194,6 +197,13 @@ export function lineValues(value: string): string[] {
 }
 
 export function readBlockValue(block: string, key: string): string {
+  if (isInlineRow(block)) {
+    try {
+      const { text, root } = inlineRowSource(block);
+      const value = inlineValues(text, root).find(entry => samePath(entry.key, [key]));
+      return value ? text.slice(value.valueStart, value.valueEnd) : "";
+    } catch { return ""; }
+  }
   const source = scanToml(block);
   const value = source.values.find(entry => entry.table === source.tables[0] && samePath(entry.key, [key]));
   return value ? block.slice(value.valueStart, value.valueEnd) : "";

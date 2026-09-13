@@ -4793,8 +4793,15 @@ ownership and LuckPerms retention, read and edit nested inline tables and dotted
 them. Adding or removing a field preserves sibling values and the enclosing inline structure.
 Comments inside a replaced array move before the containing assignment so they remain valid
 TOML. A scalar or array cannot be silently replaced with a table to create a nested field.
-Inline arrays of rule or mapping tables still require source editing; context maps support
-their dedicated inline editor.
+The Access tab also reads, edits, adds, and removes inline arrays of interaction rules, command
+gates, and inbound or outbound LuckPerms mappings. A new mapping array can be added inside an
+existing inline LuckPerms table. New rows use the collection's existing representation; no
+conflicting array table is appended after an inline array. Context controls handle nested inline
+context maps and dotted context assignments. Replacing dotted contexts consolidates that map
+without leaving duplicate declarations. Unchanged rows retain their source bytes. Array comments
+are retained once when rows are removed, and unknown nested values remain in edited rows.
+Mixed arrays containing values that are not tables reject guided mutation rather than discarding
+entries omitted by the guided view.
 
 Config and datapack discovery use parsed TOML to recognize stage definitions rather than a
 literal header match. Quoted and escaped stage keys, dotted assignments, and inline stage

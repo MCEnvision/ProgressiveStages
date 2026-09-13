@@ -60,6 +60,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   remain intact when editing access settings and interaction rows. Config and datapack discovery
   recognize quoted stage headers as well as dotted and inline stage definitions. Ownership
   and retention controls also edit fields inside inline tables while preserving their structure.
+  The Access tab supports inline arrays of interactions, command gates, and permission mappings,
+  including additions, removals, contexts, and the paired Selling Bin preset.
 - **Strict access configuration validation.** Incorrect LuckPerms booleans and non-string
   group or permission entries are rejected instead of silently changing their meaning. The
   builder places returned diagnostics beside ownership and access rules, with a full validation

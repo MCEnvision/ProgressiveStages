@@ -36,6 +36,36 @@ function openInteraction() {
 }
 
 describe("guided selective insertion", () => {
+  it("adds the Selling Bin pair inside an existing inline array", async () => {
+    editor.boot.draft.files[rulesPath] = "interactions=[] # Keep.\n[extension]\nvalue='keep'\n";
+    openInteraction();
+    fireEvent.change(screen.getByLabelText(/Held item selector/), { target: { value: "id:minecraft:bread" } });
+    fireEvent.change(screen.getByLabelText(/Target block selector/), { target: { value: "id:selling_bin:selling_bin" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Also restrict GUI insertion/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save interaction" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const [, source] = editor.mutateFile.mock.calls[0] as unknown as [string, string];
+    expect(parseInteractions(source).map(row => row.type)).toEqual(["item_on_block", "item_into_inventory"]);
+    expect(source).not.toContain("[[interactions]]");
+    expect(source).toContain("# Keep.\n[extension]\nvalue='keep'\n");
+  });
+
+  it("opens and saves an inline inbound mapping with its existing context values", async () => {
+    editor.boot.draft.files[stagePath] = 'stage={id="chef"}\nluckperms={inbound=[{id="chef_rank",groups=["chef"],contexts={"server.name"=["local"]},extra="keep"}]}\n';
+    render(<IntegrationsPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(within(screen.getByText("chef_rank").closest("article")!).getByRole("button", { name: "Edit" }));
+    render(editor.openDialog.mock.calls[0][0].content);
+    expect(screen.getByLabelText("Context 1 key")).toHaveProperty("value", "server.name");
+    fireEvent.change(screen.getByLabelText("Context 1 value 1"), { target: { value: "remote" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save inbound mapping" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const [, source] = editor.mutateFile.mock.calls[0] as unknown as [string, string];
+    expect(parseLuckPerms(source).inbound[0].contexts).toEqual({ "server.name": ["remote"] });
+    expect(source).toContain('extra="keep"');
+    expect(source).not.toContain("permissions");
+    expect(source).not.toContain("match");
+  });
+
   it("changes ownership and retention through the controls for inline stage source", async () => {
     const source = "stage={id='chef', team_stage=false}\nluckperms={enabled=false, inbound_mode='permanent', extension={note='keep'}} # Keep.\n";
     editor.boot.draft.files[stagePath] = source;

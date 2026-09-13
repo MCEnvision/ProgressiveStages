@@ -4,6 +4,11 @@ import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -136,5 +141,72 @@ class LuckPermsStageParserTest {
             "bad key" = ["active"]
             """;
         assertFalse(StageFileParser.parseText(unsafeKey, "stage.toml", "test", true).isSuccess());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"inbound", "outbound"})
+    void acceptsExactContextLimitsAndQuotedKeySemantics(String direction) {
+        String contexts = "\"server.name\" = " + values(8) + "\nregion = " + values(8)
+            + "\nworld = " + values(4) + "\n";
+        var legacy = StageFileParser.parseText(contextSource(direction, contexts), "chef.toml", "test", false);
+        var packaged = StagePackageParser.parseContents("test", "stage.toml",
+            "[schema]\nversion = 4\n" + contextSource(direction, contexts), "rules.toml", "", "progression.toml", "");
+        assertTrue(legacy.isSuccess(), legacy.getErrorMessage());
+        assertTrue(packaged.isSuccess(), packaged.getErrorMessage());
+        var options = legacy.getStageDefinition().getLuckPerms();
+        var parsed = direction.equals("inbound") ? options.inbound().getFirst().contexts()
+            : options.outbound().getFirst().contexts();
+        assertEquals(8, parsed.get("server.name").size());
+        assertEquals(256, parsed.values().stream().mapToInt(List::size).reduce(1, (left, right) -> left * right));
+        assertEquals(parsed, direction.equals("inbound") ? packaged.getStageDefinition().getLuckPerms().inbound().getFirst().contexts()
+            : packaged.getStageDefinition().getLuckPerms().outbound().getFirst().contexts());
+        assertThrows(UnsupportedOperationException.class, () -> parsed.put("new", List.of("value")));
+        String eightKeys = IntStream.range(0, 8).mapToObj(index -> "key" + index + " = [\"value\"]\n").collect(java.util.stream.Collectors.joining());
+        assertTrue(StageFileParser.parseText(contextSource(direction, eightKeys), "chef.toml", "test", false).isSuccess());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"inbound", "outbound"})
+    void rejectsContextOverflowAndInvalidValuesAtTheContextField(String direction) {
+        List<String> invalid = List.of(
+            "world = " + values(9),
+            "world = " + values(8) + "\nregion = " + values(8) + "\nserver = " + values(8),
+            IntStream.range(0, 9).mapToObj(index -> "key" + index + " = [\"value\"]\n").collect(java.util.stream.Collectors.joining()),
+            "world = []", "world = [\"\"]", "world = [true]", "\"\" = [\"value\"]",
+            "world = [\"" + "x".repeat(257) + "\"]", "progressivestages_bridge = [\"active\"]");
+        for (String contexts : invalid) {
+            String source = contextSource(direction, contexts);
+            var result = StageFileParser.parseText(source, "chef.toml", "test", false);
+            assertFalse(result.isSuccess(), contexts);
+            var diagnostic = result.getFieldDiagnostic("stages/chef.toml").orElseThrow();
+            assertEquals("luckperms." + direction + "[0].contexts", diagnostic.field(), contexts);
+            assertEquals("mapping", diagnostic.ruleId().orElseThrow());
+            var packaged = StagePackageParser.parseContents("test", "stage.toml", "[schema]\nversion = 4\n" + source,
+                "rules.toml", "", "progression.toml", "");
+            assertEquals(diagnostic.field(), packaged.getFieldDiagnostic("stage.toml").orElseThrow().field());
+        }
+    }
+
+    @Test
+    void appliesTheSameContextBoundsToProgrammaticDefinitions() {
+        Map<String, List<String>> valid = Map.of("world", List.of("one", "two"));
+        assertEquals(valid, new LuckPermsStageOptions.InboundRule("mapping", List.of("chef"), List.of(),
+            LuckPermsStageOptions.Match.ALL, valid).contexts());
+        var tooMany = Map.of("world", IntStream.range(0, 9).mapToObj(Integer::toString).toList());
+        assertThrows(IllegalArgumentException.class, () -> new LuckPermsStageOptions.InboundRule("mapping", List.of("chef"), List.of(),
+            LuckPermsStageOptions.Match.ALL, tooMany));
+        assertThrows(IllegalArgumentException.class, () -> new LuckPermsStageOptions.OutboundRule("mapping",
+            LuckPermsStageOptions.OutboundKind.PERMISSION, "profession.chef", tooMany));
+    }
+
+    private static String contextSource(String direction, String contexts) {
+        return "[stage]\nid = \"chef\"\n[[luckperms." + direction + "]]\nid = \"mapping\"\n"
+            + (direction.equals("inbound") ? "groups = [\"chef\"]\n" : "kind = \"permission\"\nvalue = \"profession.chef\"\n")
+            + "[luckperms." + direction + ".contexts]\n" + contexts;
+    }
+
+    private static String values(int count) {
+        return IntStream.range(0, count).mapToObj(index -> "\"value" + index + "\"")
+            .collect(java.util.stream.Collectors.joining(", ", "[", "]"));
     }
 }

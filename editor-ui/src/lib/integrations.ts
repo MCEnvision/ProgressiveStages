@@ -1,7 +1,9 @@
+import { comments, contextAssignments, quoted, readContexts, replaceContexts, stringArray } from "./contexts";
 import type { InteractionModel, InboundModel, OutboundModel, CommandPermissionModel } from "../types";
 import {
   appendTomlBlock,
   encodeToml,
+  escapeRegex,
   extractArrayBlocks,
   extractArrayGroups,
   lineValues,
@@ -42,40 +44,48 @@ export function writeOwnership(text: string, choice: OwnershipChoice): string {
     : upsertToml(updated, "stage.team_stage", choice === "personal" ? false : true);
 }
 
-function sectionValues(block: string, section: string): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
-  const lines = block.split(/\r?\n/);
-  let active = "";
-  for (const line of lines) {
-    const header = line.match(/^\s*\[([^\]]+)\]/);
-    if (header) {
-      active = header[1];
-      continue;
-    }
-    if (active !== section) continue;
-    const assignment = line.match(/^\s*([A-Za-z0-9_.-]+)\s*=\s*(.+?)\s*(?:#.*)?$/);
-    if (!assignment) continue;
-    if (/^[A-Za-z0-9_.:-]{1,256}$/.test(assignment[1])) result[assignment[1]] = parseSimpleArray(assignment[2]);
-  }
-  return result;
+
+function mappingField(block: string, key: string): string {
+  const body = block.slice(block.indexOf("\n") + 1);
+  const child = /^[ \t]*\[[^\n]+\]/m.exec(body);
+  const root = child ? body.slice(0, child.index) : body;
+  const name = escapeRegex(key);
+  const assignment = new RegExp(`^[ \\t]*(?:${name}|"${name}"|'${name}')[ \\t]*=[ \\t]*`, "m").exec(root);
+  return assignment ? root.slice(assignment.index + assignment[0].length) : "";
+}
+
+function mappingString(block: string, key: string): string {
+  const raw = mappingField(block, key);
+  if (!raw) return "";
+  try { return quoted(raw, 0).value; }
+  catch { return stringValue(raw.split(/\r?\n/, 1)[0]); }
+}
+
+function mappingArray(block: string, key: string): string[] {
+  const raw = mappingField(block, key);
+  if (!raw) return [];
+  try { return stringArray(raw, 0).values; }
+  catch { return parseSimpleArray(raw.split(/\r?\n/, 1)[0]); }
 }
 
 export function parseLuckPerms(text: string): LuckPermsView {
   const sectionRaw = readTomlValue(text, "luckperms.enabled");
   const sectionPresent = /^\s*\[luckperms\]\s*$/m.test(text);
   const inbound = extractArrayGroups(text, "luckperms.inbound").map((block): InboundModel => ({
-    id: stringValue(readBlockValue(block.text, "id")),
-    groups: parseSimpleArray(readBlockValue(block.text, "groups")),
-    permissions: parseSimpleArray(readBlockValue(block.text, "permissions")),
-    match: stringValue(readBlockValue(block.text, "match")) === "any" ? "any" : "all",
-    contexts: sectionValues(block.text, "luckperms.inbound.contexts"),
+    id: mappingString(block.text, "id"),
+    groups: mappingArray(block.text, "groups"),
+    permissions: mappingArray(block.text, "permissions"),
+    match: mappingString(block.text, "match") === "any" ? "any" : "all",
+    contexts: readContexts(block.text, "luckperms.inbound.contexts").values,
+    contextSourceError: readContexts(block.text, "luckperms.inbound.contexts").error,
     sourceText: block.text
   }));
   const outbound = extractArrayGroups(text, "luckperms.outbound").map((block): OutboundModel => ({
-    id: stringValue(readBlockValue(block.text, "id")),
-    kind: stringValue(readBlockValue(block.text, "kind")) === "group" ? "group" : "permission",
-    value: stringValue(readBlockValue(block.text, "value")),
-    contexts: sectionValues(block.text, "luckperms.outbound.contexts"),
+    id: mappingString(block.text, "id"),
+    kind: mappingString(block.text, "kind") === "group" ? "group" : "permission",
+    value: mappingString(block.text, "value"),
+    contexts: readContexts(block.text, "luckperms.outbound.contexts").values,
+    contextSourceError: readContexts(block.text, "luckperms.outbound.contexts").error,
     sourceText: block.text
   }));
   return {
@@ -118,8 +128,8 @@ export function serializeOutbound(row: OutboundModel): string {
 }
 
 function contextsBlockFromMap(section: string, contexts: Record<string, string[]>): string {
-  const entries = Object.entries(contexts).filter(([key, values]) => /^[A-Za-z0-9_.:-]{1,256}$/.test(key.trim()) && values.length);
-  return entries.length ? `\n[${section}]\n${entries.map(([key, values]) => `${key.trim()} = ${encodeToml(values.map(value => value.trim()).filter(Boolean))}`).join("\n")}` : "";
+  const entries = contextAssignments(contexts);
+  return entries.length ? `\n[${section}]\n${entries.join("\n")}` : "";
 }
 
 export function replaceInbound(text: string, rows: string[]): string {
@@ -130,42 +140,46 @@ export function replaceOutbound(text: string, rows: string[]): string {
   return replaceArrayGroups(text, "luckperms.outbound", rows);
 }
 
-function replaceContextAssignments(block: string, section: string, contexts: Record<string, string[]>): string {
-  const oldKeys = new Set(Object.keys(sectionValues(block, section)));
-  const lines = block.split(/\r?\n/);
-  let start = -1;
-  let end = lines.length;
-  for (let index = 0; index < lines.length; index++) {
-    const header = lines[index].match(/^\s*\[([^\]]+)\]/);
-    if (!header) continue;
-    if (start >= 0) { end = index; break; }
-    if (header[1] === section) start = index;
+
+function updateMappingValue(original: string, key: string, value: unknown): string {
+  const bodyStart = original.indexOf("\n") + 1;
+  const body = original.slice(bodyStart);
+  const child = /^[ \t]*\[[^\n]+\]/m.exec(body);
+  const root = child ? body.slice(0, child.index) : body;
+  const name = escapeRegex(key);
+  const assignment = new RegExp(`^[ \\t]*(?:${name}|"${name}"|'${name}')[ \\t]*=[ \\t]*`, "m").exec(root);
+  if (!assignment) return original.slice(0, bodyStart) + `${key} = ${encodeToml(value)}\n` + body;
+  const start = bodyStart + assignment.index + assignment[0].length;
+  let end: number;
+  if (original[start] === "[") end = stringArray(original, start).end;
+  else if (original[start] === '"' || original[start] === "'") end = quoted(original, start).end;
+  else {
+    const remaining = original.slice(start);
+    const boundary = remaining.search(/[\r\n#]/);
+    end = start + (boundary < 0 ? remaining.length : boundary);
   }
-  const assignments = Object.entries(contexts).filter(([key, values]) => /^[A-Za-z0-9_.:-]{1,256}$/.test(key.trim()) && values.length)
-    .map(([key, values]) => `${key.trim()} = ${encodeToml(values.map(value => value.trim()).filter(Boolean))}`);
-  if (start < 0) return assignments.length ? `${block.trimEnd()}\n\n[${section}]\n${assignments.join("\n")}` : block;
-  const retained = lines.slice(start + 1, end).filter(line => {
-    const match = line.match(/^\s*([A-Za-z0-9_.-]+)\s*=/);
-    return !match || !oldKeys.has(match[1]);
-  });
-  const prefix = lines.slice(0, start + 1);
-  const suffix = lines.slice(end);
-  return [...prefix, ...retained, ...assignments, ...suffix].join("\n").replace(/\n{3,}/g, "\n\n");
+  const notes = comments(original.slice(start, end));
+  const lineStart = bodyStart + assignment.index;
+  return original.slice(0, lineStart) + (notes.length ? notes.join("\n") + "\n" : "")
+    + original.slice(lineStart, start) + encodeToml(value) + original.slice(end);
 }
 
 export function updateInboundBlock(original: string, row: InboundModel): string {
-  let updated = upsertToml(original, "id", row.id.trim());
-  updated = upsertToml(updated, "groups", row.groups);
-  updated = upsertToml(updated, "permissions", row.permissions);
-  updated = upsertToml(updated, "match", row.match);
-  return replaceContextAssignments(updated, "luckperms.inbound.contexts", row.contexts);
+  const previous = parseLuckPerms(original).inbound[0];
+  let updated = original;
+  for (const key of ["id", "groups", "permissions", "match"] as const) {
+    if (!previous || JSON.stringify(previous[key]) !== JSON.stringify(row[key])) updated = updateMappingValue(updated, key, row[key]);
+  }
+  return replaceContexts(updated, "luckperms.inbound.contexts", row.contexts);
 }
 
 export function updateOutboundBlock(original: string, row: OutboundModel): string {
-  let updated = upsertToml(original, "id", row.id.trim());
-  updated = upsertToml(updated, "kind", row.kind);
-  updated = upsertToml(updated, "value", row.value.trim());
-  return replaceContextAssignments(updated, "luckperms.outbound.contexts", row.contexts);
+  const previous = parseLuckPerms(original).outbound[0];
+  let updated = original;
+  for (const key of ["id", "kind", "value"] as const) {
+    if (!previous || previous[key] !== row[key]) updated = updateMappingValue(updated, key, row[key]);
+  }
+  return replaceContexts(updated, "luckperms.outbound.contexts", row.contexts);
 }
 
 export function updateCommandPermissionBlock(original: string, row: CommandPermissionModel): string {

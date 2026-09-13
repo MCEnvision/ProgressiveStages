@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { discoverStages } from "../../lib/model";
-import { parseInteractions } from "../../lib/integrations";
+import { parseInteractions, parseLuckPerms } from "../../lib/integrations";
 import { IntegrationsPanel } from "./IntegrationsPanel";
 
 const editor = vi.hoisted(() => ({
@@ -72,5 +72,66 @@ describe("guided selective insertion", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(editor.closeDialog).toHaveBeenCalledOnce();
     expect(editor.mutateFile).not.toHaveBeenCalled();
+  });
+});
+
+
+describe.each(["inbound", "outbound"] as const)("guided %s contexts", direction => {
+  function openMapping() {
+    render(<IntegrationsPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByRole("button", { name: `Add ${direction} mapping` }));
+    render(editor.openDialog.mock.calls[0][0].content);
+    fireEvent.change(screen.getByLabelText(direction === "inbound" ? /LuckPerms groups/ : /Permission node/), { target: { value: direction === "inbound" ? "chef" : "profession.chef" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add context" }));
+    fireEvent.change(screen.getByLabelText("Context 1 key"), { target: { value: "server.name" } });
+    fireEvent.change(screen.getByLabelText("Context 1 value 1"), { target: { value: "first,second\nthird" } });
+  }
+
+  it("saves individual values without treating commas or newlines as separators", async () => {
+    openMapping();
+    fireEvent.click(screen.getByRole("button", { name: "Add value to context 1" }));
+    fireEvent.change(screen.getByLabelText("Context 1 value 2"), { target: { value: "other" } });
+    fireEvent.click(screen.getByRole("button", { name: `Save ${direction} mapping` }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const [path, source] = editor.mutateFile.mock.calls[0] as unknown as [string, string];
+    expect(path).toBe(stagePath);
+    expect(parseLuckPerms(source)[direction][0].contexts).toEqual({ "server.name": ["first,second\nthird", "other"] });
+  });
+
+  it("retains duplicate rows until the author corrects them", async () => {
+    openMapping();
+    fireEvent.click(screen.getByRole("button", { name: "Add context" }));
+    fireEvent.change(screen.getByLabelText("Context 2 key"), { target: { value: "server.name" } });
+    fireEvent.change(screen.getByLabelText("Context 2 value 1"), { target: { value: "duplicate" } });
+    fireEvent.click(screen.getByRole("button", { name: `Save ${direction} mapping` }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("appears more than once"));
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+    expect(editor.closeDialog).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Context 2 value 1")).toHaveProperty("value", "duplicate");
+    fireEvent.click(screen.getByRole("button", { name: "Remove context 2" }));
+    fireEvent.click(screen.getByRole("button", { name: `Save ${direction} mapping` }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+  });
+
+  it("preserves input after a rejected save and supports retry", async () => {
+    openMapping();
+    editor.mutateFile.mockRejectedValueOnce(new Error("The draft revision changed. Reopen the draft before retrying."));
+    fireEvent.click(screen.getByRole("button", { name: `Save ${direction} mapping` }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("draft revision changed"));
+    expect(editor.closeDialog).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Context 1 value 1")).toHaveProperty("value", "first,second\nthird");
+    fireEvent.click(screen.getByRole("button", { name: `Save ${direction} mapping` }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+  });
+
+  it("allows removing individual values and cancels without changing source", () => {
+    openMapping();
+    fireEvent.click(screen.getByRole("button", { name: "Add value to context 1" }));
+    fireEvent.change(screen.getByLabelText("Context 1 value 2"), { target: { value: "keep" } });
+    fireEvent.click(screen.getByRole("button", { name: "Remove context 1 value 1" }));
+    expect(screen.getByLabelText("Context 1 value 1")).toHaveProperty("value", "keep");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+    expect(editor.closeDialog).toHaveBeenCalledOnce();
   });
 });

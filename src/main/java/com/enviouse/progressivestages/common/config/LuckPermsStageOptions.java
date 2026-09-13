@@ -10,6 +10,9 @@ import java.util.Objects;
 
 /** Optional, presence aware LuckPerms and command gate configuration for one stage. */
 public final class LuckPermsStageOptions {
+    public static final int MAX_CONTEXT_KEYS = 8;
+    public static final int MAX_CONTEXT_VALUES = 8;
+    public static final int MAX_CONTEXT_COMBINATIONS = 256;
     public enum InboundMode {
         SYNCHRONIZED("synchronized"), PERMANENT("permanent");
 
@@ -147,9 +150,9 @@ public final class LuckPermsStageOptions {
         return List.copyOf(result);
     }
 
-    private static Map<String, List<String>> normalizeContexts(Map<String, List<String>> values) {
+    public static Map<String, List<String>> normalizeContexts(Map<String, List<String>> values) {
         if (values == null || values.isEmpty()) return Map.of();
-        if (values.size() > 8) throw new IllegalArgumentException("Too many LuckPerms context keys");
+        if (values.size() > MAX_CONTEXT_KEYS) throw new IllegalArgumentException("Too many LuckPerms context keys");
         Map<String, List<String>> result = new LinkedHashMap<>();
         for (var entry : values.entrySet()) {
             String key = entry.getKey();
@@ -160,12 +163,13 @@ public final class LuckPermsStageOptions {
             }
             List<String> list = normalizeValues(entry.getValue(), "context " + key);
             if (list.isEmpty()) throw new IllegalArgumentException("A LuckPerms context key requires a value");
+            if (list.size() > MAX_CONTEXT_VALUES) throw new IllegalArgumentException("A LuckPerms context key permits at most " + MAX_CONTEXT_VALUES + " values");
             result.put(key.trim(), list);
         }
         long combinations = 1L;
         for (List<String> list : result.values()) {
             combinations *= list.size();
-            if (combinations > 64L) throw new IllegalArgumentException("Too many LuckPerms context combinations");
+            if (combinations > MAX_CONTEXT_COMBINATIONS) throw new IllegalArgumentException("Too many LuckPerms context combinations");
         }
         return Collections.unmodifiableMap(result);
     }

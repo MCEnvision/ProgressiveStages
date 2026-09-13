@@ -4761,6 +4761,18 @@ identity diagnostics use the draft relative `stages/.../stage.toml` path. Errors
 package source retain the existing summary rather than assigning a guessed file or field.
 The public raw stage validation API uses the same parser diagnostics.
 
+Context maps allow at most 8 keys, 8 values per key, and 256 expanded combinations per mapping.
+Both constructor and parser validation enforce these bounds. Parser failures identify the indexed
+inbound or outbound `contexts` field and its stable mapping ID. The editor schema publishes
+`maxKeys`, `maxValues`, and `maxCombinations` hints for both mapping context fields; controls read
+these hints while the server remains the validation authority.
+
+Access mapping forms represent contexts as key rows with individual value controls. Commas and
+line breaks remain inside values. Duplicate keys reject saving without discarding either row.
+Targeted context edits preserve quoted keys, multiline arrays, value comments, unchanged known
+fields, omitted defaults, and unrelated child tables. Invalid existing context text stays intact
+and reports a source correction message. Failed saves retain input and keep the dialog open.
+
 `luckperms.enabled` and command `descendants` require actual TOML booleans. Inbound `groups` and
 `permissions` require arrays containing only strings. Omitted fields retain their documented
 true, false or empty defaults. The normal domain validation still rejects unsupported modes,

@@ -185,6 +185,7 @@ export interface InboundModel {
   permissions: string[];
   match: "all" | "any";
   contexts: Record<string, string[]>;
+  contextSourceError?: string;
   sourceText?: string;
 }
 
@@ -193,6 +194,7 @@ export interface OutboundModel {
   kind: "group" | "permission";
   value: string;
   contexts: Record<string, string[]>;
+  contextSourceError?: string;
   sourceText?: string;
 }
 

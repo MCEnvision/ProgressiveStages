@@ -25,6 +25,18 @@ removes only the bridge derived source after an authoritative loss. Permanent re
 source. Independent grants are unaffected. Outbound rows create only owned transient group or
 permission contributions.
 
+Use **Add context**, enter its key, then add each accepted value with **Add value to context**.
+All keys must match; any listed value can match within a key. Commas and line breaks are part of
+that individual value. Combine duplicate keys into one row before saving. The server permits
+8 keys, 8 values per key, and at most 256 combinations per mapping. Empty keys, empty arrays,
+blank values, and reserved bridge keys fail validation. The controls show bounds from the server
+schema and retain invalid drafts for correction.
+
+Context edits preserve unchanged mapping fields, omitted defaults, quoted keys, comments, and
+unrelated child tables. A malformed existing context source shows an explanation; correct it in
+Source before changing that map. Saving an unrelated field preserves the malformed source for
+server validation. A failed save keeps the dialog and entered values available.
+
 If validation reports a missing group, provider absence, invalid context, duplicate row id, or an
 unsupported command path, fix the row in the draft and review again. The source text and last valid
 runtime are retained when apply is rejected.

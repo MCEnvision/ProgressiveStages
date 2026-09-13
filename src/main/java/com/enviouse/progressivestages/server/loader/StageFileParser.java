@@ -419,7 +419,7 @@ public final class StageFileParser {
             }
             result.put(entry.getKey(), values);
         }
-        return result;
+        return LuckPermsStageOptions.normalizeContexts(result);
     }
 
     // -------------------- v2.4 sections --------------------

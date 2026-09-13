@@ -1,6 +1,7 @@
 package com.enviouse.progressivestages.common.rehaul;
 
 import com.enviouse.progressivestages.common.rehaul.schema.EditorSchemaRegistry;
+import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import com.enviouse.progressivestages.common.rehaul.schema.SchemaValueType;
 import org.junit.jupiter.api.Test;
 
@@ -77,5 +78,18 @@ class EditorSchemaRegistryTest {
         assertTrue(EditorSchemaRegistry.get().all().stream()
             .filter(field -> field.type() == SchemaValueType.PREFIX)
             .allMatch(field -> field.catalog().isPresent() && !field.prefixModes().isEmpty()));
+    }
+
+    @Test
+    void publishesTheServerContextLimitsForBothMappingEditors() {
+        for (String direction : List.of("inbound", "outbound")) {
+            var field = EditorSchemaRegistry.get().all().stream()
+                .filter(candidate -> candidate.path().equals("luckperms." + direction + "[].contexts"))
+                .findFirst().orElseThrow();
+            assertEquals(SchemaValueType.OBJECT, field.type());
+            assertEquals(LuckPermsStageOptions.MAX_CONTEXT_KEYS, field.controlHints().get("maxKeys"));
+            assertEquals(LuckPermsStageOptions.MAX_CONTEXT_VALUES, field.controlHints().get("maxValues"));
+            assertEquals(LuckPermsStageOptions.MAX_CONTEXT_COMBINATIONS, field.controlHints().get("maxCombinations"));
+        }
     }
 }

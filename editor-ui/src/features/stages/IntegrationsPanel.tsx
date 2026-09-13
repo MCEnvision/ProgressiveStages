@@ -1,3 +1,5 @@
+import { ContextEditor } from "../../components/ContextEditor";
+import { contextMap } from "../../lib/contexts";
 import { OwnershipFeedback, ProviderFeedback } from "../../components/StageCapabilityFeedback";
 import { useMemo, useState } from "react";
 import { FieldDiagnostics } from "../../components/ValidationMessages";
@@ -7,36 +9,23 @@ import { lineValues } from "../../lib/toml";
 import { useEditor } from "../../store/EditorContext";
 import type { CommandPermissionModel, InboundModel, InteractionModel, OutboundModel, StagePackage } from "../../types";
 
-function contextText(contexts: Record<string, string[]>): string {
-  return Object.entries(contexts).map(([key, values]) => `${key}=${values.join(",")}`).join("\n");
-}
-
-function parseContextText(value: string): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
-  for (const line of value.split(/\r?\n/)) {
-    const split = line.indexOf("=");
-    if (split <= 0) continue;
-    const key = line.slice(0, split).trim();
-    const values = lineValues(line.slice(split + 1));
-    if (key && values.length) result[key] = values;
-  }
-  return result;
-}
-
 function InboundForm({ row, onSave, onCancel }: { row?: InboundModel; onSave: (row: InboundModel) => Promise<void>; onCancel: () => void }) {
   const [id, setId] = useState(row?.id || "chef_rank");
   const [groups, setGroups] = useState(row?.groups.join(", ") || "");
   const [permissions, setPermissions] = useState(row?.permissions.join(", ") || "");
   const [match, setMatch] = useState<"all" | "any">(row?.match || "all");
-  const [contexts, setContexts] = useState(contextText(row?.contexts || {}));
-  return <form className="dialog-form" onSubmit={event => { event.preventDefault(); void onSave({ id, groups: lineValues(groups), permissions: lineValues(permissions), match, contexts: parseContextText(contexts) }); }}>
+  const [contexts, setContexts] = useState(() => Object.entries(row?.contexts || {}).map(([key, values]) => ({ key, values: [...values] })));
+  const [error, setError] = useState("");
+  return <form className="dialog-form" onSubmit={async event => { event.preventDefault(); setError(""); try { await onSave({ id, groups: row && groups === row.groups.join(", ") ? row.groups : lineValues(groups), permissions: row && permissions === row.permissions.join(", ") ? row.permissions : lineValues(permissions), match, contexts: contextMap(contexts) }); } catch (failure) { setError(failure instanceof Error ? failure.message : "The mapping was not saved."); } }}>
     <div className="form-grid">
       <Field label="Mapping id" help="Stable id used in diagnostics and source attribution."><input value={id} onChange={event => setId(event.target.value)} required/></Field>
       <Field label="Match policy"><select value={match} onChange={event => setMatch(event.target.value as "all" | "any")}><option value="all">Require every condition</option><option value="any">Require any condition</option></select></Field>
       <Field label="LuckPerms groups" help="Comma separated inherited or direct group names." wide><input value={groups} onChange={event => setGroups(event.target.value)} placeholder="chef, master_chef"/></Field>
       <Field label="Boolean permissions" help="Comma separated permission nodes. Only true qualifies." wide><input value={permissions} onChange={event => setPermissions(event.target.value)} placeholder="professions.chef"/></Field>
-      <Field label="Contexts" help="One key per line, with comma separated values. Keys combine with AND." wide><textarea rows={4} value={contexts} onChange={event => setContexts(event.target.value)} placeholder="server=survival\nworld=overworld"/></Field>
+
     </div>
+    <ContextEditor rows={contexts} onChange={setContexts} sourceError={row?.contextSourceError}/>
+    {error ? <p role="alert">{error}</p> : null}
     <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={onCancel}>Cancel</Button><Button type="submit" tone="primary" disabled={!groups.trim() && !permissions.trim()}>Save inbound mapping</Button></footer>
   </form>;
 }
@@ -45,14 +34,17 @@ function OutboundForm({ row, onSave, onCancel }: { row?: OutboundModel; onSave: 
   const [id, setId] = useState(row?.id || "home_permission");
   const [kind, setKind] = useState<"group" | "permission">(row?.kind || "permission");
   const [value, setValue] = useState(row?.value || "");
-  const [contexts, setContexts] = useState(contextText(row?.contexts || {}));
-  return <form className="dialog-form" onSubmit={event => { event.preventDefault(); void onSave({ id, kind, value, contexts: parseContextText(contexts) }); }}>
+  const [contexts, setContexts] = useState(() => Object.entries(row?.contexts || {}).map(([key, values]) => ({ key, values: [...values] })));
+  const [error, setError] = useState("");
+  return <form className="dialog-form" onSubmit={async event => { event.preventDefault(); setError(""); try { await onSave({ id, kind, value, contexts: contextMap(contexts) }); } catch (failure) { setError(failure instanceof Error ? failure.message : "The mapping was not saved."); } }}>
     <div className="form-grid">
       <Field label="Mapping id"><input value={id} onChange={event => setId(event.target.value)} required/></Field>
       <Field label="Output kind"><select value={kind} onChange={event => setKind(event.target.value as "group" | "permission")}><option value="permission">Permission node</option><option value="group">Group membership</option></select></Field>
       <Field label={kind === "group" ? "Group name" : "Permission node"} help="ProgressiveStages owns only its transient contribution." wide><input value={value} onChange={event => setValue(event.target.value)} placeholder={kind === "group" ? "chef" : "neoessentials.teleport.home.set"} required/></Field>
-      <Field label="Contexts" help="Optional context values for the outbound node." wide><textarea rows={4} value={contexts} onChange={event => setContexts(event.target.value)} placeholder="server=survival"/></Field>
+
     </div>
+    <ContextEditor rows={contexts} onChange={setContexts} sourceError={row?.contextSourceError}/>
+    {error ? <p role="alert">{error}</p> : null}
     <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={onCancel}>Cancel</Button><Button type="submit" tone="primary">Save outbound mapping</Button></footer>
   </form>;
 }

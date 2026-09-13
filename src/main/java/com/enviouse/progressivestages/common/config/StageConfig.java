@@ -756,9 +756,8 @@ public class StageConfig {
         .defineInRange("integration.ftbquests.recheck_budget_per_tick", 10, 1, 100);
 
     private static final ModConfigSpec.BooleanValue FTBQUESTS_TEAM_MODE = BUILDER
-        .comment("If true, FTB Quests stage rewards/tasks delegate has/add/remove to FTB Teams'",
-                 "TeamStagesHelper instead of ProgressiveStages' own backend.",
-                 "Useful when running in solo team_mode but wanting team-shared questing.",
+        .comment("If true, team owned stages use FTB Teams TeamStagesHelper for quest provider operations.",
+                 "Personal and server owned stages always use ProgressiveStages for checks, grants and removals.",
                  "Falls back to ProgressiveStages' own backend if FTB Teams isn't available.")
         .define("integration.ftbquests.team_mode", false);
 

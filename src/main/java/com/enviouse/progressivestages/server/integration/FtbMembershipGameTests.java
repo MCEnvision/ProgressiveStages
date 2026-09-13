@@ -17,12 +17,22 @@ public final class FtbMembershipGameTests {
             helper.succeed();
             return;
         }
-        Fixture.run(helper);
+        Fixture.run(helper, false);
+        helper.succeed();
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void nativeQuestRewardsAndChecksRespectPersonalOwnership(GameTestHelper helper) throws Exception {
+        if (!ModList.get().isLoaded("ftbquests")) {
+            helper.succeed();
+            return;
+        }
+        Fixture.run(helper, true);
         helper.succeed();
     }
 
     private static final class Fixture {
-        static void run(GameTestHelper helper) throws Exception {
+        static void run(GameTestHelper helper, boolean verifyQuests) throws Exception {
             var server = helper.getLevel().getServer();
             helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The membership fixture requires an isolated server.");
             var teams = (dev.ftb.mods.ftbteams.data.TeamManagerImpl) dev.ftb.mods.ftbteams.api.FTBTeamsAPI.api().getManager();
@@ -46,6 +56,7 @@ public final class FtbMembershipGameTests {
             var personalOwner = new com.enviouse.progressivestages.common.stage.OwnerRef(
                 com.enviouse.progressivestages.common.stage.OwnerKind.PERSONAL, firstId);
             long personalClock = clocks.getGrantTime(personalOwner, personal);
+            var questTeams = ModList.get().isLoaded("ftbquests") ? QuestFixture.captureTeamData() : null;
             dev.ftb.mods.ftbteams.data.PartyTeam party = null;
             try {
                 FTBTeamsIntegration.registerIfAvailable();
@@ -89,6 +100,7 @@ public final class FtbMembershipGameTests {
                 party.join(null, secondProfile);
                 helper.assertTrue(provider.membershipRevision() == revision + 1 && manager.hasStage(second, shared)
                     && !manager.hasStage(second, personal), "Rejoining must recover shared access without copying a personal stage.");
+                if (verifyQuests) QuestFixture.run(helper, first, second, personal);
             } finally {
                 try {
                     if (party != null) {
@@ -113,9 +125,105 @@ public final class FtbMembershipGameTests {
                     order.clear();
                     definitions.forEach(order::registerStage);
                     if (personalClock <= 0) clocks.clear(personalOwner, personal); else clocks.markGranted(personalOwner, personal, personalClock);
+                    if (questTeams != null) QuestFixture.restoreTeamData(questTeams);
                     first.discard();
                     second.discard();
                 }
+            }
+        }
+    }
+
+    private static final class QuestFixture {
+        static java.util.Map<java.util.UUID, dev.ftb.mods.ftbquests.quest.TeamData> captureTeamData() throws Exception {
+            return new java.util.HashMap<>(teamData());
+        }
+
+        static void restoreTeamData(java.util.Map<java.util.UUID, dev.ftb.mods.ftbquests.quest.TeamData> original) throws Exception {
+            var data = teamData();
+            data.clear();
+            data.putAll(original);
+        }
+
+        @SuppressWarnings("unchecked")
+        private static java.util.Map<java.util.UUID, dev.ftb.mods.ftbquests.quest.TeamData> teamData() throws Exception {
+            var field = dev.ftb.mods.ftbquests.quest.BaseQuestFile.class.getDeclaredField("teamDataMap");
+            field.setAccessible(true);
+            return (java.util.Map<java.util.UUID, dev.ftb.mods.ftbquests.quest.TeamData>) field.get(
+                dev.ftb.mods.ftbquests.quest.ServerQuestFile.INSTANCE);
+        }
+
+        static void run(GameTestHelper helper, net.minecraft.server.level.ServerPlayer first,
+                        net.minecraft.server.level.ServerPlayer second,
+                        com.enviouse.progressivestages.common.api.StageId personal) throws Exception {
+            var mode = com.enviouse.progressivestages.common.config.StageConfig.class.getDeclaredField("ftbquestsTeamMode");
+            mode.setAccessible(true);
+            boolean originalMode = mode.getBoolean(null);
+            var manager = com.enviouse.progressivestages.common.stage.StageManager.getInstance();
+            var global = com.enviouse.progressivestages.common.api.StageId.parse("progressivestages:native_quest_server");
+            var clocks = com.enviouse.progressivestages.server.triggers.StageRegressionData.get(helper.getLevel().getServer());
+            var globalOwner = new com.enviouse.progressivestages.common.stage.OwnerRef(
+                com.enviouse.progressivestages.common.stage.OwnerKind.SERVER,
+                com.enviouse.progressivestages.common.stage.StageManager.SERVER_TEAM);
+            long globalClock = clocks.getGrantTime(globalOwner, global);
+            try {
+                mode.setBoolean(null, true);
+                com.enviouse.progressivestages.common.stage.StageOrder.getInstance().registerStage(
+                    com.enviouse.progressivestages.common.config.StageDefinition.builder(global).scope("server").build());
+                var file = dev.ftb.mods.ftbquests.quest.ServerQuestFile.INSTANCE;
+                var chapter = new dev.ftb.mods.ftbquests.quest.Chapter(0x573100, file, file.getDefaultChapterGroup());
+                var quest = new dev.ftb.mods.ftbquests.quest.Quest(0x573101, chapter);
+                var stageProvider = dev.ftb.mods.ftblibrary.integration.stages.StageHelper.INSTANCE.getProvider();
+                helper.assertTrue(stageProvider.getName().equals("ProgressiveStagesStageProvider"),
+                    "The actual library provider must be registered before quest assertions.");
+                stageProvider.remove(first, personal.toString());
+                helper.assertTrue(!manager.hasStage(first, personal), "The reward fixture must start without its profession.");
+                var reward = new dev.ftb.mods.ftbquests.quest.reward.StageReward(0x573102, quest);
+                var task = new dev.ftb.mods.ftbquests.quest.task.StageTask(0x573103, quest);
+                var data = new net.minecraft.nbt.CompoundTag();
+                data.putString("stage", personal.toString());
+                data.putBoolean("team_reward", false);
+                reward.readData(data, helper.getLevel().registryAccess());
+                task.readData(data, helper.getLevel().registryAccess());
+                helper.assertTrue(!reward.isTeamReward(), "This fixture must use the per player reward route.");
+                reward.claim(first, false);
+                helper.assertTrue(manager.hasStage(first, personal) && !manager.hasStage(second, personal),
+                    "The actual quest reward must grant only the claiming player's profession.");
+                helper.assertTrue(stageProvider.has(first, personal.toString()) && task.canSubmit(null, first)
+                    && !stageProvider.has(second, personal.toString()) && !task.canSubmit(null, second),
+                    "Quest stage checks must use personal ownership even with quest team mode enabled.");
+                reward.claim(second, false);
+                helper.assertTrue(task.canSubmit(null, first) && task.canSubmit(null, second),
+                    "Separately claiming the reward must create each player's own profession.");
+                data.putBoolean("remove", true);
+                reward.readData(data, helper.getLevel().registryAccess());
+                reward.claim(first, false);
+                helper.assertTrue(!manager.hasStage(first, personal) && manager.hasStage(second, personal)
+                    && !task.canSubmit(null, first) && task.canSubmit(null, second),
+                    "A removal reward must remove only its claimant's personal entitlement.");
+                var party = dev.ftb.mods.ftbteams.api.FTBTeamsAPI.api().getManager().getTeamForPlayer(first).orElseThrow();
+                dev.ftb.mods.ftbteams.api.TeamStagesHelper.addTeamStage(party, personal.toString());
+                helper.assertTrue(!stageProvider.has(first, personal.toString()) && !task.canSubmit(null, first),
+                    "A stale shared helper stage must not authorize a personal profession.");
+                dev.ftb.mods.ftbteams.api.TeamStagesHelper.removeTeamStage(party, personal.toString());
+                data.putString("stage", global.toString());
+                data.putBoolean("remove", false);
+                reward.readData(data, helper.getLevel().registryAccess());
+                task.readData(data, helper.getLevel().registryAccess());
+                reward.claim(first, false);
+                helper.assertTrue(manager.hasStage(first, global) && manager.hasStage(second, global)
+                    && task.canSubmit(null, first) && task.canSubmit(null, second),
+                    "Server scope must precede quest helper delegation for both reward and check.");
+                data.putBoolean("remove", true);
+                reward.readData(data, helper.getLevel().registryAccess());
+                reward.claim(second, false);
+                helper.assertTrue(!manager.hasStage(first, global) && !task.canSubmit(null, second),
+                    "Removing a server stage through a quest reward must revoke the shared entitlement.");
+            } finally {
+                mode.setBoolean(null, originalMode);
+                if (globalClock <= 0) clocks.clear(globalOwner, global); else clocks.markGranted(globalOwner, global, globalClock);
+                var secondOwner = new com.enviouse.progressivestages.common.stage.OwnerRef(
+                    com.enviouse.progressivestages.common.stage.OwnerKind.PERSONAL, second.getUUID());
+                clocks.clear(secondOwner, personal);
             }
         }
     }

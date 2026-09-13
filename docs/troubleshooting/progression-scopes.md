@@ -40,6 +40,16 @@ is server wide, so another player's membership change can also invalidate a capt
 Resolve and reevaluate on the server thread before retrying. Rejected contexts do not publish
 committed changes or alter stored stages.
 
+## Quest provider ownership
+
+When `integration.ftbquests.team_mode` is enabled, provider checks, grants and removals delegate
+only for team owned stages. Personal and server stages use the same ProgressiveStages owner
+for all three operations. A stale FTB helper record does not authorize a personal stage.
+Per player quest rewards can be claimed separately by teammates without copying one player's
+profession to another. Native FTB reward and task settings that explicitly use FTB team storage
+bypass the stage provider and remain a separate compatibility gate. See the
+[actual provider verification](../verification/progression-ownership.md) for tested boundaries.
+
 ## Permission contributors
 
 Source labels distinguish the contributing player, mapping row and retention mode within each

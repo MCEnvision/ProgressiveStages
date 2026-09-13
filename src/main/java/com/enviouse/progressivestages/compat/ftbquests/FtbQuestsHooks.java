@@ -209,9 +209,16 @@ public final class FtbQuestsHooks {
     private static boolean hasStage(net.minecraft.world.entity.player.Player player, String stage) {
         if (stage == null || stage.isEmpty()) return false;
 
-        // Optional FTB Teams TeamStagesHelper delegation (server-side only).
+        StageId stageId = StageId.tryParse(stage);
+        if (stageId == null) {
+            LOGGER.warn("[ProgressiveStages] FTB Provider has called with invalid stage ID {}", stage);
+            return false;
+        }
+
+        // Use the same owner boundary as quest grants and removals.
         if (player instanceof ServerPlayer serverPlayer
-                && com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()) {
+                && com.enviouse.progressivestages.common.config.StageConfig.isFtbquestsTeamMode()
+                && com.enviouse.progressivestages.common.stage.StageOwnership.isTeamOwned(serverPlayer, stageId)) {
             Boolean delegated = teamStagesHelperHas(serverPlayer, stage);
             if (delegated != null) {
                 LOGGER.debug("[ProgressiveStages] FTB Provider has('{}', '{}') -> TeamStagesHelper={}", player.getName().getString(), stage, delegated);
@@ -220,11 +227,6 @@ public final class FtbQuestsHooks {
             // fall through to mine's backend on failure
         }
 
-        StageId stageId = StageId.tryParse(stage);
-        if (stageId == null) {
-            LOGGER.warn("[ProgressiveStages] FTB Provider has called with invalid stage ID {}", stage);
-            return false;
-        }
         boolean has;
         if (player instanceof ServerPlayer serverPlayer) {
             has = ProgressiveStagesAPI.hasStage(serverPlayer, stageId);

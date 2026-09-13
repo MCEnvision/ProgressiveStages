@@ -3782,7 +3782,7 @@ compatibility with existing configurations.
 | `integration.ftbteams.enabled` | `true` | Master toggle for FTB Teams integration |
 | `integration.ftbquests.enabled` | `true` | Master toggle for FTB Quests integration |
 | `integration.ftbquests.recheck_budget_per_tick` | `10` | Max stage-task rechecks per tick (1–100) |
-| `integration.ftbquests.team_mode` | `false` | Delegate FTB Quests stage operations to FTB Teams' `TeamStagesHelper` instead of the local backend |
+| `integration.ftbquests.team_mode` | `false` | Delegate team owned quest provider operations to FTB Teams' `TeamStagesHelper`; personal and server owners use the local backend |
 
 ### 6.8 `[messages]`
 
@@ -4037,6 +4037,16 @@ FTB Quests' built-in Stage Tasks. This means:
 - A re-entrancy guard prevents recursive loops (quest reward grants stage →
   stage triggers recheck → recheck completes quest → quest grants stage →
   etc.).
+
+Stage provider checks resolve ownership before consulting the optional team helper, matching
+provider grants and removals. With `integration.ftbquests.team_mode = true`, a personal
+profession still checks only the actual player's entitlement, and a server stage checks the
+server entitlement. A stale shared helper record cannot authorize a personal profession.
+Separately claimed per player rewards create independent personal records for each claimant.
+The native reward and task fixture is recorded in the
+[ownership verification](docs/verification/progression-ownership.md). Native FTB rewards and
+tasks explicitly configured to use their own team storage bypass this provider; that separate
+route remains an open compatibility gate.
 
 ### 9.2 As a stage-reward backend
 

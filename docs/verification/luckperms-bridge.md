@@ -15,7 +15,8 @@ row IDs and reserved contexts, preserves source configuration, and validates the
 when the provider is absent. Core and in memory fixtures exercise source attribution, retention,
 Boolean results and reconciliation. They do not prove the reflective adapter's provider behavior.
 The [adapter source audit](#adapter-source-audit) records concrete discrepancies in persistence,
-context queries, ownership, mutation acknowledgement and cleanup. Those gates remain open.
+context queries, ownership, mutation acknowledgement and cleanup at the audited revision.
+The repairs below provide bounded regression evidence; real provider acceptance remains open.
 
 Command gates run inside Minecraft command execution tasks after redirects and before execution
 side effects. Literal descendants, argument values, aliases and namespaced literals bind to the
@@ -212,6 +213,85 @@ not restored as stale bytecode. No other baseline paths were missing and no new 
 remained. The intended candidate JAR, source, evidence, preexisting runtimes and shared dependency
 caches were preserved. The goal and cursor hashes remained unchanged. The owned Gradle runs were
 terminal and left no single use daemon running.
+
+## Independent permission query regression
+
+Source commit `5280889e4ee0cb4270d77a7be5a96206a72b0a34` replaces noncontextual input queries
+and name based output exclusion with an API 5.4 query helper. It copies current provider query
+options, removes only `progressivestages_bridge`, selects contextual evaluation and retains other
+contexts and flags. A loaded offline user uses static provider options; an unloaded user remains
+unavailable without a blocking load. Context snapshots retain every value per key and copy those
+sets immutably. Configuration rejects reserved marker aliases and duplicate context keys without
+case sensitivity while preserving the author's source casing.
+
+Inbound eligibility uses independently queried groups and ready TRUE permissions. It no longer
+rejects an independently held group merely because an output row names that group. An independent
+FALSE permission result or unavailable query prevents positive outbound publication and withdraws
+an existing owned contribution. An authoritative UNDEFINED result can receive configured positive
+output. The distinction prevents a failed query from being interpreted as permission to grant.
+
+Java 21 `./gradlew test build --no-daemon --no-configuration-cache` passed 346 tests across 98 suites,
+with no failures, errors or skips. Eleven added tests cover marker removal, retained flags and
+multiple contexts, TRUE/FALSE/UNDEFINED, loaded offline static contexts, unloaded users, immutable
+snapshots, case insensitive identity, invalid context aliases, provider failure, independent equal
+group membership and matching across all keys and any value within each key. The API fixtures use interface proxies and never
+initialize a real provider. Existing node tests now inspect the fixture's explicit effective view,
+so they still verify actual modeled output rather than its independently sourced input view.
+
+On September 12, 2026, `LuckPermsQueryGameTests.permissionQueriesWithdrawDeniedAndUnavailableOutput`
+ran twice through `/test run` on the owned NeoForge 21.1.248 development dedicated server. Both
+runs used the source bytes committed above. The fixture constructs a server player, grants a
+stage in server storage and calls the actual bridge reconciliation with a controlled adapter.
+It asserts no publication under FALSE, publication under authoritative UNDEFINED, withdrawal on
+FALSE and unavailable data, no repeated unavailable publication, recovery and withdrawal on stage
+loss. It restores stage definitions, fixture state and adapter state in `finally`.
+
+The first server configuration discovered no tests because it enabled only the `progressivestages`
+namespace, while these tests use the `minecraft:igloo/top` template. Inspection of the exact
+NeoForge `GameTestRegistry.register` showed that namespace filtering uses the template namespace.
+The owned server stopped normally, then restarted with
+`neoforge.enabledGameTestNamespaces=progressivestages,minecraft`. This corrected only the disposable
+verification configuration. No test result was claimed from the failed discovery attempts.
+
+The corrected server reached readiness at 21:43:29 America/Chicago. The focused test started at
+21:43:47 and 21:44:08. Each run's structure metadata named
+`permissionquerieswithdrawdeniedandunavailableoutput`; the observed lime glass success marker was
+checked at 21:43:57 and 21:44:17. The marker was cleared before the repeat. The server saved all
+dimensions and exited normally after `stop` at 21:44:53. These are core GameTest results with a
+controlled adapter, not LuckPerms login, inherited graph exclusion or negative precedence proof.
+
+The clean packaged `progressivestages-3.0.5.jar` has SHA256
+`14ef6b65353e9e17938aa09fd66dda06ab74cd1f4d136311ac008fb38cf4f9d2`, a manifest bound to the source
+commit above and `Build-Dirty: false`. All 731 project class entries matched compiled output,
+and no LuckPerms API classes were bundled. The clean rebuild passed; unchanged Java tests were
+up to date. No frontend source or packaged editor assets changed.
+
+The packaged candidate then ran without optional mods in `build/luckperms-query-verification`
+inside the Phase 003 worktree on `node-1`, using Java 21.0.11, the preexisting NeoForge 21.1.248
+libraries through a read only fixture link, `forgeserver`, `--nogui`, loopback port 25589,
+online authentication and verified `eula=true`. It reached readiness at 21:46:37, loaded 50 stage
+definitions and selected `neoforge:default_handler`. At 21:47:10, `time query daytime` returned
+10842 and `stage debug permissions status` reported stopped capture, zero records and an idle
+writer. No client, renderer or live LuckPerms provider ran in this suite.
+
+The scoped review checked query failure behavior, reserved context aliases, preservation of
+independent input with the same group name and the optional classloading boundary. The code index again returned
+mixed projects and historical worktrees; only bounded inspection of the active source was used.
+No persistent user mutation, permission tree enumeration or blocking user load was introduced.
+Real marker activation and invalidation, exact provider inherited exclusion and negative precedence,
+provider events, bounded offline loads, stale completion guards and full lifecycle convergence
+remain mandatory open gates. The exact provider's dependency only login failure is unchanged.
+
+The production server stopped through standard input at 21:48:04, saved all dimensions and
+exited normally. Its exact process was absent and loopback port 25589 was closed before cleanup.
+The initial inventory identified 965 added paths under `build` and no added `.gradle` paths.
+Only those added paths were removed, including the runtime, test reports, fixture JAR copy,
+compiled test output and library symlink without following its target. The final cleanup inventory
+matched both baselines exactly, with no missing preexisting path. The intended candidate JAR,
+source, sanitized evidence, preexisting runtimes and shared libraries and dependency caches remain.
+All owned Gradle and server handles were terminal. No laptop resource was created. The temporary
+ownership receipt and init script were removed after their final consumer. The saved goal and
+phase cursor were unchanged.
 
 ## Command execution regression
 

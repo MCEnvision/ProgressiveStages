@@ -4684,9 +4684,23 @@ internal bounds add no configuration field or protocol change. They bound resend
 transport's packet admission or unrelated GUI requests.
 The [snapshot acknowledgement tests](docs/test/snapshot-acknowledgements.md) exercise the actual
 server handler; their evidence does not replace laptop reconnect acceptance.
+
 The cache clears on disconnect. Definition reloads replace the rules, while ordinary effective
 stage updates immediately change their missing stage checks. Creative bypass uses the existing
 server supplied bypass flag.
+
+GUI responses have a separate per player queue at `NetworkHandler.sendStageGuiData`. This shared
+entry point covers GUI request packets, purchase success and rejection feedback, and the public
+`stage`, `stage gui`, `stages` and `pstages` commands. The first call builds and sends immediately.
+Further calls retain one pending response, serviced after 20 server ticks without extending the
+deadline. The server builds that response from current definitions and player state, so a
+purchase or reload during the interval does not replay stale view data. Different players have
+independent budgets. Logout and shutdown cancel queued work; inactive entries expire. Purchase
+validation and stage mutations still execute immediately. Only their GUI refresh may wait for
+the next response interval. This bounds repeated GUI reconstruction and output, not transport
+admission or all work performed by purchase and command handlers. The payload format is unchanged.
+The [GUI response tests](docs/test/gui-responses.md) capture actual outbound server payloads;
+screen presentation and reconnect still require the separate laptop acceptance gate.
 
 The client `RightClickBlock` handler returns `FAIL` for a missing stage before local block or item
 prediction. The normal server use packet still runs the authoritative checks and feedback. This

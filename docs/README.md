@@ -19,6 +19,7 @@ Use this page to find the maintained project documentation.
 - [Editor package import](test/editor-import.md)
 - [Editor external file changes](test/editor-external-changes.md)
 - [Snapshot acknowledgement and recovery handlers](test/snapshot-acknowledgements.md)
+- [GUI response budget and current data](test/gui-responses.md)
 - [Selling Bin artifact manifest](verification/selling-bin-artifacts.json)
 - [Selling Bin client observations and image hashes](verification/selling-bin-client/observations.json)
 - [Progression ownership](verification/progression-ownership.md)

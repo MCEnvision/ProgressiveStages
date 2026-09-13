@@ -253,6 +253,17 @@ public class NetworkHandler {
      * which opens the stage-tree GUI on arrival.
      */
     public static void sendStageGuiData(ServerPlayer player) {
+        if (guiResponses.request(player.getUUID())) sendCurrentStageGuiData(player);
+    }
+
+    public static void tickGuiResponses(net.minecraft.server.MinecraftServer server) {
+        guiResponses.tick(id -> {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player != null) sendCurrentStageGuiData(player);
+        });
+    }
+
+    private static void sendCurrentStageGuiData(ServerPlayer player) {
         // Build the per-stage "unlocks" preview once by scanning the item registry a single time
         // and bucketing each item under every stage that gates it (cheap, on-demand).
         final int SAMPLE_CAP = 90;
@@ -548,6 +559,7 @@ public class NetworkHandler {
     private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> acknowledgedClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> offeredClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
     private static final SnapshotRequestQueue snapshotRequests = new SnapshotRequestQueue();
+    private static final GuiResponseQueue guiResponses = new GuiResponseQueue();
     private static final java.util.Map<java.util.UUID, Integer> challengeHudFingerprints = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<Long, byte[]> clientSnapshotHistory = java.util.Collections.synchronizedMap(
         new java.util.LinkedHashMap<>() {
@@ -561,6 +573,7 @@ public class NetworkHandler {
         acknowledgedClientSnapshots.clear();
         offeredClientSnapshots.clear();
         snapshotRequests.clear();
+        guiResponses.clear();
         challengeHudFingerprints.clear();
         clientSnapshotHistory.clear();
     }
@@ -569,6 +582,7 @@ public class NetworkHandler {
         acknowledgedClientSnapshots.remove(player);
         offeredClientSnapshots.remove(player);
         snapshotRequests.clear(player);
+        guiResponses.clear(player);
         challengeHudFingerprints.remove(player);
     }
 

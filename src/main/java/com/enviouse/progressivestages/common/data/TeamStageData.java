@@ -38,7 +38,12 @@ public class TeamStageData {
                 .optionalFieldOf("stage_sources", Map.of()).forGetter(TeamStageData::serializeSources),
             Codec.intRange(0, 1).optionalFieldOf("permission_episode_schema", 0).forGetter(value -> 1),
             PermissionEpisode.CODEC.listOf().optionalFieldOf("permission_episodes", List.of())
-                .forGetter(value -> List.copyOf(value.permissionEpisodes.values()))
+                .forGetter(value -> List.copyOf(value.permissionEpisodes.values())),
+            Codec.intRange(0, 1).optionalFieldOf("ftb_helper_import_schema", 0)
+                .forGetter(value -> value.ftbHelperImportSchema),
+            Codec.unboundedMap(Codec.STRING, ResourceLocation.CODEC.listOf())
+                .optionalFieldOf("ftb_helper_imports", Map.of())
+                .forGetter(value -> serialize(value.ftbHelperImports))
         ).apply(instance, TeamStageData::new)
     );
 
@@ -46,6 +51,8 @@ public class TeamStageData {
     private final Map<UUID, Set<StageId>> teamStages = new HashMap<>();
     /** Player UUID to stages explicitly owned by that player. */
     private final Map<UUID, Set<StageId>> personalStages = new HashMap<>();
+    private final Map<UUID, Set<StageId>> ftbHelperImports = new HashMap<>();
+    private int ftbHelperImportSchema;
     /** Owner UUID to stage id to source labels. Empty source sets mean legacy ownership. */
     private record SourceOwner(OwnerKind kind, UUID id) {}
     private final Map<SourceOwner, Map<StageId, Set<String>>> stageSources = new HashMap<>();
@@ -82,7 +89,8 @@ public class TeamStageData {
     private TeamStageData(int schema, Map<String, List<ResourceLocation>> serialized,
                           Map<String, List<ResourceLocation>> serializedPersonal,
                           Map<String, Map<String, List<String>>> serializedSources, int episodeSchema,
-                          List<PermissionEpisode> episodes) {
+                          List<PermissionEpisode> episodes, int helperSchema,
+                          Map<String, List<ResourceLocation>> helperImports) {
         if (episodeSchema == 0 && !episodes.isEmpty()) {
             throw new IllegalArgumentException("Permission episodes require a schema version");
         }
@@ -90,6 +98,14 @@ public class TeamStageData {
         readStages(serialized, teamStages);
         readStages(serializedPersonal, personalStages);
         readSources(serializedSources);
+        if (helperSchema == 0 && !helperImports.isEmpty()) {
+            throw new IllegalArgumentException("FTB helper imports require a schema version");
+        }
+        readStages(helperImports, ftbHelperImports);
+        if (ftbHelperImports.containsKey(SERVER_OWNER)) {
+            throw new IllegalArgumentException("FTB helper imports require a team owner");
+        }
+        ftbHelperImportSchema = helperSchema;
         indexPermissionSources();
         for (PermissionEpisode episode : episodes) {
             if (permissionEpisodes.containsKey(EpisodeKey.of(episode))) {
@@ -100,6 +116,29 @@ public class TeamStageData {
     }
 
     public int getOwnershipSchema() { requireReadable(); return ownershipSchema; }
+
+    public boolean hasImportedFtbHelperStages() {
+        requireReadable();
+        return ftbHelperImportSchema == 1;
+    }
+
+    public boolean importFtbHelperStages(Map<UUID, Set<StageId>> imports) {
+        requireReadable();
+        if (hasImportedFtbHelperStages()) return false;
+        Map<UUID, Set<StageId>> snapshot = new HashMap<>();
+        imports.forEach((owner, stages) -> {
+            if (owner == null || SERVER_OWNER.equals(owner)) {
+                throw new IllegalArgumentException("FTB helper imports require a team owner");
+            }
+            snapshot.put(owner, Set.copyOf(stages));
+        });
+        snapshot.forEach((owner, stages) -> {
+            stages.forEach(stage -> grantStage(owner, stage));
+            if (!stages.isEmpty()) ftbHelperImports.put(owner, new HashSet<>(stages));
+        });
+        ftbHelperImportSchema = 1;
+        return true;
+    }
 
     private static void readStages(Map<String, List<ResourceLocation>> serialized,
                                    Map<UUID, Set<StageId>> destination) {
@@ -652,6 +691,8 @@ public class TeamStageData {
         if (unreadable != null) return preserveUnreadable(unreadable);
         TeamStageData copy = new TeamStageData();
         copy.ownershipSchema = ownershipSchema;
+        copy.ftbHelperImportSchema = ftbHelperImportSchema;
+        ftbHelperImports.forEach((owner, stages) -> copy.ftbHelperImports.put(owner, new HashSet<>(stages)));
         for (Map.Entry<UUID, Set<StageId>> entry : teamStages.entrySet()) {
             copy.teamStages.put(entry.getKey(), new HashSet<>(entry.getValue()));
         }

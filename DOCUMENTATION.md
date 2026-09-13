@@ -4050,9 +4050,25 @@ They preserve FTB's reward distribution and saved quest settings. A team reward 
 claimable only once for the quest team while its personal stage belongs only to the actual
 claimant. Configure a per player reward when each teammate should claim a profession separately.
 Undefined external stages retain FTB's native storage, and disabling the integration leaves
-that native route unchanged. Existing helper records are preserved without being imported into
-ProgressiveStages. Upgrade migration for defined stages stored only in that helper remains an
-acceptance gate; the new routing is not proof that old quest entitlements have migrated. The exact native reward and task coverage, including remaining
+that native route unchanged.
+
+With both FTB integrations enabled, the first valid server startup imports existing helper
+records for currently defined stages once. It includes offline teams and writes each grant as
+independent ownership under its original team UUID. Personal and server definitions mask those
+team records; migration never copies a shared grant into personal or server ownership. Restoring
+team scope can expose the preserved team record again. Import does not charge costs, grant
+prerequisites, replay stage rewards or reset grant clocks. The original FTB properties remain
+unchanged for rollback.
+
+The ownership attachment stores `ftb_helper_import_schema = 1` and `ftb_helper_imports`, mapping
+team UUIDs to the imported stage IDs. The receipt and grants are installed together. The receipt
+survives stage revocation and team record removal, preventing stale helper records from granting
+access again on later polls, reloads or restarts. Missing receipt fields mean the import has not
+run. Unsupported receipt versions and malformed owners fail loading through the existing
+ownership data protection. Undefined external stage IDs are excluded, and later helper changes
+are not an ongoing progression source. Use ProgressiveStages grants or native quest rewards for
+new progression after import. The existing membership polling remains responsible for membership
+synchronization. The exact native reward and task coverage, including remaining
 client acceptance boundaries, is recorded in the
 [ownership verification](docs/verification/progression-ownership.md).
 

@@ -17,7 +17,7 @@ public final class FtbMembershipGameTests {
             helper.succeed();
             return;
         }
-        Fixture.run(helper, false, false);
+        Fixture.run(helper, FixtureKind.MEMBERSHIP);
         helper.succeed();
     }
 
@@ -27,7 +27,7 @@ public final class FtbMembershipGameTests {
             helper.succeed();
             return;
         }
-        Fixture.run(helper, true, false);
+        Fixture.run(helper, FixtureKind.PLAYER_QUEST);
         helper.succeed();
     }
 
@@ -37,12 +37,24 @@ public final class FtbMembershipGameTests {
             helper.succeed();
             return;
         }
-        Fixture.run(helper, true, true);
+        Fixture.run(helper, FixtureKind.TEAM_QUEST);
         helper.succeed();
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void legacyFtbImportPreservesOwnersWithoutReplayingRewards(GameTestHelper helper) throws Exception {
+        if (!ModList.get().isLoaded("ftbquests")) {
+            helper.succeed();
+            return;
+        }
+        Fixture.run(helper, FixtureKind.LEGACY_IMPORT);
+        helper.succeed();
+    }
+
+    private enum FixtureKind { MEMBERSHIP, PLAYER_QUEST, TEAM_QUEST, LEGACY_IMPORT }
+
     private static final class Fixture {
-        static void run(GameTestHelper helper, boolean verifyQuests, boolean teamStorage) throws Exception {
+        static void run(GameTestHelper helper, FixtureKind kind) throws Exception {
             var server = helper.getLevel().getServer();
             helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The membership fixture requires an isolated server.");
             var teams = (dev.ftb.mods.ftbteams.data.TeamManagerImpl) dev.ftb.mods.ftbteams.api.FTBTeamsAPI.api().getManager();
@@ -110,7 +122,10 @@ public final class FtbMembershipGameTests {
                 party.join(null, secondProfile);
                 helper.assertTrue(provider.membershipRevision() == revision + 1 && manager.hasStage(second, shared)
                     && !manager.hasStage(second, personal), "Rejoining must recover shared access without copying a personal stage.");
-                if (verifyQuests) QuestFixture.run(helper, first, second, personal, shared, teamStorage);
+                if (kind == FixtureKind.LEGACY_IMPORT) LegacyFixture.run(helper, first, second, personal, shared);
+                else if (kind != FixtureKind.MEMBERSHIP) {
+                    QuestFixture.run(helper, first, second, personal, shared, kind == FixtureKind.TEAM_QUEST);
+                }
             } finally {
                 try {
                     if (party != null) {
@@ -123,8 +138,12 @@ public final class FtbMembershipGameTests {
                     var knownPlayers = (java.util.Map<?, ?>) knownPlayersField.get(teams);
                     knownPlayers.remove(firstId);
                     knownPlayers.remove(secondId);
-                    teams.getTeamMap().remove(firstId);
-                    teams.getTeamMap().remove(secondId);
+                    var deleteTeam = teams.getClass().getDeclaredMethod("deleteTeam", dev.ftb.mods.ftbteams.data.AbstractTeam.class);
+                    deleteTeam.setAccessible(true);
+                    for (var id : java.util.List.of(firstId, secondId)) {
+                        var fixtureTeam = teams.getTeamMap().get(id);
+                        if (fixtureTeam != null) deleteTeam.invoke(teams, fixtureTeam);
+                    }
                     teams.getTeamNameMap().entrySet().removeIf(entry -> !originalTeams.contains(entry.getValue().getId()));
                     teams.markDirty();
                     helper.assertTrue(teams.getTeamMap().keySet().equals(originalTeams)
@@ -140,6 +159,81 @@ public final class FtbMembershipGameTests {
                     second.discard();
                 }
             }
+        }
+    }
+
+    private static final class LegacyFixture {
+        static void run(GameTestHelper helper, net.minecraft.server.level.ServerPlayer first,
+                        net.minecraft.server.level.ServerPlayer second,
+                        com.enviouse.progressivestages.common.api.StageId personal,
+                        com.enviouse.progressivestages.common.api.StageId shared) throws Exception {
+            var server = helper.getLevel().getServer();
+            var manager = com.enviouse.progressivestages.common.stage.StageManager.getInstance();
+            var order = com.enviouse.progressivestages.common.stage.StageOrder.getInstance();
+            var global = com.enviouse.progressivestages.common.api.StageId.parse("progressivestages:legacy_global");
+            var foreign = com.enviouse.progressivestages.common.api.StageId.parse("external:legacy_stage");
+            order.registerStage(com.enviouse.progressivestages.common.config.StageDefinition.builder(global).scope("server").build());
+            replaceDefinition(com.enviouse.progressivestages.common.config.StageDefinition.builder(shared).teamStage(true)
+                .rewards(new com.enviouse.progressivestages.common.config.StageRewards(
+                    java.util.List.of(), java.util.List.of(), java.util.List.of(), "", 7, 13)).build());
+            helper.assertTrue(order.getStageDefinition(shared).orElseThrow().getRewards().xpLevels() == 7,
+                "The import fixture must install its acquisition reward before testing that it does not replay.");
+            var party = dev.ftb.mods.ftbteams.api.FTBTeamsAPI.api().getManager().getTeamForPlayer(first).orElseThrow();
+            var raw = java.util.Set.of(personal.toString(), shared.toString(), global.toString(), foreign.toString());
+            dev.ftb.mods.ftbteams.api.TeamStagesHelper.addTeamStages(party, raw);
+            server.overworld().setData(com.enviouse.progressivestages.common.data.StageAttachments.TEAM_STAGES,
+                new com.enviouse.progressivestages.common.data.TeamStageData());
+            int firstLevels = first.experienceLevel, secondLevels = second.experienceLevel;
+            int firstPoints = first.totalExperience, secondPoints = second.totalExperience;
+            var clocks = com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server);
+            var teamOwner = new com.enviouse.progressivestages.common.stage.OwnerRef(
+                com.enviouse.progressivestages.common.stage.OwnerKind.TEAM, party.getId());
+            long clock = clocks.getGrantTime(teamOwner, shared);
+            var committed = new java.util.ArrayList<com.enviouse.progressivestages.common.stage.StageMutationResult>();
+            try (var listener = manager.subscribeCommittedStageChanges(committed::add)) {
+                helper.assertTrue(FTBTeamsIntegration.importLegacyStages(server), "Actual helper records must import once.");
+                var data = server.overworld().getData(com.enviouse.progressivestages.common.data.StageAttachments.TEAM_STAGES);
+                helper.assertTrue(manager.hasStage(first, shared) && manager.hasStage(second, shared)
+                    && !manager.hasStage(first, personal) && !manager.hasStage(second, personal)
+                    && !manager.hasStage(first, global) && !manager.hasStage(second, global),
+                    "Legacy shared records must remain in their team namespace without becoming personal or global.");
+                helper.assertTrue(data.hasStage(party.getId(), personal) && data.hasStage(party.getId(), global)
+                    && !data.hasStage(party.getId(), foreign) && data.getSources(party.getId(), shared).equals(java.util.Set.of("independent")),
+                    "Known legacy records must retain independent team provenance while foreign stages remain native.");
+                helper.assertTrue(first.experienceLevel == firstLevels && second.experienceLevel == secondLevels
+                    && first.totalExperience == firstPoints && second.totalExperience == secondPoints
+                    && clocks.getGrantTime(teamOwner, shared) == clock,
+                    "Import must not replay configured experience rewards or restart the grant clock.");
+                helper.assertTrue(committed.size() == 1 && committed.getFirst().reason().equals("legacy_ftb_imported"),
+                    "Import must publish one committed owner change.");
+                replaceDefinition(com.enviouse.progressivestages.common.config.StageDefinition.builder(personal).teamStage(true).build());
+                helper.assertTrue(manager.hasStage(first, personal) && manager.hasStage(second, personal),
+                    "Restoring team scope must recover the preserved legacy team record.");
+                replaceDefinition(com.enviouse.progressivestages.common.config.StageDefinition.builder(personal).teamStage(false).build());
+                helper.assertTrue(!manager.hasStage(first, personal), "Personal scope must mask the legacy team record again.");
+                manager.revokeStage(first, shared);
+                long revision = manager.getMutationRevision();
+                int notifications = committed.size();
+                var encoded = com.enviouse.progressivestages.common.data.TeamStageData.CODEC.encodeStart(
+                    net.minecraft.nbt.NbtOps.INSTANCE, data).getOrThrow();
+                var loaded = com.enviouse.progressivestages.common.data.TeamStageData.CODEC.parse(
+                    net.minecraft.nbt.NbtOps.INSTANCE, encoded).getOrThrow();
+                server.overworld().setData(com.enviouse.progressivestages.common.data.StageAttachments.TEAM_STAGES, loaded);
+                helper.assertTrue(!FTBTeamsIntegration.importLegacyStages(server) && !manager.hasStage(first, shared)
+                    && manager.getMutationRevision() == revision && committed.size() == notifications,
+                    "A persisted import receipt must prevent revoke resurrection and duplicate notifications.");
+                helper.assertTrue(java.util.Set.copyOf(dev.ftb.mods.ftbteams.api.TeamStagesHelper.getStages(party)).equals(raw),
+                    "Migration must preserve the native helper records for rollback.");
+            }
+        }
+        private static void replaceDefinition(com.enviouse.progressivestages.common.config.StageDefinition definition) {
+            var order = com.enviouse.progressivestages.common.stage.StageOrder.getInstance();
+            var definitions = new java.util.LinkedHashMap<com.enviouse.progressivestages.common.api.StageId,
+                com.enviouse.progressivestages.common.config.StageDefinition>();
+            order.getOrderedStages().forEach(id -> definitions.put(id, order.getStageDefinition(id).orElseThrow()));
+            definitions.put(definition.getId(), definition);
+            order.clear();
+            definitions.values().forEach(order::registerStage);
         }
     }
 

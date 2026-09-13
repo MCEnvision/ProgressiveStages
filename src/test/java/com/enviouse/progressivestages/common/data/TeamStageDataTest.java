@@ -347,4 +347,63 @@ class TeamStageDataTest {
         assertTrue(data.hasEffectiveStage(owner, STAGE));
     }
 
+    @Test
+    void legacyFtbImportRetainsIndependentOwnershipAndCannotReplayAfterRevoke() {
+        UUID team = new UUID(0, 501);
+        var data = new TeamStageData();
+        String source = new PermissionStageSource(team, "chef", false).label();
+        data.grantStageFromSource(team, STAGE, source);
+        assertTrue(data.importFtbHelperStages(java.util.Map.of(team, Set.of(STAGE))));
+        assertEquals(Set.of("independent", source), data.getSources(team, STAGE));
+        assertFalse(data.hasPersonalStage(team, STAGE));
+        data.revokeStageFromSource(team, STAGE, source, false);
+        assertTrue(data.hasStage(team, STAGE));
+        var copy = data.copy();
+        data.revokeStage(team, STAGE);
+        assertTrue(copy.hasStage(team, STAGE));
+        var encoded = TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow();
+        assertEquals(1, encoded.getAsJsonObject().get("ftb_helper_import_schema").getAsInt());
+        assertTrue(encoded.getAsJsonObject().getAsJsonObject("ftb_helper_imports").has(team.toString()));
+        var loaded = TeamStageData.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow();
+        assertTrue(loaded.hasImportedFtbHelperStages());
+        assertFalse(loaded.importFtbHelperStages(java.util.Map.of(team, Set.of(STAGE))));
+        assertFalse(loaded.hasStage(team, STAGE));
+        loaded.removeTeam(team);
+        assertTrue(loaded.copy().hasImportedFtbHelperStages());
+        assertFalse(loaded.importFtbHelperStages(java.util.Map.of(new UUID(0, 502), Set.of(STAGE))));
+    }
+
+    @Test
+    void invalidFtbImportCannotPartiallyGrantAndNewerReceiptsAreRejected() {
+        var data = new TeamStageData();
+        UUID team = new UUID(0, 503);
+        var imports = new java.util.LinkedHashMap<UUID, Set<StageId>>();
+        imports.put(team, Set.of(STAGE));
+        imports.put(new UUID(0, 0), Set.of(STAGE));
+        assertThrows(IllegalArgumentException.class, () -> data.importFtbHelperStages(imports));
+        assertFalse(data.hasStage(team, STAGE));
+        assertFalse(data.hasImportedFtbHelperStages());
+        var payload = TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow().getAsJsonObject();
+        payload.addProperty("ftb_helper_import_schema", 2);
+        assertTrue(TeamStageData.CODEC.parse(JsonOps.INSTANCE, payload).error().isPresent());
+        payload.addProperty("ftb_helper_import_schema", 0);
+        var records = new com.google.gson.JsonObject();
+        var stages = new com.google.gson.JsonArray();
+        stages.add(STAGE.toString());
+        records.add(team.toString(), stages);
+        payload.add("ftb_helper_imports", records);
+        assertThrows(RuntimeException.class, () -> TeamStageData.CODEC.parse(JsonOps.INSTANCE, payload).getOrThrow());
+    }
+
+    @Test
+    void emptyFtbImportPersistsCompletionWithoutCreatingStages() {
+        var data = new TeamStageData();
+        assertFalse(data.hasImportedFtbHelperStages());
+        assertTrue(data.importFtbHelperStages(java.util.Map.of()));
+        var loaded = TeamStageData.CODEC.parse(JsonOps.INSTANCE,
+            TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow()).getOrThrow();
+        assertTrue(loaded.hasImportedFtbHelperStages());
+        assertTrue(loaded.getAllTeamIds().isEmpty());
+    }
+
 }

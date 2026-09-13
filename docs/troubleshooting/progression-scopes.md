@@ -53,6 +53,13 @@ rewards if each teammate should claim their own profession. The storage hooks pr
 quest settings and FTB's handling of undefined external stages. See the
 [actual provider verification](../verification/progression-ownership.md) for tested boundaries.
 
+Existing helper grants for defined stages are imported once when both integrations are enabled
+and definitions are ready. They remain independent team records, including when current personal
+or server scope masks them. Import preserves the native properties and does not replay rewards
+or reset grant clocks. The persisted import receipt prevents a revoked stage from returning from
+stale helper data. Later helper property edits are not a progression source; use stage commands
+or quest rewards for new grants. Undefined external stages remain with FTB.
+
 ## Permission contributors
 
 Source labels distinguish the contributing player, mapping row and retention mode within each

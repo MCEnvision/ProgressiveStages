@@ -565,7 +565,7 @@ public class StageManager {
 
     public void deactivateOfflinePermissionSources(UUID subject) {
         if (server == null) return;
-        notifyOfflinePermissionChange(getTeamStageData().deactivatePermissionSources(subject), "source_pending");
+        notifyOwnerChange(getTeamStageData().deactivatePermissionSources(subject), "source_pending");
     }
 
     public boolean reconcileOfflinePermissionSources(OfflinePermissionContext context, Map<StageId, Set<String>> desired,
@@ -657,11 +657,11 @@ public class StageManager {
                 restorePermissionClock(contribution.owner(), contribution.stage(), contribution.source().label());
             }
         }
-        notifyOfflinePermissionChange(changed, "source_reconciled");
+        notifyOwnerChange(changed, "source_reconciled");
         return true;
     }
 
-    private void notifyOfflinePermissionChange(Set<OwnerRef> owners, String reason) {
+    private void notifyOwnerChange(Set<OwnerRef> owners, String reason) {
         if (owners.isEmpty() || server == null) return;
         markMutation(true);
         Set<UUID> recipients = Set.copyOf(affectedPlayers(null, true, owners));
@@ -674,6 +674,34 @@ public class StageManager {
             }
         }
         publishMutation(result);
+    }
+
+    public boolean hasImportedFtbHelperStages() {
+        return server != null && getTeamStageData().hasImportedFtbHelperStages();
+    }
+
+    public boolean importFtbHelperStages(Map<UUID, Set<StageId>> legacyTeams) {
+        if (server == null || !server.isSameThread() || legacyTeams == null
+            || getTeamStageData().hasImportedFtbHelperStages()) return false;
+        Map<UUID, Set<StageId>> registered = new LinkedHashMap<>();
+        legacyTeams.forEach((team, stages) -> {
+            if (team == null || SERVER_TEAM.equals(team)) {
+                throw new IllegalArgumentException("FTB helper imports require a team owner");
+            }
+            Set<StageId> known = new LinkedHashSet<>();
+            for (StageId stage : stages) {
+                if (stage != null && StageOrder.getInstance().getStageDefinition(stage).isPresent()) known.add(stage);
+            }
+            if (!known.isEmpty()) registered.put(team, Set.copyOf(known));
+        });
+        TeamStageData draft = getTeamStageData().copy();
+        draft.importFtbHelperStages(registered);
+        server.overworld().setData(StageAttachments.TEAM_STAGES, draft);
+        Set<OwnerRef> owners = new LinkedHashSet<>();
+        registered.keySet().forEach(team -> owners.add(new OwnerRef(OwnerKind.TEAM, team)));
+        if (owners.isEmpty()) markMutation(true);
+        else notifyOwnerChange(Set.copyOf(owners), "legacy_ftb_imported");
+        return true;
     }
 
     public Set<String> getStageSources(ServerPlayer player, StageId stageId) {

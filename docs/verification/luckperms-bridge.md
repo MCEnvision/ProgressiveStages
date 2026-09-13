@@ -214,6 +214,68 @@ remained. The intended candidate JAR, source, evidence, preexisting runtimes and
 caches were preserved. The goal and cursor hashes remained unchanged. The owned Gradle runs were
 terminal and left no single use daemon running.
 
+## Obsolete owner regression
+
+Source commit `f476cbfdd85ee7f8ffcf5f61f76b1fbde8ba150d` adds a subject lookup over attributed
+permission sources. The lookup is reconstructed from the existing persisted source records during
+load and copy, and maintained during additions, individual revocation, stage removal, bulk
+replacement and owner removal. It introduces no persistent schema field and returns immutable
+snapshots. Subject reconciliation withdraws only that subject's synchronized contributions from
+obsolete owners or deleted definitions before evaluating new grants. Independent, permanent and
+other subject records remain. Committed invalidation identifies the original affected owners;
+online beneficiaries receive refreshed views and a bulk event. The existing FTB membership detector
+calls reconciliation before its team synchronization path.
+
+On September 12, 2026, `./gradlew test build --no-daemon --no-configuration-cache` passed with
+Java 21.0.11, Minecraft 1.21.1 and NeoForge 21.1.248. All 364 tests in 100 suites passed without
+failures, errors or skips. Three added unit tests cover distinct subject and owner namespaces,
+immutable lookup snapshots, codec and copy independence, bulk replacement, owner removal and
+unattributed legacy labels. No separate formatter or static analysis task is configured;
+`git diff --check` passed. The postcommit build passed with unchanged test inputs.
+
+The dedicated development server reached readiness at 22:36:50 America/Chicago. Its actual
+GameTest dispatcher ran `permissionownerchangeswithdrawstalecontributions`. The fixture seeded
+obsolete personal and team contributions for a constructed subject, then reconciled a current
+server scoped definition using a controlled adapter. It asserted preserved independent, permanent
+and other subject contributions, last old owner removal, withdrawal before the new source grant,
+correct affected owners, unchanged revision on repeated cleanup, deleted definition withdrawal and
+no stale resurrection after restoring an ineligible definition. It restores subscriptions, data,
+adapter state and definitions in teardown. This is a core owner transition fixture, not actual FTB
+membership or joined client evidence.
+
+At 22:37:34, the structure metadata identified the exact owner test and its fresh lime marker
+reported `permission_owner_regression_pass`. The test chunks were force loaded again before marker
+inspection because the framework had released them. The existing
+`permissionsourcespreserveothersubjectsandindependentearnings` regression then ran; at 22:38:11 its
+own metadata and cleared/fresh lime marker reported `permission_sources_after_owners_pass`.
+The development server stopped through standard input at 22:38:28 and saved all dimensions before
+normal exit. The task graph was inspected before launch and included no client or renderer.
+
+The clean `progressivestages-3.0.5.jar` SHA256 is
+`be8004e9148edb562f236280bdd9b085bba783770157bc25f6db186723b612c3`.
+Its manifest identifies the source commit above and `Build-Dirty: false`. All 737 compiled production
+classes match the packaged bytes and no LuckPerms API classes are bundled. GitHub verified the
+pushed source commit's SSH signature. A production server with this exact JAR and no optional
+integration mods reached readiness at 22:39:29. At 22:39:57 the console returned daytime 2507 and
+permission capture status stopped, with zero records and an idle writer.
+
+Both modes used the existing Phase 003 worktree's `build/permission-owner-verification` on
+`node-1`, authenticated mode and loopback port 25589. Each launch read back EULA acceptance.
+No client, browser, real LuckPerms or FTB Teams runtime was launched. The scoped audit found no
+new provider API dependency, administrative permission mutation, persistent format change or
+cross-subject deletion. Exact FTB event timing, joined beneficiary synchronization, offline
+contributors, startup eligibility, legacy attribution, expiry/suppression and complete acquisition
+effect behavior remain open. These results do not close the full BIN-REQ-011 or BIN-REQ-012 gates.
+
+The production server stopped through standard input at 22:40:43, saved all dimensions and exited
+normally. Cleanup confirmed both server processes absent, all owned Gradle/server handles terminal
+and port 25589 closed. It removed 968 added build paths and 0 added local Gradle paths,
+including the runtime, fixture JAR, logs, world, reports and compiled test output. The library
+symlink was removed without following its target. Final inventories matched both pretest baselines
+exactly. The intended candidate, source, preexisting runtimes and shared caches remain preserved.
+The metadata scratch directory and launch script were removed. No laptop resource was created.
+The saved goal and active phase cursor hashes remain unchanged.
+
 ## Inbound source regression
 
 Source commit `dd7162b0c7628bce75273ac2fd0eb46be8c1baa6` separates inbound contributors by

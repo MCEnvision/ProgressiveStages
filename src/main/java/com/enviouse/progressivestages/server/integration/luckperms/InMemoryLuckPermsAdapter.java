@@ -8,12 +8,9 @@ import java.util.UUID;
 
 /** deterministic adapter for headless tests and provider diagnostics. */
 public final class InMemoryLuckPermsAdapter implements LuckPermsAdapter {
-    private final Map<UUID, Set<String>> groups = new LinkedHashMap<>();
     private final Map<UUID, Set<String>> externalGroups = new LinkedHashMap<>();
-    private final Map<UUID, Map<String, PermissionValue>> permissions = new LinkedHashMap<>();
     private final Map<UUID, Map<String, PermissionValue>> externalPermissions = new LinkedHashMap<>();
-    private final Map<UUID, Map<String, Set<String>>> transientNodes = new LinkedHashMap<>();
-    private final Map<UUID, Map<String, Map<String, String>>> transientContexts = new LinkedHashMap<>();
+    private final Map<UUID, Map<NodeSpec, Set<String>>> transientNodes = new LinkedHashMap<>();
     private final Map<UUID, Map<String, String>> contexts = new LinkedHashMap<>();
     private final Set<String> knownGroups = new LinkedHashSet<>();
     private State state = State.READY;
@@ -22,11 +19,9 @@ public final class InMemoryLuckPermsAdapter implements LuckPermsAdapter {
     public InMemoryLuckPermsAdapter member(UUID player, String group) {
         group(group);
         externalGroups.computeIfAbsent(player, ignored -> new LinkedHashSet<>()).add(group);
-        groups.computeIfAbsent(player, ignored -> new LinkedHashSet<>()).add(group);
         return this;
     }
     public InMemoryLuckPermsAdapter permission(UUID player, String node, PermissionValue value) {
-        permissions.computeIfAbsent(player, ignored -> new LinkedHashMap<>()).put(node, value);
         externalPermissions.computeIfAbsent(player, ignored -> new LinkedHashMap<>()).put(node, value);
         return this;
     }
@@ -39,48 +34,47 @@ public final class InMemoryLuckPermsAdapter implements LuckPermsAdapter {
     @Override public State state() { return state; }
     @Override public SubjectSnapshot snapshot(UUID player) {
         if (state != State.READY) return SubjectSnapshot.unavailable();
-        return new SubjectSnapshot(true, groups.getOrDefault(player, Set.of()),
-            permissions.getOrDefault(player, Map.of()), contexts.getOrDefault(player, Map.of()));
+        Set<String> groups = new LinkedHashSet<>(externalGroups.getOrDefault(player, Set.of()));
+        Map<String, PermissionValue> permissions = new LinkedHashMap<>(externalPermissions.getOrDefault(player, Map.of()));
+        for (NodeSpec node : transientNodes.getOrDefault(player, Map.of()).keySet()) {
+            if (!contextMatches(player, node)) continue;
+            if (node.kind() == NodeKind.GROUP) groups.add(node.value());
+            else if (permissions.get(node.value()) != PermissionValue.FALSE) permissions.put(node.value(), PermissionValue.TRUE);
+        }
+        return new SubjectSnapshot(true, groups, permissions, contexts.getOrDefault(player, Map.of()));
     }
     @Override public PermissionValue permission(UUID player, String node) {
-        return permissions.getOrDefault(player, Map.of()).getOrDefault(node, PermissionValue.UNDEFINED);
+        return snapshot(player).permissions().getOrDefault(node, PermissionValue.UNDEFINED);
     }
     @Override public boolean groupExists(String group) { return knownGroups.contains(group); }
-    @Override public void addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts, String ownerKey) {
-        String node = kind.name().toLowerCase(java.util.Locale.ROOT) + "|" + value;
+    @Override public MutationResult addTransient(UUID player, NodeKind kind, String value,
+                                                  Map<String, String> contexts, String ownerKey) {
+        if (state != State.READY) return MutationResult.UNAVAILABLE;
         transientNodes.computeIfAbsent(player, ignored -> new LinkedHashMap<>())
-            .computeIfAbsent(node, ignored -> new LinkedHashSet<>()).add(ownerKey);
-        transientContexts.computeIfAbsent(player, ignored -> new LinkedHashMap<>()).put(node,
-            contexts == null ? Map.of() : Map.copyOf(contexts));
-        if (kind == NodeKind.GROUP) {
-            group(value);
-            groups.computeIfAbsent(player, ignored -> new LinkedHashSet<>()).add(value);
-        } else {
-            permissions.computeIfAbsent(player, ignored -> new LinkedHashMap<>()).put(value, PermissionValue.TRUE);
-        }
+            .computeIfAbsent(new NodeSpec(kind, value, contexts), ignored -> new LinkedHashSet<>()).add(ownerKey);
+        return MutationResult.APPLIED;
     }
-    @Override public void removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts, String ownerKey) {
-        String node = kind.name().toLowerCase(java.util.Locale.ROOT) + "|" + value;
-        Map<String, Set<String>> nodes = transientNodes.get(player);
+    @Override public MutationResult removeTransient(UUID player, NodeKind kind, String value,
+                                                     Map<String, String> contexts, String ownerKey) {
+        Map<NodeSpec, Set<String>> nodes = transientNodes.get(player);
+        NodeSpec node = new NodeSpec(kind, value, contexts);
         Set<String> owners = nodes == null ? null : nodes.get(node);
-        if (owners == null) return;
+        if (owners == null || !owners.contains(ownerKey)) return MutationResult.APPLIED;
+        if (state != State.READY) return MutationResult.UNAVAILABLE;
         owners.remove(ownerKey);
-        if (!owners.isEmpty()) return;
-        nodes.remove(node);
+        if (owners.isEmpty()) nodes.remove(node);
         if (nodes.isEmpty()) transientNodes.remove(player);
-        if (kind == NodeKind.GROUP) {
-            if (!externalGroups.getOrDefault(player, Set.of()).contains(value)
-                    && !hasTransientNode(player, NodeKind.GROUP, value)) {
-                groups.getOrDefault(player, Set.of()).remove(value);
-            }
-        } else if (!externalPermissions.getOrDefault(player, Map.of()).containsKey(value)
-                && !hasTransientNode(player, NodeKind.PERMISSION, value)) {
-            permissions.getOrDefault(player, Map.of()).remove(value);
-        }
+        return MutationResult.APPLIED;
     }
 
-    private boolean hasTransientNode(UUID player, NodeKind kind, String value) {
-        return transientNodes.getOrDefault(player, Map.of())
-            .containsKey(kind.name().toLowerCase(java.util.Locale.ROOT) + "|" + value);
+    @Override public boolean cleanupTransientNodes() {
+        if (!transientNodes.isEmpty() && state != State.READY) return false;
+        transientNodes.clear();
+        return true;
+    }
+
+    private boolean contextMatches(UUID player, NodeSpec node) {
+        return node.contexts().entrySet().stream().allMatch(entry ->
+            entry.getValue().equals(contexts.getOrDefault(player, Map.of()).get(entry.getKey())));
     }
 }

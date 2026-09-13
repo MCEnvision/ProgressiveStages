@@ -5,7 +5,6 @@ import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.stage.StageManager;
-import com.enviouse.progressivestages.common.stage.StageMutationResult;
 import com.enviouse.progressivestages.common.stage.StageOrder;
 import com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager;
 import com.mojang.logging.LogUtils;
@@ -18,7 +17,6 @@ import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,7 +35,7 @@ public final class LuckPermsBridge {
 
     private final Queue<UUID> dirty = new ArrayDeque<>();
     private final Set<UUID> queued = new HashSet<>();
-    private final Map<UUID, Map<String, OutboundEntry>> outboundManifest = new HashMap<>();
+    private final OutboundNodeTracker outboundNodes = new OutboundNodeTracker();
     private boolean rescanRequested;
     private MinecraftServer server;
     private LuckPermsAdapter adapter;
@@ -54,6 +52,17 @@ public final class LuckPermsBridge {
     public static void initialize(MinecraftServer server) { getInstance().bind(server); }
     public static void tick(MinecraftServer server) { getInstance().drain(server); }
     public static void reconcile(ServerPlayer player) { getInstance().reconcileSubject(player); }
+    public static void disconnect(ServerPlayer player) {
+        LuckPermsBridge bridge = getInstance();
+        synchronized (bridge) {
+            bridge.dirty.remove(player.getUUID());
+            bridge.queued.remove(player.getUUID());
+            if (bridge.adapter != null && !bridge.outboundNodes.reconcile(player.getUUID(), Map.of(),
+                    bridge.adapter, (owner, adding, result) -> {})) {
+                LOGGER.warn("LuckPerms output cleanup is incomplete after disconnect. Owned references are retained.");
+            }
+        }
+    }
     public static void reconcileAll() {
         LuckPermsBridge bridge = getInstance();
         if (bridge.server != null) bridge.server.getPlayerList().getPlayers().forEach(bridge::markAndReconcile);
@@ -72,11 +81,15 @@ public final class LuckPermsBridge {
     }
 
     public synchronized void setAdapterForTests(LuckPermsAdapter replacement) {
+        if (adapter != null && (!outboundNodes.cleanup(adapter) || !adapter.cleanupTransientNodes())) {
+            throw new IllegalStateException("Owned LuckPerms output cleanup is incomplete");
+        }
+        if (adapter != null) adapter.shutdown();
         adapter = replacement == null ? ReflectiveLuckPermsAdapter.create() : replacement;
     }
 
     private synchronized void bind(MinecraftServer value) {
-        shutdown();
+        if (!shutdownOwnedOutput()) return;
         server = value;
         adapter = ReflectiveLuckPermsAdapter.create();
         try {
@@ -93,21 +106,30 @@ public final class LuckPermsBridge {
     }
 
     public synchronized void shutdown() {
+        shutdownOwnedOutput();
+    }
+
+    private boolean shutdownOwnedOutput() {
         if (stageSubscription != null) {
             try { stageSubscription.close(); } catch (Exception ignored) {}
             stageSubscription = null;
         }
-        if (adapter != null) adapter.shutdown();
+        boolean cleaned = adapter == null || outboundNodes.cleanup(adapter);
+        if (adapter != null) {
+            cleaned &= adapter.cleanupTransientNodes();
+            adapter.shutdown();
+        }
         if (registered) {
             NeoForge.EVENT_BUS.unregister(this);
             registered = false;
         }
         dirty.clear();
         queued.clear();
-        outboundManifest.clear();
         rescanRequested = false;
-        adapter = null;
+        if (cleaned) adapter = null;
+        else LOGGER.warn("LuckPerms output cleanup is incomplete. The bridge remains unavailable until cleanup succeeds.");
         server = null;
+        return cleaned;
     }
 
     private synchronized void markDirty(UUID subject) {
@@ -215,13 +237,12 @@ public final class LuckPermsBridge {
     }
 
     private boolean isBridgeOwned(UUID player, String value) {
-        Map<String, OutboundEntry> owned = outboundManifest.getOrDefault(player, Map.of());
-        return owned.values().stream().anyMatch(entry -> entry.value().equals(value));
+        return outboundNodes.containsValue(player, value);
     }
 
     private void reconcileOutbound(ServerPlayer player, LuckPermsAdapter.SubjectSnapshot snapshot, boolean ready) {
         UUID id = player.getUUID();
-        Map<String, OutboundEntry> desired = new LinkedHashMap<>();
+        Map<String, LuckPermsAdapter.NodeSpec> desired = new LinkedHashMap<>();
         if (ready) {
             for (StageId stageId : StageManager.getInstance().getStages(player)) {
                 StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
@@ -234,40 +255,23 @@ public final class LuckPermsBridge {
                     int contextIndex = 0;
                     for (Map<String, String> contexts : contextCombinations(row.contexts())) {
                         String key = stageId + "|" + row.id() + "|" + contextIndex++;
-                        OutboundEntry entry = new OutboundEntry(
+                        desired.put(key, new LuckPermsAdapter.NodeSpec(
                             row.kind() == LuckPermsStageOptions.OutboundKind.GROUP
                                 ? LuckPermsAdapter.NodeKind.GROUP : LuckPermsAdapter.NodeKind.PERMISSION,
-                            row.value(), contexts, key);
-                        desired.put(key, entry);
-                        Map<String, OutboundEntry> previous = outboundManifest.getOrDefault(id, Map.of());
-                        boolean nodeAlreadyOwned = previous.values().stream().anyMatch(existing -> existing.sameNode(entry));
-                        if (!nodeAlreadyOwned) {
-                            adapter.addTransient(id, entry.kind(), entry.value(), entry.contexts(), entry.ownerKey());
-                            record(player, stageId, row.id(), true, "owned_node_added");
-                        }
+                            row.value(), contexts));
                     }
                 }
             }
         }
-        Map<String, OutboundEntry> previous = outboundManifest.getOrDefault(id, Map.of());
-        for (Map.Entry<String, OutboundEntry> previousEntry : previous.entrySet()) {
-            OutboundEntry entry = previousEntry.getValue();
-            if (desired.containsKey(previousEntry.getKey())) continue;
-            if (desired.values().stream().anyMatch(existing -> existing.sameNode(entry))) continue;
-            adapter.removeTransient(id, entry.kind(), entry.value(), entry.contexts(), entry.ownerKey());
-            int separator = previousEntry.getKey().indexOf('|');
-            StageId stage = separator > 0 ? StageId.tryParse(previousEntry.getKey().substring(0, separator)) : null;
-            String row = separator > 0 ? previousEntry.getKey().substring(separator + 1) : previousEntry.getKey();
-            record(player, stage, row, false, "owned_node_removed");
-        }
-        outboundManifest.put(id, desired);
-    }
-
-    private record OutboundEntry(LuckPermsAdapter.NodeKind kind, String value,
-                                 Map<String, String> contexts, String ownerKey) {
-        private boolean sameNode(OutboundEntry other) {
-            return kind == other.kind && value.equals(other.value) && contexts.equals(other.contexts);
-        }
+        outboundNodes.reconcile(id, desired, adapter, (owner, adding, result) -> {
+            int separator = owner.indexOf('|');
+            StageId stage = separator > 0 ? StageId.tryParse(owner.substring(0, separator)) : null;
+            String row = separator > 0 ? owner.substring(separator + 1) : owner;
+            String reason = result == LuckPermsAdapter.MutationResult.APPLIED
+                ? (adding ? "owned_node_added" : "owned_node_removed")
+                : "owned_node_" + result.name().toLowerCase(java.util.Locale.ROOT);
+            record(player, stage, row, adding, reason);
+        });
     }
 
     private static List<Map<String, String>> contextCombinations(Map<String, List<String>> contexts) {

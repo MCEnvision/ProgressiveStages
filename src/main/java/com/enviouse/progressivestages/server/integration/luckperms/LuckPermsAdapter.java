@@ -9,6 +9,15 @@ public interface LuckPermsAdapter {
     enum State { ABSENT, STARTING, READY, FAILED }
     enum PermissionValue { TRUE, FALSE, UNDEFINED }
     enum NodeKind { GROUP, PERMISSION }
+    enum MutationResult { APPLIED, UNAVAILABLE, CONFLICT, FAILED }
+
+    record NodeSpec(NodeKind kind, String value, Map<String, String> contexts) {
+        public NodeSpec {
+            java.util.Objects.requireNonNull(kind);
+            if (value == null || value.isBlank()) throw new IllegalArgumentException("Node value is required");
+            contexts = contexts == null ? Map.of() : Map.copyOf(contexts);
+        }
+    }
 
     record SubjectSnapshot(boolean ready, Set<String> groups,
                            Map<String, PermissionValue> permissions,
@@ -32,9 +41,10 @@ public interface LuckPermsAdapter {
             ? com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.PRESENT
             : com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.UNKNOWN;
     }
-    void addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
+    MutationResult addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
                       String ownerKey);
-    void removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
+    MutationResult removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
                          String ownerKey);
+    default boolean cleanupTransientNodes() { return true; }
     default void shutdown() {}
 }

@@ -12,13 +12,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** reflection-only luckperms adapter. it stays dormant when the optional mod is absent. */
+/** optional luckperms adapter with guarded provider access. */
 final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     private static final Logger LOGGER = LogUtils.getLogger();
     private Object api;
     private final GroupAvailabilityCache groupAvailability = new GroupAvailabilityCache();
     private Method getUser;
-    private Method saveUser;
+    private LuckPermsTransientNodes transientNodes;
+    private boolean closing;
     private Class<?> queryOptionsClass;
 
     static ReflectiveLuckPermsAdapter create() {
@@ -32,9 +33,8 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
         try {
             Class<?> provider = Class.forName("net.luckperms.api.LuckPermsProvider");
             api = provider.getMethod("get").invoke(null);
-            Object users = api.getClass().getMethod("getUserManager").invoke(api);
-            getUser = users.getClass().getMethod("getUser", UUID.class);
-            saveUser = users.getClass().getMethod("saveUser", Class.forName("net.luckperms.api.model.user.User"));
+            getUser = Class.forName("net.luckperms.api.model.user.UserManager").getMethod("getUser", UUID.class);
+            transientNodes = new LuckPermsTransientNodes(api);
             queryOptionsClass = Class.forName("net.luckperms.api.query.QueryOptions");
         } catch (ReflectiveOperationException | LinkageError exception) {
             LOGGER.warn("luckperms integration is unavailable", exception);
@@ -45,7 +45,7 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     @Override
     public State state() {
         if (!ModList.get().isLoaded("luckperms")) return State.ABSENT;
-        return api == null ? State.FAILED : State.READY;
+        return api == null || closing ? State.FAILED : State.READY;
     }
 
     @Override
@@ -140,48 +140,40 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     }
 
     @Override
+    public boolean cleanupTransientNodes() {
+        boolean complete = transientNodes == null || transientNodes.cleanup();
+        if (!complete) LOGGER.warn("LuckPerms output cleanup is incomplete. Owned references are retained for retry.");
+        return complete;
+    }
+
+    @Override
     public void shutdown() {
+        closing = true;
         groupAvailability.clear();
-        api = null;
+        if (cleanupTransientNodes()) api = null;
     }
 
     @Override
-    public void addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
-                             String ownerKey) {
-        mutate(player, kind, value, contexts, ownerKey, true);
-    }
-
-    @Override
-    public void removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
-                                String ownerKey) {
-        mutate(player, kind, value, contexts, ownerKey, false);
-    }
-
-    private void mutate(UUID player, NodeKind kind, String value, Map<String, String> contexts,
-                        String ownerKey, boolean add) {
-        if (api == null || player == null || value == null || value.isBlank()) return;
+    public MutationResult addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
+                                       String ownerKey) {
+        if (api == null || closing || transientNodes == null) return MutationResult.UNAVAILABLE;
         try {
-            Object users = api.getClass().getMethod("getUserManager").invoke(api);
-            Object user = getUser.invoke(users, player);
-            if (user == null) return;
-            Class<?> nodeClass = Class.forName("net.luckperms.api.node.Node");
-            Class<?> builderType = kind == NodeKind.GROUP
-                ? Class.forName("net.luckperms.api.node.types.InheritanceNode") : nodeClass;
-            Object builder = builderType.getMethod("builder", String.class).invoke(null, value);
-            builder.getClass().getMethod("withContext", String.class, String.class)
-                .invoke(builder, "progressivestages_bridge", "active");
-            if (contexts != null) {
-                for (var context : contexts.entrySet()) {
-                    builder.getClass().getMethod("withContext", String.class, String.class)
-                        .invoke(builder, context.getKey(), context.getValue());
-                }
-            }
-            Object node = builder.getClass().getMethod("build").invoke(builder);
-            Object data = user.getClass().getMethod("data").invoke(user);
-            data.getClass().getMethod(add ? "add" : "remove", nodeClass).invoke(data, node);
-            saveUser.invoke(users, user);
-        } catch (ReflectiveOperationException | RuntimeException exception) {
-            LOGGER.debug("unable to update luckperms transient node", exception);
+            return transientNodes.add(player, new NodeSpec(kind, value, contexts), ownerKey);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.debug("Unable to add owned LuckPerms output", exception);
+            return MutationResult.FAILED;
+        }
+    }
+
+    @Override
+    public MutationResult removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
+                                          String ownerKey) {
+        if (transientNodes == null) return MutationResult.APPLIED;
+        try {
+            return transientNodes.remove(player, new NodeSpec(kind, value, contexts), ownerKey);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.debug("Unable to remove owned LuckPerms output", exception);
+            return MutationResult.FAILED;
         }
     }
 }

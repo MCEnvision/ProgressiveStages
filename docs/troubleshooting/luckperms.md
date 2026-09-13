@@ -8,8 +8,9 @@ That exact candidate currently fails actual player login on NeoForge 21.1.248 ev
 ProgressiveStages absent. See the [provider login evidence](../verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure).
 Successful server startup alone does not establish compatibility. The
 [adapter source audit](../verification/luckperms-bridge.md#adapter-source-audit) also identifies
-ProgressiveStages defects in persistence, context isolation, ownership and cleanup. The
-configuration schema is available, but the provider integration is not ready for live acceptance.
+ProgressiveStages defects in persistence, context isolation, ownership and cleanup. Outbound
+storage and reference handling now have an isolated regression tested repair. Context isolation
+and full lifecycle acceptance remain open, so the provider integration is not ready for live use.
 
 ## Configuration
 
@@ -45,11 +46,16 @@ an OR between values for each key. A reserved bridge marker is never accepted in
 
 Outbound rows refer to an existing group or permission. The required behavior is to own only
 transient contributions, remove them when no longer required, and preserve administrative nodes
-and independent membership. The current adapter does not fulfill that contract: it writes through
-`User.data()` and attempts `saveUser`, while shutdown drops the ownership manifest without removing
-nodes. Do not treat disabling the bridge or restarting as proof of cleanup. Any node left by a
-development fixture needs its exact ownership established before removal; a matching permission
-or group name alone does not establish ownership.
+and independent membership. The adapter now writes only transient data and attaches an ownership token to
+created nodes. Equal administrative nodes are not adopted or removed. Overlapping rows retain
+separate references, row replacement removes the old contribution first, and failed operations
+remain retryable. Logout and shutdown attempt exact owned cleanup. A cleanup warning means the
+adapter and references remain retained, and another bind cannot silently replace them.
+
+Actual provider behavior is still unverified. Do not treat restarting as proof of cleanup, and do
+not remove historical persistent nodes merely because their names match a mapping. Any node left
+by an older development fixture needs its exact ownership established before removal. The new
+transient ledger does not retroactively claim or delete those historical nodes.
 
 ## Diagnosis
 

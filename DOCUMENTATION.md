@@ -2871,7 +2871,8 @@ The current exact runtime candidate, LuckPerms 5.4.140, fails actual player logi
 ProgressiveStages is absent. The [dependency only verification](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
 records the failure. A separate [adapter source audit](docs/verification/luckperms-bridge.md#adapter-source-audit)
 also found persistent writes, incomplete context isolation, ownership and cleanup defects in
-ProgressiveStages. These defects remain even if provider login is repaired. The configuration
+ProgressiveStages. The outbound storage and reference repair below addresses part of that audit;
+context isolation and complete provider lifecycle acceptance remain open. The configuration
 below describes the accepted schema and intended runtime contract, not verified provider behavior.
 
 LuckPerms is an optional server integration. A stage may read inherited groups or true Boolean
@@ -2909,11 +2910,21 @@ including costs, rewards, prerequisite grants, expiry refreshes and counter scop
 The complete lifecycle and source preservation matrix remains open.
 
 Outbound output must use attributable transient contributions and preserve administrative nodes,
-independent membership and explicit negative permissions. The current adapter instead calls
-`User.data()` and `saveUser`, ignores its `ownerKey` parameter and uses noncontextual inbound
-queries. Shutdown clears its manifest without removing owned nodes. Therefore transient
-persistence, complete feedback exclusion and safe cleanup are not implemented guarantees in this
-candidate. Keep provider dependent acceptance open until these paths are repaired and verified.
+independent membership and explicit negative permissions. The adapter now delegates mutations to
+`LuckPermsTransientNodes`, which uses only `User.transientData()` and never saves a user. Each
+created node has a private ownership token in node metadata, separate from its permission contexts.
+An equal node without that token is a conflict and is not adopted or removed. Contributors are
+tracked separately by subject, node kind, value, contexts and row owner; the last reference removes
+only the marked node. A row replacement removes its previous contribution before adding the new
+one. Failed or ambiguous writes remain tracked for retry and cleanup.
+
+Logout attempts to remove that subject's output. Shutdown cleans tracked and pending contributions
+before dropping provider access. Incomplete cleanup reports a warning and retains the adapter and
+references; a later bind cannot silently replace them. Mutation diagnostics distinguish applied,
+unavailable, conflict and failed outcomes. These paths have isolated API and core regression
+coverage. Actual provider node behavior, marker invalidation, contextual inbound queries, explicit
+negative precedence, offline reconciliation and the complete lifecycle matrix remain unverified.
+The current noncontextual query and value based input exclusion still require repair.
 
 `command_permissions` is evaluated inside Minecraft's command execution tasks after redirects.
 `ExecuteCommandMixin` checks ordinary execution immediately before `ContextChain.runExecutable`;

@@ -133,6 +133,55 @@ This bounded audit created no test runtime, world, process, downloaded artifact,
 or cache. It read the preexisting shared API cache without changing it. Only the requested
 documentation and this sanitized evidence are retained. No new runtime acceptance was claimed.
 
+## Outbound node regression
+
+The outbound repair replaces reflective persistent writes with an optional typed helper using
+API 5.4 `User.transientData()`. It does not call `data()` or `saveUser`. Created nodes carry a
+random private metadata token, with separate reference sets for each subject, node kind, value
+and context map. Cleanup selects both the exact node and its token. An equal administrative node
+without that token is not adopted or removed. This distinction is necessary because the
+[API node equality contract](https://www.javadocs.dev/net.luckperms/api/5.4/net/luckperms/api/node/Node.html)
+excludes metadata from equality; an ordinary equal node removal would not establish ownership.
+
+The bridge tracks each row contribution, including ambiguous write attempts. A changed row removes
+its old contribution before adding the replacement. Failed removal blocks replacement for that
+row and retains the old reference for retry. Multiple rows sharing a node keep independent
+references. Applied, unavailable, conflict and failed mutation outcomes reach diagnostics without
+reporting a failed operation as a successful addition. Recovery after a failed addition records
+the later applied result.
+
+Logout attempts subject cleanup. Shutdown removes tracked and pending output before releasing
+provider access; incomplete cleanup retains references and the adapter and prevents a new bind
+from silently replacing them. This is a retry boundary, not proof that an unavailable provider
+has removed its nodes. Historical persistent nodes from older candidates are not automatically
+adopted or deleted by the new transient ledger.
+
+Java 21 `./gradlew test build --no-daemon --no-configuration-cache` passed with 335 tests across
+96 suites, no failures, errors or skipped tests. The task graph was inspected before execution
+and starts no client, display or renderer. The repository has no formatter or static analysis
+task in that graph; `git diff --check` passed. The fifteen new tests cover:
+
+- Seven exact API interface fixtures for idempotent references, equal administrative nodes,
+  administrative replacement, an exception after insertion, rejected addition retry, unavailable
+  user and failed cleanup recovery, and distinct node kinds and contexts. These fixtures use
+  dynamic proxies implementing the pinned API. Any persistent user data or save call fails the
+  fixture. They do not initialize a LuckPerms provider or prove its concrete implementation.
+- Six core tracker tests for same row replacement order, overlapping owners, failed removal,
+  ambiguous write recovery, context and kind replacement, and independent permission preservation
+  in the in memory model. The model's explicit negative result is not real provider precedence
+  evidence.
+- Two bridge shutdown tests for removal of overlapping output while preserving external membership
+  and refusal to replace an adapter with unresolved cleanup.
+
+The scoped privilege review covered the transition from stage output to provider mutation and
+the deletion boundary. Node equality alone is insufficient, failed writes cannot be treated as
+confirmed state, and an unavailable user cannot be assumed cleaned. The regression fixtures cover
+those cases. Remaining confirmed gaps are noncontextual inbound queries, value based independent
+input exclusion, missing marker lifecycle and independent negative checks, and incomplete provider
+event, offline and stale generation handling. Their existing BIN-AC-012 gates remain open. This
+repair does not initialize the live bridge before P002-TASK-001 or change the selected runtime,
+NeoForge 21.1.248, Minecraft 1.21.1 or other platform pins.
+
 ## Command execution regression
 
 The implementation and checked in regression fixtures are bound to source commit

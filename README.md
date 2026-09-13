@@ -75,9 +75,10 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   **Also restrict GUI insertion** to create matching held item and inventory insertion rules
   together. Whole bin access remains a separate block right click rule.
 - **Optional LuckPerms configuration.** The builder supports synchronized or permanent inbound
-  mappings and outbound group or permission mappings. The development adapter has unresolved
-  persistence, context, ownership and cleanup defects, and the selected provider fails player
-  login on NeoForge 21.1.248. Runtime integration is not accepted. Command gates retain native
+  mappings and outbound group or permission mappings. Outbound mutations use transient nodes with
+  tracked ownership and cleanup retries. Context isolation and complete provider lifecycle
+  verification remain open, and the selected provider fails player login on NeoForge 21.1.248.
+  Runtime integration is not accepted. Command gates retain native
   permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 
 ## What's new in 3.0.4

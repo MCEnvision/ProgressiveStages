@@ -945,6 +945,7 @@ public class ServerEventHandler {
     @SubscribeEvent
     public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            LuckPermsBridge.disconnect(player);
             StructureSessionManager.getInstance().closeAll(player, StructureLeaveOutcome.DISCONNECT);
             lastScanTime.remove(player.getUUID());
             lastDimensionCheck.remove(player.getUUID());

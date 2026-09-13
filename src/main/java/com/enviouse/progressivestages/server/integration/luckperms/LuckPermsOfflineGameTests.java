@@ -169,6 +169,94 @@ public final class LuckPermsOfflineGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void offlineDraftRejectionPreservesLiveStateAndCommitsOnceWhenCurrent(GameTestHelper helper) throws Exception {
+        try (Fixture fixture = new Fixture(helper)) {
+            fixture.order.registerStage(definition(CHEF, false, Map.of()));
+            fixture.order.registerStage(definition(RETAINED, true, Map.of()));
+            var firstSource = new PermissionStageSource(FIRST, "chef", false);
+            var retainedSource = new PermissionStageSource(FIRST, "chef", true);
+            fixture.data.grantStageFromSource(SHARED.id(), CHEF, firstSource.label());
+            fixture.data.grantStageFromSource(SHARED.id(), CHEF, source(SECOND, false));
+            fixture.data.grantStageFromSource(SHARED.id(), CHEF, "independent");
+            fixture.data.putPermissionEpisode(new com.enviouse.progressivestages.common.stage.PermissionEpisode(
+                SHARED, CHEF, FIRST, "chef", "", true, false, 1000, 0));
+            var before = TeamStageData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, fixture.data).getOrThrow();
+            var activeBefore = fixture.data.getEffectiveSources(SHARED, CHEF);
+            long revision = fixture.manager.getMutationRevision();
+            var clocks = com.enviouse.progressivestages.server.triggers.StageRegressionData.get(fixture.server);
+            long chefClock = clocks.getGrantTime(SHARED, CHEF), retainedClock = clocks.getGrantTime(SHARED, RETAINED);
+            var context = fixture.manager.captureOfflinePermissionContext(FIRST);
+            var observations = Map.of(CHEF, Map.of(firstSource, new StageManager.PermissionObservation("", false)),
+                RETAINED, Map.of(retainedSource, new StageManager.PermissionObservation("", true)));
+            var desired = Map.of(RETAINED, Set.of(retainedSource.label()));
+            int[] checks = {0}, publications = {0};
+            try (var subscription = fixture.manager.subscribeCommittedStageChanges(result -> {
+                if (!result.reason().equals("source_reconciled")) return;
+                publications[0]++;
+                helper.assertTrue(!fixture.data.getSources(SHARED, CHEF).contains(firstSource.label())
+                    && fixture.data.hasEffectiveStage(SHARED, RETAINED)
+                    && clocks.getGrantTime(SHARED, RETAINED) > 0,
+                    "An offline listener must see the complete withdrawal, grant and acquisition clock.");
+            })) {
+                boolean accepted = fixture.manager.reconcileOfflinePermissionSources(context, desired, observations, () -> {
+                    if (++checks[0] == 1) return true;
+                    helper.assertTrue(before.equals(TeamStageData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,
+                        fixture.data).getOrThrow()) && activeBefore.equals(fixture.data.getEffectiveSources(SHARED, CHEF))
+                        && revision == fixture.manager.getMutationRevision() && publications[0] == 0,
+                        "Draft evaluation must not expose tentative source, history, activity or revision changes.");
+                    return false;
+                });
+                helper.assertTrue(!accepted && checks[0] == 2 && publications[0] == 0
+                    && revision == fixture.manager.getMutationRevision()
+                    && before.equals(TeamStageData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, fixture.data).getOrThrow())
+                    && activeBefore.equals(fixture.data.getEffectiveSources(SHARED, CHEF))
+                    && chefClock == clocks.getGrantTime(SHARED, CHEF)
+                    && retainedClock == clocks.getGrantTime(SHARED, RETAINED),
+                    "Rejected input must leave all live sources, history, clocks and publications unchanged.");
+                helper.assertTrue(fixture.manager.reconcileOfflinePermissionSources(context, desired, observations, () -> true)
+                    && publications[0] == 1 && fixture.manager.getMutationRevision() == revision + 1,
+                    "A fresh offline transaction must commit and publish exactly once.");
+                helper.assertTrue(fixture.data.getSources(SHARED, CHEF).equals(Set.of(source(SECOND, false), "independent")),
+                    "Offline replacement must preserve independent grants and other subjects.");
+                helper.assertTrue(fixture.manager.reconcileOfflinePermissionSources(context, desired, observations, () -> true)
+                    && publications[0] == 1 && fixture.manager.getMutationRevision() == revision + 1,
+                    "An unchanged offline transaction must not publish or advance the revision.");
+                helper.succeed();
+            } finally {
+                if (chefClock <= 0) clocks.clear(SHARED, CHEF); else clocks.markGranted(SHARED, CHEF, chefClock);
+                if (retainedClock <= 0) clocks.clear(SHARED, RETAINED); else clocks.markGranted(SHARED, RETAINED, retainedClock);
+            }
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void offlineDraftRejectsAConcurrentStageMutationWithoutUndoingIt(GameTestHelper helper) throws Exception {
+        try (Fixture fixture = new Fixture(helper)) {
+            fixture.order.registerStage(definition(RETAINED, true, Map.of()));
+            fixture.order.registerStage(StageDefinition.builder(DEPENDENCY).scope("server").build());
+            var context = fixture.manager.captureOfflinePermissionContext(FIRST);
+            var clocks = com.enviouse.progressivestages.server.triggers.StageRegressionData.get(fixture.server);
+            long previousClock = clocks.getGrantTime(SHARED, DEPENDENCY);
+            long revision = fixture.manager.getMutationRevision();
+            int[] checks = {0};
+            try {
+                boolean accepted = fixture.manager.reconcileOfflinePermissionSources(context,
+                    Map.of(RETAINED, Set.of(source(FIRST, true))), () -> {
+                        if (++checks[0] == 2) fixture.manager.grantStageToTeam(SHARED.id(), DEPENDENCY);
+                        return true;
+                    });
+                helper.assertTrue(!accepted && !fixture.data.hasEffectiveStage(SHARED, RETAINED)
+                    && fixture.data.hasEffectiveStage(SHARED, DEPENDENCY)
+                    && fixture.manager.getMutationRevision() == revision + 1,
+                    "A concurrent explicit grant must survive while the stale offline draft is discarded.");
+                helper.succeed();
+            } finally {
+                if (previousClock <= 0) clocks.clear(SHARED, DEPENDENCY); else clocks.markGranted(SHARED, DEPENDENCY, previousClock);
+            }
+        }
+    }
+
     private static String source(UUID subject, boolean permanent) {
         return new PermissionStageSource(subject, "chef", permanent).label();
     }

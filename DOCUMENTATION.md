@@ -5197,3 +5197,24 @@ the public mutation revision resets. A rejected publication withdraws the matchi
 prepare step is required before it can publish again. This does not make multiple external node writes
 atomic. Actual LuckPerms cache invalidation, permission consumption and provider concurrency remain
 separate runtime acceptance gates.
+
+
+### Offline permission transaction consistency
+
+Offline reconciliation evaluates source expiration, obsolete owner withdrawal, eligibility history,
+dependencies, slots, purchases and retained grants in a subject limited permission view. Evaluation
+does not write live sources, episode history, acquisition clocks or mutation revisions. It runs only
+on the server thread and rejects a subject that is currently online.
+
+Before committing, the manager checks provider validity, server identity, the stage mutation
+generation and revision, attachment identity, current offline status and the captured definition and
+membership context. Rejected drafts leave live state untouched. Pending source deactivation remains a
+separate response to unavailable provider data; rejection does not attempt partial rollback or erase
+an independently committed change.
+
+A valid draft replaces only its subject's contributions and episode history. Independent earnings,
+other subjects and distinct owner namespaces retain their existing state. Acquisition clocks are
+restored before notifications. A changed transaction advances one revision and publishes one result
+with its captured recipients and committed revision; an unchanged transaction publishes nothing.
+The existing synchronized and permanent retention, suppression and expiry rules are unchanged.
+Actual offline provider loads and complete multiplayer recovery remain separate acceptance gates.

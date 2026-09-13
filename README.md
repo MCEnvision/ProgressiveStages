@@ -86,6 +86,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   deliberate administrative changes made by a listener after that commit.
   Outbound updates recheck the captured state between provider writes and before publication.
   Rejected updates retain exact node ownership for cleanup and retry.
+  Offline source and eligibility changes also use an isolated draft and commit together only
+  while the captured provider, stage, membership and server state remains current.
   Runtime integration is not accepted. Command gates retain native
   permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 

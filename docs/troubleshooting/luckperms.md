@@ -216,3 +216,10 @@ or disconnect can remove submitted nodes. Independent earnings survive this retr
 stage revoke remains effective. A context marker is eligible only while its captured stage,
 provider, membership and definition generations remain current. Core regressions cover these guards;
 actual provider caches and joined player permission behavior still require runtime acceptance.
+
+Offline source updates now evaluate qualification and history in an isolated draft. If the provider,
+stage state, owner context, server lifecycle or attachment changes before commit, the draft is
+rejected without altering live sources or clocks. A fresh valid update commits the subject's source
+and history changes together and publishes once. This preserves independent and permanent ownership
+under the existing retention rules. It does not make unavailable input authoritative or replace
+actual provider and multiplayer verification.

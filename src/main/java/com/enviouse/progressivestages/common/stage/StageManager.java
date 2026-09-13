@@ -576,101 +576,104 @@ public class StageManager {
     public boolean reconcileOfflinePermissionSources(OfflinePermissionContext context, Map<StageId, Set<String>> desired,
             Map<StageId, Map<PermissionStageSource, PermissionObservation>> observations,
             java.util.function.BooleanSupplier current) {
-        if (server == null || server.getPlayerList().getPlayer(context.subject()) != null
+        if (server == null || !server.isSameThread() || server.getPlayerList().getPlayer(context.subject()) != null
             || !current.getAsBoolean() || !context.equals(captureOfflinePermissionContext(context.subject()))) return false;
-        TeamStageData data = getTeamStageData();
-        List<PermissionEpisode> previousEpisodes = data.getPermissionEpisodes(context.subject());
-        Set<OwnerRef> changed = new LinkedHashSet<>();
+        MinecraftServer capturedServer = server;
+        long expectedRevision = mutationRevision;
+        var stagesCurrent = mutationGuard();
+        TeamStageData live = getTeamStageData();
+        TeamStageData draft = live.copyPermissionView(context.subject(), context.owners());
         long now = System.currentTimeMillis();
-        for (var contribution : data.getPermissionContributions(context.subject())) {
-            PermissionEpisode episode = data.getPermissionEpisode(contribution.owner(), contribution.stage(), contribution.source());
-            if (episode != null && episode.expired(now)
-                && data.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label())) {
-                changed.add(contribution.owner());
+        for (var contribution : draft.getPermissionContributions(context.subject())) {
+            PermissionEpisode episode = draft.getPermissionEpisode(contribution.owner(), contribution.stage(), contribution.source());
+            if (episode != null && episode.expired(now)) {
+                draft.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label());
             }
         }
         observations.forEach((stage, rows) -> {
             OwnerRef owner = context.owners().get(stage);
             if (owner != null) rows.forEach((source, observation) -> {
-                if (source.subject().equals(context.subject())) observePermissionEligibility(owner, stage, source, observation);
+                if (!source.subject().equals(context.subject()) || observation == null) return;
+                PermissionEpisode previous = draft.getPermissionEpisode(owner, stage, source);
+                if (previous == null && !observation.eligible()) return;
+                draft.putPermissionEpisode(previous == null
+                    ? new PermissionEpisode(owner, stage, source.subject(), source.row(), observation.fingerprint(), true, false, 0, 0)
+                    : previous.observe(observation.fingerprint(), observation.eligible()));
             });
         });
-        List<TeamStageData.PermissionContribution> added = new ArrayList<>();
-        for (TeamStageData.PermissionContribution contribution : data.getPermissionContributions(context.subject())) {
+        for (TeamStageData.PermissionContribution contribution : draft.getPermissionContributions(context.subject())) {
             if (contribution.source().permanent()) continue;
             if (!contribution.owner().equals(context.owners().get(contribution.stage()))
                 || !desired.getOrDefault(contribution.stage(), Set.of()).contains(contribution.source().label())) {
-                if (data.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label())) {
-                    changed.add(contribution.owner());
-                }
+                draft.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label());
             }
         }
         for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
             OwnerRef resolved = context.owners().get(stage);
             if (resolved == null) continue;
-            StageDefinition definition = StageOrder.getInstance().getStageDefinition(stage).orElseThrow();
+            StageDefinition definition = context.definitions().get(stage);
             Set<String> sources = desired.getOrDefault(stage, Set.of());
             Set<StageId> effective = new HashSet<>();
-            context.owners().forEach((id, owner) -> { if (data.hasEffectiveStage(owner, id)) effective.add(id); });
+            context.owners().forEach((id, owner) -> { if (draft.hasEffectiveStage(owner, id)) effective.add(id); });
             StageSlotResolver.Decision slot = StageSlotResolver.resolve(definition, effective,
-                id -> StageOrder.getInstance().getStageDefinition(id), id -> grantTime(context.owners().get(id), id));
+                id -> Optional.ofNullable(context.definitions().get(id)), id -> grantTime(context.owners().get(id), id));
             boolean qualified = StageOrder.getInstance().getMissingDependencies(effective, stage).isEmpty()
                 && slot.allowed() && slot.replacements().isEmpty()
-                && (!definition.isPurchasable() || hasOwned(data, resolved, stage));
+                && (!definition.isPurchasable() || hasOwned(draft, resolved, stage));
             if (qualified) {
                 for (String source : sources) {
                     var parsed = PermissionStageSource.parse(source);
                     if (parsed.isEmpty() || !parsed.get().subject().equals(context.subject())) continue;
-                    if (!preparePermissionGrant(resolved, stage, source)) {
-                        if (data.revokeStageFromSource(resolved, stage, source)) changed.add(resolved);
-                        continue;
+                    PermissionEpisode episode = draft.getPermissionEpisode(resolved, stage, parsed.get());
+                    if (episode != null) {
+                        if (!episode.positive() || episode.suppressed()) {
+                            draft.revokeStageFromSource(resolved, stage, source);
+                            continue;
+                        }
+                        episode = episode.acquire(now, hasOwned(draft, resolved, stage) ? grantTime(resolved, stage) : 0,
+                            definition.getDurationMillis());
+                        draft.putPermissionEpisode(episode);
+                        if (episode.expired(now)) {
+                            draft.revokeStageFromSource(resolved, stage, source);
+                            continue;
+                        }
                     }
-                    Set<String> before = data.getSources(resolved, stage);
-                    Set<String> activeBefore = data.getEffectiveSources(resolved, stage);
-                    grantOwnedFromSource(data, resolved, stage, source);
-                    if (!before.contains(source)) added.add(new TeamStageData.PermissionContribution(resolved, stage, parsed.get()));
-                    if (!before.equals(data.getSources(resolved, stage))
-                        || !activeBefore.equals(data.getEffectiveSources(resolved, stage))) changed.add(resolved);
+                    grantOwnedFromSource(draft, resolved, stage, source);
                 }
             } else {
-                for (String source : data.getSources(resolved, stage)) {
+                for (String source : draft.getSources(resolved, stage)) {
                     PermissionStageSource.parse(source).filter(parsed -> parsed.subject().equals(context.subject())
-                        && !parsed.permanent()).ifPresent(parsed -> {
-                            if (data.revokeStageFromSource(resolved, stage, source)) changed.add(resolved);
-                        });
+                        && !parsed.permanent()).ifPresent(parsed -> draft.revokeStageFromSource(resolved, stage, source));
                 }
             }
         }
-        boolean valid = current.getAsBoolean() && context.equals(captureOfflinePermissionContext(context.subject()));
-        if (!valid) {
-            data.restorePermissionEpisodes(context.subject(), previousEpisodes);
-            for (var contribution : added) {
-                data.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label());
-            }
-            changed.addAll(data.deactivatePermissionSources(context.subject()));
-        }
-        if (valid) {
-            for (var contribution : data.getPermissionContributions(context.subject())) {
-                if (data.getEffectiveSources(contribution.owner(), contribution.stage()).contains(contribution.source().label())) {
-                    restorePermissionClock(contribution.owner(), contribution.stage(), contribution.source().label());
-                }
+        if (!current.getAsBoolean() || server != capturedServer || !stagesCurrent.getAsBoolean()
+            || mutationRevision != expectedRevision || live != getTeamStageData()
+            || server.getPlayerList().getPlayer(context.subject()) != null
+            || !context.equals(captureOfflinePermissionContext(context.subject()))) return false;
+        Set<OwnerRef> changed = live.replacePermissionSubject(context.subject(), draft);
+        for (var contribution : live.getPermissionContributions(context.subject())) {
+            if (live.getEffectiveSources(contribution.owner(), contribution.stage()).contains(contribution.source().label())) {
+                restorePermissionClock(contribution.owner(), contribution.stage(), contribution.source().label());
             }
         }
-        notifyOfflinePermissionChange(changed, valid ? "source_reconciled" : "source_pending");
-        return valid;
+        notifyOfflinePermissionChange(changed, "source_reconciled");
+        return true;
     }
 
     private void notifyOfflinePermissionChange(Set<OwnerRef> owners, String reason) {
         if (owners.isEmpty() || server == null) return;
         markMutation(true);
-        for (UUID recipient : affectedPlayers(null, true, owners)) {
+        Set<UUID> recipients = Set.copyOf(affectedPlayers(null, true, owners));
+        StageMutationResult result = new StageMutationResult(true, reason, mutationRevision, Set.copyOf(owners), recipients);
+        for (UUID recipient : recipients) {
             ServerPlayer online = server.getPlayerList().getPlayer(recipient);
             if (online != null) {
                 syncToPlayer(online);
                 fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
             }
         }
-        publishMutation(null, null, true, reason, Set.copyOf(owners));
+        publishMutation(result);
     }
 
     public Set<String> getStageSources(ServerPlayer player, StageId stageId) {

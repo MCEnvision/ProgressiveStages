@@ -1131,3 +1131,101 @@ source and unrelated worktrees were preserved. Temporary logs and launch metadat
 after recording this evidence. The authoritative plan, immutable goal and active phase cursor
 remained unchanged. Client and browser verification, actual provider and script compatibility,
 offline acquisition effects, final integration and the other plan wide gates remain open.
+
+## Explicit offline acquisition verification, September 13, 2026
+
+Source commit `6fda0abd33f977d5ba9c011a626a3409581e369f` implements explicit offline grants and
+reserved acquisition rewards under BIN-AC-011B. The current actor context validates ownership,
+definitions and membership before mutation. Offline and connected grants share the dependency
+plan and slot resolver. Offline grants prepare a copy of the ownership attachment, add independent
+ownership and original reward receipts, and install that complete draft only after qualification
+succeeds. Denied dependencies and slots do not install partial changes.
+
+`pending_reward_schema = 1` and `pending_rewards` extend the existing ownership attachment.
+A receipt carries its unique identity, actor, typed owner, stage and original item, effect,
+command, teleport and XP values. Copies preserve pending entries. Duplicate receipts, unsupported
+versions, malformed identities and invalid reward records reject loading; the existing attachment
+serializer preserves unreadable original data. Independent acquisition while derived access exists
+creates its ordinary independent ownership and one receipt. A duplicate grant creates no new
+receipt and does not refresh its acquisition clock.
+
+Grant clocks for the entire acquisition are committed before offline change listeners run. A
+returning actor consumes each receipt before its effects execute. Delivery checks the current
+attachment for every receipt so a command that replaces progression state cannot make later
+receipts consume from an obsolete object. Ownership or reward edits do not rewrite reserved
+values. A teammate cannot collect them. Normal save/load of consumed state and repeated login
+synchronization do not replay acquisition events, effects or expiry. Legacy player callbacks are
+not impersonated or replayed; explicit offline changes use `StageActorChangeEvent`.
+
+### Verification matrix
+
+The owned runtime was the active checkout's ignored `build/offline-grant-verification` child on
+`node-1`. It used Java 21, Minecraft 1.21.1, NeoForge 21.1.248 and the candidate without optional
+mods. Authentication remained enabled on a loopback listener, with RCON and query disabled.
+EULA acceptance was written and read back before each launch. No client, renderer, browser,
+authenticated login or actual third party provider was used.
+
+The new fixtures call the public actor resolution and mutation APIs while the actor is absent
+from the connected player lookup. They use actual ownership codecs, grant clocks and return
+synchronization. Reward delivery uses a normal `ServerPlayer` and `ServerGamePacketListenerImpl`
+with an unconnected fixture transport so server teleport handling executes. The teammate uses a
+fake player. These objects are server fixtures and do not prove client receipt or authenticated
+login. The fixture membership adapter and linear progression setting are restored afterward.
+
+| Final candidate test | Result and server local time |
+|---|---|
+| `offlinepersonalacquisitionsdeliveroriginalrewardsonce` | Passed at 07:19:04 and again at 07:19:53 |
+| `offlineteamacquisitionspreservetherewardactor` | Passed at 07:19:07 |
+| `offlineserveracquisitionspreservetherewardactor` | Passed at 07:19:10 |
+| `offlineprerequisitesresolvetheirownowners` | Passed at 07:19:13 |
+| `stalemembershipcannotgrantorrevokewiththesameowner` | Passed at 07:19:43 |
+| `offlinepersonalrevokepreservessharedmilestones` | Passed at 07:19:46 |
+| `independentearningafterpermissionaccessemitsoneacquisition` | Passed at 07:19:49 |
+
+Each test cleared prior structure state and ran at `0 180 0`. Fresh lime success glass plus exact
+structure metadata were required before its success marker. The grant fixtures cover dependency
+denial when only a teammate owns a personal prerequisite, slot denial with unchanged encoded
+ownership and no receipt, all three root owners, automatic personal prerequisites, independently
+earning while a permanent derived source exists, complete clocks visible to listeners, duplicate
+grants, pending save/load, changed scope and reward definition, another actor's return, original
+reward delivery, repeated synchronization and consumed state save/load. Delivery produces four
+bread, the configured speed effect, server position `1 180 1`, five XP levels and one additional
+level from the actual reward command. It does not produce the later configured hundred levels.
+Definitions, attachments, clocks, provider state, configuration, listeners and player lookups are
+restored by each fixture.
+
+An initial unit assertion expected an error result where malformed versioned data throws during
+construction; its corrected assertion still requires rejection. The first server fixture used a
+fake player's connection, which deliberately skips teleport handling in this NeoForge version.
+Replacing that transport with the normal server implementation retained the original reward and
+teleport assertions. The final development server reached readiness at 07:18:33 and stopped
+normally at 07:20:30 after all eight runs. Its complete console had no error or exception lines.
+
+### Artifact and cleanup
+
+The final precommit `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build`
+passed in fourteen seconds. All 415 unit tests in 107 suites passed with zero failures, errors or
+skips. The postcommit build passed in three seconds. `git diff --check` passed; no formatter is
+configured. All 792 packaged project classes matched the exact compiled bytes exercised by the
+final GameTests. The manifest records the source commit above and `Build-Dirty: false`. Optional
+provider API classes are not bundled. GitHub verified the signed source commit on the phase branch.
+
+- JAR SHA-256: `7047a04c70f42a545c040833cc6b0886ab41d4518e8fa402b8f988fa98c99821`.
+- JAR SHA-512: `469276c4b43074788cf5192d74f4e539d1f7cfd54d784e51b10707a7476b64b358b327b2ca7ecb762d854da46b88b477079f9ab52d353976c2b91cabb9b52207`.
+
+The packaged candidate reached dedicated readiness at 07:22:18, returned game time 7174 at
+07:22:53 and stopped normally in the same minute with exit code zero. Its complete console had
+no error or exception lines.
+
+Cleanup verified owned PIDs 959018, 963083, 969939 and 975532 absent, the test port free and no
+process working directory under the runtime. Removing 1259 new build paths and eight local
+Gradle paths restored the exact 836 path build and 26 path local Gradle baselines. The runtime
+was absent afterward. The source bound candidate, preexisting `run-248`, shared libraries, source
+and unrelated worktrees were preserved. Temporary logs and launch metadata were removed after
+recording this evidence. The plan, immutable goal and active phase cursor stayed unchanged.
+
+Actual KubeJS actor mutation and event compatibility, actual provider behavior, authenticated
+client and browser journeys, the broader lifecycle and recovery matrix, security and final phase
+integration remain separate unfinished gates. Normal receipt persistence evidence is not proof
+of crash atomicity across arbitrary external reward commands and separate player saves. This
+increment does not close BIN-AC-011B or claim plan wide completion.

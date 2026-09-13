@@ -848,3 +848,98 @@ exited, port 25589 had no listener, and the disposable runtime was removed witho
 library symlink. Cleanup removed 659 additional build entries and 0 local Gradle entries created
 by this suite. Preexisting output paths and shared dependencies were preserved. The temporary
 launch configuration and ownership receipt were removed after evidence retention.
+
+
+## Permission episode regression
+
+Source commits `34f763b3cf7171e23dc1c0fe2f17f034e678b977` and
+`1b5c90760f731a5315fa0eab4a77ecafe93b8499` add durable permission eligibility history and correct
+first qualification, expiry and fixture isolation. Both commits are signed and pushed to the active
+Phase 003 branch. This is core correction evidence for BIN-REQ-012 and BIN-REQ-014, not phase completion.
+
+History survives source withdrawal, manual revocation, attachment encode/decode and copy. The
+first qualified acquisition fixes its clock. Unavailable input and changed contexts do not prove
+independent eligibility loss. The original conditions becoming false and then true can rearm the
+episode; an administrative grant can clear suppression. Timed permanent sources expire before a
+returning rank opens another episode. Expiry polling updates owner views without waiting for a
+provider callback. Independent acquisition after derived access emits its normal event exactly once.
+
+The exact NeoForge 21.1.248 `AttachmentHolder` catches deserialization exceptions and skips the
+failed attachment. The registered stage serializer now retains the original unreadable NBT in a
+state that rejects mutations. The actual attachment read, save and copy fixture verifies complete
+payload equality for a future schema. Its deliberate error log is expected evidence, not a server failure.
+
+### Automated and dedicated checks
+
+Java 21 with the checked in wrapper completed `./gradlew test build`. The final reports contain
+399 tests across 105 suites, with zero failures, errors or skips. `git diff --check` passed. No resource
+provider changed, and no additional formatter task is configured in this checkout. The inspected
+`runServer` graph launches only the dedicated server and no client or renderer.
+
+The final dedicated run used `node-1`, Minecraft 1.21.1, NeoForge 21.1.248 and the active Phase 003
+checkout. Its owned runtime was
+`/mnt/hermes/projects/ProgressiveStages/.phase-worktrees/phase-003/build/permission-episode-verification`.
+EULA readback was `eula=true`, authentication remained enabled and the listener stayed at
+`127.0.0.1:25589`. PID `451256` reached readiness at 01:49:27 on September 13, 2026,
+America/Chicago. Eleven actual dispatcher invocations covered ten distinct GameTests, including
+one immediate repeat to verify fixture isolation. Every invocation had matching structure metadata
+and a fresh lime success marker. The fixture area was cleared between invocations.
+
+| GameTest | Passing server time | Contract checked |
+|---|---|---|
+| `permissionrevocationsurvivesreloadandonlyindependentlossrearms` | 01:50:23 | Initial world qualification, durable revoke, provider absence, context and retention changes, genuine loss/return and administrative grant |
+| `permissionexpirysurvivescontextlossandofflinereconciliation` | 01:50:30 | Both retention modes, fixed clocks, polling, offline expiry/rearm, invalidated observation rollback and a returning permanent source |
+| `independentearningafterpermissionaccessemitsoneacquisition` | 01:50:36 | Derived changes emit no ordinary acquisition/revocation events; independent earning emits one event and survives rank loss |
+| `unreadableepisodeattachmentsremainintactaftersave` | 01:50:42 | Future schema rejects mutations and preserves the complete attachment through actual save and copy |
+| `permissionsourcespreserveothersubjectsandindependentearnings` | 01:50:49 and 01:50:55 | Contributor separation, independent retention, dependencies, purchase denial and repeatable isolation |
+| `permissionownerchangeswithdrawstalecontributions` | 01:51:02 | Obsolete owner withdrawal before new grants and preserved unrelated history |
+| `offlinesourcesrevalidatewithoutaplayerandpreserveotherowners` | 01:51:08 | Static contexts, personal/shared contributors and retained sources without an online player |
+| `offlineresultsrejectstaledefinitionsandunqualifiedgrants` | 01:51:15 | Stale owner/definition rejection and qualification guards |
+| `offlinerescanconvergeswhilecontributorsareremoved` | 01:51:21 | All 300 seeded contributors, at most eight loads and sixteen subject operations per tick |
+| `personalclocksdriveexpiryheldconditionsandslotage` | 01:51:27 | Owner clock isolation, held conditions, expiry and slot age |
+
+The server saved all dimensions and exited normally after `stop` at 01:52:09. Earlier iterations
+exposed private helper references in the unit tests, the distinction between a codec error result
+and a thrown constructor validation error, and retained history in older GameTest fixtures.
+The affected fixtures now isolate their attachment state and restore the original attachment;
+no failing assertion was removed. The final source fixture repeat and complete 300-subject scan passed.
+
+### Packaged candidate
+
+The clean final JAR has SHA256
+`59d5af457041c6100bcc2dcd413eea292f39f48a25e0ee403465dff97c70cc50`.
+Its manifest names source commit `1b5c90760f731a5315fa0eab4a77ecafe93b8499` and `Build-Dirty: false`.
+All 761 project class entries match compiled output, and no LuckPerms API classes are bundled.
+The postcommit wrapper build passed with the same pinned platform and dependencies.
+
+The same owned runtime then loaded only the packaged mod and the pinned loader. Production PID
+`458202` reached readiness at 01:53:09. At 01:54:07, `time query gametime` returned `22885` and
+`stage debug permissions status` reported stopped capture, zero records, zero bytes, zero queued
+records and an idle writer. This proves common initialization and a dormant optional integration.
+It does not prove a real LuckPerms player login or permission cache behavior.
+
+### Remaining acceptance
+
+The complete real provider, membership revision, row edit, administrative/reset, callback generation,
+command provider and multiplayer lifecycle matrix remains open. These server fixtures use controlled
+provider observations and do not replace actual LuckPerms, FTB Teams, Brave or laptop acceptance.
+No client, browser, graphical process or laptop resource was started in this suite. No phase merge,
+phase tag, wiki publication or release is claimed.
+
+
+### Cleanup receipt
+
+The final packaged server stopped at 01:55:08 and saved every dimension before normal exit at
+01:55:09 on September 13, 2026, America/Chicago. All registered server PIDs were absent after the
+suite, no Java process retained the owned runtime as its working directory, and the private port
+could be bound again. Earlier development and packaged candidates were stopped before replacement.
+The intermediate development session whose PID was not recorded also returned a normal terminal
+exit; the final process and runtime checks found no leftover server.
+
+Cleanup removed 1076 test-created build paths and 18 test-created local Gradle paths.
+The original 836 build paths and 26 local Gradle paths were preserved. The owned runtime, its worlds,
+configuration, logs, copied JAR and library symlink were removed. The symlink target, shared dependency
+caches, preexisting `run` and `run-248` directories, current candidate artifact and all source/worktrees
+were preserved. The three metadata-only scratch files and their unique temporary directory were
+removed after their final consumer. No laptop, browser or audio resources required teardown.
+The immutable goal and active phase cursor retain their previous digests.

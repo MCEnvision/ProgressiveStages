@@ -214,6 +214,74 @@ remained. The intended candidate JAR, source, evidence, preexisting runtimes and
 caches were preserved. The goal and cursor hashes remained unchanged. The owned Gradle runs were
 terminal and left no single use daemon running.
 
+## Online reconciliation queue regression
+
+Source commit `f5bceb64c21e8a4294129282b7ccfd56cddb6a04` repairs the online overflow path
+identified in the adapter audit. Previously, overflow cleared queued subjects, and the next drain
+attempted to enqueue the entire online population. A population larger than the queue could
+repeatedly clear earlier work. The new queue retains at most 256 pending subjects and resumes a
+separate population cursor. Dirty work and scan work alternate within sixteen bridge
+reconciliations per tick. New overflow requests a followup pass without restarting an active one.
+Disconnect requests another pass to cover player list index changes, and shutdown clears all
+queue and cursor state. No complete population copy or unbounded enqueue loop occurs in a poll.
+
+Java 21 `./gradlew test build --no-daemon --no-configuration-cache` passed 354 tests across 99 suites,
+with no failures, errors or skips. Eight queue regressions cover a 1,024 subject overflow,
+duplicate events, sustained traffic during a scan, a followup scan, removal of an earlier list
+member, sixteen indexed reads against a virtual million subject population, shutdown and empty
+population behavior. The clean postcommit build passed with unchanged tests up to date.
+
+On September 12, 2026, the isolated development dedicated server on `node-1` reached readiness at
+22:03:12 America/Chicago using Java 21.0.11, Minecraft 1.21.1 and NeoForge 21.1.248. The inspected
+`runServer` task graph and `forgeserverdev --nogui` target started no client or renderer.
+`LuckPermsQueueGameTests.overflowingPermissionEventsReachEveryOnlineSubject` ran through the real
+GameTest dispatcher at 22:03:23. It temporarily registers 300 synthetic server player identities
+in the isolated server's player list and invokes the actual bridge tick method 64 times with a
+counting adapter. It verifies all 300 subjects reach reconciliation, no call queries more than
+sixteen subjects, the queue stays at or below 256, and the scan finishes. Its `finally` block
+removes only fixture players and restores definitions, queue and adapter state. This is a core
+queue integration fixture, not 300 networked clients, real provider events or elapsed tick latency.
+
+At 22:03:33, the structure metadata identified the exact test and the lime success marker emitted
+`permission_queue_regression_pass`. The marker was cleared before running
+`permissionQueriesWithdrawDeniedAndUnavailableOutput` at 22:03:54. At 22:04:15 its exact metadata
+and fresh lime marker emitted `permission_query_after_queue_pass`, verifying the existing
+withdrawal path after fixture cleanup. The server stopped through its console at 22:04:29,
+saved all dimensions and exited normally. No laptop resource or live LuckPerms provider was used.
+
+The clean JAR SHA256 is `aa9621c30ddcb187b1066cb0c059501cca8f6e7c5eb9e3a88730a02db0ba4379`,
+with `Build-Commit` bound to the source commit above and `Build-Dirty: false`. All 734 project
+class entries match compiled output, and no LuckPerms API classes are bundled. No frontend or
+packaged editor asset changed. GitHub verified the signed source commit on the Phase 003 branch.
+
+This repair does not close BIN-AC-012F. Immediate full reconciliation on reload is still separate,
+and persisted offline contributor rescans, eight concurrent loads, provider event invalidation,
+epoch and membership guards, marker lifecycle and measured real provider convergence remain
+required. The exact dependency only login failure is unchanged. The scoped review found no new
+persistent provider writes, blocking loads, provider thread game mutation or optional API linkage
+in the queue. Code index results mixed projects and old worktrees; bounded active source
+inspection supplied the missing coverage.
+
+The same clean JAR then ran through the production `forgeserver --nogui` launcher in
+`build/reconcile-queue-verification` inside the Phase 003 worktree on `node-1`. Both launches
+used verified `eula=true`, loopback port 25589 and online authentication. The production run
+reused the preexisting 21.1.248 libraries through a fixture symlink and installed only the candidate
+mod. It reached readiness at 22:05:48, loaded 50 stage definitions and selected the default
+NeoForge permission handler. At 22:06:41 the console time query returned 2584 and permissions
+capture status reported stopped, zero records and an idle writer. Console stop at 22:06:48 saved
+every dimension and exited normally. This verifies packaged optional classloading and startup,
+not real provider compatibility. Both owned server processes were absent and port 25589 was
+closed before teardown.
+
+Cleanup removed the 967 test created paths under `build`, including the runtime, world, reports,
+test classes, three new compiled project classes, fixture JAR copy and library symlink without
+following its target. No `.gradle` path was added. Both final path inventories exactly matched
+their recorded baselines with no missing preexisting path. The requested clean JAR, source,
+preexisting runtimes, shared libraries and dependency caches remain. All owned build and server
+handles exited; the ownership receipt and init script were removed after their final consumer.
+The loader plan validation passed without changing the plan, research, handoff, goal or cursor,
+and its separate temporary intake was removed. No new laptop resource was created.
+
 ## Independent permission query regression
 
 Source commit `5280889e4ee0cb4270d77a7be5a96206a72b0a34` replaces noncontextual input queries

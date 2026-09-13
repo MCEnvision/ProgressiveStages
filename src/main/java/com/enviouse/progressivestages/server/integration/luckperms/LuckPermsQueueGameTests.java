@@ -79,6 +79,22 @@ public final class LuckPermsQueueGameTests {
             }
             helper.assertTrue(adapter.visited.size() == 300 && queue.size() == 0 && !queue.hasRescan(),
                 "The reload scan must revisit every subject and complete.");
+            adapter.visited.clear();
+            int beforeEvents = adapter.queries;
+            for (var player : fixturePlayers) {
+                for (int event = 0; event < 4; event++) adapter.subjectChanged.accept(player.getUUID());
+            }
+            adapter.allChanged.run();
+            helper.assertTrue(adapter.queries == beforeEvents && queue.size() == 256 && queue.hasRescan(),
+                "Provider callbacks must coalesce in the bounded queue without querying player state.");
+            for (int tick = 0; tick < 64; tick++) {
+                int before = adapter.queries;
+                LuckPermsBridge.tick(server);
+                helper.assertTrue(adapter.queries - before <= 16 && queue.size() <= 256,
+                    "Provider event bursts must share the subject and tick limits.");
+            }
+            helper.assertTrue(adapter.visited.size() == 300 && queue.size() == 0 && !queue.hasRescan(),
+                "Provider subject events and global changes must converge for every online subject.");
             helper.succeed();
         } finally {
             for (var player : fixturePlayers) {
@@ -96,6 +112,13 @@ public final class LuckPermsQueueGameTests {
     private static final class CountingAdapter implements LuckPermsAdapter {
         private final Set<UUID> visited = new HashSet<>();
         private int queries;
+        private java.util.function.Consumer<UUID> subjectChanged;
+        private Runnable allChanged;
+        @Override public boolean subscribeChanges(java.util.function.Consumer<UUID> subjectChanged, Runnable allChanged) {
+            this.subjectChanged = subjectChanged;
+            this.allChanged = allChanged;
+            return true;
+        }
         @Override public State state() { return State.READY; }
         @Override public SubjectSnapshot snapshot(UUID subject) {
             queries++;

@@ -52,6 +52,8 @@ public interface LuckPermsAdapter {
             ? new PermissionResult(true, permission(player, node)) : PermissionResult.unavailable();
     }
     boolean groupExists(String group);
+    default boolean subscribeChanges(java.util.function.Consumer<UUID> subjectChanged, Runnable allChanged) { return true; }
+    default boolean stopListening() { return true; }
     default long prepareProjection(UUID subject, Object target) { return 0; }
     default boolean publishProjection(UUID subject, long ticket) { return true; }
     default boolean invalidateProjection(UUID subject) { return true; }

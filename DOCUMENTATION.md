@@ -2978,6 +2978,22 @@ The adapter reports shutdown completion explicitly, so successful node removal a
 a failed calculator teardown. Core and isolated API verification remain distinct from actual
 provider cache, event, inherited graph and native command behavior.
 
+`LuckPermsEventSubscriptions` subscribes through API 5.4 to user load and unload, node mutation,
+group load, creation, deletion and full load, post synchronization and configuration reload events.
+User events copy the subject UUID; group and global events request a resumable rescan. These
+callbacks only invalidate projection state and enqueue work. They do not call StageManager,
+query user data, perform storage operations or notify the provider context manager. A global
+generation invalidates all calculator projections without scanning players on the callback thread.
+Provider context cache notifications occur during server reconciliation. Previously cached provider
+answers and full offline contributor recovery still require the real provider acceptance matrix.
+
+Cache recalculation events are deliberately excluded because the bridge's own query and context
+publication can cause recalculation. Owned node mutations can schedule another reconciliation;
+confirmed unchanged nodes require no further provider mutation. Listener closure disables delivery
+before detaching every subscription. A failed detachment retains only failed subscription handles
+for retry while late callbacks remain inactive. Bridge cleanup stops listeners before context and
+node cleanup, preventing teardown from enqueuing its own mutations into a replacement session.
+
 `LuckPermsQueries` builds contextual queries from the loaded user's current provider query options,
 falling back to authoritative static options for a loaded offline user. It removes the reserved
 bridge marker while preserving other contexts, every value per key, and query flags. Group and

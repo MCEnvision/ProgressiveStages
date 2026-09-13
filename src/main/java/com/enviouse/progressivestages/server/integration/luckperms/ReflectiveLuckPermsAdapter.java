@@ -15,6 +15,7 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     private LuckPermsQueries queries;
     private LuckPermsTransientNodes transientNodes;
     private LuckPermsProjectionContexts projectionContexts;
+    private LuckPermsEventSubscriptions eventSubscriptions;
     private boolean closing;
 
     static ReflectiveLuckPermsAdapter create() {
@@ -120,6 +121,42 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     }
 
     @Override
+    public boolean subscribeChanges(java.util.function.Consumer<UUID> subjectChanged, Runnable allChanged) {
+        if (api == null || closing) return true;
+        if (eventSubscriptions != null) throw new IllegalStateException("LuckPerms events are already subscribed");
+        try {
+            eventSubscriptions = new LuckPermsEventSubscriptions(api, subject -> {
+                projectionContexts.markInvalid(subject);
+                subjectChanged.accept(subject);
+            }, () -> {
+                projectionContexts.markAllInvalid();
+                allChanged.run();
+            });
+            eventSubscriptions.register();
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            closing = true;
+            projectionContexts.markAllInvalid();
+            stopListening();
+            LOGGER.warn("LuckPerms event registration failed. The bridge remains unavailable.", failure);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean stopListening() {
+        if (eventSubscriptions == null) return true;
+        try {
+            eventSubscriptions.close();
+            eventSubscriptions = null;
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.warn("LuckPerms event cleanup is incomplete. Subscriptions are retained for retry.", failure);
+            return false;
+        }
+    }
+
+    @Override
     public long prepareProjection(UUID subject, Object target) {
         if (api == null || closing || projectionContexts == null) return -1;
         try {
@@ -170,7 +207,8 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     public boolean shutdown() {
         closing = true;
         groupAvailability.clear();
-        boolean complete = cleanupTransientNodes();
+        boolean complete = stopListening();
+        complete &= cleanupTransientNodes();
         if (projectionContexts != null) {
             try { projectionContexts.close(); }
             catch (RuntimeException | LinkageError failure) {

@@ -368,6 +368,11 @@ node changes are confirmed. Dirty state, reload, disconnect and shutdown invalid
 before cleanup or reevaluation. Reload work shares the bounded reconciliation queue. Actual
 provider and combined gameplay verification remain open.
 
+Provider user, node, group, configuration reload and synchronization events now schedule the same
+bounded reconciliation work. Callbacks invalidate projection state without querying stages or
+loading users. Shutdown disables callbacks before removing their subscriptions and retries failed
+listener cleanup.
+
 Command gates now check Minecraft's command execution tasks after redirects resolve. Registered
 node and execution bindings identify aliases; namespace text alone does not establish equivalence.
 The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)

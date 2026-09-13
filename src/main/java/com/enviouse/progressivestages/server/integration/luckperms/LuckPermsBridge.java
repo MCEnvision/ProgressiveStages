@@ -87,11 +87,13 @@ public final class LuckPermsBridge {
             throw new IllegalStateException("Owned LuckPerms output cleanup is incomplete");
         }
         adapter = replacement == null ? ReflectiveLuckPermsAdapter.create() : replacement;
+        adapter.subscribeChanges(dirty::request, dirty::requestRescan);
     }
 
     private boolean closeAdapter() {
         if (adapter == null) return true;
-        boolean complete = adapter.invalidateProjections();
+        boolean complete = adapter.stopListening();
+        complete &= adapter.invalidateProjections();
         complete &= outboundNodes.cleanup(adapter);
         complete &= adapter.cleanupTransientNodes();
         complete &= adapter.shutdown();
@@ -102,6 +104,7 @@ public final class LuckPermsBridge {
         if (!shutdownOwnedOutput()) return;
         server = value;
         adapter = ReflectiveLuckPermsAdapter.create();
+        adapter.subscribeChanges(dirty::request, dirty::requestRescan);
         try {
             stageSubscription = StageManager.getInstance().subscribeCommittedStageChanges(result -> {
                 for (UUID subject : result.affectedPlayers()) markDirty(subject);

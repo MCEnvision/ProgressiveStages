@@ -15,6 +15,7 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
     private final Map<UUID, Projection> subjects = new HashMap<>();
     private final Map<Object, Projection> targets = new ConcurrentHashMap<>();
     private long sequence;
+    private volatile long generation;
     private volatile boolean closing;
     private boolean registered;
 
@@ -32,7 +33,7 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
         invalidate(subject);
         synchronized (this) {
             if (closing || !registered) return -1;
-            Projection projection = new Projection(target, ++sequence);
+            Projection projection = new Projection(target, ++sequence, generation);
             subjects.put(subject, projection);
             targets.put(target, projection);
             return projection.ticket;
@@ -43,7 +44,8 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
         Projection projection;
         synchronized (this) {
             projection = subjects.get(subject);
-            if (closing || projection == null || !projection.valid || projection.ticket != ticket) return false;
+            if (closing || projection == null || !projection.valid || projection.ticket != ticket
+                || projection.generation != generation) return false;
             projection.active = true;
         }
         try {
@@ -55,7 +57,19 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
             catch (RuntimeException | LinkageError invalidation) { failure.addSuppressed(invalidation); }
             throw failure;
         }
-        return projection.valid && projection.active && !closing;
+        return projection.valid && projection.active && !closing && projection.generation == generation;
+    }
+
+    synchronized void markInvalid(UUID subject) {
+        Projection projection = subjects.get(subject);
+        if (projection != null) {
+            projection.valid = false;
+            projection.active = false;
+        }
+    }
+
+    synchronized void markAllInvalid() {
+        generation++;
     }
 
     void invalidate(UUID subject) {
@@ -96,7 +110,8 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
     @Override
     public void calculate(Object target, ContextConsumer consumer) {
         Projection projection = targets.get(target);
-        if (!closing && projection != null && projection.valid && projection.active) {
+        if (!closing && projection != null && projection.valid && projection.active
+            && projection.generation == generation) {
             consumer.accept("progressivestages_bridge", "active");
         }
     }
@@ -115,12 +130,14 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
     private static final class Projection {
         final Object target;
         final long ticket;
+        final long generation;
         volatile boolean valid = true;
         volatile boolean active;
 
-        Projection(Object target, long ticket) {
+        Projection(Object target, long ticket, long generation) {
             this.target = java.util.Objects.requireNonNull(target);
             this.ticket = ticket;
+            this.generation = generation;
         }
     }
 }

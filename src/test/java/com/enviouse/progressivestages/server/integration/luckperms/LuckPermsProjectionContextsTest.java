@@ -38,6 +38,32 @@ class LuckPermsProjectionContextsTest {
     }
 
     @Test
+    void providerInvalidationsAreImmediateWithoutProviderQueriesOrNotifications() {
+        Fixture fixture = new Fixture();
+        try (var contexts = fixture.contexts) {
+            Object first = new Object();
+            Object second = new Object();
+            UUID another = new UUID(0, 53);
+            long firstTicket = contexts.prepare(SUBJECT, first);
+            long secondTicket = contexts.prepare(another, second);
+            assertTrue(contexts.publish(SUBJECT, firstTicket));
+            assertTrue(contexts.publish(another, secondTicket));
+            int notifications = fixture.observedActive.size();
+            contexts.markInvalid(SUBJECT);
+            assertTrue(fixture.read(first).isEmpty());
+            assertFalse(fixture.read(second).isEmpty());
+            assertFalse(contexts.publish(SUBJECT, firstTicket));
+            contexts.markAllInvalid();
+            assertTrue(fixture.read(second).isEmpty());
+            assertFalse(contexts.publish(another, secondTicket));
+            assertEquals(notifications, fixture.observedActive.size());
+            assertTrue(contexts.publish(another, contexts.prepare(another, second)));
+            assertTrue(fixture.read(first).isEmpty());
+            assertFalse(fixture.read(second).isEmpty());
+        }
+    }
+
+    @Test
     void invalidationAndReconnectRejectOldPublicationTickets() {
         Fixture fixture = new Fixture();
         try (var contexts = fixture.contexts) {

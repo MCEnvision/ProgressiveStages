@@ -72,6 +72,12 @@ it no longer queries every player directly inside the reload call. Context calcu
 part of shutdown completion. These controls still require real provider and native permission
 acceptance alongside the core and isolated API checks.
 
+User load, unload and node changes enqueue the affected UUID. Group changes, full synchronization
+and provider configuration reload request a bounded rescan. Callbacks invalidate calculator state
+without querying stages or loading users; provider cache notifications happen during server
+reconciliation. Cache recalculation alone does not trigger another pass. Shutdown disables event
+delivery before detaching listeners. Failed detachment keeps inactive handles for cleanup retry.
+
 Actual provider behavior is still unverified. Do not treat restarting as proof of cleanup, and do
 not remove historical persistent nodes merely because their names match a mapping. Any node left
 by an older development fixture needs its exact ownership established before removal. The new
@@ -126,8 +132,8 @@ runtime acceptance matrix.
 The online update queue retains pending subjects when its 256 entry limit is reached and requests
 a resumable scan. Dirty updates and scan entries share the limit of sixteen subjects per tick;
 continued event traffic does not reset an active scan. Disconnect requests a followup pass, and
-shutdown clears pending work. These bounds cover online event processing. They do not yet prove
-bounded reload reconciliation, offline contributor recovery or actual provider event convergence.
+shutdown clears pending work. Core fixtures cover online event and reload processing. They do not
+prove offline contributor recovery or actual provider event convergence.
 
 If a stage is not granted, check the stage dependency and slot policy first. Permission
 reconciliation must not charge costs, run rewards, increment trigger counters, refresh expiry

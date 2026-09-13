@@ -688,3 +688,91 @@ paths and 26 preexisting local Gradle paths were preserved. The runtime librarie
 removed without following it; shared libraries and the candidate remain. No laptop, browser,
 client, renderer, watcher or audio resource was created. The plan, goal and cursor stayed
 unchanged. No default branch merge, tag, wiki update or release occurred.
+
+
+## Immediate source withdrawal on native membership changes
+
+Source commit `ddbf3662bff72196567b9d5e07673f0381fa1f74` fixes a reproduced membership transition defect in
+SHARED-003, SHARED-004, BIN-AC-011C and BIN-AC-012C. The previous native FTB callback incremented
+the membership revision but did not remove the moving subject's old synchronized contribution.
+The former party could therefore keep effective access after that contributor left. Online
+polling reconciled later, while the event itself did not queue an offline subject for reevaluation.
+
+The callback now invalidates membership, invalidates the subject's old offline observation and
+outbound projection, requests bounded bridge reconciliation, and asks StageManager to withdraw
+obsolete synchronized sources. Native server events do this before returning. An off thread
+event marshals mutation to the captured server, guarded against a changed provider server.
+StageManager resolves an explicit online or offline subject, removes only sources whose owners
+are obsolete, then publishes one committed owner change. Permanent sources, independent grants,
+other subjects and compatible personal/server sources remain. New owner qualification remains
+with normal bridge reconciliation and does not run acquisition effects inside the native event.
+
+### Reproduction and corrected runtime proof
+
+On September 13, 2026, America/Chicago, baseline server PID `791767` reached readiness at
+05:22:40. `nativeteamleavewithdrawsonlymovedsynchronizedcontributions` failed at 05:23:02 with
+`A native team leave must withdraw the old synchronized contribution before returning.`
+The native leave completed, but the remaining member still had access through the departed
+subject. The baseline saved all dimensions at 05:23:10 and exited normally. This is failed
+regression evidence, not a passing provider test.
+
+Corrected server PID `795196` reached readiness at 05:24:39. The same regression passed at
+05:25:11 and again at 05:25:42. It uses actual FTB party operations with detached actors and
+registered native player records, and seeds attributable source records as its fixture input.
+The departed subject is absent from the online player list, exercising UUID based offline owner
+resolution. A sole departing synchronized source ends the former party's effective stage. A
+second stage with another contributor remains; separate permanent and independently earned
+stages remain; the departed subject's compatible personal source also remains. Source sets
+identify only the intended removals, and one committed event follows the completed withdrawal.
+Rejoining alone does not restore the withdrawn contribution before current qualification.
+
+The existing controlled provider owner transition regression passed at 05:25:56, the actual
+native quest claim tracking regression at 05:26:11, and the expanded native membership/disband
+regression at 05:26:28. Each passing invocation checked a fresh lime block at `-1 179 2` and
+matching test metadata at `0 180 3` after the console command. The corrected server saved at
+05:26:29 and exited normally. Native fixture teams, provider player files, definitions, attachment
+state, quest team maps, listeners and affected clocks were restored or removed before success.
+
+The owned runtime was `build/ftb-source-move-verification` in the active Phase 003 checkout on
+`node-1`. Java 21, Minecraft 1.21.1 and NeoForge 21.1.248 remained pinned. The launch used
+`forgeserverdev`, `--nogui`, authentication and loopback port 25589, with `eula=true` read back
+before each launch. The exact four FTB/Architectury artifacts recorded above matched SHA256
+values and passed ZIP integrity checks; SHA512 values were recorded before copying. No provider
+or platform dependency was changed.
+
+### Build and artifact binding
+
+The baseline and corrected `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon test build`
+commands passed in 18 and 15 seconds respectively. The corrected result includes 410 unit tests
+in 106 suites with no failures, errors or skips. No formatter is configured, no data provider
+changed, and `git diff --check` passed. GitHub verified the pushed source commit signature.
+
+The packaged JAR records `Build-Commit: ddbf3662bff72196567b9d5e07673f0381fa1f74` and `Build-Dirty: false`.
+All 778 project classes match compiled output, and no FTB or LuckPerms API classes are bundled.
+SHA256 is `0fd7e00653aa8466cdb294baa3efc7759cdb85330818461b597b766d760c878b` and SHA512 is
+`3f40315acd4c69e08c0792add8585c9f13440a6d985f26a601b05692c2beec3e0bc83a2f29308265385295eb5d7144d591e318c7bb648bf54f68fdf4b475c6a4`.
+
+This verifies the native event and authoritative source withdrawal. The seeded permission sources
+are controlled fixture input; they do not prove the selected LuckPerms binary's login, context
+queries, async qualification or outbound cache behavior. Authenticated online synchronization,
+actual permission provider convergence and final combined acceptance remain separate gates.
+
+
+After native verification finished, the four hash checked runtime provider copies were removed
+and only the packaged candidate was installed. Production server PID `800756` reached
+readiness at 05:28:01 and answered `time query gametime` at 05:29:03. It saved all dimensions
+and exited normally. The postcommit packaged build passed in four seconds. This supplies the
+optional absence classloading check for the changed integration boundary.
+
+### Membership source suite cleanup
+
+All three owned server processes exited normally and were verified absent. No process retained
+the runtime as its working directory, and loopback port 25589 was free before cleanup.
+
+Cleanup removed 1240 new build paths and 13 new local Gradle paths, preserving all
+836 preexisting build paths and 26 preexisting local Gradle paths. The runtime libraries symlink
+was removed without following its shared target. The packaged candidate, shared caches and
+unrelated runtime data remain. All 11 registered scratch files and their unique directory were
+removed after evidence extraction, with absence verified. No laptop client, browser, renderer,
+watcher or audio resources were created. The authoritative plan, immutable goal and active
+cursor remain unchanged. No default branch merge, phase tag, wiki publication or release occurred.

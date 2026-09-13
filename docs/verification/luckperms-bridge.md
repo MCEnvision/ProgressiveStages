@@ -943,3 +943,69 @@ caches, preexisting `run` and `run-248` directories, current candidate artifact 
 were preserved. The three metadata-only scratch files and their unique temporary directory were
 removed after their final consumer. No laptop, browser or audio resources required teardown.
 The immutable goal and active phase cursor retain their previous digests.
+
+
+## Administrative eligibility regression
+
+Source commit `77fa1ac6500c7fd849c2acf1990941900ca8c63d` corrects administrative entry points
+for BIN-AC-011B, BIN-AC-011C, BIN-AC-012C and BIN-AC-012D. Revoke APIs no longer skip eligibility
+history after source withdrawal. Bulk and script reset visit registered definitions at their resolved
+owners. Tag operations use the same API contract. Normal, bypass, single, bulk, tag and category
+grants distinguish independent ownership from existing derived access. Mutation results and committed
+listeners report source changes even when the effective stage set remains unchanged.
+
+The final Java 21 wrapper `test build` passed 399 tests in 105 suites, without failures, errors or
+skips. The postcommit `build` passed. No resource providers changed and this checkout has no separate
+formatter task. `git diff --check` passed. The inspected server task graph contains no client launch.
+
+Dedicated PID `492624` ran on `node-1` with Minecraft 1.21.1 and NeoForge 21.1.248 in the active
+Phase 003 checkout's `build/admin-episode-verification` runtime. EULA readback was `eula=true`;
+authentication remained enabled and the listener stayed on loopback port 25589. Readiness was
+02:15:15 on September 13, 2026, America/Chicago. Tests entered through the normal dispatcher with
+`execute positioned 0 180 0 run test run <method>`. Each invocation cleared its fixture area and
+verified matching structure metadata at `0 180 3` plus a fresh lime success marker at `-1 179 2`.
+
+| GameTest | Passing server time | Coverage |
+|---|---|---|
+| `administrativerevokessuppressunavailableandunqualifiedepisodes` | 02:15:29, repeated 02:16:08 | API, bulk, tag, category and script binding, both retention modes, provider outage, first qualification, reload, genuine rearm, no op counts, unknown stage and committed owner |
+| `administrativegrantsrecordindependentownershipafterderivedaccess` | 02:16:05, repeated 02:16:10 | Normal and bypass API, bulk, tag, category, direct command and script binding, independent retention, no op counts and committed source change |
+| `permissionrevocationsurvivesreloadandonlyindependentlossrearms` | 02:16:13 | Existing suppression, contexts, reload and administrative recovery |
+| `permissionexpirysurvivescontextlossandofflinereconciliation` | 02:16:15 | Fixed expiry and guarded offline rearm |
+| `independentearningafterpermissionaccessemitsoneacquisition` | 02:16:17 | One normal acquisition event and independent retention |
+| `permissionsourcespreserveothersubjectsandindependentearnings` | 02:16:20 | Contributor separation and independent source preservation |
+| `personalclocksdriveexpiryheldconditionsandslotage` | 02:16:22 | Personal clock isolation, held conditions and slot age |
+
+All nine invocations passed. The two new tests exercise actual stage commands and the public script
+binding methods; they do not claim a KubeJS engine run or real LuckPerms provider acceptance. The
+initial category fixture failed because only StageOrder was populated. It now isolates and restores
+the loader catalog as well, which the real category and script lookup paths query. No assertion was
+removed. Launch setup also corrected closed console input and enabled the Minecraft template
+namespace for these tests. Those setup attempts are not counted as passing tests.
+
+The clean packaged JAR has SHA256
+`fe8b52d2fe605cc49bdcc2eeae21bae5db3db2edc4cd9618a34c44736ce5af99`. Its manifest names the source
+commit above with `Build-Dirty: false`; all 761 project classes match compiled output and no LuckPerms
+API classes are bundled. Packaged production PID `498564` reached readiness at 02:18:14. At 02:18:40,
+`time query gametime` returned `7343` and `stage debug permissions status` reported stopped capture,
+zero records, bytes and queued records, and an idle writer. It saved all dimensions and exited
+normally at 02:18:51. This proves common startup with optional providers absent.
+
+Full real provider, membership revision, edited row, delayed callback, command provider, multiplayer,
+Brave and laptop acceptance remain open. No phase integration, signed phase tag, wiki publication or
+release is claimed by this bounded correction.
+
+### Administrative suite cleanup
+
+The final development server saved all dimensions and exited at 02:16:34; the packaged server did
+so at 02:18:51. The earlier three launch setup processes terminated through server shutdown hooks,
+saved their worlds and exited with the expected signal status. The later console setup run exited
+normally; its PID was not retained. All six registered Java PIDs are absent, no Java process retains
+the owned runtime working directory, and loopback port 25589 can be bound again.
+
+Cleanup removed 1038 new build paths and 18 new local Gradle paths, while preserving the original
+836 build paths and 26 local Gradle paths. The disposable runtime, worlds, configuration, logs and
+copied JAR were removed. Its library symlink was removed without following the protected target.
+All eleven scratch files and their unique directory were removed after evidence retention. The
+current candidate JAR, source, worktrees, preexisting run directories and shared caches remain.
+No laptop, browser, client, renderer or audio resource was started. The final read only diff and
+receipt audit created no additional test resources. Goal and cursor digests remain unchanged.

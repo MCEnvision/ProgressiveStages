@@ -133,7 +133,7 @@ public final class PSKubeBindings {
 
     public int revokeAll(Player player) {
         return player instanceof ServerPlayer sp
-            ? ProgressiveStagesAPI.revokeStages(sp, new ArrayList<>(StageManager.getInstance().getStoredStages(sp)), StageCause.SCRIPT) : 0;
+            ? ProgressiveStagesAPI.revokeStages(sp, ProgressiveStagesAPI.getAllStageIds(), StageCause.SCRIPT) : 0;
     }
 
     /** Toggle a stage and return the player's new ownership state. */

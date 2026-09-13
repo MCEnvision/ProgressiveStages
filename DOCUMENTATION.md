@@ -2979,7 +2979,10 @@ the actual query contexts. It contains no permission tree. Row order, retention 
 revision are not episode identity. A false observation in a different query context or under edited
 conditions cannot prove loss of the original eligibility. Unavailable input is not a false observation.
 
-Full revocation and bulk removal suppress positive episodes, including stored inactive sources.
+Full revocation and bulk removal suppress positive episodes, including stored inactive sources and
+history whose contribution was already withdrawn. The public revoke API and bulk, tag and category
+commands do not skip this history. A repeated revoke reports no new change. Bulk revoke visits
+registered stages at their resolved owners, preserving incompatible historical owner namespaces.
 Source withdrawal preserves the history without suppressing it. A currently positive episode cannot
 refresh its first acquisition or expiry after reload, outage, context changes or source reactivation.
 Only authoritative false then true observations of the same conditions and contexts rearm it, or a
@@ -2994,7 +2997,10 @@ world. A completion invalidated before its final guard restores the subject's pr
 and leaves synchronized sources inactive. Successful offline grants restore the owner clock from
 active source history. Permission source changes publish effective view changes instead of ordinary
 acquisition events. Independently earning a previously derived stage still runs the normal dependency,
-slot and acquisition path once. There is no additional public configuration setting for suppression.
+slot and acquisition path once. Normal and bypass grant APIs report that independent acquisition
+even if effective access was already present. Administrative single, bulk, tag and category grants
+use the same distinction. Committed mutation listeners observe these source changes even when the
+effective stage set stays unchanged. There is no additional public configuration setting for suppression.
 The [episode regression](docs/verification/luckperms-bridge.md#permission-episode-regression) records the
 bounded checks; actual provider login, cache invalidation, membership revisions and client acceptance
 remain separate gates.
@@ -3819,12 +3825,12 @@ permission level 2; authoring/reload/validation operations require level 3.
 | `/stage progress next [player]` | Lists every stage the player can currently unlock (deps met, not yet granted) with the full `[[triggers]]` rule/condition breakdown for each one. Player defaults to the caller. |
 | `/stage progress all [player]` | Lists **every** stage the player doesn't yet have — including those still locked behind unmet dependencies — in registration order. Useful for pack-author audits and "show me the whole roadmap" queries. |
 | `/stage progress <stage> [player]` | `[[triggers]]` rule/condition breakdown for one specific stage. Player defaults to the caller. |
-| `/stage tag grant <players> <tag>` | **New in 3.0.** Grant **every stage tagged `<tag>`** to each selected player. **Bypasses dependencies** and **skips stages already owned** (only un-owned tagged stages are granted). Reports the change count across stages × players. |
-| `/stage tag revoke <players> <tag>` | **New in 3.0.** Revoke every stage tagged `<tag>` from each player (skips stages they don't have). |
+| `/stage tag grant <players> <tag>` | **New in 3.0.** Grant **every stage tagged `<tag>`** to each selected player. **Bypasses dependencies** and adds independent ownership, including stages already provided by a rank. Repeated independent grants are no ops. Reports the change count across stages and players. |
+| `/stage tag revoke <players> <tag>` | **New in 3.0.** Revoke every tagged stage and suppress its current positive permission eligibility, including unavailable sources. |
 | `/stage tag list <tag>` | **New in 3.0.** List every stage that declares `<tag>` in its `[stage].tags`. Tab-completes from all declared tags. |
 | `/stage category grant\|revoke <players> <category>` | **New in 3.0.** Bulk-change every stage assigned to a GUI category. Quote category names containing spaces. |
 | `/stage category list <category>` | **New in 3.0.** List every stage in a category. |
-| `/stage bulk grant\|revoke <players>` | **New in 3.0.** Grant or revoke the complete defined/owned stage set. |
+| `/stage bulk grant\|revoke <players>` | **New in 3.0.** Grant or revoke the complete defined stage set, including positive permission eligibility awaiting revalidation. |
 | `/stage sync <players>` | **New in 3.0.** Re-send definitions, lock registry, ownership, and bypass state to selected clients. |
 | `/stage simulate [player]` | **New in 3.0.** **Dry-run** of what the player can unlock next: lists their **reachable-next** stages (deps met, not yet owned) sorted by completion %, and for each shows exactly which `[[triggers]]` conditions are still **short** (`current/threshold`, "need N more"). Then lists **dependency-blocked** stages with the prerequisites they're still missing. Player defaults to the caller. Read-only. |
 | `/stage explain scope <player> <stage>` | **New in 3.0.5.** Admin-only owner explanation showing optional `team_stage` presence, provider availability, and the resolved personal, team, server, or fallback owner. |
@@ -4174,12 +4180,12 @@ ProgressiveStages.progressCondition('reputation', player => getReputation(player
 | Call | Returns | Notes |
 |------|---------|-------|
 | `ProgressiveStages.has(player, 'stage')` | boolean | Does the player (team) own the stage |
-| `ProgressiveStages.grant(player, 'stage')` | boolean | Grant with cause `SCRIPT`; true only when ownership changes |
-| `ProgressiveStages.revoke(player, 'stage')` | boolean | Revoke with cause `SCRIPT`; true only when ownership changes |
+| `ProgressiveStages.grant(player, 'stage')` | boolean | Grant with cause `SCRIPT`; true when independent ownership is added, including after derived access |
+| `ProgressiveStages.revoke(player, 'stage')` | boolean | Revoke with cause `SCRIPT`; true when stored access is removed or positive permission eligibility is suppressed |
 | `ProgressiveStages.toggle(player, 'stage')` | boolean | Toggle and return the new ownership state |
 | `ProgressiveStages.grantBypass(player, 'stage')` | boolean | Grant one stage while intentionally ignoring prerequisites |
 | `ProgressiveStages.grantMany/revokeMany(player, stages)` | int | Bulk requested-target change count |
-| `ProgressiveStages.grantAll/revokeAll(player)` | int | Bulk change every defined/owned stage |
+| `ProgressiveStages.grantAll/revokeAll(player)` | int | Bulk change every defined stage, including positive permission eligibility |
 | `ProgressiveStages.exists('stage')` | boolean | Does the definition exist |
 | `ProgressiveStages.available(player, 'stage')` | boolean | Exists, unowned, dependencies satisfied, and its slot policy permits the grant |
 | `ProgressiveStages.hasAll/hasAny(player, stages)` | boolean | Collection ownership tests |

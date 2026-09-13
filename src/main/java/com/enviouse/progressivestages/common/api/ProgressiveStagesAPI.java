@@ -253,12 +253,13 @@ public final class ProgressiveStagesAPI {
      * @param player The player to grant the stage to
      * @param stageId The stage to grant
      * @param cause The reason for granting (for tracking/events)
-     * @return true if the stage was newly granted, false if already had it
+     * @return true if independent ownership was added
      */
     public static boolean grantStage(ServerPlayer player, StageId stageId, StageCause cause) {
-        Set<StageId> before = getStages(player);
-        StageManager.getInstance().grantStageWithCause(player, stageId, cause);
-        return !before.equals(getStages(player));
+        StageManager manager = StageManager.getInstance();
+        boolean independent = manager.hasIndependentStage(player, stageId);
+        manager.grantStageWithCause(player, stageId, cause);
+        return !independent && manager.hasIndependentStage(player, stageId);
     }
 
     /** Grant derived access while retaining source attribution for later reconciliation. */
@@ -276,14 +277,13 @@ public final class ProgressiveStagesAPI {
      * @param player The player to revoke the stage from
      * @param stageId The stage to revoke
      * @param cause The reason for revoking (for tracking/events)
-     * @return true if the stage was revoked, false if didn't have it
+     * @return true if stored access was removed or current permission eligibility was suppressed
      */
     public static boolean revokeStage(ServerPlayer player, StageId stageId, StageCause cause) {
-        if (!StageManager.getInstance().hasStoredStage(player, stageId)) {
-            return false;
-        }
-        StageManager.getInstance().revokeStageWithCause(player, stageId, cause);
-        return !StageManager.getInstance().hasStoredStage(player, stageId);
+        StageManager manager = StageManager.getInstance();
+        long before = manager.getMutationRevision();
+        manager.revokeStageWithCause(player, stageId, cause);
+        return manager.getMutationRevision() != before;
     }
 
     /** remove one derived source and retain independently earned access. */
@@ -294,9 +294,11 @@ public final class ProgressiveStagesAPI {
 
     /** Grant an existing stage without checking or auto-granting its prerequisites. */
     public static boolean grantStageBypass(ServerPlayer player, StageId stageId, StageCause cause) {
-        if (!stageExists(stageId) || hasStage(player, stageId)) return false;
-        StageManager.getInstance().grantStageBypassDependencies(player, stageId, cause);
-        return hasStage(player, stageId);
+        if (!stageExists(stageId)) return false;
+        StageManager manager = StageManager.getInstance();
+        boolean independent = manager.hasIndependentStage(player, stageId);
+        manager.grantStageBypassDependencies(player, stageId, cause);
+        return !independent && manager.hasIndependentStage(player, stageId);
     }
 
     /** Grant several requested stages and return how many requested targets changed. */

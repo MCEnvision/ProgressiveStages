@@ -166,6 +166,11 @@ disable progression mutations and retain the entire unreadable attachment on sub
 Restore a compatible backup before changing progression. This also protects malformed ownership
 and source records; the server log reports that the original data is retained.
 
+Administrative grant commands add independent ownership when the player already has rank-derived
+access. API and bulk, tag or category revokes suppress current positive eligibility even after an
+unavailable provider has withdrawn its synchronized contribution. Repeating the revoke is a no op.
+These operations keep the stage's resolved personal, team or server ownership.
+
 ## Command gates
 
 `command_permissions` matches resolved command nodes at Minecraft's execution tasks after redirects,

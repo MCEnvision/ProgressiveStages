@@ -367,6 +367,8 @@ Permission grants retain eligibility history after their source is removed. Manu
 suppresses the current positive grant, and reloads, provider outages or context changes do not
 renew its timer. A confirmed loss and return of the same independent permission conditions, or a
 deliberate administrative grant, can start a new grant. Timed permanent grants still expire.
+Administrative grants record independent ownership even when a rank already provides access. Bulk,
+tag and category revokes also suppress existing positive eligibility while its source is unavailable.
 The [episode verification record](docs/verification/luckperms-bridge.md#permission-episode-regression)
 distinguishes these core checks from the remaining real provider acceptance.
 

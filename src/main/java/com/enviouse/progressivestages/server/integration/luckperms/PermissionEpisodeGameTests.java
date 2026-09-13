@@ -1,5 +1,6 @@
 package com.enviouse.progressivestages.server.integration.luckperms;
 
+import com.enviouse.progressivestages.common.api.ProgressiveStagesAPI;
 import com.enviouse.progressivestages.common.api.StageCause;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
@@ -177,6 +178,90 @@ public final class PermissionEpisodeGameTests {
     }
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void administrativeRevokesSuppressUnavailableAndUnqualifiedEpisodes(GameTestHelper helper) throws Exception {
+        for (String route : List.of("api", "bulk", "tag", "category", "script")) {
+            for (boolean permanent : new boolean[] {false, true}) {
+                try (Fixture fixture = new Fixture(helper)) {
+                    fixture.define(permanent, -1);
+                    fixture.adapter.permission(fixture.subject, "professions.chef", TRUE);
+                    fixture.reconcile();
+                    fixture.adapter.state(LuckPermsAdapter.State.STARTING);
+                    fixture.reconcile();
+                    var mutations = new java.util.ArrayList<com.enviouse.progressivestages.common.stage.StageMutationResult>();
+                    try (var subscription = fixture.manager.subscribeCommittedStageChanges(mutations::add)) {
+                        int changed = fixture.revoke(route);
+                        helper.assertTrue(changed == 1 && fixture.episode().suppressed(),
+                            route + " must suppress the current episode even without active access.");
+                        helper.assertTrue(mutations.stream().anyMatch(result -> result.changed()
+                            && result.affectedOwners().contains(fixture.owner)),
+                            "Suppression must publish its addressed owner as a committed change.");
+                        helper.assertTrue(fixture.revoke(route) == 0, "Repeating a revoke must report no new mutation.");
+                    }
+                    fixture.reload();
+                    fixture.adapter.state(LuckPermsAdapter.State.READY);
+                    fixture.reconcile();
+                    helper.assertTrue(!fixture.manager.hasStage(fixture.player, fixture.stage),
+                        route + " suppression must survive provider return and reload.");
+                    fixture.adapter.permission(fixture.subject, "professions.chef", FALSE);
+                    fixture.reconcile();
+                    fixture.adapter.permission(fixture.subject, "professions.chef", TRUE);
+                    fixture.reconcile();
+                    helper.assertTrue(fixture.manager.hasStage(fixture.player, fixture.stage),
+                        "A later independent loss and gain must still rearm the addressed stage.");
+                }
+            }
+        }
+        try (Fixture fixture = new Fixture(helper)) {
+            fixture.define(false, -1, Map.of("world", List.of("overworld")));
+            fixture.adapter.permission(fixture.subject, "professions.chef", TRUE);
+            fixture.adapter.context(fixture.subject, "world", "nether");
+            fixture.reconcile();
+            helper.assertTrue(!fixture.manager.hasStoredStage(fixture.player, fixture.stage),
+                "The unqualified fixture must have history without a stored entitlement.");
+            helper.assertTrue(fixture.revoke("bulk") == 1 && fixture.episode().suppressed(),
+                "Bulk reset must address a positive episode that never acquired its stage.");
+            fixture.adapter.context(fixture.subject, "world", "overworld");
+            fixture.reconcile();
+            helper.assertTrue(!fixture.manager.hasStage(fixture.player, fixture.stage),
+                "Becoming qualified alone must not undo administrative suppression.");
+            StageId unknown = StageId.parse("progressivestages:unknown_revoke_fixture");
+            long revision = fixture.manager.getMutationRevision();
+            helper.assertTrue(!ProgressiveStagesAPI.revokeStage(fixture.player, unknown, StageCause.COMMAND)
+                && revision == fixture.manager.getMutationRevision(), "Unknown stages must remain a no op.");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void administrativeGrantsRecordIndependentOwnershipAfterDerivedAccess(GameTestHelper helper) throws Exception {
+        for (String route : List.of("api", "bypass", "bulk", "tag", "category", "direct", "script")) {
+            try (Fixture fixture = new Fixture(helper)) {
+                fixture.define(false, -1);
+                fixture.adapter.permission(fixture.subject, "professions.chef", TRUE);
+                fixture.reconcile();
+                var mutations = new java.util.ArrayList<com.enviouse.progressivestages.common.stage.StageMutationResult>();
+                try (var subscription = fixture.manager.subscribeCommittedStageChanges(mutations::add)) {
+                    helper.assertTrue(fixture.grant(route) == 1,
+                        route + " must report the first independent acquisition despite existing derived access.");
+                    helper.assertTrue(fixture.manager.hasIndependentStage(fixture.player, fixture.stage),
+                        "The addressed owner must receive independent ownership.");
+                    helper.assertTrue(mutations.stream().anyMatch(result -> result.changed()
+                        && result.affectedOwners().contains(fixture.owner)),
+                        "A source change must be published even when the effective stage set is unchanged.");
+                    long revision = fixture.manager.getMutationRevision();
+                    helper.assertTrue(fixture.grant(route) == 0 && revision == fixture.manager.getMutationRevision(),
+                        "A repeated independent grant must report no new ownership or mutation.");
+                }
+                fixture.adapter.permission(fixture.subject, "professions.chef", FALSE);
+                fixture.reconcile();
+                helper.assertTrue(fixture.manager.getStageSources(fixture.player, fixture.stage).equals(Set.of("independent")),
+                    route + " must retain independent ownership after rank loss.");
+            }
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void unreadableEpisodeAttachmentsRemainIntactAfterSave(GameTestHelper helper) {
         var provider = helper.getLevel().registryAccess();
         var payload = new net.minecraft.nbt.CompoundTag();
@@ -211,6 +296,8 @@ public final class PermissionEpisodeGameTests {
         final StageOrder order = StageOrder.getInstance();
         final List<StageDefinition> definitions = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
         final TeamStageData original;
+        final Map<StageId, StageDefinition> loaded;
+        final Map<StageId, StageDefinition> previousLoaded;
         final FakePlayer player;
         final InMemoryLuckPermsAdapter adapter = new InMemoryLuckPermsAdapter();
         final long previousClock;
@@ -219,6 +306,17 @@ public final class PermissionEpisodeGameTests {
             this.helper = helper;
             var server = helper.getLevel().getServer();
             helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The episode fixture requires an isolated server.");
+            try {
+                var field = com.enviouse.progressivestages.server.loader.StageFileLoader.class.getDeclaredField("loadedStages");
+                field.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                var definitions = (Map<StageId, StageDefinition>) field.get(
+                    com.enviouse.progressivestages.server.loader.StageFileLoader.getInstance());
+                loaded = definitions;
+                previousLoaded = new java.util.LinkedHashMap<>(loaded);
+            } catch (ReflectiveOperationException error) {
+                throw new IllegalStateException("Cannot isolate loaded stage definitions for the command fixture.", error);
+            }
             original = server.overworld().getData(StageAttachments.TEAM_STAGES);
             server.overworld().setData(StageAttachments.TEAM_STAGES, original.copy());
             player = new FakePlayer(helper.getLevel(), new GameProfile(subject, "episode-test"));
@@ -232,9 +330,31 @@ public final class PermissionEpisodeGameTests {
             order.clear();
             var row = new LuckPermsStageOptions.InboundRule("chef", List.of(), List.of("professions.chef"),
                 LuckPermsStageOptions.Match.ALL, contexts);
-            order.registerStage(StageDefinition.builder(stage).teamStage(false).durationMillis(duration)
+            var definition = StageDefinition.builder(stage).teamStage(false).durationMillis(duration)
+                .tags(List.of("episode_fixture")).category("episode_fixture")
                 .luckPerms(new LuckPermsStageOptions(true, true, permanent ? LuckPermsStageOptions.InboundMode.PERMANENT
-                    : LuckPermsStageOptions.InboundMode.SYNCHRONIZED, List.of(row), List.of(), List.of())).build());
+                    : LuckPermsStageOptions.InboundMode.SYNCHRONIZED, List.of(row), List.of(), List.of())).build();
+            order.registerStage(definition);
+            loaded.clear();
+            loaded.put(stage, definition);
+        }
+
+        int revoke(String route) throws Exception {
+            if (route.equals("script")) return new com.enviouse.progressivestages.compat.kubejs.PSKubeBindings().revokeAll(player);
+            if (route.equals("api")) return ProgressiveStagesAPI.revokeStage(player, stage, StageCause.COMMAND) ? 1 : 0;
+            return command("stage " + route + " revoke @s" + (route.equals("bulk") ? "" : " episode_fixture"));
+        }
+
+        int grant(String route) throws Exception {
+            if (route.equals("script")) return new com.enviouse.progressivestages.compat.kubejs.PSKubeBindings().grantAll(player);
+            if (route.equals("api")) return ProgressiveStagesAPI.grantStage(player, stage, StageCause.COMMAND) ? 1 : 0;
+            if (route.equals("bypass")) return ProgressiveStagesAPI.grantStageBypass(player, stage, StageCause.COMMAND) ? 1 : 0;
+            if (route.equals("direct")) return command("stage grant @s " + stage);
+            return command("stage " + route + " grant @s" + (route.equals("bulk") ? "" : " episode_fixture"));
+        }
+
+        int command(String command) throws Exception {
+            return player.server.getCommands().getDispatcher().execute(command, player.createCommandSourceStack().withPermission(4));
         }
 
         TeamStageData data() { return player.server.overworld().getData(StageAttachments.TEAM_STAGES); }
@@ -246,6 +366,8 @@ public final class PermissionEpisodeGameTests {
         }
 
         @Override public void close() {
+            loaded.clear();
+            loaded.putAll(previousLoaded);
             player.server.overworld().setData(StageAttachments.TEAM_STAGES, original);
             if (previousClock <= 0) StageRegressionData.get(player.server).clear(owner, stage);
             else StageRegressionData.get(player.server).markGranted(owner, stage, previousClock);

@@ -1177,14 +1177,10 @@ public class StageCommand {
         int changes = 0;
         for (ServerPlayer p : players) {
             for (StageId s : stages) {
-                boolean has = StageManager.getInstance().hasStage(p, s);
-                if (grant && !has) {
-                    StageManager.getInstance().grantStageBypassDependencies(p, s, cause);
-                    changes++;
-                } else if (!grant && has) {
-                    StageManager.getInstance().revokeStageWithCause(p, s, cause);
-                    changes++;
-                }
+                boolean changed = grant
+                    ? com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.grantStageBypass(p, s, cause)
+                    : com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.revokeStage(p, s, cause);
+                if (changed) changes++;
             }
         }
         final int ch = changes, ns = stages.size(), np = players.size();
@@ -1276,7 +1272,7 @@ public class StageCommand {
                 }
             } else {
                 changed += com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.revokeStages(
-                    player, new ArrayList<>(StageManager.getInstance().getStoredStages(player)),
+                    player, StageOrder.getInstance().getOrderedStages(),
                     com.enviouse.progressivestages.common.api.StageCause.COMMAND);
             }
         }
@@ -1505,7 +1501,7 @@ public class StageCommand {
         }
         
         // Check if player already has this stage
-        if (StageManager.getInstance().hasStage(player, stageId)) {
+        if (StageManager.getInstance().hasIndependentStage(player, stageId)) {
             context.getSource().sendFailure(TextUtil.parseColorCodes(
                 StageConfig.getMsgCmdAlreadyHasStage().replace("{stage}", stageName)));
             return 0;

@@ -174,6 +174,7 @@ public class StageManager {
             return new StageMutationResult(false, "stale_revision", mutationRevision, Set.of(), Set.of(player.getUUID()));
         }
         Set<StageId> before = getStages(player);
+        long beforeRevision = mutationRevision;
         if (operation == StageOperation.GRANT) grantStageWithCause(player, stageId, cause);
         else revokeStageWithCause(player, stageId, cause);
         Set<StageId> after = getStages(player);
@@ -183,7 +184,7 @@ public class StageManager {
         changedStages.addAll(after);
         changedStages.removeIf(stage -> before.contains(stage) && after.contains(stage));
         changedStages.forEach(stage -> affectedOwners.add(owner(player, stage)));
-        boolean changed = !before.equals(after);
+        boolean changed = mutationRevision != beforeRevision;
         return new StageMutationResult(changed, changed ? "committed" : "already_owned", mutationRevision,
             affectedOwners, affectedPlayers(player, changed, affectedOwners));
     }
@@ -234,6 +235,11 @@ public class StageManager {
 
     public boolean hasStoredStage(ServerPlayer player, StageId stageId) {
         return player != null && stageId != null && hasOwned(getTeamStageData(), owner(player, stageId), stageId);
+    }
+
+    public boolean hasIndependentStage(ServerPlayer player, StageId stageId) {
+        return player != null && stageId != null
+            && hasIndependentOwnership(getTeamStageData(), owner(player, stageId), stageId);
     }
 
     public OwnerRef getStageOwner(ServerPlayer player, StageId stageId) {
@@ -588,11 +594,13 @@ public class StageManager {
         TeamStageData data = getTeamStageData();
         OwnerRef directOwner = owner(player, stageId);
         if (hasIndependentOwnership(data, directOwner, stageId)) {
-            if (cause == StageCause.COMMAND) markMutation(data.allowPermissionEpisodes(directOwner, stageId));
+            boolean allowed = cause == StageCause.COMMAND && data.allowPermissionEpisodes(directOwner, stageId);
+            markMutation(allowed);
             Set<String> beforeSources = data.getSources(directOwner, stageId);
             grantOwnedFromSource(data, directOwner, stageId, "independent");
-            if (!beforeSources.equals(data.getSources(directOwner, stageId))) {
-                markMutation(true);
+            boolean sourceAdded = !beforeSources.equals(data.getSources(directOwner, stageId));
+            markMutation(sourceAdded);
+            if (allowed || sourceAdded) {
                 publishMutation(player, stageId, true, "source_added", Set.of(directOwner));
                 captureProgression(player, stageId, before, before, cause, "source_added");
             }
@@ -659,7 +667,7 @@ public class StageManager {
         affectedOwners.add(owner(player, stageId));
         result.granted().forEach(id -> affectedOwners.add(owner(player, id)));
         result.replaced().forEach(id -> affectedOwners.add(owner(player, id)));
-        publishMutation(player, stageId, !before.equals(getStages(player)),
+        publishMutation(player, stageId, !result.granted().isEmpty() || !result.replaced().isEmpty(),
             result.granted().isEmpty() ? "already_owned" : "committed", affectedOwners);
         captureProgression(player, stageId, before, getStages(player), cause,
             result.granted().isEmpty() ? "already_owned" : "committed");
@@ -877,6 +885,10 @@ public class StageManager {
      * Grant a stage bypassing dependency checks (admin override).
      */
     public void grantStageBypassDependencies(ServerPlayer player, StageId stageId, StageCause cause) {
+        if (hasIndependentStage(player, stageId)) {
+            grantStageWithCause(player, stageId, cause);
+            return;
+        }
         Set<StageId> before = getStages(player);
         GrantResult result = grantStageToActorInternal(player, stageId, true);
         if (!result.denial().isBlank()) {
@@ -919,7 +931,7 @@ public class StageManager {
         affectedOwners.add(owner(player, stageId));
         result.granted().forEach(id -> affectedOwners.add(owner(player, id)));
         result.replaced().forEach(id -> affectedOwners.add(owner(player, id)));
-        publishMutation(player, stageId, !before.equals(getStages(player)),
+        publishMutation(player, stageId, !result.granted().isEmpty() || !result.replaced().isEmpty(),
             result.granted().isEmpty() ? "already_owned" : "committed", affectedOwners);
         captureProgression(player, stageId, before, getStages(player), cause,
             result.granted().isEmpty() ? "already_owned" : "committed");
@@ -1005,10 +1017,12 @@ public class StageManager {
      * @param cause The reason for the revocation
      */
     public void revokeStageWithCause(ServerPlayer player, StageId stageId, StageCause cause) {
+        if (player == null || stageId == null || !StageOrder.getInstance().stageExists(stageId)) return;
         Set<StageId> before = getStages(player);
         boolean serverScoped = isServerScoped(stageId);
         OwnerRef rootOwner = owner(player, stageId);
-        markMutation(getTeamStageData().suppressPermissionEpisodes(rootOwner, stageId));
+        boolean suppressed = getTeamStageData().suppressPermissionEpisodes(rootOwner, stageId);
+        markMutation(suppressed);
         UUID teamId = rootOwner.kind() == OwnerKind.TEAM ? rootOwner.id()
             : TeamProvider.getInstance().getTeamId(player);
         List<RevokedStage> revoked = rootOwner.kind() == OwnerKind.PERSONAL
@@ -1031,11 +1045,13 @@ public class StageManager {
         if (affectedMultipleTeams) syncAllPlayers();
         else if (revoked.stream().anyMatch(change -> owner(player, change.stageId()).kind() == OwnerKind.TEAM)) syncToTeamMembers(teamId, player);
         else syncToPlayer(player);
-        publishMutation(player, stageId, !before.equals(getStages(player)),
-            revoked.isEmpty() ? "already_owned" : "committed",
-            revoked.stream().map(change -> owner(player, change.stageId())).collect(java.util.stream.Collectors.toUnmodifiableSet()));
+        Set<OwnerRef> affectedOwners = revoked.stream().map(change -> owner(player, change.stageId()))
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (suppressed) affectedOwners.add(rootOwner);
+        boolean changed = suppressed || !revoked.isEmpty();
+        publishMutation(player, stageId, changed, changed ? "committed" : "already_owned", Set.copyOf(affectedOwners));
         captureProgression(player, stageId, before, getStages(player), cause,
-            revoked.isEmpty() ? "already_owned" : "committed");
+            changed ? "committed" : "already_owned");
     }
 
     private void refundPurchasedStage(ServerPlayer player, RevokedStage change) {

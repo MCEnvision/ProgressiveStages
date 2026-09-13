@@ -5089,6 +5089,17 @@ requires a fresh review before another apply attempt. An older cached editor tha
 revision fails safely and must reload the current packaged assets. This does not change stage
 schema or the transport protocol. See the [editor recovery guide](docs/troubleshooting/easy-builder.md).
 
+### Editor session authorization
+
+Every editor request checks the current draft owner or collaborator membership as well as the
+session owner, secret, expiry and permission level 3 requirement. Removing a collaborator
+invalidates all of that operator's sessions for the draft, without revoking the owner's session
+or sessions for unrelated drafts. Adding the collaborator again does not reactivate revoked
+sessions. They must resume the draft with a fresh session. This authorization applies before
+read, validation, export, apply and rollback dispatch, as well as before ordinary edits.
+The [server authorization regression](docs/test/editor-authorization.md) covers this boundary;
+browser error presentation and authenticated client transport remain separate acceptance work.
+
 ### Editor field diagnostics
 
 `StageFileParser.ParseResult.getFieldDiagnostic(file)` preserves validation metadata from the

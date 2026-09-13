@@ -102,6 +102,11 @@ reviewed revision are also rejected; reopen the editor to load the matching pack
 If the tab reports `403 Forbidden`, close it and open `/pstages editor` again from a permission
 level 3 operator. The token belongs to one loopback session and cannot be reused in an older tab.
 
+If a shared draft request reports `unauthorized`, ask its owner to check your collaborator access.
+Removing a collaborator invalidates every existing session they hold for that draft. After the
+owner adds you again, resume the shared draft to obtain a fresh session. Reusing the old session
+does not restore access. Losing operator permission also invalidates the session on its next request.
+
 
 ## Access configuration validation
 

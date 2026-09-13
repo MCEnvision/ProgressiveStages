@@ -412,6 +412,8 @@ Integrations must resolve a fresh context on the server thread after membership 
 
 Easy Builder applies only the reviewed draft revision. If another edit changes the draft, it
 reloads the current source and asks for a new review before applying.
+Removing a draft collaborator revokes their existing sessions. Adding them again requires
+a fresh session before they can read, review, or apply that draft.
 
 Diagnostic capture status shows the category, remaining limits, and writer completion.
 Capture headers identify the candidate archives and captured effective configuration.

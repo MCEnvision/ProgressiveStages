@@ -383,7 +383,13 @@ public final class EditorSessionService {
     private Object collaborator(ServerPlayer operator, EditorDraft draft, JsonObject request, boolean add) {
         UUID collaborator = UUID.fromString(string(request, "player", ""));
         if (add) draft.addCollaborator(operator.getUUID(), collaborator);
-        else draft.removeCollaborator(operator.getUUID(), collaborator);
+        else {
+            draft.removeCollaborator(operator.getUUID(), collaborator);
+            if (!draft.owner().equals(collaborator)) {
+                sessions.entrySet().removeIf(entry -> entry.getValue().draftId.equals(draft.id())
+                    && entry.getValue().owner.equals(collaborator));
+            }
+        }
         persist(draft);
         return Map.of("collaborators", draft.collaborators());
     }
@@ -425,6 +431,12 @@ public final class EditorSessionService {
         if (session == null || !session.owner.equals(operator.getUUID())) throw new SecurityException("The editor session is unavailable");
         if (!operator.hasPermissions(3)) { revoke(sessionId); throw new SecurityException("Operator permission was lost"); }
         if (!MessageDigest.isEqual(session.secretHash, hash(secret))) throw new SecurityException("The editor session secret is invalid");
+        EditorDraft draft = drafts.get(session.draftId);
+        if (draft == null || !draft.owner().equals(operator.getUUID())
+                && !draft.collaborators().contains(operator.getUUID())) {
+            revoke(sessionId);
+            throw new SecurityException("Access to the editor draft was removed");
+        }
         session.lastAccessAt = System.currentTimeMillis();
         return session;
     }

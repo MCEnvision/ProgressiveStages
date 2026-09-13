@@ -5,10 +5,13 @@ import com.enviouse.progressivestages.common.api.StageCause;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.team.TeamStageSync;
+import com.enviouse.progressivestages.common.team.TeamProvider;
 import com.enviouse.progressivestages.common.util.Constants;
 import com.mojang.logging.LogUtils;
 import dev.ftb.mods.ftbteams.api.FTBTeamsAPI;
 import dev.ftb.mods.ftbteams.api.Team;
+import dev.ftb.mods.ftbteams.api.event.PlayerChangedTeamEvent;
+import dev.ftb.mods.ftbteams.api.event.TeamEvent;
 import dev.ftb.mods.ftbteams.api.property.TeamProperties;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -23,7 +26,7 @@ import java.util.*;
 
 /**
  * Integration with FTB Teams mod.
- * Uses polling to detect team changes since FTB Teams events aren't NeoForge events.
+ * Native team events invalidate captured contexts while polling synchronizes team state.
  *
  * <p>Also monitors FTB Teams' {@code TEAM_STAGES} property to detect stages granted
  * by FTB Quests team rewards. When a StageReward has {@code isTeamReward() == true}
@@ -43,6 +46,8 @@ public class FTBTeamsIntegration {
     private static boolean initialized = false;
     private static boolean initChecked = false;
     private static boolean registered = false;
+    private static final java.util.function.Consumer<PlayerChangedTeamEvent> MEMBERSHIP_CHANGED =
+        event -> TeamProvider.getInstance().invalidateMembership();
 
     // Track each player's current team to detect changes
     private static final Map<UUID, UUID> lastKnownTeams = new HashMap<>();
@@ -72,6 +77,7 @@ public class FTBTeamsIntegration {
         try {
             Class.forName("dev.ftb.mods.ftbteams.api.FTBTeamsAPI");
             NeoForge.EVENT_BUS.register(FTBTeamsIntegration.class);
+            TeamEvent.PLAYER_CHANGED.register(MEMBERSHIP_CHANGED);
             registered = true;
             LOGGER.info("[ProgressiveStages] FTB Teams integration registered successfully");
         } catch (ClassNotFoundException e) {
@@ -180,9 +186,12 @@ public class FTBTeamsIntegration {
         LOGGER.debug("Player {} logged out, tracking removed", event.getEntity().getName().getString());
     }
 
-    /** Reset world-specific snapshots while keeping the event listener registered once. */
+    /** Detach listeners and clear runtime snapshots before another server starts. */
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
+        TeamEvent.PLAYER_CHANGED.unregister(MEMBERSHIP_CHANGED);
+        if (registered) NeoForge.EVENT_BUS.unregister(FTBTeamsIntegration.class);
+        registered = false;
         initialized = false;
         initChecked = false;
         lastKnownTeams.clear();

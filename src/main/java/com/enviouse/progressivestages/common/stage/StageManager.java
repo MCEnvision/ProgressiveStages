@@ -165,8 +165,14 @@ public class StageManager {
         if (context == null || stageId == null || operation == null || server == null) {
             return new StageMutationResult(false, "invalid_context", mutationRevision, Set.of(), Set.of());
         }
+        if (!server.isSameThread()) {
+            return new StageMutationResult(false, "wrong_thread", mutationRevision, Set.of(), Set.of());
+        }
         ServerPlayer player = server.getPlayerList().getPlayer(context.actorId());
         if (player == null) return new StageMutationResult(false, "actor_offline", mutationRevision, Set.of(), Set.of());
+        if (context.membershipRevision() != TeamProvider.getInstance().membershipRevision()) {
+            return new StageMutationResult(false, "stale_membership", mutationRevision, Set.of(), Set.of(player.getUUID()));
+        }
         if (!owner(player, stageId).equals(context.owner())) {
             return new StageMutationResult(false, "owner_mismatch", mutationRevision, Set.of(), Set.of(player.getUUID()));
         }
@@ -408,8 +414,13 @@ public class StageManager {
     }
 
     public record OfflinePermissionContext(UUID subject, long definitionRevision, Map<StageId, OwnerRef> owners,
-                                            Map<StageId, StageDefinition> definitions) {
+                                            Map<StageId, StageDefinition> definitions, long membershipRevision) {
         public OfflinePermissionContext { owners = Map.copyOf(owners); definitions = Map.copyOf(definitions); }
+
+        public OfflinePermissionContext(UUID subject, long definitionRevision, Map<StageId, OwnerRef> owners,
+                                         Map<StageId, StageDefinition> definitions) {
+            this(subject, definitionRevision, owners, definitions, TeamProvider.getInstance().membershipRevision());
+        }
     }
 
     public OfflinePermissionContext captureOfflinePermissionContext(UUID subject) {

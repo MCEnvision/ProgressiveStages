@@ -23,6 +23,15 @@ public class TeamProvider {
     private ITeamIntegration integration;
     private ITeamIntegration ftbIntegration;
     private boolean ftbTeamsAvailable = false;
+    private final java.util.concurrent.atomic.AtomicLong membershipRevision = new java.util.concurrent.atomic.AtomicLong();
+
+    public long membershipRevision() {
+        return membershipRevision.get();
+    }
+
+    public void invalidateMembership() {
+        membershipRevision.incrementAndGet();
+    }
 
     public static TeamProvider getInstance() {
         if (INSTANCE == null) {
@@ -37,6 +46,7 @@ public class TeamProvider {
      * Initialize the team provider
      */
     public void initialize() {
+        invalidateMembership();
         // Check if FTB Teams integration is enabled in config
         if (!StageConfig.isFtbTeamsIntegrationEnabled()) {
             ftbTeamsAvailable = false;

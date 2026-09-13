@@ -122,6 +122,31 @@ public final class LuckPermsOfflineGameTests {
     }
 
     @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void offlineMembershipChangesRejectDelayedInputWithUnchangedOwners(GameTestHelper helper) throws Exception {
+        try (Fixture fixture = new Fixture(helper)) {
+            fixture.order.registerStage(definition(CHEF, false, Map.of()));
+            fixture.order.registerStage(definition(RETAINED, true, Map.of()));
+            fixture.data.grantStageFromSource(SHARED.id(), CHEF, source(SECOND, false));
+            fixture.adapter.changed.accept(FIRST);
+            LuckPermsBridge.tick(fixture.server);
+            com.enviouse.progressivestages.common.team.TeamProvider.getInstance().invalidateMembership();
+            fixture.adapter.finish(FIRST, true);
+            LuckPermsBridge.tick(fixture.server);
+            helper.assertTrue(fixture.data.getSources(SHARED, CHEF).equals(Set.of(source(SECOND, false)))
+                && !fixture.data.hasStage(SHARED.id(), RETAINED),
+                "Stale membership must reject both retention modes without removing another contributor.");
+            helper.assertTrue(fixture.data.getPermissionEpisodes(FIRST).isEmpty(),
+                "Rejected membership must not create eligibility history.");
+            fixture.adapter.finish(FIRST, true);
+            LuckPermsBridge.tick(fixture.server);
+            helper.assertTrue(fixture.data.getSources(SHARED, CHEF).contains(source(FIRST, false))
+                && fixture.data.hasStage(SHARED.id(), RETAINED),
+                "A newly loaded observation must reconcile under current membership.");
+            helper.succeed();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
     public static void offlineRescanConvergesWhileContributorsAreRemoved(GameTestHelper helper) throws Exception {
         try (Fixture fixture = new Fixture(helper)) {
             fixture.order.registerStage(definition(CHEF, false, Map.of()));

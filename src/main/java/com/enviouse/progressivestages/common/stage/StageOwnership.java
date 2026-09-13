@@ -23,7 +23,8 @@ public final class StageOwnership {
         OwnerRef resolved = stageId == null
             ? new OwnerRef(OwnerKind.PERSONAL, player.getUUID()) : resolveOwner(player, stageId);
         long definitionRevision = StageFileLoader.getInstance().getCompiledSnapshot().revision();
-        return new StageActorContext(player.getUUID(), resolved, definitionRevision, 0L);
+        return new StageActorContext(player.getUUID(), resolved, definitionRevision,
+            TeamProvider.getInstance().membershipRevision());
     }
 
     public static OwnerRef owner(ServerPlayer player, StageId stageId) {

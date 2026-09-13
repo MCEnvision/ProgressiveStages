@@ -33,6 +33,13 @@ An owner or provider change masks incompatible history while retaining the origi
 the compatible setting reveals that history again. Use an explicit administrative regrant when a
 pack intentionally wants a new owner to receive a stage.
 
+An integration using `StageActorContext` must resolve a fresh context after membership, login,
+logout or provider initialization changes. `mutateStage` returns `stale_membership` instead of
+applying a delayed grant or revoke, including when the owner UUID remains the same. The revision
+is server wide, so another player's membership change can also invalidate a captured context.
+Resolve and reevaluate on the server thread before retrying. Rejected contexts do not publish
+committed changes or alter stored stages.
+
 ## Permission contributors
 
 Source labels distinguish the contributing player, mapping row and retention mode within each

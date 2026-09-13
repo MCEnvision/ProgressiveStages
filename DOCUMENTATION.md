@@ -4378,6 +4378,26 @@ Static facade in [`ProgressiveStagesAPI.java`](src/main/java/com/enviouse/progre
 Mutation methods must run on the logical server thread; queries should normally
 be made there because they read live world/team state.
 
+`resolveStageOwner` captures the current membership revision along with the definition revision
+and typed owner. `mutateStage` rejects calls outside the server thread with `wrong_thread`, an
+offline actor with `actor_offline`, stale membership with `stale_membership`, a different owner
+with `owner_mismatch`, and stale definitions with `stale_revision`. Rejection changes no stage,
+mutation revision or committed event. Resolve a new context and reevaluate the intended operation
+on the server thread before retrying.
+
+The membership revision is a conservative server wide generation. Provider initialization, player
+login/logout, server shutdown and the native FTB Teams `PLAYER_CHANGED` event invalidate previously
+captured contexts, even when the resulting owner UUID is unchanged. A different player's membership
+event may therefore require a fresh context too. The native listener is registered only inside the
+optional FTB integration and detached at server shutdown. Existing team polling remains responsible
+for its other synchronization work; this context guard does not establish complete membership or
+permission callback acceptance.
+
+Pending offline permission observations carry the same membership revision. Both the initial
+validation and the final commit check reject a changed generation, even if all resolved owner
+UUIDs and definitions still match. Stale results request fresh provider input; they cannot create
+a retained entitlement or eligibility episode from the old observation.
+
 ```java
 // Existence checks
 boolean exists = ProgressiveStagesAPI.stageExists(StageId.parse("iron_age"));

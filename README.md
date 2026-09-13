@@ -397,6 +397,9 @@ node and execution bindings identify aliases; namespace text alone does not esta
 The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)
 distinguishes the core checks from the outstanding real provider and client acceptance.
 
+Actor context mutations reject stale membership and definition revisions before changing stages.
+Integrations must resolve a fresh context on the server thread after membership or session changes.
+
 Easy Builder applies only the reviewed draft revision. If another edit changes the draft, it
 reloads the current source and asks for a new review before applying.
 

@@ -81,9 +81,21 @@ these changes. Older labels without player attribution are not guessed or delete
 Before checking new inbound eligibility, reconciliation removes the current player's synchronized
 contributions under obsolete owners or deleted definitions. Other players' contributions and
 independent or permanent history are preserved. The existing FTB membership detector invokes this
-path before team synchronization. Offline contributors, startup eligibility, unattributed legacy
+path before team synchronization. Offline contributors, startup provider revalidation, unattributed legacy
 migration, exact membership event timing and expiry episode recovery still need complete lifecycle
 verification. A successful online reconciliation does not prove offline cleanup.
+
+## Saved sources awaiting revalidation
+
+A saved synchronized source is inactive after data loading until it qualifies again. Its record is
+retained, while independent and permanent grants remain effective. Pending sources do not satisfy
+stage access or appear as effective source kinds. Revalidating an existing source does not create
+an independent grant or restart its stored acquisition timestamp.
+
+Explicit revoke and revoke-all still remove pending stored entitlements. Pending progression also
+prevents default first-join starter grants from repeating. Do not mistake a pending
+source for a lost save record. The current load and reactivation checks do not establish complete
+offline loading, provider restart convergence, context invalidation or expiry episode behavior.
 
 ## Diagnosis
 

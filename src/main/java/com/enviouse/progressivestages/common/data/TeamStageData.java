@@ -4,6 +4,7 @@ import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.stage.OwnerKind;
 import com.enviouse.progressivestages.common.stage.OwnerRef;
 import com.enviouse.progressivestages.common.stage.PermissionStageSource;
+import com.enviouse.progressivestages.common.stage.StageSourceKind;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
@@ -46,6 +47,8 @@ public class TeamStageData {
     private final Map<SourceOwner, Map<StageId, Set<String>>> stageSources = new HashMap<>();
     public record PermissionContribution(OwnerRef owner, StageId stage, PermissionStageSource source) {}
     private final Map<UUID, Set<PermissionContribution>> permissionContributions = new HashMap<>();
+    private record ActiveSource(SourceOwner owner, StageId stage, String label) {}
+    private final Set<ActiveSource> activeSynchronizedSources = new HashSet<>();
     private int ownershipSchema = CURRENT_SCHEMA;
 
     public TeamStageData() {}
@@ -237,6 +240,35 @@ public class TeamStageData {
         return sources == null ? Set.of() : Set.copyOf(sources);
     }
 
+    public boolean hasEffectiveStage(OwnerRef owner, StageId stage) {
+        Set<StageId> stored = owner.kind() == OwnerKind.PERSONAL
+            ? personalStages.get(owner.id()) : teamStages.get(owner.id());
+        if (stored == null || !stored.contains(stage)) return false;
+        Map<StageId, Set<String>> records = stageSources.get(new SourceOwner(owner.kind(), owner.id()));
+        Set<String> sources = records == null ? null : records.get(stage);
+        return sources == null || sources.isEmpty() || sources.stream().anyMatch(source -> sourceIsActive(owner, stage, source));
+    }
+
+    public Set<StageId> getEffectiveStages(OwnerRef owner) {
+        Set<StageId> stored = owner.kind() == OwnerKind.PERSONAL
+            ? personalStages.get(owner.id()) : teamStages.get(owner.id());
+        if (stored == null) return Set.of();
+        Set<StageId> result = new HashSet<>();
+        for (StageId stage : stored) if (hasEffectiveStage(owner, stage)) result.add(stage);
+        return Set.copyOf(result);
+    }
+
+    public Set<String> getEffectiveSources(OwnerRef owner, StageId stage) {
+        Set<String> result = new HashSet<>();
+        for (String source : getSources(owner, stage)) if (sourceIsActive(owner, stage, source)) result.add(source);
+        return Set.copyOf(result);
+    }
+
+    private boolean sourceIsActive(OwnerRef owner, StageId stage, String source) {
+        return StageSourceKind.fromLabel(source) != StageSourceKind.LUCKPERMS_SYNCHRONIZED
+            || activeSynchronizedSources.contains(new ActiveSource(new SourceOwner(owner.kind(), owner.id()), stage, source));
+    }
+
     public boolean revokeStageFromSource(UUID owner, StageId stageId, String source, boolean personal) {
         OwnerKind kind = personal ? OwnerKind.PERSONAL : teamKind(owner);
         return revokeStageFromSource(new OwnerRef(kind, owner), stageId, source);
@@ -250,6 +282,7 @@ public class TeamStageData {
         if (sources == null || !sources.remove(source)) return false;
         ownershipSchema = CURRENT_SCHEMA;
         updatePermissionIndex(kind, owner.id(), stageId, source, false);
+        activeSynchronizedSources.remove(new ActiveSource(new SourceOwner(kind, owner.id()), stageId, source));
         if (sources.isEmpty()) {
             if (kind == OwnerKind.PERSONAL) revokePersonalStage(owner.id(), stageId);
             else revokeStage(owner.id(), stageId);
@@ -260,6 +293,9 @@ public class TeamStageData {
     private void addSource(OwnerKind kind, UUID owner, StageId stageId, String source) {
         if (source == null || source.isBlank()) return;
         String label = source.trim();
+        if (StageSourceKind.fromLabel(label) == StageSourceKind.LUCKPERMS_SYNCHRONIZED) {
+            activeSynchronizedSources.add(new ActiveSource(new SourceOwner(kind, owner), stageId, label));
+        }
         if (stageSources.computeIfAbsent(new SourceOwner(kind, owner), ignored -> new HashMap<>())
                 .computeIfAbsent(stageId, ignored -> new HashSet<>()).add(label)) {
             updatePermissionIndex(kind, owner, stageId, label, true);
@@ -300,7 +336,10 @@ public class TeamStageData {
         Map<StageId, Set<String>> stages = stageSources.get(new SourceOwner(kind, owner));
         if (stages == null) return;
         Set<String> removed = stages.remove(stageId);
-        if (removed != null) removed.forEach(source -> updatePermissionIndex(kind, owner, stageId, source, false));
+        if (removed != null) removed.forEach(source -> {
+            updatePermissionIndex(kind, owner, stageId, source, false);
+            activeSynchronizedSources.remove(new ActiveSource(new SourceOwner(kind, owner), stageId, source));
+        });
         if (stages.isEmpty()) stageSources.remove(new SourceOwner(kind, owner));
     }
 
@@ -367,7 +406,7 @@ public class TeamStageData {
      * A stage with more dependencies is considered more advanced.
      */
     public Optional<StageId> getHighestStage(UUID teamId) {
-        Set<StageId> stages = teamStages.get(teamId);
+        Set<StageId> stages = getEffectiveStages(new OwnerRef(teamKind(teamId), teamId));
         if (stages == null || stages.isEmpty()) {
             return Optional.empty();
         }
@@ -406,6 +445,7 @@ public class TeamStageData {
             copy.stageSources.put(entry.getKey(), stages);
         }
         copy.indexPermissionSources();
+        copy.activeSynchronizedSources.addAll(activeSynchronizedSources);
         return copy;
     }
 }

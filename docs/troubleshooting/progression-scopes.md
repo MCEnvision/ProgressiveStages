@@ -45,6 +45,11 @@ removed from their original owner before new grants are evaluated. Deleting a de
 withdraws that subject's synchronized contribution. Independent and permanent owner history stays
 in place. This path does not migrate a contribution to another owner or grant an offline player.
 
+Synchronized records loaded from disk remain stored but do not contribute effective access until
+revalidated. Independent and permanent records remain effective. Explicit revocation and bulk
+revocation still address pending stored entitlements. Inactive contributions cannot satisfy stage
+dependencies or appear as effective source kinds.
+
 The [LuckPerms guide](luckperms.md#inbound-source-ownership) describes current cleanup coverage and
 the remaining migration and membership lifecycle limitations.
 

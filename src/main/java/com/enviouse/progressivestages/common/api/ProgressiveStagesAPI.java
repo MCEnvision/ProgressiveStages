@@ -279,11 +279,11 @@ public final class ProgressiveStagesAPI {
      * @return true if the stage was revoked, false if didn't have it
      */
     public static boolean revokeStage(ServerPlayer player, StageId stageId, StageCause cause) {
-        if (!hasStage(player, stageId)) {
+        if (!StageManager.getInstance().hasStoredStage(player, stageId)) {
             return false;
         }
         StageManager.getInstance().revokeStageWithCause(player, stageId, cause);
-        return !hasStage(player, stageId);
+        return !StageManager.getInstance().hasStoredStage(player, stageId);
     }
 
     /** remove one derived source and retain independently earned access. */

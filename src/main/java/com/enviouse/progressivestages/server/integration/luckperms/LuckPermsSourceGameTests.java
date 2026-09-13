@@ -217,6 +217,128 @@ public final class LuckPermsSourceGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void loadedPermissionSourcesRequireAuthoritativeRevalidation(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The load fixture requires an isolated server.");
+        var actor = player(helper, new UUID(0x5722L, 1));
+        var stage = StageId.parse("progressivestages:permission_loaded_regression");
+        var revoked = StageId.parse("progressivestages:permission_pending_revoke");
+        var retained = StageId.parse("progressivestages:permission_loaded_retained");
+        var order = StageOrder.getInstance();
+        var previous = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
+        var original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var manager = StageManager.getInstance();
+        var bridge = LuckPermsBridge.getInstance();
+        var adapter = new InMemoryLuckPermsAdapter();
+        String source = new PermissionStageSource(actor.getUUID(), "chef", false).label();
+        String permanent = new PermissionStageSource(actor.getUUID(), "chef", true).label();
+        var prepared = original.copy();
+        prepared.grantStageFromSource(StageManager.SERVER_TEAM, stage, source);
+        prepared.grantStageFromSource(StageManager.SERVER_TEAM, revoked, source);
+        prepared.grantStageFromSource(StageManager.SERVER_TEAM, retained, source);
+        prepared.grantStageFromSource(StageManager.SERVER_TEAM, retained, permanent);
+        prepared.grantStage(StageManager.SERVER_TEAM, retained);
+        var loaded = com.enviouse.progressivestages.common.data.TeamStageData.CODEC.parse(
+            com.mojang.serialization.JsonOps.INSTANCE,
+            com.enviouse.progressivestages.common.data.TeamStageData.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, prepared).getOrThrow()).getOrThrow();
+        long previousTime = StageRegressionData.get(server).getGrantTime(StageManager.SERVER_TEAM, stage);
+        bridge.setAdapterForTests(adapter);
+        try {
+            replaceDefinitions(definition(stage, false, "chef"), definition(revoked, false, "chef"),
+                definition(retained, false, "chef"));
+            server.overworld().setData(StageAttachments.TEAM_STAGES, loaded);
+            StageRegressionData.get(server).markGranted(StageManager.SERVER_TEAM, stage, 123456789L);
+            helper.assertTrue(manager.hasStoredStage(actor, stage) && !manager.hasStage(actor, stage)
+                && !manager.hasStage(StageManager.SERVER_TEAM, stage),
+                "Loaded synchronized records must not grant actor or legacy team access before revalidation.");
+            helper.assertTrue(manager.getStoredStages(actor).contains(revoked) && !manager.getStages(actor).contains(revoked),
+                "Administrative enumeration must retain inactive stored entitlements.");
+            helper.assertTrue(manager.getEffectiveSnapshot(actor).sources().get(retained).equals(
+                Set.of(StageSourceKind.INDEPENDENT, StageSourceKind.LUCKPERMS_PERMANENT)),
+                "Pending sources must not appear as effective alongside retained grants.");
+            helper.assertTrue(com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.revokeStage(
+                actor, revoked, StageCause.COMMAND) && !manager.hasStoredStage(actor, revoked),
+                "Explicit revocation must remove an inactive stored entitlement.");
+            replaceDefinitions(definition(stage, false, "chef"), definition(retained, false, "chef"));
+            adapter.permission(actor.getUUID(), "professions.chef", TRUE);
+            LuckPermsBridge.reconcile(actor);
+            helper.assertTrue(manager.hasStage(actor, stage) && manager.getStageSources(actor, stage).equals(Set.of(source)),
+                "Authoritative revalidation must activate the existing source without an independent grant.");
+            helper.assertTrue(StageRegressionData.get(server).getGrantTime(StageManager.SERVER_TEAM, stage) == 123456789L,
+                "Reactivation must not refresh the original acquisition time.");
+            long revision = manager.getMutationRevision();
+            LuckPermsBridge.reconcile(actor);
+            helper.assertTrue(manager.getMutationRevision() == revision, "Repeated revalidation must be a no op.");
+            helper.succeed();
+        } finally {
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
+            if (previousTime <= 0) StageRegressionData.get(server).clear(StageManager.SERVER_TEAM, stage);
+            else StageRegressionData.get(server).markGranted(StageManager.SERVER_TEAM, stage, previousTime);
+            LuckPermsBridge.disconnect(actor);
+            bridge.setAdapterForTests(null);
+            order.clear();
+            previous.forEach(order::registerStage);
+            actor.discard();
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void pendingPermissionStagesDoNotRepeatStarterGrants(GameTestHelper helper) throws Exception {
+        var server = helper.getLevel().getServer();
+        helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The starter fixture requires an isolated server.");
+        var actor = player(helper, new UUID(0x5723L, 1));
+        var pending = StageId.parse("progressivestages:permission_pending_starter_guard");
+        var starter = StageId.parse("progressivestages:permission_starter_control");
+        var order = StageOrder.getInstance();
+        var previous = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
+        var original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        var manager = StageManager.getInstance();
+        var prepared = original.copy();
+        prepared.grantStageFromSource(StageManager.SERVER_TEAM, pending,
+            new PermissionStageSource(actor.getUUID(), "chef", false).label());
+        var loaded = com.enviouse.progressivestages.common.data.TeamStageData.CODEC.parse(
+            com.mojang.serialization.JsonOps.INSTANCE,
+            com.enviouse.progressivestages.common.data.TeamStageData.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, prepared).getOrThrow()).getOrThrow();
+        var config = com.enviouse.progressivestages.common.config.StageConfig.class;
+        var startingField = config.getDeclaredField("startingStages");
+        var reapplyField = config.getDeclaredField("reapplyStartingStagesOnLogin");
+        startingField.setAccessible(true);
+        reapplyField.setAccessible(true);
+        Object previousStarting = startingField.get(null);
+        boolean previousReapply = reapplyField.getBoolean(null);
+        long previousTime = StageRegressionData.get(server).getGrantTime(StageManager.SERVER_TEAM, starter);
+        try {
+            replaceDefinitions(StageDefinition.builder(pending).scope("server").build(),
+                StageDefinition.builder(starter).scope("server").build());
+            startingField.set(null, List.of(starter.toString()));
+            reapplyField.setBoolean(null, false);
+            server.overworld().setData(StageAttachments.TEAM_STAGES, loaded);
+            helper.assertTrue(manager.getStages(actor).isEmpty() && manager.getStoredStages(actor).contains(pending),
+                "The starter guard must be exercised with only inactive stored progression.");
+            manager.grantStartingStage(actor);
+            helper.assertTrue(!manager.hasStoredStage(actor, starter),
+                "Pending permission progression must not be treated as a new player.");
+            loaded.revokeStage(StageManager.SERVER_TEAM, pending);
+            manager.grantStartingStage(actor);
+            helper.assertTrue(manager.hasStage(actor, starter),
+                "A player with no stored progression must still receive the configured starter.");
+            helper.succeed();
+        } finally {
+            startingField.set(null, previousStarting);
+            reapplyField.setBoolean(null, previousReapply);
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
+            if (previousTime <= 0) StageRegressionData.get(server).clear(StageManager.SERVER_TEAM, starter);
+            else StageRegressionData.get(server).markGranted(StageManager.SERVER_TEAM, starter, previousTime);
+            LuckPermsBridge.disconnect(actor);
+            order.clear();
+            previous.forEach(order::registerStage);
+            actor.discard();
+        }
+    }
+
     private static void replaceDefinitions(StageDefinition... definitions) {
         var order = StageOrder.getInstance();
         order.clear();

@@ -214,7 +214,11 @@ public class StageManager {
     public boolean hasStage(ServerPlayer player, StageId stageId) {
         if (player == null || stageId == null) return false;
         TeamStageData data = getTeamStageData();
-        return hasOwned(data, owner(player, stageId), stageId);
+        return data.hasEffectiveStage(owner(player, stageId), stageId);
+    }
+
+    public boolean hasStoredStage(ServerPlayer player, StageId stageId) {
+        return player != null && stageId != null && hasOwned(getTeamStageData(), owner(player, stageId), stageId);
     }
 
     public OwnerRef getStageOwner(ServerPlayer player, StageId stageId) {
@@ -227,7 +231,9 @@ public class StageManager {
     public boolean hasStage(UUID teamId, StageId stageId) {
         TeamStageData data = getTeamStageData();
         // v2.4: server-wide stages live under SERVER_TEAM and count for every team.
-        return data.hasStage(teamId, stageId) || data.hasStage(SERVER_TEAM, stageId);
+        OwnerRef team = new OwnerRef(SERVER_TEAM.equals(teamId) ? OwnerKind.SERVER : OwnerKind.TEAM, teamId);
+        return data.hasEffectiveStage(team, stageId)
+            || data.hasEffectiveStage(new OwnerRef(OwnerKind.SERVER, SERVER_TEAM), stageId);
     }
 
     /**
@@ -250,14 +256,22 @@ public class StageManager {
         if (!canGrantStageFromSource(player, stageId)) return false;
         boolean alreadyOwned = hasOwned(data, stageOwner, stageId);
         Set<String> previousSources = data.getSources(stageOwner, stageId);
+        Set<String> previousEffectiveSources = data.getEffectiveSources(stageOwner, stageId);
         grantOwnedFromSource(data, stageOwner, stageId, source);
-        boolean added = !previousSources.equals(data.getSources(stageOwner, stageId));
+        boolean added = !previousSources.equals(data.getSources(stageOwner, stageId))
+            || !previousEffectiveSources.equals(data.getEffectiveSources(stageOwner, stageId));
         if (!added) return false;
         markMutation(true);
         if (!alreadyOwned) {
             fireStageChangeEvent(player, stageOwner.id(), stageId, StageChangeType.GRANTED, cause);
         }
         syncStageView(player, stageId);
+        if (alreadyOwned && !before.contains(stageId) && hasStage(player, stageId)) {
+            for (UUID recipient : affectedPlayers(player, true, Set.of(stageOwner))) {
+                ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+                if (online != null) fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
+            }
+        }
         publishMutation(player, stageId, true, "source_added", Set.of(stageOwner));
         captureProgression(player, stageId, before, getStages(player), cause, "source_added");
         return true;
@@ -923,8 +937,9 @@ public class StageManager {
     }
 
     private static Set<StageId> effectiveStages(TeamStageData data, UUID teamId) {
-        Set<StageId> result = new LinkedHashSet<>(data.getStages(teamId));
-        if (!SERVER_TEAM.equals(teamId)) result.addAll(data.getStages(SERVER_TEAM));
+        OwnerRef owner = new OwnerRef(SERVER_TEAM.equals(teamId) ? OwnerKind.SERVER : OwnerKind.TEAM, teamId);
+        Set<StageId> result = new LinkedHashSet<>(data.getEffectiveStages(owner));
+        if (!SERVER_TEAM.equals(teamId)) result.addAll(data.getEffectiveStages(new OwnerRef(OwnerKind.SERVER, SERVER_TEAM)));
         return result;
     }
 
@@ -942,20 +957,33 @@ public class StageManager {
      * Get all stages for a player
      */
     public Set<StageId> getStages(ServerPlayer player) {
+        return resolvedStages(player, false);
+    }
+
+    public Set<StageId> getStoredStages(ServerPlayer player) {
+        return resolvedStages(player, true);
+    }
+
+    private Set<StageId> resolvedStages(ServerPlayer player, boolean includeInactive) {
         if (player == null) return Set.of();
         TeamStageData data = getTeamStageData();
         Set<StageId> result = new LinkedHashSet<>();
         for (StageId stage : data.getPersonalStages(player.getUUID())) {
-            if (owner(player, stage).kind() == OwnerKind.PERSONAL) result.add(stage);
+            OwnerRef resolved = owner(player, stage);
+            if (resolved.kind() == OwnerKind.PERSONAL
+                    && (includeInactive || data.hasEffectiveStage(resolved, stage))) result.add(stage);
         }
         for (UUID teamId : data.getAllTeamIds()) {
             for (StageId stage : data.getStages(teamId)) {
                 OwnerRef resolved = owner(player, stage);
-                if (resolved.kind() == OwnerKind.TEAM && resolved.id().equals(teamId)) result.add(stage);
+                if (resolved.kind() == OwnerKind.TEAM && resolved.id().equals(teamId)
+                        && (includeInactive || data.hasEffectiveStage(resolved, stage))) result.add(stage);
             }
         }
         for (StageId stage : data.getStages(SERVER_TEAM)) {
-            if (owner(player, stage).kind() == OwnerKind.SERVER) result.add(stage);
+            OwnerRef resolved = owner(player, stage);
+            if (resolved.kind() == OwnerKind.SERVER
+                    && (includeInactive || data.hasEffectiveStage(resolved, stage))) result.add(stage);
         }
         return Collections.unmodifiableSet(result);
     }
@@ -966,21 +994,7 @@ public class StageManager {
         Set<StageId> stages = getStages(player);
         Map<StageId, Set<StageSourceKind>> sources = new LinkedHashMap<>();
         TeamStageData data = getTeamStageData();
-        for (StageId stage : data.getPersonalStages(player.getUUID())) {
-            if (owner(player, stage).kind() != OwnerKind.PERSONAL) continue;
-            addSources(sources, stage, data.getSources(new OwnerRef(OwnerKind.PERSONAL, player.getUUID()), stage));
-        }
-        for (UUID teamId : data.getAllTeamIds()) {
-            for (StageId stage : data.getStages(teamId)) {
-                OwnerRef resolved = owner(player, stage);
-                if (resolved.kind() != OwnerKind.TEAM || !resolved.id().equals(teamId)) continue;
-                addSources(sources, stage, data.getSources(resolved, stage));
-            }
-        }
-        for (StageId stage : data.getStages(SERVER_TEAM)) {
-            if (owner(player, stage).kind() != OwnerKind.SERVER) continue;
-            addSources(sources, stage, data.getSources(new OwnerRef(OwnerKind.SERVER, SERVER_TEAM), stage));
-        }
+        for (StageId stage : stages) addSources(sources, stage, data.getEffectiveSources(owner(player, stage), stage));
         return new EffectiveStageSnapshot(player.getUUID(), mutationRevision, stages, sources);
     }
 
@@ -1010,8 +1024,9 @@ public class StageManager {
      */
     public Set<StageId> getStages(UUID teamId) {
         TeamStageData data = getTeamStageData();
-        Set<StageId> server = data.getStages(SERVER_TEAM);
-        Set<StageId> team = data.getStages(teamId);
+        Set<StageId> server = data.getEffectiveStages(new OwnerRef(OwnerKind.SERVER, SERVER_TEAM));
+        Set<StageId> team = data.getEffectiveStages(new OwnerRef(
+            SERVER_TEAM.equals(teamId) ? OwnerKind.SERVER : OwnerKind.TEAM, teamId));
         if (server.isEmpty() || teamId.equals(SERVER_TEAM)) return team; // fast path / server view
         // v2.4: union server-wide stages into every team's effective stage set.
         Set<StageId> union = new LinkedHashSet<>(team);
@@ -1045,7 +1060,7 @@ public class StageManager {
             return;
         }
 
-        Set<StageId> currentStages = getStages(player);
+        Set<StageId> currentStages = getStoredStages(player);
 
         // Only grant starting stages if player has no stages yet, unless reapply is enabled.
         // (data.grantStage already short-circuits when the team already has the stage.)

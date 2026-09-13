@@ -359,6 +359,10 @@ Reconciliation also removes that player's synchronized contributions from obsole
 deleted definitions before evaluating new grants. Legacy contributor migration, offline recovery
 and the full provider lifecycle remain under verification.
 
+After loading saved data, synchronized grants wait for authoritative revalidation. Independent and
+permanent grants remain available. Pending synchronized grants stay stored so they can be rechecked
+or explicitly revoked; they do not satisfy access checks while pending.
+
 Command gates now check Minecraft's command execution tasks after redirects resolve. Registered
 node and execution bindings identify aliases; namespace text alone does not establish equivalence.
 The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)

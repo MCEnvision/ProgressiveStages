@@ -201,4 +201,87 @@ class TeamStageDataTest {
         assertTrue(data.hasStage(id, STAGE));
     }
 
+    @Test
+    void persistedSynchronizedSourcesStayStoredButInactiveUntilRevalidated() {
+        UUID subject = new UUID(0, 21);
+        String source = new PermissionStageSource(subject, "chef", false).label();
+        for (OwnerKind kind : OwnerKind.values()) {
+            UUID id = kind == OwnerKind.SERVER ? new UUID(0, 0) : subject;
+            var owner = new OwnerRef(kind, id);
+            var data = new TeamStageData();
+            if (kind == OwnerKind.PERSONAL) data.grantPersonalStageFromSource(id, STAGE, source);
+            else data.grantStageFromSource(id, STAGE, source);
+            assertTrue(data.hasEffectiveStage(owner, STAGE));
+            var encoded = TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow();
+            var loaded = TeamStageData.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow();
+            assertEquals(Set.of(source), loaded.getSources(owner, STAGE));
+            assertEquals(encoded, TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, loaded).getOrThrow());
+            assertFalse(loaded.hasEffectiveStage(owner, STAGE));
+            assertTrue(loaded.getEffectiveStages(owner).isEmpty());
+            assertTrue(loaded.getEffectiveSources(owner, STAGE).isEmpty());
+            if (kind == OwnerKind.PERSONAL) loaded.grantPersonalStageFromSource(id, STAGE, source);
+            else loaded.grantStageFromSource(id, STAGE, source);
+            assertEquals(Set.of(STAGE), loaded.getEffectiveStages(owner));
+            assertEquals(Set.of(source), loaded.getEffectiveSources(owner, STAGE));
+            assertEquals(Set.of(source), loaded.getSources(owner, STAGE));
+        }
+    }
+
+    @Test
+    void independentAndPermanentSourcesStayEffectiveWhileSynchronizedSourcesWait() {
+        UUID subject = new UUID(0, 22);
+        var owner = new OwnerRef(OwnerKind.PERSONAL, subject);
+        var data = new TeamStageData();
+        String sync = new PermissionStageSource(subject, "chef", false).label();
+        String permanent = new PermissionStageSource(subject, "chef", true).label();
+        data.grantPersonalStageFromSource(subject, STAGE, sync);
+        data.grantPersonalStageFromSource(subject, STAGE, permanent);
+        data.grantPersonalStage(subject, STAGE);
+        var loaded = TeamStageData.CODEC.parse(JsonOps.INSTANCE,
+            TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow()).getOrThrow();
+        assertTrue(loaded.hasEffectiveStage(owner, STAGE));
+        assertEquals(Set.of("independent", permanent), loaded.getEffectiveSources(owner, STAGE));
+        loaded.revokeStageFromSource(owner, STAGE, permanent);
+        assertTrue(loaded.hasEffectiveStage(owner, STAGE));
+        loaded.revokeStageFromSource(owner, STAGE, "independent");
+        assertFalse(loaded.hasEffectiveStage(owner, STAGE));
+        assertEquals(Set.of(sync), loaded.getSources(owner, STAGE));
+    }
+
+    @Test
+    void copiedActivationIsIndependentAndDoesNotSurviveSerialization() {
+        UUID subject = new UUID(0, 23);
+        var owner = new OwnerRef(OwnerKind.TEAM, subject);
+        var data = new TeamStageData();
+        String source = new PermissionStageSource(subject, "chef", false).label();
+        data.grantStageFromSource(subject, STAGE, source);
+        var copy = data.copy();
+        assertTrue(copy.hasEffectiveStage(owner, STAGE));
+        data.revokeStage(subject, STAGE);
+        assertTrue(copy.hasEffectiveStage(owner, STAGE));
+        var loaded = TeamStageData.CODEC.parse(JsonOps.INSTANCE,
+            TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, copy).getOrThrow()).getOrThrow();
+        assertFalse(loaded.hasEffectiveStage(owner, STAGE));
+        assertFalse(loaded.copy().hasEffectiveStage(owner, STAGE));
+        assertTrue(loaded.getHighestStage(subject).isEmpty());
+    }
+
+    @Test
+    void legacySynchronizedLabelsAlsoRequireRevalidation() {
+        UUID id = new UUID(0, 24);
+        var owner = new OwnerRef(OwnerKind.TEAM, id);
+        for (String label : new String[] {"luckperms_synchronized", "luckperms:synchronized", "luckperms:synchronized:chef"}) {
+            var data = new TeamStageData();
+            data.grantStageFromSource(id, STAGE, label);
+            var loaded = TeamStageData.CODEC.parse(JsonOps.INSTANCE,
+                TeamStageData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow()).getOrThrow();
+            assertFalse(loaded.hasEffectiveStage(owner, STAGE));
+            assertEquals(Set.of(label), loaded.getSources(owner, STAGE));
+            loaded.setStages(id, Set.of());
+            loaded.grantStage(id, STAGE);
+            assertTrue(loaded.hasEffectiveStage(owner, STAGE));
+            assertEquals(Set.of("independent"), loaded.getEffectiveSources(owner, STAGE));
+        }
+    }
+
 }

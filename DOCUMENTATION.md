@@ -2930,8 +2930,24 @@ not scan every owner's saved stages. All obsolete contributions are removed befo
 owner invalidation and evaluating new grants. Online beneficiaries receive current views and a bulk
 change event, without an acquisition or refund operation. The existing FTB membership detector
 reconciles before its team synchronization path. Migration of unattributed labels, offline contributor
-invalidation, startup eligibility, exact membership event timing and expiry episode recovery remain
+invalidation, startup provider revalidation, exact membership event timing and expiry episode recovery remain
 open lifecycle work.
+
+Saved synchronized sources begin inactive when `TeamStageData` is decoded. Their records and
+subject attribution remain stored for revalidation; independent and permanent sources remain
+effective. Activation is runtime state, is preserved by an in-process copy, and is never serialized.
+The stage manager's actor and legacy UUID access checks, effective lists, dependency views and
+source explanations exclude inactive synchronized contributions. A qualified reconciliation can
+reactivate the existing label and synchronize its owner view without adding independent ownership
+or firing another acquisition event, so its stored grant timestamp is not refreshed by that path.
+
+Storage access remains distinct from effective access. `TeamStageData` storage getters retain all
+records; its effective getters filter pending sources. `StageManager.hasStoredStage` and
+`getStoredStages` support explicit revocation. API revoke, command revoke-all and KubeJS revoke-all
+remove pending stored entitlements as well as active ones. Starter-stage eligibility also uses stored
+progression so pending access does not turn a returning player into a new-player grant. This does not
+implement positive-episode suppression or authoritative offline provider loading. The complete restart, context, expiry and
+provider convergence matrix remains open.
 
 Outbound output must use attributable transient contributions and preserve administrative nodes,
 independent membership and explicit negative permissions. The adapter now delegates mutations to

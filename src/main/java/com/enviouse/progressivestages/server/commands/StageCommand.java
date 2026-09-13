@@ -1276,7 +1276,7 @@ public class StageCommand {
                 }
             } else {
                 changed += com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.revokeStages(
-                    player, new ArrayList<>(StageManager.getInstance().getStages(player)),
+                    player, new ArrayList<>(StageManager.getInstance().getStoredStages(player)),
                     com.enviouse.progressivestages.common.api.StageCause.COMMAND);
             }
         }

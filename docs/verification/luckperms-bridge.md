@@ -214,6 +214,70 @@ remained. The intended candidate JAR, source, evidence, preexisting runtimes and
 caches were preserved. The goal and cursor hashes remained unchanged. The owned Gradle runs were
 terminal and left no single use daemon running.
 
+## Inbound source regression
+
+Source commit `dd7162b0c7628bce75273ac2fd0eb46be8c1baa6` separates inbound contributors by
+player UUID, row ID and retention mode within the resolved owner. A first derived grant no longer
+creates an independent grant. A preexisting stage with no source labels retains its legacy
+independent meaning when a contribution is added. Source explanations recognize attributed and
+older row labels as derived. Reconciliation removes synchronized rows that no longer exist on a
+registered definition for the current owner, including a removed LuckPerms table. It preserves
+other subjects, other rows, independent earnings and retained permanent history.
+
+On September 12, 2026, Java 21.0.11 `./gradlew test build --no-daemon --no-configuration-cache`
+passed on Minecraft 1.21.1 and NeoForge 21.1.248. All 361 tests in 100 suites passed without
+failures, errors or skips. Seven added unit tests cover source identity and parsing, source kinds,
+invalid empty contributions, personal/team/server legacy independence and codec roundtrips of
+multiple subjects sharing an owner. The postcommit build passed with unchanged test inputs.
+No separate formatter or static analysis task is configured; `git diff --check` passed.
+
+The owned dedicated server ran `LuckPermsSourceGameTests` through the actual GameTest dispatcher:
+
+```text
+execute positioned 0 180 0 run test run permissionsourcespreserveothersubjectsandindependentearnings
+```
+
+The test uses two constructed server players, server scoped definitions and a controlled adapter.
+It asserts distinct contributors, last source removal, independent earning preservation, removed
+rows and tables, permanent retention, missing prerequisite denial, dependency loss, purchase denial
+without an XP charge and unchanged mutation revision/grant time on repeated reconciliation. It
+restores definitions, source and regression data, adapter state and subject queue membership.
+An initial fixture failed because duplicate registration preserves the old definition; the corrected
+fixture clears and installs each intended definition set. Production behavior was not weakened.
+
+The corrected run reached readiness at 22:24:10 America/Chicago. At 22:24:43 the structure metadata
+identified the exact source regression and its fresh lime result marker reported
+`permission_sources_regression_pass`. The existing `permissionquerieswithdrawdeniedandunavailableoutput`
+fixture then ran in the same server. At 22:25:09 its own metadata and cleared/fresh lime marker
+reported `permission_queries_after_sources_pass`. The server stopped through its standard input
+at 22:25:24, saved all dimensions and exited normally.
+
+The clean `progressivestages-3.0.5.jar` SHA256 is
+`d00b491aa20165de0d398a9c0191e0959232e68f7ebce9d51b308b18202bba24`.
+Its manifest reports the source commit above and `Build-Dirty: false`; all 736 compiled production
+classes match the packaged bytes. No LuckPerms API classes are bundled. A production server with
+that exact JAR and no optional integration mods reached readiness at 22:26:35. At 22:26:56 the
+console returned daytime 2510 and permission capture status stopped with zero records and an idle
+writer. Shutdown at 22:27:07 saved all dimensions and exited normally. GitHub verified the pushed
+source commit's SSH signature.
+
+Both server modes ran without a GUI on `node-1`, in the existing Phase 003 worktree's
+`build/permission-source-verification`, with authenticated mode and loopback port 25589. The task
+graph was inspected before launch. EULA acceptance was read back before each launch. No laptop
+client, browser, real LuckPerms provider or FTB Teams fixture was launched. This proves core source
+mutation and persistence behavior, not actual provider login, team membership changes or network
+synchronization. Legacy unattributed source migration, old owner and deleted definition cleanup,
+offline contributors, expiry episodes, suppression, acquisition effects and the full real provider
+matrix remain mandatory open work. No final phase merge, tag or release is claimed.
+
+Cleanup confirmed both recorded server processes absent and loopback port 25589 closed. All owned
+Gradle and server command handles were terminal. It removed 973 added build paths and
+0 added local Gradle paths, including the runtime, test reports, compiled test output and
+fixture JAR copy. The library symlink was removed without following its target. Both inventories
+then matched their exact pretest baselines. The candidate JAR, source, preexisting runtimes and
+shared caches remain. Temporary ownership and launch files were removed after their final consumer.
+No laptop resource was created. The immutable goal and phase cursor remain unchanged.
+
 ## Online reconciliation queue regression
 
 Source commit `f5bceb64c21e8a4294129282b7ccfd56cddb6a04` repairs the online overflow path

@@ -251,7 +251,7 @@ The preserved images show [denied carried bread](selling-bin-client/gui_bread_de
 [whole bin denial after resource reload](selling-bin-client/resource_reload_denied.png).
 The earlier headless records retain their original, narrower scope.
 
-This closes these particular physical input, GUI and reconnect checks for the candidate. It
+This closes these particular physical input, GUI and reconnect checks for that candidate. It
 does not close the complete matrix: multiple real players, custom stack components, creative
 and configuration bypass transitions, all hand and sneaking combinations, LuckPerms retention
 and source changes, the packaged Brave authoring journey and verification of the eventual
@@ -267,3 +267,74 @@ unrelated instances were preserved. The disposable server's 81 new build entries
 hosts' scratch files were removed after the evidence was retained. The 837 preexisting build
 entries, 26 local Gradle entries, current candidate, shared caches and earlier investigation
 runtime remain untouched. No browser resource was created by this bounded suite.
+
+## Component, offhand and bypass followup
+
+On September 13, 2026, the packaged candidate from
+`8cdb8e08ef3b16cbe5cb09712a29a69e47f06ba2` passed the following additional actual client
+checks. Its SHA256 is `8f586a6ebce9f6bbef51c59451909aaf8fa206e1f62800d1d109c40f5ba1ec13`.
+[The observations](selling-bin-client/components-20260913.json) retain the exact artifact
+manifest, selective fixture, server state, server decisions, input records and cleanup receipt.
+This extends BIN-AC-002D, BIN-AC-002E and BIN-AC-004E evidence without claiming the whole
+combined acceptance matrix is complete.
+
+Both hosts used Minecraft 1.21.1 and NeoForge 21.1.248 with the same ProgressiveStages and
+Selling Bin archives. The node-1 server used `build/bin-component-client` in the phase 003
+worktree, online authentication and a loopback listener reached through the existing private
+SSH connection. The same isolated Prism instance on `envision` was reused. The client log
+confirmed the RTX 5090 Laptop GPU renderer and connection to the verified endpoint, and the
+server confirmed the authenticated player joined. LuckPerms and FTB Teams were absent.
+The player had no operator entry. Console commands prepared inventory, position, stage and
+creative mode fixtures; the client placed the bin and performed every tested insertion,
+offhand swap, menu opening, Sell button press and automatic sale toggle.
+
+The fixture was a legacy TOML definition with `team_stage=false` and only the paired bread
+direct use and inventory insertion rules. It contained no wildcard or whole bin access rule.
+The bin's primary entity was `(0, -60, 2)`. The controlled price pack valued bread at 10 and
+carrot at 7 emeralds. Bread carried a custom name, a custom data compound and an explicit
+enchantment glint component. A second distinguishable stack used a different name, custom
+data value and count so a forbidden swap could not pass merely by exchanging identical stacks.
+
+| Client action | Authoritative result |
+| --- | --- |
+| Repeated direct Use without the stage, automatic sale on | All three bread and their components remained in the main hand. Bin input, stored progress and payout stayed empty. Captures recorded terminal `stage_missing` denials. |
+| Grant, then direct Use | The three component bearing bread left the player and produced exactly 30 emeralds. |
+| Revoke, restore the stack, then sneaking Use | The main hand kept all three bread and their components. The existing 30 emeralds did not change. The denial occurred at tick 10179 and the state was read at tick 10214. |
+| Creative mode with bypass enabled | The same stage missing player could sell the stack, adding 30 emeralds. The capture reported `bypass` at tick 10597; the state at tick 10628 showed 60 emeralds. |
+| Disable `enforcement.allow_creative_bypass` and reload | Creative use preserved a fresh three item stack and its components, with the existing 60 emeralds unchanged. A repeated request recorded `stage_missing` and visible locked feedback. |
+| Survival, stick in the main hand and bread in the offhand | Main hand use opened the GUI without selling the offhand bread. The capture recorded the stick's selector mismatch. This is menu access evidence, not proof of an offhand direct use callback. |
+| Offhand swap over the input, automatic sale off | Without the stage, all three component bearing bread stayed in the offhand and the input remained empty. After grant, the same action moved all three into the input with every component preserved and no payout. |
+| Revoke while the menu stays open, then swap a distinct fresh stack | Two fresh bread with different components stayed in the offhand. The three previously accepted bread in the input were unchanged. |
+| Press Sell, then enable automatic sale through the GUI | One accepted bread sold for 10 emeralds; the two remaining accepted bread retained their components. Enabling automatic sale sold those two, reaching 30 emeralds. Fresh denied bread remained untouched. |
+| Repeat the denied offhand swap, then insert an unrestricted carrot with a hotbar swap | Fresh bread remained outside the bin. The carrot sold for 7 emeralds, bringing output to 37 with no bread sale. |
+| Resource reload, reopen the GUI and repeat the offhand swap | Fresh bread remained in the offhand with its components. The input stayed empty and output remained 37 emeralds. |
+
+The delayed server observations cover more than twenty ticks for the denial and sale checks.
+The first immediate direct denial read was only six ticks after its capture; the later read
+also confirmed the unchanged stack and empty bin before grant. It is not treated as sufficient
+delayed evidence by itself. The images show [creative denial](selling-bin-client/component_creative_denied.png),
+[accepted offhand components](selling-bin-client/component_offhand_allowed.png) and
+[denial after resource reload](selling-bin-client/component_reload_denied.png).
+
+Master volume was zero before startup and remained zero at shutdown. The owned window and
+Java PID were bound to PipeWire client objects because the native playback node did not carry
+a process ID directly. Only their corresponding application streams were muted. The watcher
+verified stream 15345 and its replacement 26599 after resource reload before further input.
+XWayland input used the verified owned Minecraft window on display `:1`.
+
+Two fixture mistakes were resolved before gameplay acceptance: a package shaped fixture without
+`[schema]` was changed to the intended legacy TOML file, and insertion used its required `target`
+field. The client rejected a simulation distance of 4 and used its valid fallback. These are
+fixture setup observations, not product regressions. The existing bundled `wdutils` access
+transformer error remains unresolved. Initial desktop input probes are not counted as gameplay
+acceptance. This suite did not repeat all hand combinations, two player behavior, reconnect,
+provider retention or the packaged Brave journey.
+
+The server saved all dimensions and exited with code 0. The owned client, launcher, supervisor
+and audio watcher exited; both playback streams and the private listener disappeared. All
+thirteen preserved instance roots were restored, ten original file hashes matched, and the
+complete 360 entry path inventory was restored. The temporary backup was removed. On node-1,
+79 test created build paths were removed, restoring the 836 build and 26 local Gradle entry
+baselines. The runtime library symlink was removed without following it; the original libraries,
+candidate, source and unrelated resources were preserved. Both hosts' scratch output was
+removed after retaining this bounded evidence.

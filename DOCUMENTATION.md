@@ -5182,5 +5182,18 @@ and equal UUIDs in distinct ownership namespaces are preserved.
 Listeners see the complete committed source state and may deliberately revoke or grant stages. Those
 later mutations are preserved. The bridge compares the committed revision and input context again
 before starting outbound reconciliation, so a callback invalidation queues a fresh attempt instead
-of publishing output from the earlier context. Atomic outbound provider mutations and actual provider
-concurrency acceptance remain separate open gates.
+of publishing output from the earlier context.
+
+Outbound permission checks and node mutations use the captured adapter. The bridge rechecks the
+complete server context before the first mutation, between mutations and around publication. A stale
+batch stops immediately, invalidates its projection and queues fresh work. Nodes already submitted
+remain in the exact ownership manifest for retry or removal. Reentrant cleanup for the same subject
+cannot discard an in flight contribution; it reports incomplete until that provider call returns.
+
+Publication also carries a guard using atomic stage, provider and membership generations plus the
+volatile compiled snapshot identity. The context calculator can check it without reading player,
+world or mutable stage state. Stage initialization and shutdown invalidate captured guards even when
+the public mutation revision resets. A rejected publication withdraws the matching ticket and a new
+prepare step is required before it can publish again. This does not make multiple external node writes
+atomic. Actual LuckPerms cache invalidation, permission consumption and provider concurrency remain
+separate runtime acceptance gates.

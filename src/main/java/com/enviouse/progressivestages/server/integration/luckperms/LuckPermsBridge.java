@@ -302,7 +302,15 @@ public final class LuckPermsBridge {
             dirty.request(player.getUUID());
             return;
         }
-        reconcileOutbound(player, input.snapshot(), input.snapshot().ready(), ticket);
+        var stagesCurrent = manager.mutationGuard();
+        var provider = TeamProvider.getInstance();
+        var loader = StageFileLoader.getInstance();
+        var compiled = loader.getCompiledSnapshot();
+        java.util.function.BooleanSupplier publicationCurrent = () -> stagesCurrent.getAsBoolean()
+            && inputRevision.get() == revision && provider.membershipRevision() == membership
+            && loader.getCompiledSnapshot() == compiled;
+        reconcileOutbound(player, input.snapshot(), input.snapshot().ready(), ticket, inputAdapter,
+            () -> current.getAsBoolean() && manager.getMutationRevision() == result.revision(), publicationCurrent);
     }
 
     StageManager.PermissionObservation observe(UUID player, LuckPermsStageOptions.InboundRule row,
@@ -318,8 +326,15 @@ public final class LuckPermsBridge {
     }
 
     private void reconcileOutbound(ServerPlayer player, LuckPermsAdapter.SubjectSnapshot snapshot, boolean ready,
-                                   long ticket) {
+                                   long ticket, LuckPermsAdapter projectionAdapter,
+                                   java.util.function.BooleanSupplier current,
+                                   java.util.function.BooleanSupplier publicationCurrent) {
         UUID id = player.getUUID();
+        if (!current.getAsBoolean()) {
+            projectionAdapter.invalidateProjection(id);
+            dirty.request(id);
+            return;
+        }
         Map<String, LuckPermsAdapter.NodeSpec> desired = new LinkedHashMap<>();
         if (ready && ticket >= 0) {
             for (StageId stageId : StageManager.getInstance().getStages(player)) {
@@ -329,9 +344,9 @@ public final class LuckPermsBridge {
                 for (LuckPermsStageOptions.OutboundRule row : definition.getLuckPerms().outbound()) {
                     if (!contextMatches(row.contexts(), snapshot.contexts())) continue;
                     if (row.kind() == LuckPermsStageOptions.OutboundKind.GROUP
-                            && !adapter.groupExists(row.value())) continue;
+                            && !projectionAdapter.groupExists(row.value())) continue;
                     if (row.kind() == LuckPermsStageOptions.OutboundKind.PERMISSION) {
-                        var permission = adapter.permissionResult(id, row.value());
+                        var permission = projectionAdapter.permissionResult(id, row.value());
                         if (!permission.ready() || permission.value() == LuckPermsAdapter.PermissionValue.FALSE) {
                             record(player, stageId, row.id(), false,
                                 permission.ready() ? "permission_false" : "provider_unavailable");
@@ -349,7 +364,7 @@ public final class LuckPermsBridge {
                 }
             }
         }
-        boolean complete = outboundNodes.reconcile(id, desired, adapter, (owner, adding, result) -> {
+        boolean complete = outboundNodes.reconcile(id, desired, projectionAdapter, (owner, adding, result) -> {
             int separator = owner.indexOf('|');
             StageId stage = separator > 0 ? StageId.tryParse(owner.substring(0, separator)) : null;
             String row = separator > 0 ? owner.substring(separator + 1) : owner;
@@ -357,12 +372,17 @@ public final class LuckPermsBridge {
                 ? (adding ? "owned_node_added" : "owned_node_removed")
                 : "owned_node_" + result.name().toLowerCase(java.util.Locale.ROOT);
             record(player, stage, row, adding, reason);
-        });
-        if (complete && ready && adapter.state() == LuckPermsAdapter.State.READY && ticket >= 0 && !desired.isEmpty()) {
-            if (!adapter.publishProjection(id, ticket)) dirty.request(id);
+        }, current);
+        if (complete && ready && current.getAsBoolean() && publicationCurrent.getAsBoolean()
+                && projectionAdapter.state() == LuckPermsAdapter.State.READY && ticket >= 0 && !desired.isEmpty()) {
+            if (projectionAdapter.publishProjection(id, ticket, publicationCurrent)
+                    && current.getAsBoolean() && publicationCurrent.getAsBoolean()) return;
+            projectionAdapter.invalidateProjection(id);
+            dirty.request(id);
         } else {
-            adapter.invalidateProjection(id);
-            if (!complete || ready && ticket < 0) dirty.request(id);
+            projectionAdapter.invalidateProjection(id);
+            if (!complete || !current.getAsBoolean() || !publicationCurrent.getAsBoolean()
+                    || ready && ticket < 0) dirty.request(id);
         }
     }
 

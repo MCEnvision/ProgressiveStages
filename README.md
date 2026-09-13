@@ -84,6 +84,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   before changing sources and retries the complete observation when input changes during queries.
   Source and eligibility changes commit together before listeners or client updates run, preserving
   deliberate administrative changes made by a listener after that commit.
+  Outbound updates recheck the captured state between provider writes and before publication.
+  Rejected updates retain exact node ownership for cleanup and retry.
   Runtime integration is not accepted. Command gates retain native
   permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 

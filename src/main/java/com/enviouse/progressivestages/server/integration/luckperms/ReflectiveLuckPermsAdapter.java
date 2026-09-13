@@ -198,9 +198,14 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
 
     @Override
     public boolean publishProjection(UUID subject, long ticket) {
+        return publishProjection(subject, ticket, () -> true);
+    }
+
+    @Override
+    public boolean publishProjection(UUID subject, long ticket, java.util.function.BooleanSupplier current) {
         if (api == null || closing || projectionContexts == null) return false;
         try {
-            return projectionContexts.publish(subject, ticket);
+            return projectionContexts.publish(subject, ticket, current);
         } catch (RuntimeException | LinkageError failure) {
             LOGGER.debug("Unable to publish the LuckPerms projection context", failure);
             return false;

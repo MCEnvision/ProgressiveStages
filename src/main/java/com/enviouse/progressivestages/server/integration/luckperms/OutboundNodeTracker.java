@@ -11,6 +11,7 @@ import static com.enviouse.progressivestages.server.integration.luckperms.LuckPe
 
 final class OutboundNodeTracker {
     private final Map<UUID, Map<String, NodeSpec>> owned = new LinkedHashMap<>();
+    private final Set<UUID> inFlight = new HashSet<>();
     private final Set<Reference> unconfirmed = new HashSet<>();
 
     private record Reference(UUID subject, String owner) {}
@@ -21,38 +22,51 @@ final class OutboundNodeTracker {
 
     boolean reconcile(UUID subject, Map<String, NodeSpec> desired, LuckPermsAdapter adapter,
                       Observer observer) {
+        return reconcile(subject, desired, adapter, observer, () -> true);
+    }
+
+    boolean reconcile(UUID subject, Map<String, NodeSpec> desired, LuckPermsAdapter adapter,
+                      Observer observer, java.util.function.BooleanSupplier current) {
+        if (!current.getAsBoolean() || !inFlight.add(subject)) return false;
         Map<String, NodeSpec> actual = owned.computeIfAbsent(subject, ignored -> new LinkedHashMap<>());
-        boolean complete = true;
-        for (var entry : Map.copyOf(actual).entrySet()) {
-            if (entry.getValue().equals(desired.get(entry.getKey()))) continue;
-            NodeSpec node = entry.getValue();
-            MutationResult result = adapter.removeTransient(subject, node.kind(), node.value(),
-                node.contexts(), entry.getKey());
-            observer.mutation(entry.getKey(), false, result);
-            if (result == MutationResult.APPLIED) {
-                actual.remove(entry.getKey());
-                unconfirmed.remove(new Reference(subject, entry.getKey()));
+        try {
+            boolean complete = true;
+            for (var entry : Map.copyOf(actual).entrySet()) {
+                if (!current.getAsBoolean()) return false;
+                if (entry.getValue().equals(desired.get(entry.getKey()))) continue;
+                NodeSpec node = entry.getValue();
+                MutationResult result = adapter.removeTransient(subject, node.kind(), node.value(),
+                    node.contexts(), entry.getKey());
+                if (result == MutationResult.APPLIED) {
+                    actual.remove(entry.getKey());
+                    unconfirmed.remove(new Reference(subject, entry.getKey()));
+                } else complete = false;
+                observer.mutation(entry.getKey(), false, result);
+                if (!current.getAsBoolean()) return false;
             }
-            else complete = false;
-        }
-        for (var entry : desired.entrySet()) {
-            NodeSpec node = entry.getValue();
-            NodeSpec previous = actual.get(entry.getKey());
-            if (previous != null && !previous.equals(node)) continue;
-            actual.put(entry.getKey(), node);
-            MutationResult result = adapter.addTransient(subject, node.kind(), node.value(),
-                node.contexts(), entry.getKey());
-            Reference reference = new Reference(subject, entry.getKey());
-            if (previous == null || unconfirmed.contains(reference) || result != MutationResult.APPLIED) {
-                observer.mutation(entry.getKey(), true, result);
-            }
-            if (result != MutationResult.APPLIED) {
+            for (var entry : desired.entrySet()) {
+                if (!current.getAsBoolean()) return false;
+                NodeSpec node = entry.getValue();
+                NodeSpec previous = actual.get(entry.getKey());
+                if (previous != null && !previous.equals(node)) continue;
+                Reference reference = new Reference(subject, entry.getKey());
+                boolean pending = unconfirmed.contains(reference);
+                actual.put(entry.getKey(), node);
                 unconfirmed.add(reference);
-                complete = false;
-            } else unconfirmed.remove(reference);
+                MutationResult result = adapter.addTransient(subject, node.kind(), node.value(),
+                    node.contexts(), entry.getKey());
+                if (result != MutationResult.APPLIED) complete = false;
+                else unconfirmed.remove(reference);
+                if (previous == null || pending || result != MutationResult.APPLIED) {
+                    observer.mutation(entry.getKey(), true, result);
+                }
+                if (!current.getAsBoolean()) return false;
+            }
+            return complete && current.getAsBoolean();
+        } finally {
+            if (actual.isEmpty()) owned.remove(subject);
+            inFlight.remove(subject);
         }
-        if (actual.isEmpty()) owned.remove(subject);
-        return complete;
     }
 
     boolean cleanup(LuckPermsAdapter adapter) {

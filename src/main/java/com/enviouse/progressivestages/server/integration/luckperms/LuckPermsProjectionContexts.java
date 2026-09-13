@@ -41,12 +41,18 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
     }
 
     boolean publish(UUID subject, long ticket) {
+        return publish(subject, ticket, () -> true);
+    }
+
+    boolean publish(UUID subject, long ticket, java.util.function.BooleanSupplier current) {
         Projection projection;
         synchronized (this) {
             projection = subjects.get(subject);
             if (closing || projection == null || !projection.valid || projection.ticket != ticket
                 || projection.generation != generation) return false;
-            projection.active = true;
+            projection.current = current;
+            projection.active = current.getAsBoolean();
+            if (!projection.active) projection.valid = false;
         }
         try {
             contexts.signalContextUpdate(projection.target);
@@ -57,7 +63,8 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
             catch (RuntimeException | LinkageError invalidation) { failure.addSuppressed(invalidation); }
             throw failure;
         }
-        return projection.valid && projection.active && !closing && projection.generation == generation;
+        return projection.valid && projection.active && !closing && projection.generation == generation
+            && projection.current.getAsBoolean();
     }
 
     synchronized void markInvalid(UUID subject) {
@@ -113,7 +120,7 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
     public void calculate(Object target, ContextConsumer consumer) {
         Projection projection = targets.get(target);
         if (!closing && projection != null && projection.valid && projection.active
-            && projection.generation == generation) {
+            && projection.generation == generation && projection.current.getAsBoolean()) {
             consumer.accept("progressivestages_bridge", "active");
         }
     }
@@ -135,6 +142,7 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
         final long generation;
         volatile boolean valid = true;
         volatile boolean active;
+        volatile java.util.function.BooleanSupplier current = () -> true;
 
         Projection(Object target, long ticket, long generation) {
             this.target = java.util.Objects.requireNonNull(target);

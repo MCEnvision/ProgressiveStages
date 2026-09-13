@@ -175,6 +175,66 @@ public final class OnlinePermissionGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void outboundChangesRejectStaleWritesAndPublication(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        helper.assertTrue(server.getPlayerList().getPlayers().isEmpty(), "The output fixture requires an isolated server.");
+        var manager = StageManager.getInstance();
+        var order = StageOrder.getInstance();
+        var originalDefinitions = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
+        var original = server.overworld().getData(StageAttachments.TEAM_STAGES);
+        UUID subject = new UUID(0x5730, 3);
+        var owner = new OwnerRef(OwnerKind.PERSONAL, subject);
+        var stage = StageId.parse("progressivestages:online_output");
+        var clocks = StageRegressionData.get(server);
+        long clock = clocks.getGrantTime(owner, stage);
+        var player = new FakePlayer(helper.getLevel(), new GameProfile(subject, "online-output-test"));
+        var rows = List.of(
+            new LuckPermsStageOptions.OutboundRule("first", LuckPermsStageOptions.OutboundKind.PERMISSION, "fixture.first", Map.of()),
+            new LuckPermsStageOptions.OutboundRule("second", LuckPermsStageOptions.OutboundKind.PERMISSION, "fixture.second", Map.of()));
+        var definition = StageDefinition.builder(stage).teamStage(false).luckPerms(new LuckPermsStageOptions(true, true,
+            LuckPermsStageOptions.InboundMode.SYNCHRONIZED, List.of(), rows, List.of())).build();
+        try {
+            for (String boundary : List.of("query", "write", "publish", "revoke_write", "revoke_publish")) {
+                var adapter = new QueryAdapter();
+                LuckPermsBridge.getInstance().setAdapterForTests(adapter);
+                server.overworld().setData(StageAttachments.TEAM_STAGES, original.copy());
+                order.clear();
+                order.registerStage(definition);
+                manager.grantStage(player, stage);
+                helper.assertTrue(manager.hasStage(player, stage), "The output fixture needs an independently earned stage.");
+                Runnable change = boundary.startsWith("revoke")
+                    ? () -> manager.revokeStageWithCause(player, stage, com.enviouse.progressivestages.common.api.StageCause.COMMAND)
+                    : () -> TeamProvider.getInstance().invalidateMembership();
+                if (boundary.equals("query")) adapter.interrupt = change;
+                else if (boundary.endsWith("write")) adapter.afterAdd = change;
+                else adapter.onPublish = change;
+                adapter.calls = 0;
+                LuckPermsBridge.reconcile(player);
+                helper.assertTrue(!adapter.active, boundary + " must not leave an active stale projection.");
+                int expectedWrites = boundary.equals("query") ? 0 : boundary.endsWith("write") ? 1 : 2;
+                helper.assertTrue(adapter.adds == expectedWrites, boundary + " must stop before another stale node write.");
+                boolean retained = !boundary.startsWith("revoke");
+                helper.assertTrue(manager.hasStage(player, stage) == retained,
+                    "Projection rejection must preserve independent ownership and deliberate revocation.");
+                LuckPermsBridge.reconcile(player);
+                helper.assertTrue(adapter.active == retained && adapter.nodes.size() == (retained ? 2 : 0),
+                    boundary + " must recover from fresh state and clean exact stale contributions.");
+                LuckPermsBridge.disconnect(player);
+                helper.assertTrue(!adapter.active && adapter.nodes.isEmpty(), "Disconnect must clean every recorded contribution.");
+            }
+            helper.succeed();
+        } finally {
+            LuckPermsBridge.disconnect(player);
+            LuckPermsBridge.getInstance().setAdapterForTests(null);
+            server.overworld().setData(StageAttachments.TEAM_STAGES, original);
+            order.clear();
+            originalDefinitions.forEach(order::registerStage);
+            if (clock <= 0) clocks.clear(owner, stage); else clocks.markGranted(owner, stage, clock);
+            player.discard();
+        }
+    }
+
     private static StageDefinition definition(StageId stage, LuckPermsStageOptions.InboundMode mode) {
         var row = new LuckPermsStageOptions.InboundRule("input", List.of(), List.of(stage.getPath()),
             LuckPermsStageOptions.Match.ALL, Map.of());
@@ -187,6 +247,11 @@ public final class OnlinePermissionGameTests {
         private Runnable allChanged;
         private Runnable interrupt;
         private int calls;
+        private int adds;
+        private boolean active;
+        private Runnable afterAdd;
+        private Runnable onPublish;
+        private final Set<String> nodes = new java.util.HashSet<>();
         private PermissionValue value = PermissionValue.TRUE;
         @Override public State state() { return State.READY; }
         @Override public SubjectSnapshot snapshot(UUID player) { return new SubjectSnapshot(true, Set.of(), Map.of(), Map.of()); }
@@ -203,8 +268,29 @@ public final class OnlinePermissionGameTests {
             this.allChanged = allChanged;
             return true;
         }
+        @Override public long prepareProjection(UUID subject, Object target) { active = false; return 0; }
+        @Override public boolean publishProjection(UUID subject, long ticket) {
+            active = true;
+            if (onPublish != null) {
+                Runnable action = onPublish;
+                onPublish = null;
+                action.run();
+            }
+            return true;
+        }
+        @Override public boolean invalidateProjection(UUID subject) { active = false; return true; }
+        @Override public boolean invalidateProjections() { active = false; return true; }
         @Override public boolean groupExists(String group) { return false; }
-        @Override public MutationResult addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts, String owner) { return MutationResult.APPLIED; }
-        @Override public MutationResult removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts, String owner) { return MutationResult.APPLIED; }
+        @Override public MutationResult addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts, String owner) {
+            adds++;
+            nodes.add(owner);
+            if (afterAdd != null) {
+                Runnable action = afterAdd;
+                afterAdd = null;
+                action.run();
+            }
+            return MutationResult.APPLIED;
+        }
+        @Override public MutationResult removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts, String owner) { nodes.remove(owner); return MutationResult.APPLIED; }
     }
 }

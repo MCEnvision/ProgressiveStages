@@ -150,6 +150,55 @@ class LuckPermsProjectionContextsTest {
         assertEquals(2, fixture.unregisters);
     }
 
+    @Test
+    void anExternalGuardInvalidatesMarkerReadsWithoutCallingTheProvider() {
+        Fixture fixture = new Fixture();
+        var current = new java.util.concurrent.atomic.AtomicBoolean(true);
+        try (var contexts = fixture.contexts) {
+            Object target = new Object();
+            long ticket = contexts.prepare(SUBJECT, target);
+            assertTrue(contexts.publish(SUBJECT, ticket, current::get));
+            int signals = fixture.observedActive.size();
+            CompletableFuture.runAsync(() -> current.set(false)).join();
+            assertTrue(fixture.read(target).isEmpty());
+            assertEquals(signals, fixture.observedActive.size());
+            assertFalse(contexts.publish(SUBJECT, ticket, current::get));
+        }
+    }
+
+    @Test
+    void aGuardChangeInsidePublicationCannotKeepTheMarkerActive() {
+        Fixture fixture = new Fixture();
+        var current = new java.util.concurrent.atomic.AtomicBoolean(true);
+        try (var contexts = fixture.contexts) {
+            Object target = new Object();
+            long ticket = contexts.prepare(SUBJECT, target);
+            fixture.onSignal = () -> {
+                fixture.onSignal = null;
+                current.set(false);
+                assertTrue(fixture.read(target).isEmpty());
+            };
+            assertFalse(contexts.publish(SUBJECT, ticket, current::get));
+            assertTrue(fixture.read(target).isEmpty());
+            assertTrue(contexts.publish(SUBJECT, contexts.prepare(SUBJECT, target), () -> true));
+            assertFalse(fixture.read(target).isEmpty());
+        }
+    }
+
+    @Test
+    void rejectingPublicationWithdrawsAnAlreadyPublishedTicket() {
+        Fixture fixture = new Fixture();
+        try (var contexts = fixture.contexts) {
+            Object target = new Object();
+            long ticket = contexts.prepare(SUBJECT, target);
+            assertTrue(contexts.publish(SUBJECT, ticket));
+            assertFalse(contexts.publish(SUBJECT, ticket, () -> false));
+            assertTrue(fixture.read(target).isEmpty());
+            assertFalse(contexts.publish(SUBJECT, ticket));
+            assertEquals(List.of(true, false), fixture.observedActive);
+        }
+    }
+
     private static final class Fixture {
         ContextCalculator<Object> calculator;
         final List<Boolean> observedActive = new ArrayList<>();

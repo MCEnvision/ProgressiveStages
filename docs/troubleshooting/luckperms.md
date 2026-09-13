@@ -209,3 +209,10 @@ Source changes now commit as one subject transaction after qualification in an i
 Listeners and client synchronization run after the complete source and eligibility state is committed.
 An administrative revoke from a listener remains effective; it is not overwritten by the original
 reconciliation. Callback invalidation schedules fresh work before outbound privileges are updated.
+
+Outbound updates also reject changes during permission queries, node writes and publication. A
+rejected batch stops further writes and retains its exact ownership records so fresh reconciliation
+or disconnect can remove submitted nodes. Independent earnings survive this retry; a deliberate
+stage revoke remains effective. A context marker is eligible only while its captured stage,
+provider, membership and definition generations remain current. Core regressions cover these guards;
+actual provider caches and joined player permission behavior still require runtime acceptance.

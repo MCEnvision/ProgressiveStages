@@ -95,6 +95,31 @@ class OutboundNodeTrackerTest {
         assertEquals(PermissionValue.TRUE, adapter.permission(SUBJECT, "warp.set"));
     }
 
+    @Test
+    void staleWritesStopBeforeTheNextNodeAndRetainExactCleanupOwnership() {
+        var current = new java.util.concurrent.atomic.AtomicBoolean(true);
+        var desired = new java.util.LinkedHashMap<String, NodeSpec>();
+        desired.put("chef", HOME);
+        desired.put("builder", WARP);
+        adapter.afterAdd = () -> current.set(false);
+        assertFalse(tracker.reconcile(SUBJECT, desired, adapter, (owner, adding, result) -> {}, current::get));
+        assertEquals(List.of("add home.set"), adapter.calls);
+        assertEquals(PermissionValue.TRUE, adapter.permission(SUBJECT, "home.set"));
+        assertTrue(tracker.cleanup(adapter));
+        assertEquals(PermissionValue.UNDEFINED, adapter.permission(SUBJECT, "home.set"));
+        assertEquals(List.of("add home.set", "remove home.set"), adapter.calls);
+    }
+
+    @Test
+    void reentrantCleanupCannotLoseAnInFlightContribution() {
+        adapter.afterAdd = () -> assertFalse(tracker.cleanup(adapter));
+        assertTrue(reconcile(Map.of("chef", HOME)));
+        assertEquals(PermissionValue.TRUE, adapter.permission(SUBJECT, "home.set"));
+        assertTrue(tracker.cleanup(adapter));
+        assertEquals(PermissionValue.UNDEFINED, adapter.permission(SUBJECT, "home.set"));
+        assertEquals(List.of("add home.set", "remove home.set"), adapter.calls);
+    }
+
     private boolean reconcile(Map<String, NodeSpec> desired) {
         return tracker.reconcile(SUBJECT, desired, adapter, (owner, adding, result) -> observations.add(result));
     }
@@ -103,6 +128,7 @@ class OutboundNodeTrackerTest {
         final InMemoryLuckPermsAdapter delegate = new InMemoryLuckPermsAdapter();
         final List<String> calls = new ArrayList<>();
         boolean removeFails;
+        Runnable afterAdd;
         boolean addFailsAfterWrite;
         @Override public State state() { return delegate.state(); }
         @Override public SubjectSnapshot snapshot(UUID subject) { return delegate.effectiveSnapshot(subject); }
@@ -112,6 +138,11 @@ class OutboundNodeTrackerTest {
                                                       Map<String, String> contexts, String owner) {
             calls.add("add " + value);
             MutationResult result = delegate.addTransient(subject, kind, value, contexts, owner);
+            if (afterAdd != null) {
+                Runnable action = afterAdd;
+                afterAdd = null;
+                action.run();
+            }
             return addFailsAfterWrite ? MutationResult.FAILED : result;
         }
         @Override public MutationResult removeTransient(UUID subject, NodeKind kind, String value,

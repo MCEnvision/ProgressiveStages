@@ -38,6 +38,7 @@ public class StageManager {
     private static StageManager INSTANCE;
     private MinecraftServer server;
     private long mutationRevision;
+    private final java.util.concurrent.atomic.AtomicLong mutationGeneration = new java.util.concurrent.atomic.AtomicLong();
     private final CopyOnWriteArrayList<Consumer<StageMutationResult>> committedListeners = new CopyOnWriteArrayList<>();
 
     /** v2.4: synthetic "team" that holds server-wide ({@code scope = "server"}) stages shared by everyone. */
@@ -99,7 +100,10 @@ public class StageManager {
     }
 
     private void markMutation(boolean changed) {
-        if (changed) mutationRevision++;
+        if (changed) {
+            mutationGeneration.incrementAndGet();
+            mutationRevision++;
+        }
     }
 
     private void captureProgression(ServerPlayer player, StageId stageId, Set<StageId> before,
@@ -213,12 +217,14 @@ public class StageManager {
      */
     public void initialize(MinecraftServer server) {
         this.server = server;
+        mutationGeneration.incrementAndGet();
         this.mutationRevision = 0L;
     }
 
     public void shutdown(MinecraftServer stoppingServer) {
         if (this.server == stoppingServer) {
             this.server = null;
+            mutationGeneration.incrementAndGet();
             this.mutationRevision = 0L;
         }
     }
@@ -1390,6 +1396,13 @@ public class StageManager {
     }
 
     public long getMutationRevision() { return mutationRevision; }
+
+    /** captures a generation that can be checked without reading game state. */
+    public java.util.function.BooleanSupplier mutationGuard() {
+        var generation = mutationGeneration;
+        long expected = generation.get();
+        return () -> generation.get() == expected;
+    }
 
     /** refresh effective stage and lock views after an external source mutation. */
     public void syncStageView(ServerPlayer player, StageId stageId) {

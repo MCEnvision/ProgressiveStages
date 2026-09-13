@@ -63,6 +63,16 @@ public interface LuckPermsAdapter {
     default void invalidateOffline() {}
     default long prepareProjection(UUID subject, Object target) { return 0; }
     default boolean publishProjection(UUID subject, long ticket) { return true; }
+    default boolean publishProjection(UUID subject, long ticket, java.util.function.BooleanSupplier current) {
+        if (!current.getAsBoolean()) return false;
+        boolean published = publishProjection(subject, ticket);
+        if (!published || !current.getAsBoolean()) {
+            invalidateProjection(subject);
+            return false;
+        }
+        return true;
+    }
+
     default boolean invalidateProjection(UUID subject) { return true; }
     default boolean invalidateProjections() { return true; }
     default com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus groupStatus(String group) {

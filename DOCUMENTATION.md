@@ -4703,6 +4703,11 @@ the server interaction enforcement flag. An additive framed section preserves pr
 the existing stage presentation bytes. Older clients can retain the snapshot without reading
 this section. New clients receiving an older snapshot leave interaction prediction disabled.
 The existing 16 MiB snapshot limit and 24 KiB compressed chunks remain unchanged.
+The assembler checks each new chunk against the remaining declared compressed byte count before
+retaining it. Unique chunk data therefore cannot exceed the manifest's compressed size while
+waiting for the rest of the snapshot. Duplicates and unrelated revisions consume no additional
+budget. The size and checksum checks after assembly still apply. This bounds retained chunk data;
+temporary decoding, assembly and decompression buffers are separate allocations.
 
 Only a complete, checksum verified snapshot activates its interaction rules. A malformed section
 cannot replace the previous valid rules. Snapshot deltas require the exact acknowledged revision

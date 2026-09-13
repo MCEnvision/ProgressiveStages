@@ -374,6 +374,9 @@ coalesce into one pending response per player every 20 server ticks. A full reco
 precedence over a delta base, and normal server updates remain immediate. Disconnect cancels
 pending recovery. See the [snapshot handler tests](docs/test/snapshot-acknowledgements.md).
 
+Clients enforce the snapshot's declared compressed size as chunks arrive. Duplicate chunks do
+not consume the remaining byte budget, and excess data cannot accumulate until the final chunk.
+
 Stage GUI requests, including purchase feedback and public GUI commands, share a response budget
 per player. The first view is immediate; repeated requests combine into one current view after
 20 server ticks. Matching clients open the screen for an explicit command, keybind or script

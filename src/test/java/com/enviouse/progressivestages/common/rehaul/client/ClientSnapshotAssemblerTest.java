@@ -13,6 +13,32 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClientSnapshotAssemblerTest {
     @Test
+    void rejectsExcessBytesBeforeRetainingAllAdvertisedChunks() {
+        ClientSnapshotAssembler assembler = new ClientSnapshotAssembler();
+        assembler.begin(new ClientSnapshotManifest(ClientSnapshotCodec.PROTOCOL_VERSION,
+            4, 2, 0, "unused", 4096, 3, 3, Set.of(), false));
+        assertTrue(assembler.accept(new ClientSnapshotChunk(2, 0, new byte[]{1, 2})).isEmpty());
+        assertTrue(assembler.accept(new ClientSnapshotChunk(2, 0, new byte[]{1, 2})).isEmpty());
+        assertTrue(assembler.accept(new ClientSnapshotChunk(1, 1, new byte[]{1, 2})).isEmpty());
+        assertThrows(IllegalArgumentException.class,
+            () -> assembler.accept(new ClientSnapshotChunk(2, 1, new byte[]{3, 4})));
+    }
+
+    @Test
+    void ignoresDuplicateChunksWithoutConsumingTheRemainingByteBudget() {
+        byte[] raw = "a complete snapshot".getBytes(StandardCharsets.UTF_8);
+        byte[] compressed = ClientSnapshotCodec.compress(raw);
+        ClientSnapshotAssembler assembler = new ClientSnapshotAssembler();
+        assembler.begin(new ClientSnapshotManifest(ClientSnapshotCodec.PROTOCOL_VERSION,
+            4, 3, 0, ClientSnapshotCodec.checksum(raw), 2, compressed.length, raw.length, Set.of(), false));
+        var last = new ClientSnapshotChunk(3, 1, java.util.Arrays.copyOfRange(compressed, 5, compressed.length));
+        assertTrue(assembler.accept(last).isEmpty());
+        assertTrue(assembler.accept(last).isEmpty());
+        assertArrayEquals(raw, assembler.accept(new ClientSnapshotChunk(3, 0,
+            java.util.Arrays.copyOf(compressed, 5))).orElseThrow());
+    }
+
+    @Test
     void assemblesOutOfOrderAndActivatesOnlyAfterChecksumVerification() {
         byte[] raw = "one complete revision".repeat(4000).getBytes(StandardCharsets.UTF_8);
         byte[] compressed = ClientSnapshotCodec.compress(raw);

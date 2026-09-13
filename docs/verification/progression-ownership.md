@@ -4,6 +4,77 @@ This page records the verification surface for actor-aware stage ownership in 3.
 It is kept with the source so a release candidate can replace the pending entries with exact hashes
 and runtime receipts.
 
+## Owner clock regression
+
+Source commit `5d9034528b799cf80a76a8a392f8504e69b9b46e` separates grant timestamps by owner kind,
+UUID and stage. Personal, team and server clocks cannot overwrite one another. Legacy UUID APIs
+remain team and server operations. Legacy timestamps remain in those namespaces and are never
+copied into personal ownership. The regression save adds `clock_schema = 1` and
+`owner_grant_times`, retaining unmatched legacy records in `grant_times`. Expiry, both held duration
+condition paths, and online and offline slot age now receive the resolved owner identity.
+
+The exact NeoForge 21.1.248 patched `DimensionDataStorage` source was inspected locally. It catches
+a deserializer exception and can call the empty data constructor afterward. The regression factory
+now refuses that fallback when the existing regression file remains present. Unsupported schema
+versions and malformed map or timestamp types fail without replacing the original clock save.
+This protects recovery data; it does not repair a corrupt file or authorize discarding it.
+
+On September 13, 2026, Java 21.0.11 `./gradlew test build --no-daemon --no-configuration-cache`
+passed on Minecraft 1.21.1 and NeoForge 21.1.248. All 390 tests across 104 suites passed with zero
+failures, errors or skips. Four new unit tests cover all three owner kinds sharing one UUID,
+save/load and targeted clearing, legacy migration and unrelated record preservation, the reserved
+zero UUID, and rejection of unsupported or malformed clock data. No separate formatter or static
+analysis task is configured; `git diff --check` passed. The final postcommit build also passed.
+
+The inspected `runServer` task graph has no client or renderer. The first launch attempt stopped
+at the working directory assertion before Minecraft started. Explicitly binding the task working
+directory to the owned game directory corrected the harness. The first gameplay fixture then
+failed at 00:52:30 because its constructed player lacked a packet connection. It now uses a directly
+owned NeoForge fake player with its standard handler, preserving the actual grant, revoke and
+condition assertions. That development server stopped normally at 00:53:38. The final development
+server reached readiness at 00:54:20 America/Chicago and executed the following GameTests.
+
+| Fixture | Started | Matching metadata and fresh lime success marker observed |
+|---|---|---|
+| `personalclocksdriveexpiryheldconditionsandslotage` | 00:54:43 | 00:55:02, `personal_clock_final_pass` |
+| `unreadableclocksavecannotbecomeanemptyreplacement` | 00:55:02 | 00:55:31, `clock_save_preserved_pass` |
+| `permissionsourcespreserveothersubjectsandindependentearnings` | 00:55:31 | 00:56:09, `clock_permission_sources_pass` |
+| `offlineresultsrejectstaledefinitionsandunqualifiedgrants` | 00:56:09 | 00:56:39, `clock_offline_stale_pass` |
+
+The actual structure block was at `0 181 3` and success glass at `-1 180 2`. Released chunks were
+force loaded before inspection, and success glass was cleared before the next fixture. The clock
+fixture uses actual grant and revoke handlers, verifies separate timestamps for colliding owners,
+checks oldest slot selection and both held duration readers, and expires only the personal stage.
+The save fixture evicts only the isolated regression cache entry, reads an actual unsupported
+compressed NBT file through Minecraft storage, checks the refusal, saves other world data and
+compares the rejected bytes. Its expected `Unsupported stage clock schema` error appeared at
+00:55:03. The prior cache object and file bytes were restored in cleanup. The source and offline
+fixtures passed afterward. These are server core checks with controlled actors and providers;
+they do not establish a real player connection or third party lifecycle behavior.
+
+The final development server stopped at 00:56:39, saved all dimensions and exited normally at
+00:56:40. The clean packaged `progressivestages-3.0.5.jar` has SHA256
+`6d08a10839092ffd4ed519ba7b84cc0baf253421e3207a330f1bf5fa836cc4f6`. Its manifest identifies the source
+commit above with `Build-Dirty: false`. All 753 project classes match compiled output byte for
+byte, and no `net/luckperms` API classes are bundled. The same JAR without optional mods reached
+production dedicated readiness at 00:57:59. At 00:58:53, `time query gametime` returned 5907 and
+`stage debug progression status` reported stopped capture, zero records and an idle writer.
+
+The production server stopped at 00:59:44, saved all dimensions and exited normally. Cleanup
+confirmed all three owned server processes were absent and the loopback port was available.
+All 1,013 added build paths were removed, restoring its exact 836 path baseline. The 26 preexisting
+`.gradle` paths had no additions or removals. The disposable runtime and three metadata scratch
+files were removed after their final consumer. The preexisting `run`, `run-248`, shared libraries,
+dependency caches, source and candidate artifact were preserved. No cleanup resource remains.
+
+All launches used only `node-1`, online authentication and `127.0.0.1:25589`, with EULA true read
+back before startup. The exact owned runtime was
+`/mnt/hermes/projects/ProgressiveStages/.phase-worktrees/phase-003/build/stage-clock-verification`.
+No laptop or browser resource was created. This P003-TASK-005 correction supports BIN-REQ-011 and
+the owner-aware expiry prerequisite for BIN-REQ-012. Permission eligibility episodes, suppression,
+rearming, full acquisition effects and combined provider and client gates remain open. No phase
+merge, tag or release is claimed. The plan, immutable goal and phase cursor remain unchanged.
+
 ## static checks
 
 The parser accepts omitted, `team_stage = false`, and `team_stage = true` values. It rejects a

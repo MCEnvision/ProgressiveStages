@@ -4173,16 +4173,19 @@ PlayerEvents.tick(event => {
 })
 ```
 
-> **Correction (2.5).** Earlier docs claimed PS fires KubeJS's native
-> `STAGE_ADDED` / `STAGE_REMOVED` events on **every** grant/revoke. **It does
-> not** — KubeJS 7.x has **no native stage events**. KubeJS only fires its own
-> internal sync when a script itself calls `player.stages.add/remove(...)`; an
-> **engine** grant (a `[[triggers]]` unlock, a command, a quest reward, a
-> skill-tree purchase, a regression) does **not** route through that path and
-> therefore never fired a KubeJS stage event. The reliable lifecycle hook is the
-> new `ProgressiveStages.onGranted` / `onRevoked` API below.
+> KubeJS fires `PlayerEvents.stageAdded` and `PlayerEvents.stageRemoved` when its
+> `player.stages.add/remove(...)` methods actually change a stage. These methods also perform
+> KubeJS stage synchronization. Other engine changes, including triggers, commands, quest rewards,
+> purchases, and regression, do not pass through those methods. Use
+> `ProgressiveStages.onGranted` and `ProgressiveStages.onRevoked` below to observe those engine
+> changes as well.
 
 ### 11.1 The `ProgressiveStages` global object — **New in 2.5**
+
+Server script callbacks and extension metadata reset immediately before an actual server script
+load. Creating another KubeJS execution context does not clear them. This preserves startup
+registrations when execution moves from the loading thread to the server thread, while reload
+replaces the old callbacks. See [the actual script regression procedure](docs/test/kubejs.md).
 
 A dedicated KubeJS plugin
 ([`ProgressiveStagesKubeJSPlugin`](src/main/java/com/enviouse/progressivestages/compat/kubejs/ProgressiveStagesKubeJSPlugin.java),

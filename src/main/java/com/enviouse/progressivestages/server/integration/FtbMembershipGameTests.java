@@ -71,7 +71,17 @@ public final class FtbMembershipGameTests {
         helper.succeed();
     }
 
-    private enum FixtureKind { MEMBERSHIP, PLAYER_QUEST, TEAM_QUEST, LEGACY_IMPORT, CLAIM_TRACKING, SOURCE_MOVE }
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void actualKubeScriptsRespectPersonalTeamAndServerOwnership(GameTestHelper helper) throws Exception {
+        if (!ModList.get().isLoaded("ftbteams") || !ModList.get().isLoaded("kubejs")) {
+            helper.succeed();
+            return;
+        }
+        Fixture.run(helper, FixtureKind.SCRIPT);
+        helper.succeed();
+    }
+
+    private enum FixtureKind { MEMBERSHIP, PLAYER_QUEST, TEAM_QUEST, LEGACY_IMPORT, CLAIM_TRACKING, SOURCE_MOVE, SCRIPT }
 
     private static final class Fixture {
         static void run(GameTestHelper helper, FixtureKind kind) throws Exception {
@@ -87,8 +97,8 @@ public final class FtbMembershipGameTests {
             var secondProfile = new com.mojang.authlib.GameProfile(secondId, "membership-second");
             helper.assertTrue(teams.getTeamForPlayerID(firstId).isEmpty() && teams.getTeamForPlayerID(secondId).isEmpty(),
                 "Fixture player identities must not already exist.");
-            var first = new net.neoforged.neoforge.common.util.FakePlayer(helper.getLevel(), firstProfile);
-            var second = new net.neoforged.neoforge.common.util.FakePlayer(helper.getLevel(), secondProfile);
+            var first = createPlayer(helper, firstProfile, kind);
+            var second = createPlayer(helper, secondProfile, kind);
             var personal = com.enviouse.progressivestages.common.api.StageId.parse("progressivestages:native_personal");
             var shared = com.enviouse.progressivestages.common.api.StageId.parse("progressivestages:native_shared");
             var definitions = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
@@ -168,6 +178,7 @@ public final class FtbMembershipGameTests {
                 } else if (kind == FixtureKind.LEGACY_IMPORT) LegacyFixture.run(helper, first, second, personal, shared);
                 else if (kind == FixtureKind.CLAIM_TRACKING) ClaimFixture.run(helper, first, second, personal);
                 else if (kind == FixtureKind.SOURCE_MOVE) SourceMoveFixture.run(helper, first, second, personal, shared);
+                else if (kind == FixtureKind.SCRIPT) ScriptFixture.run(helper, first, second, personal, shared);
                 else if (kind != FixtureKind.MEMBERSHIP) {
                     QuestFixture.run(helper, first, second, personal, shared, kind == FixtureKind.TEAM_QUEST);
                 }
@@ -202,7 +213,73 @@ public final class FtbMembershipGameTests {
                     if (questTeams != null) QuestFixture.restoreTeamData(questTeams);
                     first.discard();
                     second.discard();
+                    if (kind == FixtureKind.SCRIPT) {
+                        ((io.netty.channel.embedded.EmbeddedChannel) first.connection.getConnection().channel()).finishAndReleaseAll();
+                        ((io.netty.channel.embedded.EmbeddedChannel) second.connection.getConnection().channel()).finishAndReleaseAll();
+                    }
                 }
+            }
+        }
+    }
+
+    private static net.minecraft.server.level.ServerPlayer createPlayer(GameTestHelper helper,
+            com.mojang.authlib.GameProfile profile, FixtureKind kind) {
+        if (kind != FixtureKind.SCRIPT) return new net.neoforged.neoforge.common.util.FakePlayer(helper.getLevel(), profile);
+        var server = helper.getLevel().getServer();
+        var cookie = net.minecraft.server.network.CommonListenerCookie.createInitial(profile, false);
+        var player = new net.minecraft.server.level.ServerPlayer(server, helper.getLevel(), profile, cookie.clientInformation());
+        var connection = new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+        new io.netty.channel.embedded.EmbeddedChannel(connection);
+        player.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(server, connection, player, cookie) {
+            @Override
+            public void send(net.minecraft.network.protocol.Packet<?> packet) {
+                // The script fixture has no client and asserts authoritative server state only.
+            }
+        };
+        return player;
+    }
+
+    private static final class ScriptFixture {
+        @SuppressWarnings("unchecked")
+        static void run(GameTestHelper helper, net.minecraft.server.level.ServerPlayer first,
+                        net.minecraft.server.level.ServerPlayer second,
+                        com.enviouse.progressivestages.common.api.StageId personal,
+                        com.enviouse.progressivestages.common.api.StageId shared) throws Exception {
+            var server = helper.getLevel().getServer();
+            var order = com.enviouse.progressivestages.common.stage.StageOrder.getInstance();
+            var global = com.enviouse.progressivestages.common.api.StageId.parse("progressivestages:script_global");
+            helper.assertTrue(!order.stageExists(global), "The script fixture definition must be unused.");
+            order.registerStage(com.enviouse.progressivestages.common.config.StageDefinition.builder(global).scope("server").build());
+            var field = net.minecraft.server.players.PlayerList.class.getDeclaredField("playersByUUID");
+            field.setAccessible(true);
+            var players = (java.util.Map<java.util.UUID, net.minecraft.server.level.ServerPlayer>) field.get(server.getPlayerList());
+            helper.assertTrue(!players.containsKey(first.getUUID()) && !players.containsKey(second.getUUID()),
+                "The script fixture identities must not replace connected players.");
+            var clocks = com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server);
+            var owners = java.util.List.of(
+                new com.enviouse.progressivestages.common.stage.OwnerRef(
+                    com.enviouse.progressivestages.common.stage.OwnerKind.PERSONAL, second.getUUID()),
+                new com.enviouse.progressivestages.common.stage.OwnerRef(
+                    com.enviouse.progressivestages.common.stage.OwnerKind.SERVER,
+                    com.enviouse.progressivestages.common.stage.StageManager.SERVER_TEAM));
+            long secondClock = clocks.getGrantTime(owners.get(0), personal);
+            long globalClock = clocks.getGrantTime(owners.get(1), global);
+            var completed = new java.util.concurrent.atomic.AtomicInteger();
+            try {
+                players.put(first.getUUID(), first);
+                players.put(second.getUUID(), second);
+                com.enviouse.progressivestages.common.compat.ScriptHooks.fireEvent("verification:ownership",
+                    java.util.Map.of("first", first, "second", second, "personal", personal.toString(),
+                        "shared", shared.toString(), "global", global.toString(), "completed", completed));
+                helper.assertTrue(completed.get() == 1,
+                    "Exactly one actual KubeJS ownership script must finish all assertions. Install the server script fixture.");
+            } finally {
+                players.remove(first.getUUID(), first);
+                players.remove(second.getUUID(), second);
+                if (secondClock <= 0) clocks.clear(owners.get(0), personal);
+                else clocks.markGranted(owners.get(0), personal, secondClock);
+                if (globalClock <= 0) clocks.clear(owners.get(1), global);
+                else clocks.markGranted(owners.get(1), global, globalClock);
             }
         }
     }

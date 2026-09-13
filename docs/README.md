@@ -13,6 +13,7 @@ Use this page to find the maintained project documentation.
 
 - [Selling Bin interaction repair](verification/selling-bin-interaction-repair.md)
 - [Selling Bin transaction GameTests](test/selling-bin.md)
+- [KubeJS ownership regression](test/kubejs.md)
 - [Selling Bin artifact manifest](verification/selling-bin-artifacts.json)
 - [Selling Bin client observations and image hashes](verification/selling-bin-client/observations.json)
 - [Progression ownership](verification/progression-ownership.md)

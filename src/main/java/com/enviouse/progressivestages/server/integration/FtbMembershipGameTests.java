@@ -284,6 +284,33 @@ public final class FtbMembershipGameTests {
                         "shared", shared.toString(), "global", global.toString(), "completed", completed));
                 helper.assertTrue(completed.get() == 1,
                     "Exactly one actual KubeJS ownership script must finish all assertions. Install the server script fixture.");
+                order.clear();
+                order.registerStage(com.enviouse.progressivestages.common.config.StageDefinition.builder(personal)
+                    .teamStage(false).rewards(rewards(2)).build());
+                order.registerStage(com.enviouse.progressivestages.common.config.StageDefinition.builder(shared)
+                    .teamStage(true).rewards(rewards(3)).build());
+                order.registerStage(com.enviouse.progressivestages.common.config.StageDefinition.builder(global)
+                    .scope("server").rewards(rewards(5)).build());
+                players.remove(first.getUUID(), first);
+                var offlineCompleted = new java.util.concurrent.atomic.AtomicInteger();
+                var data = java.util.Map.<String, Object>of("first", first, "second", second,
+                    "personal", personal.toString(), "shared", shared.toString(), "global", global.toString(),
+                    "completed", offlineCompleted);
+                com.enviouse.progressivestages.common.compat.ScriptHooks.fireEvent("verification:offline_ownership", data);
+                helper.assertTrue(offlineCompleted.get() == 1,
+                    "Exactly one actual offline KubeJS script must finish its mutation and event assertions.");
+                var manager = com.enviouse.progressivestages.common.stage.StageManager.getInstance();
+                manager.syncStagesOnLogin(second);
+                helper.assertTrue(second.experienceLevel == 0 && first.experienceLevel == 0,
+                    "A teammate return must not deliver the offline actor's reserved rewards.");
+                players.put(first.getUUID(), first);
+                manager.syncStagesOnLogin(first);
+                manager.syncStagesOnLogin(first);
+                helper.assertTrue(first.experienceLevel == 10 && second.experienceLevel == 0,
+                    "The returning script actor must receive the original three acquisition rewards exactly once.");
+                com.enviouse.progressivestages.common.compat.ScriptHooks.fireEvent("verification:offline_rewards", data);
+                helper.assertTrue(offlineCompleted.get() == 2,
+                    "The actual script must confirm that reward delivery did not replay change callbacks.");
             } finally {
                 players.remove(first.getUUID(), first);
                 players.remove(second.getUUID(), second);
@@ -292,6 +319,11 @@ public final class FtbMembershipGameTests {
                 if (globalClock <= 0) clocks.clear(owners.get(1), global);
                 else clocks.markGranted(owners.get(1), global, globalClock);
             }
+        }
+
+        private static com.enviouse.progressivestages.common.config.StageRewards rewards(int levels) {
+            return new com.enviouse.progressivestages.common.config.StageRewards(
+                java.util.List.of(), java.util.List.of(), java.util.List.of(), "", levels, 0);
         }
     }
 

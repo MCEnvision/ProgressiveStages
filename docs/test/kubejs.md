@@ -56,13 +56,27 @@ The script checks all of these contracts:
    the correct effective view for each actor in all three scopes. UUID actor resolution and
    snapshot queries remain callable through Rhino without legacy team overload ambiguity.
 7. Exactly one callback completes all assertions for each invocation, including after reload.
+8. With the first actor removed from the connected player lookup, actual Rhino calls resolve
+   personal, native FTB team, and server owners, grant and revoke each entitlement, and distinguish
+   duplicate operations. Fresh snapshots reflect each change while retained snapshots stay immutable.
+9. `NativeEvents.onEvent` receives exactly one `StageActorChangeEvent` per changed offline operation,
+   with the original actor context, stage, and script cause. Committed subscriptions run on the server
+   thread and report strictly increasing revisions. Legacy connected player callbacks remain silent.
+10. Offline grants reserve two, three, and five XP levels for the initiating actor. A teammate's
+    return receives none. Returning the original actor delivers ten levels once, even after those
+    independently acquired stages were revoked. Repeated synchronization does not deliver again or
+    replay either native actor events or legacy player callbacks.
+11. A native FTB party leave invalidates a captured actor context even when its personal owner
+    remains the same. Both grant and revoke reject that context without another committed result
+    or acquisition event. The script restores the teammate's membership afterward.
 
 The fixture uses ordinary server player objects with an embedded transport and a test packet sink.
 KubeJS deliberately returns `NoStages` for NeoForge fake players before posting its stage creation
 event, so fake players cannot test the native stage adapter. These ordinary objects are temporarily
 entered in the UUID lookup for actor API resolution. They are not authenticated, connected clients.
-The fixture proves script execution and authoritative server state, not login, packet delivery,
-client rendering, offline actor mutations, or LuckPerms qualification.
+The fixture proves actual script execution, native FTB owner resolution, offline actor mutations,
+event delivery, and authoritative reward state. It does not prove authenticated login, packet
+delivery, client rendering, LuckPerms qualification, or crash recovery across separate player saves.
 
 The outer fixture restores stage definitions, ownership attachments, clocks, and provider state.
 The script fixture removes its UUID lookup entries and releases both embedded channels. During a

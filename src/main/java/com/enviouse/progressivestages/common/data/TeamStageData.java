@@ -5,6 +5,7 @@ import com.enviouse.progressivestages.common.stage.OwnerKind;
 import com.enviouse.progressivestages.common.stage.OwnerRef;
 import com.enviouse.progressivestages.common.stage.PermissionStageSource;
 import com.enviouse.progressivestages.common.stage.PermissionEpisode;
+import com.enviouse.progressivestages.common.stage.PendingStageReward;
 import com.enviouse.progressivestages.common.stage.StageSourceKind;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -43,7 +44,10 @@ public class TeamStageData {
                 .forGetter(value -> value.ftbHelperImportSchema),
             Codec.unboundedMap(Codec.STRING, ResourceLocation.CODEC.listOf())
                 .optionalFieldOf("ftb_helper_imports", Map.of())
-                .forGetter(value -> serialize(value.ftbHelperImports))
+                .forGetter(value -> serialize(value.ftbHelperImports)),
+            Codec.intRange(0, 1).optionalFieldOf("pending_reward_schema", 0).forGetter(value -> 1),
+            PendingStageReward.CODEC.listOf().optionalFieldOf("pending_rewards", List.of())
+                .forGetter(value -> List.copyOf(value.pendingRewards.values()))
         ).apply(instance, TeamStageData::new)
     );
 
@@ -69,6 +73,7 @@ public class TeamStageData {
     private final Map<EpisodeKey, PermissionEpisode> permissionEpisodes = new HashMap<>();
     private final Map<OwnerStage, Set<EpisodeKey>> ownerEpisodes = new HashMap<>();
     private final NavigableMap<UUID, Set<EpisodeKey>> subjectEpisodes = new TreeMap<>();
+    private final Map<UUID, PendingStageReward> pendingRewards = new LinkedHashMap<>();
     private int ownershipSchema = CURRENT_SCHEMA;
     private net.minecraft.nbt.Tag unreadable;
 
@@ -90,10 +95,14 @@ public class TeamStageData {
                           Map<String, List<ResourceLocation>> serializedPersonal,
                           Map<String, Map<String, List<String>>> serializedSources, int episodeSchema,
                           List<PermissionEpisode> episodes, int helperSchema,
-                          Map<String, List<ResourceLocation>> helperImports) {
+                          Map<String, List<ResourceLocation>> helperImports, int rewardSchema, List<PendingStageReward> rewards) {
         if (episodeSchema == 0 && !episodes.isEmpty()) {
             throw new IllegalArgumentException("Permission episodes require a schema version");
         }
+        if (rewardSchema == 0 && !rewards.isEmpty()) {
+            throw new IllegalArgumentException("Pending rewards require a schema version");
+        }
+        for (PendingStageReward reward : rewards) queueReward(reward);
         ownershipSchema = schema;
         readStages(serialized, teamStages);
         readStages(serializedPersonal, personalStages);
@@ -113,6 +122,25 @@ public class TeamStageData {
             }
             putPermissionEpisode(episode);
         }
+    }
+
+    public void queueReward(PendingStageReward reward) {
+        requireReadable();
+        Objects.requireNonNull(reward, "reward");
+        if (pendingRewards.putIfAbsent(reward.receipt(), reward) != null) {
+            throw new IllegalArgumentException("Duplicate pending reward receipt");
+        }
+    }
+
+    public List<PendingStageReward> getPendingRewards(UUID actor) {
+        requireReadable();
+        return pendingRewards.values().stream().filter(reward -> reward.actor().equals(actor)).toList();
+    }
+
+    public boolean consumeReward(UUID receipt, UUID actor) {
+        requireReadable();
+        PendingStageReward reward = pendingRewards.get(receipt);
+        return reward != null && reward.actor().equals(actor) && pendingRewards.remove(receipt, reward);
     }
 
     public int getOwnershipSchema() { requireReadable(); return ownershipSchema; }
@@ -692,6 +720,7 @@ public class TeamStageData {
         TeamStageData copy = new TeamStageData();
         copy.ownershipSchema = ownershipSchema;
         copy.ftbHelperImportSchema = ftbHelperImportSchema;
+        copy.pendingRewards.putAll(pendingRewards);
         ftbHelperImports.forEach((owner, stages) -> copy.ftbHelperImports.put(owner, new HashSet<>(stages)));
         for (Map.Entry<UUID, Set<StageId>> entry : teamStages.entrySet()) {
             copy.teamStages.put(entry.getKey(), new HashSet<>(entry.getValue()));

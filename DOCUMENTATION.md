@@ -2261,6 +2261,11 @@ to every player on a server-scoped grant (that would duplicate items / commands 
 teleports). It does **not** re-fire on login or sync. Every field is optional —
 an empty / absent `[rewards]` does nothing.
 
+For an explicit offline actor grant, ownership and its original reward receipt are saved together.
+The actual actor receives those rewards on return. Another team member cannot collect them, and
+later reward configuration changes do not rewrite the receipt. Delivery does not grant the stage
+again or reset its expiry. See the [actor API contract](#151-progressivestagesapi).
+
 ```toml
 [rewards]
 items     = ["minecraft:diamond:5", "minecraft:netherite_scrap"]
@@ -4458,7 +4463,7 @@ membership with `stale_membership`, a different owner with `owner_mismatch`, and
 with `stale_revision`. Rejection changes no stage, mutation revision or committed event. Resolve
 a new context and reevaluate the intended operation on the server thread before retrying.
 
-An explicit offline context supports `StageOperation.REVOKE`. It resolves the actor's current
+An explicit offline context supports `StageOperation.GRANT` and `StageOperation.REVOKE`. It resolves the actor's current
 owners before modifying state; an unavailable required owner returns `owner_unavailable` without
 partial revocation. Personal cascades preserve independently earned shared milestones and another
 actor's records. Shared and server cascades use the existing concrete owner rules. Removed owners
@@ -4466,13 +4471,37 @@ lose their grant clocks immediately. Purchase refunds retain their original paye
 offline payers receive pending refunds through the normal return path. Repeating the revoke does
 not emit another change or refund. Legacy UUID team APIs retain their existing meaning.
 
-Each concrete offline removal emits `StageActorChangeEvent` with the explicit actor context,
-removed owner, stage, change type and cause. It has no player entity. The existing
+Each concrete offline grant or removal emits `StageActorChangeEvent` with the explicit actor
+context, concrete owner, stage, change type and cause. It has no player entity. The existing
 `StageChangeEvent` and player based script callbacks remain connected player interfaces and are
 not replayed on login or delivered through a teammate. The committed mutation subscription
 reports the offline actor and affected online recipients; online stage views and bulk listeners
-refresh after the mutation. General offline grants still return `actor_offline`; deferred
-acquisition effects and their complete script lifecycle remain unfinished acceptance work.
+refresh after the mutation.
+
+Offline grants use the same dependency plan and slot resolver as connected grants. Another member's
+personal prerequisite cannot qualify the actor. Linear progression resolves each automatic
+prerequisite's own owner. A missing prerequisite or rejected slot returns `dependency_denied` or
+`slot_denied` before installing any draft ownership or rewards. Independent acquisition while a
+derived source exists still creates one independent grant and one acquisition reward. Repeated
+grants do not refresh its clock or create another reward.
+
+The existing ownership attachment stores `pending_reward_schema = 1` and `pending_rewards` beside
+stage ownership. Each pending entry contains a unique receipt, actor UUID, typed owner, stage ID
+and the original reward values. Commands, items, effects, teleport and XP survive definition and
+scope changes. Unsupported versions, duplicate receipts and malformed records fail the attachment
+load while the existing serializer preserves the original data for recovery. Copies retain the
+pending entries; permission reconciliation does not consume them.
+
+A returning actor receives its pending rewards through `syncStagesOnLogin`, before starting stage
+checks. Delivery consumes each receipt before executing its effects and checks the current
+attachment again for every receipt, including when a reward command changes progression. A
+teammate cannot consume it. Normal repeated synchronization or saving and loading consumed state
+does not replay rewards or grant events. An offline acquisition's clock starts at grant time and
+is not restarted by delivery. This queue represents effects owed by an earlier acquisition,
+including one subsequently revoked, rather than a new grant at login. Player based script
+callbacks remain connected interfaces; integrations can observe explicit offline changes through
+`StageActorChangeEvent`. Actual provider, script and authenticated client acceptance remain
+separate from the core server fixture results.
 
 The membership revision is a conservative server wide generation. Provider initialization, player
 login/logout, server shutdown and the native FTB Teams `PLAYER_CHANGED` event invalidate previously

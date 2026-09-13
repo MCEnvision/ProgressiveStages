@@ -46,7 +46,7 @@ public class TeamStageData {
     private record SourceOwner(OwnerKind kind, UUID id) {}
     private final Map<SourceOwner, Map<StageId, Set<String>>> stageSources = new HashMap<>();
     public record PermissionContribution(OwnerRef owner, StageId stage, PermissionStageSource source) {}
-    private final Map<UUID, Set<PermissionContribution>> permissionContributions = new HashMap<>();
+    private final java.util.NavigableMap<UUID, Set<PermissionContribution>> permissionContributions = new java.util.TreeMap<>();
     private record ActiveSource(SourceOwner owner, StageId stage, String label) {}
     private final Set<ActiveSource> activeSynchronizedSources = new HashSet<>();
     private int ownershipSchema = CURRENT_SCHEMA;
@@ -305,6 +305,23 @@ public class TeamStageData {
     public Set<PermissionContribution> getPermissionContributions(UUID subject) {
         Set<PermissionContribution> sources = permissionContributions.get(subject);
         return sources == null ? Set.of() : Set.copyOf(sources);
+    }
+
+    public UUID nextPermissionSubject(UUID previous) {
+        return permissionContributions.isEmpty() ? null
+            : previous == null ? permissionContributions.firstKey() : permissionContributions.higherKey(previous);
+    }
+
+    public Set<OwnerRef> deactivatePermissionSources(UUID subject) {
+        Set<OwnerRef> changed = new HashSet<>();
+        for (PermissionContribution contribution : getPermissionContributions(subject)) {
+            if (!contribution.source().permanent() && activeSynchronizedSources.remove(new ActiveSource(
+                    new SourceOwner(contribution.owner().kind(), contribution.owner().id()),
+                    contribution.stage(), contribution.source().label()))) {
+                changed.add(contribution.owner());
+            }
+        }
+        return Set.copyOf(changed);
     }
 
     private void indexPermissionSources() {

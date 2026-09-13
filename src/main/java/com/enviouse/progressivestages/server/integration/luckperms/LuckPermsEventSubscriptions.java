@@ -23,14 +23,23 @@ import java.util.function.Consumer;
 final class LuckPermsEventSubscriptions implements AutoCloseable {
     private final EventBus events;
     private final Consumer<UUID> subjectChanged;
+    private final Consumer<UUID> subjectLoaded;
+    private final Consumer<UUID> subjectUnloaded;
     private final Runnable allChanged;
     private final List<EventSubscription<?>> subscriptions = new ArrayList<>();
     private boolean registered;
     private boolean closed;
 
     LuckPermsEventSubscriptions(Object api, Consumer<UUID> subjectChanged, Runnable allChanged) {
+        this(api, subjectChanged, subjectChanged, subjectChanged, allChanged);
+    }
+
+    LuckPermsEventSubscriptions(Object api, Consumer<UUID> subjectChanged, Consumer<UUID> subjectLoaded,
+                                Consumer<UUID> subjectUnloaded, Runnable allChanged) {
         events = ((LuckPerms) api).getEventBus();
         this.subjectChanged = subjectChanged;
+        this.subjectLoaded = subjectLoaded;
+        this.subjectUnloaded = subjectUnloaded;
         this.allChanged = allChanged;
     }
 
@@ -39,8 +48,8 @@ final class LuckPermsEventSubscriptions implements AutoCloseable {
             if (closed || registered) return;
             registered = true;
         }
-        subscribe(UserLoadEvent.class, event -> subjectChanged.accept(event.getUser().getUniqueId()));
-        subscribe(UserUnloadEvent.class, event -> subjectChanged.accept(event.getUser().getUniqueId()));
+        subscribe(UserLoadEvent.class, event -> subjectLoaded.accept(event.getUser().getUniqueId()));
+        subscribe(UserUnloadEvent.class, event -> subjectUnloaded.accept(event.getUser().getUniqueId()));
         subscribe(NodeMutateEvent.class, event -> {
             if (event.getTarget() instanceof User user) subjectChanged.accept(user.getUniqueId());
             else allChanged.run();

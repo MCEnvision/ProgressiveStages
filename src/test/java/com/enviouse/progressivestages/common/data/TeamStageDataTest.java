@@ -16,6 +16,33 @@ class TeamStageDataTest {
     private static final StageId STAGE = StageId.parse("progressivestages:chef");
 
     @Test
+    void offlineSubjectCursorSurvivesRemovalAndPendingSourcesPreserveOtherAccess() {
+        TeamStageData data = new TeamStageData();
+        UUID first = new UUID(0, 1);
+        UUID second = new UUID(0, 2);
+        UUID third = new UUID(0, 3);
+        OwnerRef owner = new OwnerRef(OwnerKind.SERVER, new UUID(0, 0));
+        String one = new PermissionStageSource(first, "chef", false).label();
+        String two = new PermissionStageSource(second, "chef", false).label();
+        String retained = new PermissionStageSource(third, "chef", true).label();
+        data.grantStageFromSource(owner.id(), STAGE, one);
+        data.grantStageFromSource(owner.id(), STAGE, two);
+        data.grantStageFromSource(owner.id(), STAGE, retained);
+        assertEquals(first, data.nextPermissionSubject(null));
+        assertEquals(Set.of(owner), data.deactivatePermissionSources(first));
+        assertTrue(data.hasEffectiveStage(owner, STAGE));
+        assertTrue(data.getSources(owner, STAGE).contains(one));
+        assertFalse(data.getEffectiveSources(owner, STAGE).contains(one));
+        assertTrue(data.deactivatePermissionSources(first).isEmpty());
+        assertTrue(data.deactivatePermissionSources(third).isEmpty());
+        data.revokeStageFromSource(owner, STAGE, one);
+        assertEquals(second, data.nextPermissionSubject(first));
+        data.revokeStageFromSource(owner, STAGE, two);
+        assertEquals(third, data.nextPermissionSubject(second));
+        assertNull(data.nextPermissionSubject(third));
+    }
+
+    @Test
     void personalAndTeamNamespacesRemainDistinctThroughCodec() {
         UUID team = UUID.randomUUID();
         UUID player = UUID.randomUUID();

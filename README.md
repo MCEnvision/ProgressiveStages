@@ -373,6 +373,12 @@ bounded reconciliation work. Callbacks invalidate projection state without query
 loading users. Shutdown disables callbacks before removing their subscriptions and retries failed
 listener cleanup.
 
+Offline contributors now share the reconciliation queue. Up to eight provider loads can be pending,
+and offline checks use fixed server contexts instead of a remembered world. Current ownership,
+definitions and provider observations are checked before applying results. Synchronized sources
+wait inactive for unavailable data; permanent and independent grants remain retained. The complete
+real provider and team lifecycle acceptance remains under verification.
+
 Command gates now check Minecraft's command execution tasks after redirects resolve. Registered
 node and execution bindings identify aliases; namespace text alone does not establish equivalence.
 The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)

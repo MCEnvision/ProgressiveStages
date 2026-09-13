@@ -68,6 +68,8 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
         }
     }
 
+    synchronized boolean tracksSubject(UUID subject) { return subjects.containsKey(subject); }
+
     synchronized void markAllInvalid() {
         generation++;
     }

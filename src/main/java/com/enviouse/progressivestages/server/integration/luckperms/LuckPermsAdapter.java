@@ -15,6 +15,7 @@ public interface LuckPermsAdapter {
             return new PermissionResult(false, PermissionValue.UNDEFINED);
         }
     }
+    record OfflineResult(boolean stale, SubjectSnapshot snapshot) {}
 
     record NodeSpec(NodeKind kind, String value, Map<String, String> contexts) {
         public NodeSpec {
@@ -54,6 +55,12 @@ public interface LuckPermsAdapter {
     boolean groupExists(String group);
     default boolean subscribeChanges(java.util.function.Consumer<UUID> subjectChanged, Runnable allChanged) { return true; }
     default boolean stopListening() { return true; }
+    default boolean requestOffline(UUID subject, Set<String> permissions, java.util.function.Consumer<UUID> completed) { return false; }
+    default OfflineResult takeOffline(UUID subject) { return null; }
+    default boolean isOfflineCurrent(UUID subject) { return false; }
+    default void completeOffline(UUID subject) {}
+    default void invalidateOffline(UUID subject) {}
+    default void invalidateOffline() {}
     default long prepareProjection(UUID subject, Object target) { return 0; }
     default boolean publishProjection(UUID subject, long ticket) { return true; }
     default boolean invalidateProjection(UUID subject) { return true; }

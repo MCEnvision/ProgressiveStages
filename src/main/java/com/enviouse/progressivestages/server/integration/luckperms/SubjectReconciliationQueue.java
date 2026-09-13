@@ -9,6 +9,10 @@ import java.util.function.IntFunction;
 import java.util.function.IntSupplier;
 
 final class SubjectReconciliationQueue {
+    interface ScanSource {
+        void reset();
+        UUID next();
+    }
     private final int limit;
     private final Queue<UUID> pending = new ArrayDeque<>();
     private final Set<UUID> queued = new HashSet<>();
@@ -42,10 +46,19 @@ final class SubjectReconciliationQueue {
     }
 
     synchronized UUID poll(IntSupplier subjectCount, IntFunction<UUID> subjectAt) {
+        return poll(new ScanSource() {
+            @Override public void reset() { scanIndex = 0; }
+            @Override public UUID next() {
+                return scanIndex >= subjectCount.getAsInt() ? null : subjectAt.apply(scanIndex++);
+            }
+        });
+    }
+
+    synchronized UUID poll(ScanSource source) {
         UUID next = null;
-        if (scanTurn) next = scanOne(subjectCount, subjectAt);
+        if (scanTurn) next = scanOne(source);
         if (next == null) next = pending.poll();
-        if (next == null && !scanTurn) next = scanOne(subjectCount, subjectAt);
+        if (next == null && !scanTurn) next = scanOne(source);
         scanTurn = !scanTurn;
         if (next != null) {
             queued.remove(next);
@@ -54,18 +67,16 @@ final class SubjectReconciliationQueue {
         return next;
     }
 
-    private UUID scanOne(IntSupplier subjectCount, IntFunction<UUID> subjectAt) {
+    private UUID scanOne(ScanSource source) {
         if (!scanning) {
             if (!rescanRequested) return null;
             rescanRequested = false;
             scanning = true;
-            scanIndex = 0;
+            source.reset();
         }
-        if (scanIndex >= subjectCount.getAsInt()) {
-            scanning = false;
-            return null;
-        }
-        return subjectAt.apply(scanIndex++);
+        UUID next = source.next();
+        if (next == null) scanning = false;
+        return next;
     }
 
     synchronized int size() { return pending.size(); }

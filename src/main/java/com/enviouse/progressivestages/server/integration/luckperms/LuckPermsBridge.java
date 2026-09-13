@@ -32,6 +32,22 @@ public final class LuckPermsBridge {
 
     private final SubjectReconciliationQueue dirty = new SubjectReconciliationQueue(MAX_QUEUE);
     private final OutboundNodeTracker outboundNodes = new OutboundNodeTracker();
+    private final Map<UUID, StageManager.OfflinePermissionContext> offlineContexts = new LinkedHashMap<>();
+    private final SubjectReconciliationQueue.ScanSource scanSource = new SubjectReconciliationQueue.ScanSource() {
+        private int onlineIndex;
+        private UUID offlineAfter;
+        private boolean offlineFinished;
+        @Override public void reset() { onlineIndex = 0; offlineAfter = null; offlineFinished = false; }
+        @Override public UUID next() {
+            if (server == null) return null;
+            List<ServerPlayer> online = server.getPlayerList().getPlayers();
+            if (onlineIndex < online.size()) return online.get(onlineIndex++).getUUID();
+            if (offlineFinished) return null;
+            offlineAfter = StageManager.getInstance().nextPermissionSubject(offlineAfter);
+            offlineFinished = offlineAfter == null;
+            return offlineAfter;
+        }
+    };
     private MinecraftServer server;
     private LuckPermsAdapter adapter;
     private AutoCloseable stageSubscription;
@@ -52,7 +68,9 @@ public final class LuckPermsBridge {
         synchronized (bridge) {
             bridge.dirty.remove(player.getUUID());
             bridge.dirty.requestRescan();
+            bridge.dirty.request(player.getUUID());
             if (bridge.adapter != null) {
+                bridge.adapter.invalidateOffline(player.getUUID());
                 boolean complete = bridge.adapter.invalidateProjection(player.getUUID());
                 complete &= bridge.outboundNodes.reconcile(player.getUUID(), Map.of(),
                     bridge.adapter, (owner, adding, result) -> {});
@@ -66,6 +84,7 @@ public final class LuckPermsBridge {
             if (bridge.adapter != null && !bridge.adapter.invalidateProjections()) {
                 LOGGER.warn("LuckPerms projection invalidation is incomplete after reload.");
             }
+            if (bridge.adapter != null) bridge.adapter.invalidateOffline();
             bridge.dirty.requestRescan();
         }
     }
@@ -87,6 +106,7 @@ public final class LuckPermsBridge {
             throw new IllegalStateException("Owned LuckPerms output cleanup is incomplete");
         }
         adapter = replacement == null ? ReflectiveLuckPermsAdapter.create() : replacement;
+        offlineContexts.clear();
         adapter.subscribeChanges(dirty::request, dirty::requestRescan);
     }
 
@@ -105,6 +125,7 @@ public final class LuckPermsBridge {
         server = value;
         adapter = ReflectiveLuckPermsAdapter.create();
         adapter.subscribeChanges(dirty::request, dirty::requestRescan);
+        dirty.requestRescan();
         try {
             stageSubscription = StageManager.getInstance().subscribeCommittedStageChanges(result -> {
                 for (UUID subject : result.affectedPlayers()) markDirty(subject);
@@ -133,6 +154,7 @@ public final class LuckPermsBridge {
             registered = false;
         }
         dirty.clear();
+        offlineContexts.clear();
         if (cleaned) adapter = null;
         else LOGGER.warn("LuckPerms output cleanup is incomplete. The bridge remains unavailable until cleanup succeeds.");
         server = null;
@@ -146,16 +168,69 @@ public final class LuckPermsBridge {
 
     private void drain(MinecraftServer current) {
         if (server != current || adapter == null) return;
-        List<ServerPlayer> players = current.getPlayerList().getPlayers();
         int count = 0;
         while (count++ < MAX_SUBJECTS_PER_TICK) {
             UUID id;
             synchronized (this) {
-                id = dirty.poll(players::size, index -> players.get(index).getUUID());
+                id = dirty.poll(scanSource);
                 if (id == null) return;
             }
             ServerPlayer player = current.getPlayerList().getPlayer(id);
-            if (player != null) reconcileSubject(player);
+            if (player != null) {
+                if (offlineContexts.remove(id) != null) adapter.invalidateOffline(id);
+                if (adapter.takeOffline(id) != null) adapter.completeOffline(id);
+                reconcileSubject(player);
+            } else reconcileOffline(id);
+        }
+    }
+
+    private void reconcileOffline(UUID subject) {
+        StageManager manager = StageManager.getInstance();
+        if (adapter.state() != LuckPermsAdapter.State.READY) {
+            manager.deactivateOfflinePermissionSources(subject);
+            return;
+        }
+        var context = offlineContexts.get(subject);
+        if (context == null) {
+            if (adapter.takeOffline(subject) != null) adapter.completeOffline(subject);
+            if (offlineContexts.size() >= 8) { dirty.request(subject); return; }
+            Set<String> permissions = new java.util.HashSet<>();
+            for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+                StageOrder.getInstance().getStageDefinition(stage).orElseThrow().getLuckPerms().inbound()
+                    .forEach(row -> permissions.addAll(row.permissions()));
+            }
+            context = manager.captureOfflinePermissionContext(subject);
+            manager.deactivateOfflinePermissionSources(subject);
+            if (adapter.requestOffline(subject, permissions, dirty::request)) offlineContexts.put(subject, context);
+            else dirty.request(subject);
+            return;
+        }
+        LuckPermsAdapter.OfflineResult result = adapter.takeOffline(subject);
+        if (result == null) return;
+        offlineContexts.remove(subject);
+        if (result.stale()) { adapter.completeOffline(subject); dirty.request(subject); return; }
+        if (!result.snapshot().ready()) { adapter.completeOffline(subject); return; }
+        Map<StageId, Set<String>> desired = new LinkedHashMap<>();
+        for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+            LuckPermsStageOptions options = StageOrder.getInstance().getStageDefinition(stage).orElseThrow().getLuckPerms();
+            if (!options.present() || !options.enabled()) continue;
+            for (var row : options.inbound()) {
+                List<Boolean> conditions = new ArrayList<>();
+                row.groups().forEach(group -> conditions.add(result.snapshot().groups().contains(group)));
+                row.permissions().forEach(permission -> conditions.add(result.snapshot().permissions().get(permission)
+                    == LuckPermsAdapter.PermissionValue.TRUE));
+                boolean matched = row.match() == LuckPermsStageOptions.Match.ANY
+                    ? conditions.stream().anyMatch(Boolean.TRUE::equals) : conditions.stream().allMatch(Boolean.TRUE::equals);
+                if (matched && contextMatches(row.contexts(), result.snapshot().contexts())) {
+                    desired.computeIfAbsent(stage, ignored -> new java.util.HashSet<>()).add(new PermissionStageSource(subject,
+                        row.id(), options.inboundMode() == LuckPermsStageOptions.InboundMode.PERMANENT).label());
+                }
+            }
+        }
+        try {
+            if (!manager.reconcileOfflinePermissionSources(context, desired, () -> adapter.isOfflineCurrent(subject))) dirty.request(subject);
+        } finally {
+            adapter.completeOffline(subject);
         }
     }
 

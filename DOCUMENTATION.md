@@ -2994,6 +2994,39 @@ before detaching every subscription. A failed detachment retains only failed sub
 for retry while late callbacks remain inactive. Bridge cleanup stops listeners before context and
 node cleanup, preventing teardown from enqueuing its own mutations into a replacement session.
 
+`LuckPermsOfflineQueries` holds at most eight pending or unacknowledged user observations. It loads
+an absent user asynchronously, queries only the configured inbound permission keys and inherited
+groups under the provider's static context options, and returns immutable data. The reserved
+bridge marker is excluded. Already loaded users are not released by the query; users loaded for
+the query are passed to `cleanupUser` afterward. Failed cleanup retains the user reference and
+prevents that observation from becoming trusted. Shutdown rejects notifications from late results,
+retains unfinished cleanup and prevents replacement until outstanding loads finish.
+
+An owned user load event does not restart its pending query. User cache unload events enqueue a
+subject only while the calculator still tracks a platform player. Cache eviction after an offline
+query is not an authoritative rank removal and must not create a repeated load and unload cycle.
+Node and global changes invalidate outstanding observations. Completed observations remain owned
+until the server has checked and acknowledged them, so an event arriving after completion can
+still prevent their application.
+
+The shared scan visits online players and then advances through the ordered persisted contributor
+UUID index. Removing an earlier contributor does not skip the next UUID. Offline requests and
+result application use the same sixteen subject operations per tick and 256 entry queue as online
+work. A full loader keeps pending subjects queued instead of starting additional requests.
+
+`StageOwnership.offlineOwner` resolves personal and server owners directly and queries the pinned
+FTB Teams API through `getTeamForPlayerID` when team ownership applies. Provider lookup failure is
+unknown ownership, distinct from the established absent provider or confirmed solo fallback.
+`StageManager` captures definition identity, revision and resolved owners, then checks them again
+on the server before applying an offline result. Qualification uses the current effective source
+view, dependencies and slot policy; reconciliation neither buys a stage nor grants prerequisites
+or runs player acquisition events. Synchronized sources become inactive while data is pending.
+Authoritative loss removes only the affected subject's source. Permanent and independent grants
+remain separate. A provider observation invalidated during application cannot leave a newly added
+permanent grant, and affected online beneficiaries receive fresh snapshots and bulk change events.
+Actual provider cache behavior, complete membership revision handling, source expiry episodes and
+combined multiplayer acceptance still require their separate verification gates.
+
 `LuckPermsQueries` builds contextual queries from the loaded user's current provider query options,
 falling back to authoritative static options for a loaded offline user. It removes the reserved
 bridge marker while preserving other contexts, every value per key, and query flags. Group and

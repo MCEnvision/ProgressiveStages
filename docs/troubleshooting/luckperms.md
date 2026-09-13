@@ -133,7 +133,16 @@ The online update queue retains pending subjects when its 256 entry limit is rea
 a resumable scan. Dirty updates and scan entries share the limit of sixteen subjects per tick;
 continued event traffic does not reset an active scan. Disconnect requests a followup pass, and
 shutdown clears pending work. Core fixtures cover online event and reload processing. They do not
-prove offline contributor recovery or actual provider event convergence.
+prove actual provider event convergence.
+
+Offline contributor scans use the same queue and a maximum of eight pending or unacknowledged
+provider observations. Their queries use fixed server contexts, never a remembered world.
+Unverified synchronized sources stay stored but inactive until authoritative reconciliation;
+permanent and independent grants remain available. A failed user cache cleanup retains its owned
+reference for retry and prevents trusting that result or replacing an incompletely closed adapter.
+Current definition and ownership checks reject stale results. These core paths still need the
+complete real LuckPerms, FTB Teams and multiplayer acceptance matrix, including membership changes
+and timed source episodes.
 
 If a stage is not granted, check the stage dependency and slot policy first. Permission
 reconciliation must not charge costs, run rewards, increment trigger counters, refresh expiry

@@ -16,6 +16,7 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     private LuckPermsTransientNodes transientNodes;
     private LuckPermsProjectionContexts projectionContexts;
     private LuckPermsEventSubscriptions eventSubscriptions;
+    private LuckPermsOfflineQueries offlineQueries;
     private boolean closing;
 
     static ReflectiveLuckPermsAdapter create() {
@@ -31,6 +32,7 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
             api = provider.getMethod("get").invoke(null);
             queries = new LuckPermsQueries(api);
             transientNodes = new LuckPermsTransientNodes(api);
+            offlineQueries = new LuckPermsOfflineQueries(api);
             projectionContexts = new LuckPermsProjectionContexts(api);
             projectionContexts.register();
         } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
@@ -125,10 +127,17 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
         if (api == null || closing) return true;
         if (eventSubscriptions != null) throw new IllegalStateException("LuckPerms events are already subscribed");
         try {
-            eventSubscriptions = new LuckPermsEventSubscriptions(api, subject -> {
+            java.util.function.Consumer<UUID> changed = subject -> {
+                offlineQueries.invalidate(subject);
                 projectionContexts.markInvalid(subject);
                 subjectChanged.accept(subject);
+            };
+            eventSubscriptions = new LuckPermsEventSubscriptions(api, changed, subject -> {
+                if (!offlineQueries.owns(subject)) changed.accept(subject);
+            }, subject -> {
+                if (projectionContexts.tracksSubject(subject)) changed.accept(subject);
             }, () -> {
+                offlineQueries.invalidateAll();
                 projectionContexts.markAllInvalid();
                 allChanged.run();
             });
@@ -155,6 +164,26 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
             return false;
         }
     }
+
+    @Override
+    public boolean requestOffline(UUID subject, java.util.Set<String> permissions, java.util.function.Consumer<UUID> completed) {
+        return api != null && !closing && offlineQueries != null && offlineQueries.request(subject, permissions, completed);
+    }
+
+    @Override
+    public OfflineResult takeOffline(UUID subject) {
+        if (offlineQueries == null || closing) return null;
+        try { return offlineQueries.take(subject); }
+        catch (RuntimeException | LinkageError failure) {
+            LOGGER.warn("Offline LuckPerms query cleanup is incomplete. Owned user references are retained.", failure);
+            return null;
+        }
+    }
+
+    @Override public void invalidateOffline(UUID subject) { if (offlineQueries != null) offlineQueries.invalidate(subject); }
+    @Override public void invalidateOffline() { if (offlineQueries != null) offlineQueries.invalidateAll(); }
+    @Override public boolean isOfflineCurrent(UUID subject) { return !closing && offlineQueries != null && offlineQueries.current(subject); }
+    @Override public void completeOffline(UUID subject) { if (offlineQueries != null) offlineQueries.complete(subject); }
 
     @Override
     public long prepareProjection(UUID subject, Object target) {
@@ -208,6 +237,7 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
         closing = true;
         groupAvailability.clear();
         boolean complete = stopListening();
+        complete &= offlineQueries == null || offlineQueries.close();
         complete &= cleanupTransientNodes();
         if (projectionContexts != null) {
             try { projectionContexts.close(); }

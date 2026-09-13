@@ -185,7 +185,7 @@ class LuckPermsQueriesTest {
         }
     }
 
-    private record Query(Map<String, Set<String>> contexts, QueryMode mode, Set<Flag> flags) {
+    record Query(Map<String, Set<String>> contexts, QueryMode mode, Set<Flag> flags) {
         QueryOptions options() {
             return proxy(QueryOptions.class, (proxy, method, args) -> switch (method.getName()) {
                 case "mode" -> mode;

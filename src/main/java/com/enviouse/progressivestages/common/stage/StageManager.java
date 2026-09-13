@@ -131,14 +131,23 @@ public class StageManager {
     private Set<UUID> affectedPlayers(ServerPlayer player, boolean changed, Set<OwnerRef> owners) {
         Set<UUID> players = new LinkedHashSet<>();
         if (player != null) players.add(player.getUUID());
-        if (changed && player != null && server != null && owners != null) {
+        if (changed && server != null && owners != null) {
             for (OwnerRef affected : owners) {
                 switch (affected.kind()) {
                     case SERVER -> server.getPlayerList().getPlayers()
                         .forEach(candidate -> players.add(candidate.getUUID()));
-                    case TEAM -> TeamProvider.getInstance().getTeamMembersForOwner(affected.id(), player)
-                        .forEach(candidate -> players.add(candidate.getUUID()));
-                    case PERSONAL -> players.add(affected.id());
+                    case TEAM -> {
+                        if (player != null) TeamProvider.getInstance().getTeamMembersForOwner(affected.id(), player)
+                            .forEach(candidate -> players.add(candidate.getUUID()));
+                        else for (ServerPlayer candidate : server.getPlayerList().getPlayers()) {
+                            TeamProvider provider = TeamProvider.getInstance();
+                            if (provider.getTeamId(candidate).equals(affected.id())
+                                || provider.getFtbTeamId(candidate).equals(affected.id())) players.add(candidate.getUUID());
+                        }
+                    }
+                    case PERSONAL -> {
+                        if (player != null || server.getPlayerList().getPlayer(affected.id()) != null) players.add(affected.id());
+                    }
                 }
             }
         }
@@ -311,6 +320,102 @@ public class StageManager {
         StageSlotResolver.Decision slot = slotDecision(player, definition, effective);
         return slot.allowed() && slot.replacements().isEmpty()
             && (!definition.isPurchasable() || hasOwned(getTeamStageData(), owner(player, stageId), stageId));
+    }
+
+    public record OfflinePermissionContext(UUID subject, long definitionRevision, Map<StageId, OwnerRef> owners,
+                                            Map<StageId, StageDefinition> definitions) {
+        public OfflinePermissionContext { owners = Map.copyOf(owners); definitions = Map.copyOf(definitions); }
+    }
+
+    public OfflinePermissionContext captureOfflinePermissionContext(UUID subject) {
+        Map<StageId, OwnerRef> owners = new LinkedHashMap<>();
+        Map<StageId, StageDefinition> definitions = new LinkedHashMap<>();
+        for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+            StageOwnership.offlineOwner(subject, stage).ifPresent(owner -> owners.put(stage, owner));
+            definitions.put(stage, StageOrder.getInstance().getStageDefinition(stage).orElseThrow());
+        }
+        return new OfflinePermissionContext(subject, StageFileLoader.getInstance().getCompiledSnapshot().revision(), owners, definitions);
+    }
+
+    public UUID nextPermissionSubject(UUID previous) {
+        return getTeamStageData().nextPermissionSubject(previous);
+    }
+
+    public void deactivateOfflinePermissionSources(UUID subject) {
+        if (server == null) return;
+        notifyOfflinePermissionChange(getTeamStageData().deactivatePermissionSources(subject), "source_pending");
+    }
+
+    public boolean reconcileOfflinePermissionSources(OfflinePermissionContext context, Map<StageId, Set<String>> desired,
+                                                     java.util.function.BooleanSupplier current) {
+        if (server == null || server.getPlayerList().getPlayer(context.subject()) != null
+            || !current.getAsBoolean() || !context.equals(captureOfflinePermissionContext(context.subject()))) return false;
+        TeamStageData data = getTeamStageData();
+        Set<OwnerRef> changed = new LinkedHashSet<>();
+        List<TeamStageData.PermissionContribution> added = new ArrayList<>();
+        for (TeamStageData.PermissionContribution contribution : data.getPermissionContributions(context.subject())) {
+            if (contribution.source().permanent()) continue;
+            if (!contribution.owner().equals(context.owners().get(contribution.stage()))
+                || !desired.getOrDefault(contribution.stage(), Set.of()).contains(contribution.source().label())) {
+                if (data.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label())) {
+                    changed.add(contribution.owner());
+                }
+            }
+        }
+        for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+            OwnerRef resolved = context.owners().get(stage);
+            if (resolved == null) continue;
+            StageDefinition definition = StageOrder.getInstance().getStageDefinition(stage).orElseThrow();
+            Set<String> sources = desired.getOrDefault(stage, Set.of());
+            Set<StageId> effective = new HashSet<>();
+            context.owners().forEach((id, owner) -> { if (data.hasEffectiveStage(owner, id)) effective.add(id); });
+            StageSlotResolver.Decision slot = StageSlotResolver.resolve(definition, effective,
+                id -> StageOrder.getInstance().getStageDefinition(id), id -> grantTime(context.owners().get(id).id(), id));
+            boolean qualified = StageOrder.getInstance().getMissingDependencies(effective, stage).isEmpty()
+                && slot.allowed() && slot.replacements().isEmpty()
+                && (!definition.isPurchasable() || hasOwned(data, resolved, stage));
+            if (qualified) {
+                for (String source : sources) {
+                    var parsed = PermissionStageSource.parse(source);
+                    if (parsed.isEmpty() || !parsed.get().subject().equals(context.subject())) continue;
+                    Set<String> before = data.getSources(resolved, stage);
+                    Set<String> activeBefore = data.getEffectiveSources(resolved, stage);
+                    grantOwnedFromSource(data, resolved, stage, source);
+                    if (!before.contains(source)) added.add(new TeamStageData.PermissionContribution(resolved, stage, parsed.get()));
+                    if (!before.equals(data.getSources(resolved, stage))
+                        || !activeBefore.equals(data.getEffectiveSources(resolved, stage))) changed.add(resolved);
+                }
+            } else {
+                for (String source : data.getSources(resolved, stage)) {
+                    PermissionStageSource.parse(source).filter(parsed -> parsed.subject().equals(context.subject())
+                        && !parsed.permanent()).ifPresent(parsed -> {
+                            if (data.revokeStageFromSource(resolved, stage, source)) changed.add(resolved);
+                        });
+                }
+            }
+        }
+        boolean valid = current.getAsBoolean();
+        if (!valid) {
+            for (var contribution : added) {
+                data.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label());
+            }
+            changed.addAll(data.deactivatePermissionSources(context.subject()));
+        }
+        notifyOfflinePermissionChange(changed, valid ? "source_reconciled" : "source_pending");
+        return valid;
+    }
+
+    private void notifyOfflinePermissionChange(Set<OwnerRef> owners, String reason) {
+        if (owners.isEmpty() || server == null) return;
+        markMutation(true);
+        for (UUID recipient : affectedPlayers(null, true, owners)) {
+            ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+            if (online != null) {
+                syncToPlayer(online);
+                fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
+            }
+        }
+        publishMutation(null, null, true, reason, Set.copyOf(owners));
     }
 
     public Set<String> getStageSources(ServerPlayer player, StageId stageId) {

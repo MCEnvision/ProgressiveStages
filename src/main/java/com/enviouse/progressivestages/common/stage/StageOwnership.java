@@ -31,6 +31,17 @@ public final class StageOwnership {
         return resolveOwner(player, stageId);
     }
 
+    public static java.util.Optional<OwnerRef> offlineOwner(java.util.UUID subject, StageId stageId) {
+        Objects.requireNonNull(subject, "subject");
+        StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
+        if (definition == null) return java.util.Optional.empty();
+        if (definition.isServerScope()) return java.util.Optional.of(new OwnerRef(OwnerKind.SERVER, StageManager.SERVER_TEAM));
+        boolean team = definition.getTeamStage().orElse(StageConfig.isFtbTeamsMode());
+        if (!team) return java.util.Optional.of(new OwnerRef(OwnerKind.PERSONAL, subject));
+        return TeamProvider.getInstance().getOfflineTeamId(subject, definition.getTeamStage().orElse(false))
+            .map(id -> new OwnerRef(OwnerKind.TEAM, id));
+    }
+
     private static OwnerRef resolveOwner(ServerPlayer player, StageId stageId) {
         StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
         if (definition != null && definition.isServerScope()) {

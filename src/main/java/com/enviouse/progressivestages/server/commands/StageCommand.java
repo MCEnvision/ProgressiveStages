@@ -842,7 +842,7 @@ public class StageCommand {
 
     private static int openGui(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        com.enviouse.progressivestages.common.network.NetworkHandler.sendStageGuiData(player);
+        com.enviouse.progressivestages.common.network.NetworkHandler.openStageGui(player);
         return 1;
     }
 

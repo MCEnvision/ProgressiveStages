@@ -4698,9 +4698,22 @@ purchase or reload during the interval does not replay stale view data. Differen
 independent budgets. Logout and shutdown cancel queued work; inactive entries expire. Purchase
 validation and stage mutations still execute immediately. Only their GUI refresh may wait for
 the next response interval. This bounds repeated GUI reconstruction and output, not transport
-admission or all work performed by purchase and command handlers. The payload format is unchanged.
-The [GUI response tests](docs/test/gui-responses.md) capture actual outbound server payloads;
-screen presentation and reconnect still require the separate laptop acceptance gate.
+admission or all work performed by purchase and command handlers. The existing request, purchase
+and GUI data payload formats remain unchanged.
+
+The optional server to client `progressivestages:stage_gui_open` payload carries no fields.
+It uses the existing protocol version and is sent only when the peer negotiated that channel.
+`NetworkHandler.openStageGui` sends this explicit opening instruction for public GUI commands,
+then requests current data through the shared response budget. Matching clients open locally
+when the configured keybind is pressed. Incoming GUI data updates the cache and rebuilds an
+existing stage screen, checking the current screen on the client thread; it never opens a closed
+screen. An intentional command or keybind can reopen immediately during the data cooldown.
+Purchase feedback updates an open view without forcing it back after closure. Peers without
+the optional channel retain the legacy behavior of opening on data arrival. Both sides should
+use the matching build for the delayed response correction.
+
+The [GUI response tests](docs/test/gui-responses.md) cover server response budgeting, optional
+opening negotiation and the separate laptop presentation regression.
 
 The client `RightClickBlock` handler returns `FAIL` for a missing stage before local block or item
 prediction. The normal server use packet still runs the authoritative checks and feedback. This

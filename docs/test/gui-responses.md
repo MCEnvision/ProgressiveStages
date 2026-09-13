@@ -17,6 +17,12 @@ server ticks. The first player must receive exactly one more response containing
 The disconnected player must receive none. Clearing the first player's connection state must allow
 a fresh immediate response. Fixture players, queued requests and definitions are restored afterward.
 
+The third test invokes `stage gui` and `pstages` with an optional opening channel negotiated.
+Both explicit commands must send an opening instruction, including during the data cooldown.
+An ordinary GUI request and rejected purchase must not send that instruction, and the queued
+response must contain data only. A second peer without the optional channel must receive the
+legacy data payload without an unsupported opening packet.
+
 Use a disposable no GUI development server on Java 21, Minecraft 1.21.1 and NeoForge 21.1.248,
 with the `progressivestages` and `minecraft` GameTest namespaces enabled. The production launch
 does not register these GameTests merely because `neoforge.enableGameTest` is true. Prepare the
@@ -30,10 +36,23 @@ execute positioned 0 180 0 run test run guipacketpurchaseandcommandburstsshareon
 ```
 
 Inspect the actual structure metadata and success marker. Clear and rebuild the same disposable
-platform before running `queuedguiresponsesusecurrentdataandstopafterdisconnect`. The platform
+platform before running `queuedguiresponsesusecurrentdataandstopafterdisconnect` and
+`explicitguicommandsopenwhilequeuedresponsesonlyrefresh`. The platform
 fixes terrain dependent placement; the command's Y coordinate alone is not a result oracle.
 
 Keep Minecraft client GUI presentation and reconnect acceptance separate. After the bounded
 server suite, stop the exact owned process and remove its runtime and temporary build output.
 Retain only the tested source and artifact identities, measured results, success evidence and
 cleanup status in the [security review](../verification/3.0.5-security-review.md).
+
+## Laptop presentation regression
+
+Use matching client and server artifacts. Verify the owned laptop window, NVIDIA renderer,
+muted application stream, exact private endpoint and joined player before input. Open the GUI
+twice within one response interval, close it with Escape, and observe it after the interval.
+The older client reopens on the queued response; a matching corrected client remains in the
+world. Deliberately reopen through an alias during the same cooldown and verify the GUI appears.
+Also exercise the configured keybind after reconnect. Capture only the owned game window.
+A reduced tick rate may make the close interval observable, but record that fixture rate and
+restore normal ticks before the remaining tests. This case does not prove the full purchase,
+provider, builder or interaction acceptance matrix.

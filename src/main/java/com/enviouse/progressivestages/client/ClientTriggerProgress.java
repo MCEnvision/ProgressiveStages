@@ -93,6 +93,17 @@ public final class ClientTriggerProgress {
         com.enviouse.progressivestages.client.gui.StageTreeScreen.open();
     }
 
+    public static void acceptResponse(List<NetworkHandler.StageProgress> stages) {
+        accept(stages);
+        if (supportsExplicitOpening()) com.enviouse.progressivestages.client.gui.StageTreeScreen.refreshIfOpen();
+        else com.enviouse.progressivestages.client.gui.StageTreeScreen.open();
+    }
+
+    private static boolean supportsExplicitOpening() {
+        var connection = Minecraft.getInstance().getConnection();
+        return connection != null && connection.hasChannel(NetworkHandler.OpenStageGuiPayload.TYPE);
+    }
+
     public static void accept(List<NetworkHandler.StageProgress> stages) {
         DATA.clear();
         if (stages == null) return;
@@ -140,9 +151,10 @@ public final class ClientTriggerProgress {
         DATA.clear();
     }
 
-    /** Ask the server for a fresh snapshot (and open the screen on arrival). */
+    /** request current gui data and open the screen. */
     public static void requestFromServer() {
         if (Minecraft.getInstance().player == null) return;
+        if (supportsExplicitOpening()) com.enviouse.progressivestages.client.gui.StageTreeScreen.open();
         net.neoforged.neoforge.network.PacketDistributor.sendToServer(NetworkHandler.RequestStageGuiPayload.INSTANCE);
     }
 }

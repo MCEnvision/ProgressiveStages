@@ -119,6 +119,13 @@ public final class StageTreeScreen extends Screen {
         });
     }
 
+    public static void refreshIfOpen() {
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> {
+            if (mc.screen instanceof StageTreeScreen current) current.rebuild(false);
+        });
+    }
+
     @Override
     protected void init() {
         int w = Math.max(230, Math.min(width - 24, 460));

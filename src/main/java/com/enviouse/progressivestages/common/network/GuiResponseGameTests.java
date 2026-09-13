@@ -129,12 +129,73 @@ public final class GuiResponseGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100)
+    @SuppressWarnings("unchecked")
+    public static void explicitGuiCommandsOpenWhileQueuedResponsesOnlyRefresh(GameTestHelper helper) throws Exception {
+        var capture = new Capture();
+        capture.explicitOpening = true;
+        var legacyCapture = new Capture();
+        var player = player(helper, capture);
+        var legacy = player(helper, legacyCapture);
+        var server = helper.getLevel().getServer();
+        var field = PlayerList.class.getDeclaredField("playersByUUID");
+        field.setAccessible(true);
+        var players = (Map<UUID, ServerPlayer>) field.get(server.getPlayerList());
+        Runnable cleanup = () -> {
+            players.remove(player.getUUID(), player);
+            NetworkHandler.clearPlayerRuntimeState(player.getUUID());
+            NetworkHandler.clearPlayerRuntimeState(legacy.getUUID());
+            player.discard();
+            legacy.discard();
+        };
+        try {
+            players.put(player.getUUID(), player);
+            var source = player.createCommandSourceStack().withPermission(0).withSuppressedOutput();
+            server.getCommands().performPrefixedCommand(source, "stage gui");
+            helper.assertTrue(capture.opens == 1 && capture.responses == 1,
+                "An explicit command must open the screen and send its first data response.");
+            server.getCommands().performPrefixedCommand(source, "pstages");
+            helper.assertTrue(capture.opens == 2 && capture.responses == 1,
+                "An explicit alias must reopen immediately while data remains queued.");
+            var request = NetworkHandler.class.getDeclaredMethod("handleRequestStageGuiServer",
+                NetworkHandler.RequestStageGuiPayload.class, IPayloadContext.class);
+            request.setAccessible(true);
+            request.invoke(null, NetworkHandler.RequestStageGuiPayload.INSTANCE, context(player));
+            var purchase = NetworkHandler.class.getDeclaredMethod("handlePurchaseServer",
+                NetworkHandler.RequestPurchasePayload.class, IPayloadContext.class);
+            purchase.setAccessible(true);
+            purchase.invoke(null, new NetworkHandler.RequestPurchasePayload(
+                StageId.parse("progressivestages:missing_gui_test").getResourceLocation()), context(player));
+            helper.assertTrue(capture.opens == 2,
+                "A data request or purchase response must not issue another screen opening.");
+            server.getCommands().performPrefixedCommand(
+                legacy.createCommandSourceStack().withPermission(0).withSuppressedOutput(), "stages");
+            helper.assertTrue(legacyCapture.opens == 0 && legacyCapture.responses == 1,
+                "A peer without the optional channel must receive only the legacy data payload.");
+            helper.runAfterDelay(25, () -> {
+                try {
+                    helper.assertTrue(capture.responses == 2 && capture.opens == 2,
+                        "Queued data must refresh the view without repeating the opening instruction.");
+                    helper.succeed();
+                } finally { cleanup.run(); }
+            });
+        } catch (Exception | AssertionError error) {
+            cleanup.run();
+            throw error;
+        }
+    }
+
     private static FakePlayer player(GameTestHelper helper, Capture capture) {
         var profile = new GameProfile(UUID.randomUUID(), "gui-response");
         var player = new FakePlayer(helper.getLevel(), profile);
         player.connection = new ServerGamePacketListenerImpl(helper.getLevel().getServer(),
             new Connection(PacketFlow.SERVERBOUND), player, CommonListenerCookie.createInitial(profile, false)) {
+            @Override public boolean hasChannel(net.minecraft.resources.ResourceLocation channel) {
+                return channel.equals(NetworkHandler.OpenStageGuiPayload.TYPE.id()) && capture.explicitOpening;
+            }
             @Override public void send(Packet<?> packet) {
+                if (packet instanceof ClientboundCustomPayloadPacket custom
+                        && custom.payload() instanceof NetworkHandler.OpenStageGuiPayload) capture.opens++;
                 if (packet instanceof ClientboundCustomPayloadPacket custom
                         && custom.payload() instanceof NetworkHandler.StageGuiDataPayload data) {
                     capture.responses++;
@@ -159,6 +220,8 @@ public final class GuiResponseGameTests {
 
     private static final class Capture {
         int responses;
+        int opens;
+        boolean explicitOpening;
         NetworkHandler.StageGuiDataPayload last;
     }
 }

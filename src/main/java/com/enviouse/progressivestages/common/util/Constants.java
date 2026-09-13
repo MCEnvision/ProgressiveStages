@@ -33,6 +33,7 @@ public final class Constants {
     // v2.3: stage-tree GUI — C2S request for data + open, S2C data + open
     public static final ResourceLocation REQUEST_STAGE_GUI_PACKET = ResourceLocation.fromNamespaceAndPath(MOD_ID, "request_stage_gui");
     public static final ResourceLocation STAGE_GUI_DATA_PACKET = ResourceLocation.fromNamespaceAndPath(MOD_ID, "stage_gui_data");
+    public static final ResourceLocation STAGE_GUI_OPEN_PACKET = ResourceLocation.fromNamespaceAndPath(MOD_ID, "stage_gui_open");
     // v2.4: skill-tree purchase request (C2S)
     public static final ResourceLocation REQUEST_PURCHASE_PACKET = ResourceLocation.fromNamespaceAndPath(MOD_ID, "request_purchase");
     // v2.4: unlock juice — toast popup (S2C) + active-goal HUD bar progress (S2C)

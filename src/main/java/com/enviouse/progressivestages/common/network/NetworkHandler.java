@@ -135,6 +135,9 @@ public class NetworkHandler {
             )
         );
 
+        registrar.optional().playToClient(OpenStageGuiPayload.TYPE, OpenStageGuiPayload.STREAM_CODEC,
+            new DirectionalPayloadHandler<>(NetworkHandler::handleOpenStageGuiClient, (payload, context) -> {}));
+
         // v2.3: stage-tree GUI request (client -> server; e.g. keybind press)
         registrar.playToServer(
             RequestStageGuiPayload.TYPE,
@@ -249,11 +252,18 @@ public class NetworkHandler {
     }
 
     /**
-     * v2.3: gather the player's live per-stage trigger progress and push it to the client,
-     * which opens the stage-tree GUI on arrival.
+     * gather live stage progress and send it to the client.
+     * explicit screen opening uses openStageGui.
      */
     public static void sendStageGuiData(ServerPlayer player) {
         if (guiResponses.request(player.getUUID())) sendCurrentStageGuiData(player);
+    }
+
+    public static void openStageGui(ServerPlayer player) {
+        if (player.connection.hasChannel(OpenStageGuiPayload.TYPE)) {
+            PacketDistributor.sendToPlayer(player, OpenStageGuiPayload.INSTANCE);
+        }
+        sendStageGuiData(player);
     }
 
     public static void tickGuiResponses(net.minecraft.server.MinecraftServer server) {
@@ -794,7 +804,11 @@ public class NetworkHandler {
 
     private static void handleStageGuiDataClient(StageGuiDataPayload payload, IPayloadContext context) {
         context.enqueueWork(() ->
-            com.enviouse.progressivestages.client.ClientTriggerProgress.acceptAndOpen(payload.stages()));
+            com.enviouse.progressivestages.client.ClientTriggerProgress.acceptResponse(payload.stages()));
+    }
+
+    private static void handleOpenStageGuiClient(OpenStageGuiPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> com.enviouse.progressivestages.client.gui.StageTreeScreen.open());
     }
 
     /**
@@ -1626,7 +1640,15 @@ public class NetworkHandler {
         };
     }
 
-    /** Server -> client: per-stage trigger progress; the client opens the GUI when it arrives. */
+    public record OpenStageGuiPayload() implements CustomPacketPayload {
+        public static final Type<OpenStageGuiPayload> TYPE = new Type<>(Constants.STAGE_GUI_OPEN_PACKET);
+        public static final OpenStageGuiPayload INSTANCE = new OpenStageGuiPayload();
+        public static final StreamCodec<FriendlyByteBuf, OpenStageGuiPayload> STREAM_CODEC = StreamCodec.unit(INSTANCE);
+
+        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+
+    /** server gui data retains its legacy wire format. */
     public record StageGuiDataPayload(List<StageProgress> stages) implements CustomPacketPayload {
         public static final Type<StageGuiDataPayload> TYPE = new Type<>(Constants.STAGE_GUI_DATA_PACKET);
 

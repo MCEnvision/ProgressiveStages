@@ -22,12 +22,15 @@ describe("guided integration configuration", () => {
   it("maps ownership choices without writing the rejected player scope", () => {
     const source = "# keep this note\n[stage]\nid = \"pack:chef\"\n";
     const personal = writeOwnership(source, "personal");
-    expect(personal).toContain("scope = \"team\"");
+    expect(personal).toBe(source + "team_stage = false\n");
     expect(personal).toContain("team_stage = false");
     expect(personal).not.toContain('scope = "player"');
     expect(parseOwnership(personal)).toBe("personal");
     expect(parseOwnership(writeOwnership(personal, "inherit"))).toBe("inherit");
     expect(writeOwnership(source, "server")).toContain('scope = "server"');
+    const explicit = writeOwnership(writeOwnership(source, "server"), "team");
+    expect(explicit).toContain('scope = "team"');
+    expect(parseOwnership(explicit)).toBe("team");
   });
 
   it("round trips luckperms rows and nested contexts while retaining unrelated source", () => {
@@ -85,6 +88,13 @@ describe("guided integration configuration", () => {
 
 
 describe("command and interaction row editing", () => {
+  it("preserves omitted defaults and quoted settings during ownership and retention edits", () => {
+    const source = '["stage"]\nid = "chef"\n[ "luckperms" ] # Keep this note.\n"inbound_mode" = "synchronized" # Mode.\n';
+    expect(writeLuckPermsSettings(source, true, "synchronized")).toBe(source);
+    expect(writeLuckPermsSettings(source, true, "permanent")).toBe(source.replace('= "synchronized"', '= "permanent"'));
+    expect(writeOwnership(source, "inherit")).toBe(source);
+    expect(writeOwnership(source, "personal")).not.toContain('scope =');
+  });
   it.each(["", "descendants = true # Include children.\n", "descendants = false # Only the exact literal.\n"])("preserves the command descendant selection and omission in %s", field => {
     const source = "[[command_permissions]]\nid = 'home' # Keep the ID note.\npath = 'sethome' # Keep the path note.\n" + field;
     const row = parseCommandPermissions(source)[0];

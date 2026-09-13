@@ -1,12 +1,13 @@
-import { comments, contextAssignments, quoted, readContexts, replaceContexts, stringArray } from "./contexts";
+import { newline, replaceValue, requireEditable, samePath, scanToml } from "./tomlSource";
+import { contextAssignments, quoted, readContexts, replaceContexts, stringArray } from "./contexts";
 import type { InteractionModel, InboundModel, OutboundModel, CommandPermissionModel } from "../types";
 import {
   appendTomlBlock,
   encodeToml,
-  escapeRegex,
   extractArrayGroups,
   lineValues,
   parseSimpleArray,
+  readBlockValue,
   readTomlValue,
   removeTomlValue,
   replaceArrayGroups,
@@ -33,23 +34,20 @@ export function parseOwnership(text: string): OwnershipChoice {
 }
 
 export function writeOwnership(text: string, choice: OwnershipChoice): string {
+  const current = parseOwnership(text);
+  if (current === choice) return text;
   if (choice === "inherit") {
-    return removeTomlValue(removeTomlValue(text, "stage.scope"), "stage.team_stage");
+    const updated = removeTomlValue(text, "stage.team_stage");
+    return current === "server" ? removeTomlValue(updated, "stage.scope") : updated;
   }
-  let updated = upsertToml(text, "stage.scope", choice === "server" ? "server" : "team");
-  return choice === "server"
-    ? removeTomlValue(updated, "stage.team_stage")
-    : upsertToml(updated, "stage.team_stage", choice === "personal" ? false : true);
+  if (choice === "server") return removeTomlValue(upsertToml(text, "stage.scope", "server"), "stage.team_stage");
+  const updated = current === "server" ? upsertToml(text, "stage.scope", "team") : text;
+  return upsertToml(updated, "stage.team_stage", choice === "team");
 }
 
 
 function mappingField(block: string, key: string): string {
-  const body = block.slice(block.indexOf("\n") + 1);
-  const child = /^[ \t]*\[[^\n]+\]/m.exec(body);
-  const root = child ? body.slice(0, child.index) : body;
-  const name = escapeRegex(key);
-  const assignment = new RegExp(`^[ \\t]*(?:${name}|"${name}"|'${name}')[ \\t]*=[ \\t]*`, "m").exec(root);
-  return assignment ? root.slice(assignment.index + assignment[0].length) : "";
+  return readBlockValue(block, key);
 }
 
 function mappingString(block: string, key: string): string {
@@ -68,7 +66,9 @@ function mappingArray(block: string, key: string): string[] {
 
 export function parseLuckPerms(text: string): LuckPermsView {
   const sectionRaw = readTomlValue(text, "luckperms.enabled");
-  const sectionPresent = /^\s*\[luckperms\]\s*$/m.test(text);
+  const source = scanToml(text);
+  const sectionPresent = source.tables.some(table => !table.array && samePath(table.path, ["luckperms"]))
+    || source.values.some(value => !value.table && value.key.length > 1 && value.key[0] === "luckperms");
   const inbound = extractArrayGroups(text, "luckperms.inbound").map((block): InboundModel => ({
     id: mappingString(block.text, "id"),
     groups: mappingArray(block.text, "groups"),
@@ -96,8 +96,9 @@ export function parseLuckPerms(text: string): LuckPermsView {
 }
 
 export function writeLuckPermsSettings(text: string, enabled: boolean, inboundMode: LuckPermsView["inboundMode"]): string {
-  let updated = upsertToml(text, "luckperms.enabled", enabled);
-  return upsertToml(updated, "luckperms.inbound_mode", inboundMode);
+  const previous = parseLuckPerms(text);
+  const updated = previous.enabled === enabled ? text : upsertToml(text, "luckperms.enabled", enabled);
+  return previous.inboundMode === inboundMode ? updated : upsertToml(updated, "luckperms.inbound_mode", inboundMode);
 }
 
 function listValue(value: string): string[] {
@@ -140,26 +141,14 @@ export function replaceOutbound(text: string, rows: string[]): string {
 
 
 function updateMappingValue(original: string, key: string, value: unknown): string {
-  const bodyStart = original.indexOf("\n") + 1;
-  const body = original.slice(bodyStart);
-  const child = /^[ \t]*\[[^\n]+\]/m.exec(body);
-  const root = child ? body.slice(0, child.index) : body;
-  const name = escapeRegex(key);
-  const assignment = new RegExp(`^[ \\t]*(?:${name}|"${name}"|'${name}')[ \\t]*=[ \\t]*`, "m").exec(root);
-  if (!assignment) return original.slice(0, bodyStart) + `${key} = ${encodeToml(value)}\n` + body;
-  const start = bodyStart + assignment.index + assignment[0].length;
-  let end: number;
-  if (original[start] === "[") end = stringArray(original, start).end;
-  else if (original[start] === '"' || original[start] === "'") end = quoted(original, start).end;
-  else {
-    const remaining = original.slice(start);
-    const boundary = remaining.search(/[\r\n#]/);
-    end = start + remaining.slice(0, boundary < 0 ? remaining.length : boundary).trimEnd().length;
-  }
-  const notes = comments(original.slice(start, end));
-  const lineStart = bodyStart + assignment.index;
-  return original.slice(0, lineStart) + (notes.length ? notes.join("\n") + "\n" : "")
-    + original.slice(lineStart, start) + encodeToml(value) + original.slice(end);
+  const source = scanToml(original);
+  requireEditable(source);
+  const root = source.tables[0];
+  const assignment = source.values.find(entry => entry.table === root && samePath(entry.key, [key]));
+  if (assignment) return replaceValue(original, assignment, encodeToml(value));
+  const start = root?.end || 0;
+  return original.slice(0, start) + (start && original[start - 1] !== "\n" ? newline(original) : "")
+    + `${key} = ${encodeToml(value)}${newline(original)}` + original.slice(start);
 }
 
 export function updateInboundBlock(original: string, row: InboundModel): string {

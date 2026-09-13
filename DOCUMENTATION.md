@@ -4781,6 +4781,16 @@ retain field comments and unknown child tables, and leave conditional activation
 a description writes an empty value; changing priority preserves the surrounding rule source.
 Failed saves keep their dialogs and entered values available.
 
+The source helpers identify table and assignment spans while skipping strings, comments,
+multiline arrays, and inline values. Quoted path segments, escaped Unicode keys, and spaces
+around table paths resolve to the same fields as bare keys. Quoted keys containing a literal
+dot remain distinct from dotted paths. Targeted access edits retain line endings, indentation,
+field comments, adjacent tables, and blank lines inside unrelated multiline values. Array row
+replacement no longer normalizes whitespace across the file. Ownership and retention edits
+preserve omitted settings when their effective value is unchanged. Unterminated values reject
+guided mutation instead of guessing the next table boundary. Nested fields inside a general
+inline value still require source editing; context maps support their dedicated inline editor.
+
 `luckperms.enabled` and command `descendants` require actual TOML booleans. Inbound `groups` and
 `permissions` require arrays containing only strings. Omitted fields retain their documented
 true, false or empty defaults. The normal domain validation still rejects unsupported modes,

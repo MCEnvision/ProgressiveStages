@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { discoverStages } from "../../lib/model";
 import { parseInteractions, parseLuckPerms, parseCommandPermissions } from "../../lib/integrations";
 import { IntegrationsPanel } from "./IntegrationsPanel";
+import fixtureText from "../../lib/fixtures/toml-preservation.json?raw";
 
 const editor = vi.hoisted(() => ({
   boot: { draft: { files: {} as Record<string, string> } },
@@ -35,6 +36,21 @@ function openInteraction() {
 }
 
 describe("guided selective insertion", () => {
+  it("edits a quoted interaction without touching multiline text or its activation", async () => {
+    const fixture = JSON.parse(fixtureText).find((entry: { operation: string }) => entry.operation === "interaction");
+    editor.boot.draft.files[rulesPath] = fixture.before;
+    render(<IntegrationsPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    render(editor.openDialog.mock.calls[0][0].content);
+    expect(screen.getByLabelText(/Held item selector/)).toHaveProperty("value", "id:minecraft:bread");
+    fireEvent.change(screen.getByLabelText(/Held item selector/), { target: { value: "id:minecraft:carrot" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save interaction" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const [path, source] = editor.mutateFile.mock.calls[0] as unknown as [string, string];
+    expect(path).toBe(rulesPath);
+    expect(source).toBe(fixture.after);
+  });
+
   it("saves both bread restrictions in one draft mutation while preserving existing source", async () => {
     openInteraction();
     fireEvent.change(screen.getByLabelText(/Held item selector/), { target: { value: "id:minecraft:bread" } });

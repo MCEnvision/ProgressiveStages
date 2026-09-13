@@ -1,4 +1,6 @@
 import { encodeToml } from "./toml";
+import { comments, quoted, scanToml, samePath, newline } from "./tomlSource";
+export { comments, quoted } from "./tomlSource";
 
 export interface ContextRow { key: string; values: string[] }
 
@@ -15,48 +17,6 @@ export function contextAssignments(contexts: Record<string, string[]>): string[]
   return Object.entries(contexts).map(([key, values]) => `${encodeToml(key)} = ${encodeToml(values)}`);
 }
 
-interface StringToken { value: string; end: number }
-export function quoted(text: string, start: number): StringToken {
-  const quote = text[start];
-  if (quote !== '"' && quote !== "'") throw new Error("A context value must be a quoted string.");
-  const multiline = text.startsWith(quote.repeat(3), start);
-  let index = start + (multiline ? 3 : 1);
-  let value = "";
-  if (multiline && text[index] === "\r" && text[index + 1] === "\n") index += 2;
-  else if (multiline && text[index] === "\n") index++;
-  while (index < text.length) {
-    if (text[index] === quote) {
-      if (!multiline) return { value, end: index + 1 };
-      let count = 1;
-      while (text[index + count] === quote) count++;
-      if (count >= 3) {
-        if (count > 5) throw new Error("Invalid context string delimiter.");
-        return { value: value + quote.repeat(count - 3), end: index + count };
-      }
-      value += quote.repeat(count); index += count; continue;
-    }
-    const character = text[index++];
-    if (!multiline && (character === "\n" || character === "\r")) throw new Error("A single line context string contains a newline.");
-    if (character !== "\\" || quote === "'") { value += character; continue; }
-    const rest = text.slice(index);
-    if (multiline && /^[ \t]*\r?\n/.test(rest)) {
-      index += rest.match(/^[ \t\r\n]+/)![0].length;
-      continue;
-    }
-    const escape = text[index++];
-    const escapes: Record<string, string> = { b: "\b", t: "\t", n: "\n", f: "\f", r: "\r", '"': '"', "\\": "\\" };
-    if (Object.hasOwn(escapes, escape)) { value += escapes[escape]; continue; }
-    if (escape === "u" || escape === "U") {
-      const length = escape === "u" ? 4 : 8;
-      const digits = text.slice(index, index + length);
-      const code = Number.parseInt(digits, 16);
-      if (digits.length !== length || !/^[0-9a-f]+$/i.test(digits) || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) throw new Error("Invalid Unicode escape in context string.");
-      value += String.fromCodePoint(code); index += length; continue;
-    }
-    throw new Error("Invalid escape in context string.");
-  }
-  throw new Error("A context string is not closed.");
-}
 
 function skip(text: string, offset: number): number {
   let index = offset;
@@ -91,14 +51,12 @@ interface ContextSource { values: Record<string, string[]>; assignments: Assignm
 export function readContexts(block: string, section: string): ContextSource {
   const values: Record<string, string[]> = Object.create(null);
   const assignments: Assignment[] = [];
-  const header = new RegExp(`^\\s*\\[${section.replaceAll(".", "\\.")}\\]\\s*(?:#.*)?$`, "m").exec(block);
+  const source = scanToml(block);
+  const header = source.tables.find(table => !table.array && samePath(table.path, section.split(".")));
   if (!header) {
-    const parentEnd = block.indexOf("\n");
-    const child = /^[ \t]*\[[^\n]+\]/m.exec(block.slice(parentEnd + 1));
-    const rootEnd = child ? parentEnd + 1 + child.index : block.length;
-    const inline = /^[ \t]*(?:contexts|"contexts"|'contexts')[ \t]*=[ \t]*/m.exec(block.slice(0, rootEnd));
-    if (!inline) return { values, assignments, start: -1, end: block.length };
-    let index = inline.index + inline[0].length;
+    const inline = source.values.find(value => value.table === source.tables[0] && samePath(value.key, ["contexts"]));
+    if (!inline) return { values, assignments, start: -1, end: block.length, error: source.error };
+    let index = inline.valueStart;
     const inlineStart = index;
     try {
       if (block[index++] !== "{") throw new Error("Contexts must be a table of string arrays.");
@@ -128,7 +86,7 @@ export function readContexts(block: string, section: string): ContextSource {
         error: failure instanceof Error ? failure.message : "Contexts could not be read." };
     }
   }
-  let index = header.index + header[0].length;
+  let index = header.end;
   const start = index;
   try {
     while ((index = skip(block, index)) < block.length && block[index] !== "[") {
@@ -159,18 +117,6 @@ export function readContexts(block: string, section: string): ContextSource {
   }
 }
 
-export function comments(text: string): string[] {
-  const result: string[] = [];
-  for (let index = 0; index < text.length;) {
-    if (text[index] === '"' || text[index] === "'") { index = quoted(text, index).end; continue; }
-    if (text[index] === "#") {
-      const end = text.indexOf("\n", index);
-      result.push(text.slice(index, end < 0 ? text.length : end));
-      index = end < 0 ? text.length : end;
-    } else index++;
-  }
-  return result;
-}
 
 export function replaceContexts(block: string, section: string, contexts: Record<string, string[]>): string {
   const source = readContexts(block, section);
@@ -179,22 +125,22 @@ export function replaceContexts(block: string, section: string, contexts: Record
   if (source.inlineStart != null) {
     const notes = comments(block.slice(source.inlineStart, source.end));
     const lineStart = block.lastIndexOf("\n", source.inlineStart) + 1;
-    const retained = notes.length ? notes.join("\n") + "\n" : "";
+    const retained = notes.length ? notes.join(newline(block)) + newline(block) : "";
     return block.slice(0, lineStart) + retained + block.slice(lineStart, source.inlineStart)
       + `{ ${contextAssignments(contexts).join(", ")} }` + block.slice(source.end);
   }
   if (source.start < 0) {
     const lines = contextAssignments(contexts);
-    return lines.length ? `${block.trimEnd()}\n\n[${section}]\n${lines.join("\n")}` : block;
+    return lines.length ? `${block}${block.endsWith("\n") ? "" : newline(block)}${newline(block)}[${section}]${newline(block)}${lines.join(newline(block))}` : block;
   }
   let result = block;
   const keys = new Set(source.assignments.map(assignment => assignment.key));
   const added = contextAssignments(Object.fromEntries(Object.entries(contexts).filter(([key]) => !keys.has(key))));
-  if (added.length) result = result.slice(0, source.end) + `${source.end > 0 && result[source.end - 1] !== "\n" ? "\n" : ""}${added.join("\n")}\n` + result.slice(source.end);
+  if (added.length) result = result.slice(0, source.end) + `${source.end > 0 && result[source.end - 1] !== "\n" ? newline(block) : ""}${added.join(newline(block))}${newline(block)}` + result.slice(source.end);
   for (const assignment of [...source.assignments].reverse()) {
     if (Object.hasOwn(contexts, assignment.key) && JSON.stringify(contexts[assignment.key]) === JSON.stringify(assignment.values)) continue;
     const notes = comments(block.slice(assignment.valueStart, assignment.end));
-    const retained = notes.length ? notes.join("\n") + "\n" : "";
+    const retained = notes.length ? notes.join(newline(block)) + newline(block) : "";
     const replacement = Object.hasOwn(contexts, assignment.key)
       ? retained + block.slice(assignment.start, assignment.valueStart) + encodeToml(contexts[assignment.key]) : retained;
     result = result.slice(0, assignment.start) + replacement + result.slice(assignment.end);

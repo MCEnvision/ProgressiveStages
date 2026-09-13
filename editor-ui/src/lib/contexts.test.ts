@@ -60,6 +60,15 @@ it("reads multiline string variants, escaped Unicode, commas and line continuati
   expect(readContexts(block, section).values.world).toEqual(["first\nsecond", "literal\\path", "😀", "onetwo"]);
 });
 
+it("normalizes multiline context values without changing their original line endings", () => {
+  const block = `[["luckperms".'inbound']]\r\nid = 'chef'\r\n["luckperms".'inbound'.contexts]\r\nworld = ["""\r\nfirst\r\nsecond"""]\r\n`;
+  const row = parseLuckPerms(block).inbound[0];
+  expect(row.contexts.world).toEqual(["first\nsecond"]);
+  expect(updateInboundBlock(block, row)).toBe(block);
+  expect(updateInboundBlock(block, { ...row, contexts: { world: ["new"] } }))
+    .toBe(block.replace('"""\r\nfirst\r\nsecond"""', '"new"'));
+});
+
 it("preserves inline context tables and appends at end of file with a valid newline", () => {
   const inline = '[[luckperms.inbound]]\nid = "rank"\ncontexts = { "world.name" = ["one"], region = ["north"] } # inline note\n';
   expect(readContexts(inline, section).values).toEqual({ "world.name": ["one"], region: ["north"] });

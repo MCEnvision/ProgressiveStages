@@ -56,7 +56,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   raw TOML. Contexts use separate key and value controls, so commas and line breaks remain
   inside their values. Command gates include descendants by default, with an explicit opt out.
   Duplicate keys and failed saves retain editable input. Existing source
-  comments and unrelated files remain in the draft.
+  comments and unrelated files remain in the draft. Quoted table paths and multiline values
+  remain intact when editing access settings and interaction rows.
 - **Strict access configuration validation.** Incorrect LuckPerms booleans and non-string
   group or permission entries are rejected instead of silently changing their meaning. The
   builder places returned diagnostics beside ownership and access rules, with a full validation

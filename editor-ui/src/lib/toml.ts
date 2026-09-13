@@ -1,3 +1,5 @@
+import { comments, findValue, newline, quoted, replaceValue, requireEditable, samePath, scanToml, type TableSpan } from "./tomlSource";
+
 export function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -21,22 +23,8 @@ export function tomlBalance(value: string): number {
 }
 
 export function readTomlValue(text: string, path: string): string {
-  const parts = path.split(".");
-  const key = parts.pop() || "";
-  const section = parts.join(".");
-  const lines = text.split(/\r?\n/);
-  let active = "";
-  for (let index = 0; index < lines.length; index++) {
-    const header = lines[index].match(/^\s*\[([^\]]+)\]/);
-    if (header) { active = header[1]; continue; }
-    if (active !== section) continue;
-    const match = lines[index].match(new RegExp(`^\\s*${escapeRegex(key)}\\s*=\\s*(.*)$`));
-    if (!match) continue;
-    let value = match[1].trim();
-    while (tomlBalance(value) > 0 && index + 1 < lines.length) value += `\n${lines[++index].trim()}`;
-    return value;
-  }
-  return "";
+  const value = findValue(scanToml(text), path.split("."));
+  return value ? text.slice(value.valueStart, value.valueEnd) : "";
 }
 
 export function encodeToml(value: unknown): string {
@@ -50,75 +38,48 @@ export function encodeToml(value: unknown): string {
 
 export function upsertToml(text: string, path: string, value: unknown): string {
   const parts = path.split(".");
-  const key = parts.pop() || "";
-  const section = parts.join(".");
+  const source = scanToml(text);
+  requireEditable(source);
+  const existing = findValue(source, parts);
   const encoded = encodeToml(value);
-  const lines = text.split(/\r?\n/);
-  let start = section ? -1 : -2;
-  let end = lines.length;
-  for (let index = 0; index < lines.length; index++) {
-    const header = lines[index].match(/^\s*\[\[?([^\]]+)/);
-    if (!header) continue;
-    if (start >= 0) { end = index; break; }
-    if (section && header[1] === section) start = index;
-    if (!section && start === -2) { end = index; break; }
-  }
-  if (section && start < 0) {
-    if (lines.at(-1) !== "") lines.push("");
-    lines.push(`[${section}]`, `${key} = ${encoded}`);
-    return lines.join("\n");
-  }
-  const from = section ? start + 1 : 0;
-  for (let index = from; index < end; index++) {
-    if (!new RegExp(`^\\s*${escapeRegex(key)}\\s*=`).test(lines[index])) continue;
-    let last = index;
-    let balance = tomlBalance(lines[index].slice(lines[index].indexOf("=") + 1));
-    while (balance > 0 && last + 1 < end) {
-      last++;
-      balance = tomlBalance(lines.slice(index, last + 1).join("\n"));
-    }
-    lines.splice(index, last - index + 1, `${key} = ${encoded}`);
-    return lines.join("\n");
-  }
-  lines.splice(end, 0, `${key} = ${encoded}`);
-  return lines.join("\n");
+  if (existing) return replaceValue(text, existing, encoded);
+  const section = parts.slice(0, -1);
+  const table = source.tables.find(entry => !entry.array && samePath(entry.path, section));
+  const eol = newline(text);
+  const parentValue = source.values.find(entry => {
+    const parent = [...(entry.table?.path || []), ...entry.key];
+    return parent.length < parts.length && samePath(parent, parts.slice(0, parent.length));
+  });
+  if (parentValue) throw new Error("This field belongs to an inline value. Edit that value in source to preserve its structure.");
+  const dotted = table ? undefined : source.values.find(entry => {
+    const parent = entry.table?.path || [];
+    const remaining = section.slice(parent.length);
+    return !entry.table?.array && remaining.length > 0 && samePath(parent, section.slice(0, parent.length))
+      && entry.key.length > remaining.length && samePath(entry.key.slice(0, remaining.length), remaining);
+  });
+  if (section.length && !table && !dotted) return appendTomlBlock(text, `[${section.join(".")}]${eol}${parts.at(-1)} = ${encoded}`);
+  const parent = table || dotted?.table;
+  const key = dotted ? parts.slice(parent?.path.length || 0).join(".") : parts.at(-1);
+  const end = source.tables.find(entry => entry.start >= (parent?.end || 0))?.start ?? text.length;
+  return text.slice(0, end) + (end && text[end - 1] !== "\n" ? eol : "")
+    + `${key} = ${encoded}${eol}` + text.slice(end);
 }
 
 export function removeTomlValue(text: string, path: string): string {
-  const parts = path.split(".");
-  const key = parts.pop() || "";
-  const section = parts.join(".");
-  const lines = text.split(/\r?\n/);
-  let active = "";
-  for (let index = 0; index < lines.length; index++) {
-    const header = lines[index].match(/^\s*\[([^\]]+)\]\s*(?:#.*)?$/);
-    if (header) { active = header[1]; continue; }
-    if (active !== section || !new RegExp(`^\\s*${escapeRegex(key)}\\s*=`).test(lines[index])) continue;
-    let last = index;
-    let balance = tomlBalance(lines[index].slice(lines[index].indexOf("=") + 1));
-    while (balance > 0 && last + 1 < lines.length) {
-      last++;
-      balance = tomlBalance(lines.slice(index, last + 1).join("\n"));
-    }
-    lines.splice(index, last - index + 1);
-    return lines.join("\n");
-  }
-  return text;
+  const source = scanToml(text);
+  requireEditable(source);
+  const value = findValue(source, path.split("."));
+  if (!value) return text;
+  const notes = comments(text.slice(value.valueStart, value.end));
+  return text.slice(0, value.start) + (notes.length ? notes.join(newline(text)) + newline(text) : "") + text.slice(value.end);
 }
 
 export function removeTomlSection(text: string, section: string): string {
-  const lines = text.split(/\r?\n/);
-  let start = -1;
-  let end = lines.length;
-  for (let index = 0; index < lines.length; index++) {
-    const header = lines[index].match(/^\s*\[([^\]]+)\]\s*(?:#.*)?$/);
-    if (!header) continue;
-    if (start >= 0) { end = index; break; }
-    if (header[1] === section) start = index;
-  }
-  if (start < 0) return text;
-  lines.splice(start, end - start);
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+  const source = scanToml(text);
+  requireEditable(source);
+  const index = source.tables.findIndex(table => !table.array && samePath(table.path, section.split(".")));
+  if (index < 0) return text;
+  return text.slice(0, source.tables[index].start) + text.slice(source.tables[index + 1]?.start ?? text.length);
 }
 
 export interface ArrayBlock {
@@ -127,77 +88,61 @@ export interface ArrayBlock {
   start: number;
   end: number;
   text: string;
+  startOffset: number;
+  endOffset: number;
 }
 
 export function extractArrayBlocks(text: string, table: string): ArrayBlock[] {
-  const lines = text.split(/\r?\n/);
-  const blocks: ArrayBlock[] = [];
-  const header = new RegExp(`^\\s*\\[\\[${escapeRegex(table)}\\]\\]\\s*(?:#.*)?$`);
-  for (let index = 0; index < lines.length; index++) {
-    if (!header.test(lines[index])) continue;
-    let end = index + 1;
-    while (end < lines.length && !/^\s*\[\[?[^\]]+\]\]?\s*(?:#.*)?$/.test(lines[end])) end++;
-    blocks.push({ table, index: blocks.length, start: index, end, text: lines.slice(index, end).join("\n").trimEnd() });
-    index = end - 1;
-  }
-  return blocks;
+  return arrayBlocks(text, table, false);
 }
 
 export function extractArrayGroups(text: string, table: string): ArrayBlock[] {
-  const lines = text.split(/\r?\n/);
+  return arrayBlocks(text, table, true);
+}
+
+function arrayBlocks(text: string, table: string, children: boolean): ArrayBlock[] {
+  const tables = scanToml(text).tables;
+  const path = table.split(".");
   const blocks: ArrayBlock[] = [];
-  const parent = new RegExp(`^\\s*\\[\\[${escapeRegex(table)}\\]\\]\\s*(?:#.*)?$`);
-  for (let index = 0; index < lines.length; index++) {
-    if (!parent.test(lines[index])) continue;
-    let end = index + 1;
-    while (end < lines.length) {
-      const header = lines[end].match(/^\s*\[\[?([^\]]+)\]\]?\s*(?:#.*)?$/);
-      if (header && header[1] === table) break;
-      if (header && !header[1].startsWith(`${table}.`)) break;
-      end++;
-    }
-    blocks.push({ table, index: blocks.length, start: index, end, text: lines.slice(index, end).join("\n").trimEnd() });
-    index = end - 1;
+  const lineAt = (offset: number) => text.slice(0, offset).split("\n").length - 1;
+  for (let index = 0; index < tables.length; index++) {
+    const header = tables[index];
+    if (!header.array || !samePath(header.path, path)) continue;
+    const child = (entry: TableSpan) => entry.path.length > path.length && samePath(entry.path.slice(0, path.length), path);
+    const next = tables.slice(index + 1).find(entry => !children || !child(entry));
+    const end = next?.start ?? text.length;
+    blocks.push({ table, index: blocks.length, start: lineAt(header.start), end: next ? lineAt(end) : text.split("\n").length,
+      startOffset: header.start, endOffset: end, text: text.slice(header.start, end) });
   }
   return blocks;
 }
 
-export function replaceArrayGroups(text: string, table: string, replacements: string[]): string {
-  const blocks = extractArrayGroups(text, table);
-  const lines = text.split(/\r?\n/);
+function replaceBlocks(text: string, blocks: ArrayBlock[], replacements: string[]): string {
+  requireEditable(scanToml(text));
+  let result = text;
   for (let index = blocks.length - 1; index >= 0; index--) {
     const block = blocks[index];
-    const replacement = replacements[index];
-    lines.splice(block.start, block.end - block.start, ...(replacement ? replacement.split("\n") : []));
+    let replacement = replacements[index] || "";
+    if (replacement === block.text) continue;
+    if (replacement && block.endOffset < text.length && !replacement.endsWith("\n")) replacement += newline(text);
+    result = result.slice(0, block.startOffset) + replacement + result.slice(block.endOffset);
   }
-  if (replacements.length > blocks.length) {
-    for (const replacement of replacements.slice(blocks.length)) {
-      if (lines.at(-1)?.trim()) lines.push("");
-      lines.push(...replacement.split("\n"));
-    }
-  }
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+  for (const replacement of replacements.slice(blocks.length)) result = appendTomlBlock(result, replacement);
+  return result;
+}
+
+export function replaceArrayGroups(text: string, table: string, replacements: string[]): string {
+  return replaceBlocks(text, extractArrayGroups(text, table), replacements);
 }
 
 export function replaceArrayBlocks(text: string, table: string, replacements: string[]): string {
-  const blocks = extractArrayBlocks(text, table);
-  const lines = text.split(/\r?\n/);
-  for (let index = blocks.length - 1; index >= 0; index--) {
-    const block = blocks[index];
-    const replacement = replacements[index];
-    lines.splice(block.start, block.end - block.start, ...(replacement ? replacement.split("\n") : []));
-  }
-  if (replacements.length > blocks.length) {
-    for (const replacement of replacements.slice(blocks.length)) {
-      if (lines.at(-1)?.trim()) lines.push("");
-      lines.push(...replacement.split("\n"));
-    }
-  }
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+  return replaceBlocks(text, extractArrayBlocks(text, table), replacements);
 }
 
 export function appendTomlBlock(text: string, block: string): string {
-  return `${text.replace(/\s*$/, "")}\n\n${block.trim()}\n`;
+  const eol = newline(text);
+  const separator = !text || text.endsWith(eol + eol) ? "" : text.endsWith("\n") ? eol : eol + eol;
+  return text + separator + block + (block.endsWith("\n") ? "" : eol);
 }
 
 export function parseSimpleArray(raw: string): string[] {
@@ -215,12 +160,10 @@ export function parseSimpleArray(raw: string): string[] {
 
 export function stringValue(raw: string): string {
   const value = raw.trim();
-  if (!value) return "";
-  if (value.startsWith('"')) {
-    try { return JSON.parse(value); } catch { return value.slice(1, -1); }
+  if (value.startsWith('"') || value.startsWith("'")) {
+    try { return quoted(value, 0).value; } catch { return value; }
   }
-  if (value.startsWith("'")) return value.slice(1, -1);
-  return value.replace(/\s+#.*$/, "").trim();
+  return value.split("#", 1)[0].trim();
 }
 
 export function booleanValue(raw: string): boolean {
@@ -237,8 +180,9 @@ export function lineValues(value: string): string[] {
 }
 
 export function readBlockValue(block: string, key: string): string {
-  const match = block.match(new RegExp(`^\\s*${escapeRegex(key)}\\s*=\\s*(.+)$`, "m"));
-  return match?.[1]?.trim() || "";
+  const source = scanToml(block);
+  const value = source.values.find(entry => entry.table === source.tables[0] && samePath(entry.key, [key]));
+  return value ? block.slice(value.valueStart, value.valueEnd) : "";
 }
 
 export function inlineObjectValue(raw: string, key: string): string {

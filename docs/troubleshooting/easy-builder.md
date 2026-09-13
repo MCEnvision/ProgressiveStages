@@ -66,6 +66,11 @@ Use **Right click a block** as a separate rule when the whole bin should require
 Editing an existing interaction changes its own row and preserves conditional activation and
 comments. If saving fails, the dialog keeps the entered selectors and reports the error.
 
+Quoted table paths and multiline text are supported by the access row editors. Text that looks
+like a table header inside a string stays part of that string. An unterminated string or array
+must be corrected in source before a guided edit can safely find its field. General inline
+values containing nested fields still use source editing; inline context maps have guided support.
+
 The pairing option is available when adding a held item rule. For an existing rule, add its
 inventory counterpart with the same item, choose **Container block**, enter the same block
 selector, and select **Deny until stage is owned**. Conditional activation remains editable in

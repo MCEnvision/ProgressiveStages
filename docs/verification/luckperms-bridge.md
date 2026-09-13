@@ -1080,3 +1080,78 @@ removed after evidence extraction. No laptop, client, browser, renderer or audio
 This advances BIN-AC-012C, BIN-AC-012D and BIN-AC-012F for observation collection. Reentrant stage
 callbacks during application, atomic outbound changes, real LuckPerms login, FTB lifecycle and the
 full laptop and browser matrix remain open. No phase integration, tag, wiki update or release is claimed.
+
+
+## Online source transaction verification
+
+Source commit `58f2b43a16a83d34eeca9abddd52ef3fd5ef40a0` evaluates online permission changes in an isolated
+view of the subject's resolved owners and existing contribution and episode locations. It commits only
+that subject's sources and history after final context, attachment and revision checks. Acquisition
+clocks are restored before synchronization and publication. A changed batch has one committed revision
+and notification, including both old and new owners. Reentrant listener mutations occur after that
+commit and are preserved; a changed context or revision prevents the earlier update from proceeding
+to outbound reconciliation. The world attachment and unrelated subjects are not replaced.
+
+On September 13, 2026, Java 21.0.11, Minecraft 1.21.1 and NeoForge 21.1.248 passed
+`./gradlew test build --no-daemon --console=plain`. The final fixture build took eleven seconds;
+401 unit tests in 105 suites passed with no failures, errors or skips. The new data test proves draft
+isolation, subject limited commit, preservation of independent grants and other contributors, separate
+owner namespaces, inactive source preservation and no mutation on an unchanged replacement. The
+postcommit `build` passed in four seconds. No separate formatter is configured, no resource provider
+changed, and `git diff --check` passed.
+
+The dedicated development suite ran on `node-1` in the Phase 003 checkout's
+`build/online-commit-verification` runtime. The inspected launch remained `forgeserverdev` with
+`--nogui`, Java 21 and the pinned compiled Minecraft artifact. Authentication stayed enabled, the
+listener remained at loopback port 25589 and EULA readback was `eula=true`. PID `577856` reached
+readiness at 03:09:50 America/Chicago and saved all dimensions before normal exit at 03:12:09.
+
+The initial owner movement regression failed at 03:11:03 because it explicitly required separate
+old owner withdrawal and new owner grant notifications. Its ownership preservation assertions passed.
+That notification expectation conflicted with SHARED-004's atomic owner movement contract. The
+regression now requires one committed notification, complete ownership visible inside its listener,
+and the exact set of all old and new owners. The remaining ownership, no op, deletion and restoration
+assertions remain. The server was stopped and the fixture rebuilt before the complete final rerun.
+
+Final development PID `584103` reached readiness at 03:12:59. Each scenario reset its owned structure
+area, ran at `0 180 0`, verified its exact method in structure metadata at `0 180 3`, and waited for a
+fresh lime success marker at `-1 179 2` before the next scenario. All twelve final invocations passed.
+
+| GameTest | Verified time |
+|---|---|
+| `permissionownerchangeswithdrawstalecontributions` | 03:13:35 |
+| `onlinepermissioncommitpublishescompletestateandpreservescallbackmutations` | 03:13:38, 03:13:42 |
+| `staleonlinequeriescannotpartiallygrantorwithdrawstages` | 03:13:44 |
+| `permissionsourcespreserveothersubjectsandindependentearnings` | 03:13:49 |
+| `loadedpermissionsourcesrequireauthoritativerevalidation` | 03:13:51 |
+| `pendingpermissionstagesdonotrepeatstartergrants` | 03:13:54 |
+| `permissionrevocationsurvivesreloadandonlyindependentlossrearms` | 03:13:58 |
+| `permissionexpirysurvivescontextlossandofflinereconciliation` | 03:14:01 |
+| `independentearningafterpermissionaccessemitsoneacquisition` | 03:14:04 |
+| `administrativerevokessuppressunavailableandunqualifiedepisodes` | 03:14:07 |
+| `administrativegrantsrecordindependentownershipafterderivedaccess` | 03:14:11 |
+
+The new transaction regression exercises both retention modes, rejected final validation with no live
+source/history/revision/publication change, complete grants and clocks visible inside a committed
+listener, a deliberate callback revoke, and preserved suppression on fresh reconciliation. These are
+real manager and bridge paths with deterministic adapters and fake players. Actual LuckPerms callbacks,
+FTB native events, joined player synchronization and browser behavior remain separate acceptance.
+
+The development server saved every dimension and exited normally at 03:14:47. The packaged JAR has
+SHA256 `5da6906ee8da957260f597662154c788534efc27d204fbac73d9e27253173eab`, reports the source commit
+above with `Build-Dirty: false`, and contains 767 project classes matching compiled output. No
+LuckPerms API classes are bundled. Production PID `590720` reached readiness at 03:16:10 with optional
+providers absent. Its time query returned `5445` at 03:16:38, and it saved all dimensions and exited
+normally that second.
+
+Cleanup verified all three PIDs absent, no process working directory under the owned runtime and port
+25589 free. Exact comparison removed 1035 new build paths and 13 new local Gradle paths, preserving
+all 836 preexisting build paths and 26 local Gradle paths. The runtime was removed without following
+its libraries symlink. The preexisting `run-248/libraries`, current candidate JAR, source, worktrees and
+shared caches remain. All eleven scratch files and their unique directory were removed after evidence
+extraction. No laptop, client, browser, renderer or audio resource was created.
+
+This advances the online source transaction and owner movement portions of BIN-AC-011B, BIN-AC-012C,
+BIN-AC-012D and BIN-AC-012F. Outbound provider consistency, remaining offline concurrency and lifecycle
+cases, real provider login, FTB membership, joined clients and the complete browser/gameplay matrix
+remain open. No integration merge, phase tag, wiki update or release is claimed.

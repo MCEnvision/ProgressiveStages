@@ -341,9 +341,9 @@ removed after retaining this bounded evidence.
 
 ## September 14 final repair acceptance
 
-The final repair candidate from source commit `31c17e7e6300b1a956e959415f73a218a994fd56`
+The final repair candidate from source commit `6b5a2ba9a54005b4d9825f7ae7cbbcd55fe0207c`
 was built and tested with Minecraft 1.21.1, NeoForge 21.1.248 and Java 21. The ProgressiveStages
-JAR SHA-256 is `50f449d1eb52da2ba72a39a4a09267d9887af2f1dca29ce2233110afc24b6652`. The disposable
+JAR SHA-256 is `5e0b9d950bdc7a496506192299b61887bddd2639b7aacde0eca8431e51bc8468`. The disposable
 node-1 server used Selling Bin 1.6 and LuckPerms 5.4.150, and the laptop client used the same
 JARs through the existing private loopback SSH tunnel. The laptop renderer was an NVIDIA RTX
 5090 Laptop GPU with driver 610.57.04. The master volume was zero before startup and the owned
@@ -365,7 +365,9 @@ The fixture placed a real Selling Bin at `(0,71,1)` and loaded these rules:
 
 The five screenshots and their hashes are recorded in [repair-20260914.json](selling-bin-client/repair-20260914.json).
 The pinned GameTest command passed all 97 required tests, including the real Selling Bin armor,
-wildcard, selective and partial transaction cases. These checks establish the reported empty hand,
+wildcard, selective and partial transaction cases. The final rerun also verifies that a block
+scoped insertion lock does not classify a player inventory slot as the open bin when the menu
+contains a reflected block entity. These checks establish the reported empty hand,
 tagged armor and selective open-menu paths on the final candidate. They do not claim a release or
 resolve the existing upstream `wdUtils` access transformer warning. The owned server, client and
 private tunnel remain subject to the final integration cleanup receipt.

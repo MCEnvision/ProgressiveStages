@@ -23,6 +23,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -82,9 +83,16 @@ public final class SellingBinGameTests {
             fixture.afterTicks(() -> {
                 fixture.assertUnchanged(item, InteractionHand.MAIN_HAND, 1, 0);
                 fixture.grant();
-                helper.assertTrue(fixture.use(InteractionHand.MAIN_HAND, fixture.part).consumesAction()
-                        && fixture.player.getMainHandItem().isEmpty(),
-                    "Granting the stage must permit the actual valued item insertion.");
+                InteractionResult allowed = fixture.use(InteractionHand.MAIN_HAND, fixture.part);
+                if (itemValue > 0) {
+                    helper.assertTrue(allowed.consumesAction() && fixture.player.getMainHandItem().isEmpty(),
+                        "Granting the stage must permit the actual valued item insertion. Result " + allowed
+                            + ", held " + fixture.player.getMainHandItem().getCount() + ", value " + fixture.value());
+                } else {
+                    helper.assertTrue(allowed.consumesAction(),
+                        "Granting the stage must permit dispatch for an item without a configured sale value. Result "
+                            + allowed);
+                }
                 fixture.sellIfManual();
                 fixture.afterTicks(() -> {
                     fixture.assertSold(itemValue);
@@ -150,6 +158,12 @@ public final class SellingBinGameTests {
             fixture.menu = ((MenuProvider)fixture.entity).createMenu(1, fixture.player.getInventory(), fixture.player);
             helper.assertTrue(fixture.menu != null, "The real bin must provide its menu.");
             fixture.player.containerMenu = fixture.menu;
+            Slot input = fixture.menu.slots.stream()
+                .filter(slot -> slot.container != fixture.player.getInventory() && slot.mayPlace(new ItemStack(Items.BREAD)))
+                .findFirst().orElseThrow();
+            helper.assertTrue(InventoryInsertionEnforcer.denied(fixture.player, fixture.menu, input,
+                    new ItemStack(Items.BREAD)).isPresent(),
+                "The real bin input slot must resolve its backing block for selective insertion locks.");
             int hotbar = fixture.menu.slots.stream()
                 .filter(slot -> slot.container == fixture.player.getInventory() && slot.getContainerSlot() == 0)
                 .findFirst().orElseThrow().index;

@@ -569,6 +569,27 @@ public class ServerEventHandler {
                 return;
             }
 
+            // whole block interaction rules also cover an empty hand menu open.
+            var menuDecision = InteractionEnforcer.evaluateBlockMenu(player, block);
+            if (!menuDecision.allowed()) {
+                event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
+                event.setCanceled(true);
+                player.inventoryMenu.sendAllDataToRemote();
+                if (player.containerMenu != player.inventoryMenu) {
+                    player.containerMenu.sendAllDataToRemote();
+                }
+                var blockEntity = event.getLevel().getBlockEntity(event.getPos());
+                if (blockEntity != null && player.connection != null) {
+                    var update = blockEntity.getUpdatePacket();
+                    if (update != null) player.connection.send(update);
+                }
+                InteractionEnforcer.notifyLocked(player, menuDecision);
+                InteractionCaptureManager.record(player, event.getHand(), event.getItemStack(), block,
+                    menuDecision, event.isCanceled(), event.getUseBlock(), event.getUseItem(),
+                    event.getCancellationResult(), "denied");
+                return;
+            }
+
             // Check interaction locks (item-on-block, Create-style interactions)
             var interactionDecision = InteractionEnforcer.evaluateInteraction(player, event.getItemStack(), block);
             if (!interactionDecision.allowed()) {

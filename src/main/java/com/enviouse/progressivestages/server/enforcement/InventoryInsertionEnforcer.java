@@ -15,6 +15,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
@@ -30,7 +31,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 
 /** Server-authoritative decision for a player placing an item into one inventory slot. */
 public final class InventoryInsertionEnforcer {
@@ -145,6 +149,7 @@ public final class InventoryInsertionEnforcer {
     private static Map<String, SelectorTarget> destinationTargets(ServerPlayer player, AbstractContainerMenu menu, Slot slot) {
         Map<String, SelectorTarget> targets = new LinkedHashMap<>();
         blockTarget(slot).ifPresent(target -> targets.put("block", target));
+        menuBlockTarget(menu, slot).ifPresent(target -> targets.put("block", target));
         menuTarget(menu).ifPresent(target -> targets.put("menu", target));
         InventoryTargetResolverRegistry.get().resolve(player, menu, slot)
             .map(target -> new SelectorTarget(target.id(), null, target.tags(), java.util.Map.of()))
@@ -159,6 +164,48 @@ public final class InventoryInsertionEnforcer {
         if (id == null) return Optional.empty();
         return Optional.of(new SelectorTarget(id, Registries.BLOCK.location(),
             tags(BuiltInRegistries.BLOCK.wrapAsHolder(block)), java.util.Map.of()));
+    }
+
+    private static Optional<SelectorTarget> menuBlockTarget(AbstractContainerMenu menu, Slot slot) {
+        if (menu == null || slot == null || slot.container == null) return Optional.empty();
+        List<Field> fields = MENU_FIELDS.computeIfAbsent(menu.getClass(), InventoryInsertionEnforcer::menuFields);
+        for (Field field : fields) {
+            if (!Container.class.isAssignableFrom(field.getType())) continue;
+            try {
+                if (field.get(menu) != slot.container) continue;
+                for (Field blockField : fields) {
+                    if (!BlockEntity.class.isAssignableFrom(blockField.getType())) continue;
+                    Object value = blockField.get(menu);
+                    if (value instanceof BlockEntity blockEntity) return blockTarget(blockEntity);
+                }
+            } catch (ReflectiveOperationException | RuntimeException ignored) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<SelectorTarget> blockTarget(BlockEntity blockEntity) {
+        Block block = blockEntity.getBlockState().getBlock();
+        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
+        if (id == null) return Optional.empty();
+        return Optional.of(new SelectorTarget(id, Registries.BLOCK.location(),
+            tags(BuiltInRegistries.BLOCK.wrapAsHolder(block)), java.util.Map.of()));
+    }
+
+    private static final Map<Class<?>, List<Field>> MENU_FIELDS = new ConcurrentHashMap<>();
+
+    private static List<Field> menuFields(Class<?> type) {
+        List<Field> fields = new ArrayList<>();
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            for (Field field : current.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())) continue;
+                if (!Container.class.isAssignableFrom(field.getType())
+                        && !BlockEntity.class.isAssignableFrom(field.getType())) continue;
+                if (field.trySetAccessible()) fields.add(field);
+            }
+        }
+        return List.copyOf(fields);
     }
 
     private static Optional<SelectorTarget> menuTarget(AbstractContainerMenu menu) {

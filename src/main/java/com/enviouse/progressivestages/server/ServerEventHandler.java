@@ -134,6 +134,7 @@ public class ServerEventHandler {
 
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
+        TeamProvider.getInstance().invalidateMembership();
         InteractionCaptureManager.resetRuntimeState();
         lastScanTime.clear();
         lastDimensionCheck.clear();
@@ -165,6 +166,8 @@ public class ServerEventHandler {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
+        NetworkHandler.tickSnapshotRequests(event.getServer());
+        NetworkHandler.tickGuiResponses(event.getServer());
         InteractionCaptureManager.tick(event.getServer());
         LuckPermsBridge.tick(event.getServer());
     }
@@ -569,7 +572,17 @@ public class ServerEventHandler {
             // Check interaction locks (item-on-block, Create-style interactions)
             var interactionDecision = InteractionEnforcer.evaluateInteraction(player, event.getItemStack(), block);
             if (!interactionDecision.allowed()) {
+                event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
                 event.setCanceled(true);
+                player.inventoryMenu.sendAllDataToRemote();
+                if (player.containerMenu != player.inventoryMenu) {
+                    player.containerMenu.sendAllDataToRemote();
+                }
+                var blockEntity = event.getLevel().getBlockEntity(event.getPos());
+                if (blockEntity != null && player.connection != null) {
+                    var update = blockEntity.getUpdatePacket();
+                    if (update != null) player.connection.send(update);
+                }
                 InteractionEnforcer.notifyLocked(player, interactionDecision);
                 InteractionCaptureManager.record(player, event.getHand(), event.getItemStack(), block,
                     interactionDecision, event.isCanceled(), event.getUseBlock(), event.getUseItem(),
@@ -933,8 +946,17 @@ public class ServerEventHandler {
     // ============ Cleanup ============
 
     @SubscribeEvent
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer) {
+            TeamProvider.getInstance().invalidateMembership();
+        }
+    }
+
+    @SubscribeEvent
     public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            TeamProvider.getInstance().invalidateMembership();
+            LuckPermsBridge.disconnect(player);
             StructureSessionManager.getInstance().closeAll(player, StructureLeaveOutcome.DISCONNECT);
             lastScanTime.remove(player.getUUID());
             lastDimensionCheck.remove(player.getUUID());

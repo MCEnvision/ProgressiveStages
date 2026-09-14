@@ -18,6 +18,7 @@ import com.enviouse.progressivestages.common.stage.StageCapabilities;
 import com.enviouse.progressivestages.common.stage.FieldDiagnostic;
 import com.enviouse.progressivestages.common.team.TeamProvider;
 import com.enviouse.progressivestages.server.enforcement.ConditionalLockEngine;
+import com.enviouse.progressivestages.server.enforcement.StageCapabilityResolver;
 import com.enviouse.progressivestages.server.enforcement.InventoryTargetResolverRegistry;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
 import com.enviouse.progressivestages.server.integration.luckperms.LuckPermsBridge;
@@ -35,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Public API for ProgressiveStages.
@@ -106,9 +108,19 @@ public final class ProgressiveStagesAPI {
         return com.enviouse.progressivestages.common.stage.StageOwnership.context(player, stageId);
     }
 
+    /** Resolve a player identity on the server thread even when that actor is offline. */
+    public static StageActorContext resolveActorOwner(UUID actorId, StageId stageId) {
+        return com.enviouse.progressivestages.common.stage.StageOwnership.contextForActor(actorId, stageId);
+    }
+
     /** Return an immutable individual effective stage snapshot. */
     public static EffectiveStageSnapshot getEffectiveSnapshot(ServerPlayer player) {
         return StageManager.getInstance().getEffectiveSnapshot(player);
+    }
+
+    /** Read the current individual view of an explicitly identified online or offline actor. */
+    public static EffectiveStageSnapshot getActorSnapshot(UUID actorId) {
+        return StageManager.getInstance().getActorSnapshot(actorId);
     }
 
     /** Apply an actor-aware mutation and return its committed result. */
@@ -125,6 +137,11 @@ public final class ProgressiveStagesAPI {
 
     /** Return the current provider and definition capabilities used by editor validation. */
     public static StageCapabilities getStageCapabilities() {
+        return getStageCapabilities(getAllDefinitions());
+    }
+
+    /** Inspect only identifiers referenced by these installed or draft definitions. */
+    public static StageCapabilities getStageCapabilities(Collection<StageDefinition> definitions) {
         TeamProvider provider = TeamProvider.getInstance();
         StageCapabilities.TeamProviderStatus team = !StageConfig.isFtbTeamsIntegrationEnabled()
             ? StageCapabilities.TeamProviderStatus.DISABLED
@@ -139,24 +156,10 @@ public final class ProgressiveStagesAPI {
             case "disabled" -> StageCapabilities.LuckPermsStatus.DISABLED;
             default -> StageCapabilities.LuckPermsStatus.ABSENT;
         };
-        Map<String, StageCapabilities.GroupStatus> groups = new java.util.LinkedHashMap<>();
-        Map<String, StageCapabilities.CommandStatus> commands = new java.util.LinkedHashMap<>();
-        for (StageDefinition definition : StageOrder.getInstance().getOrderedStages().stream()
-                .map(id -> StageOrder.getInstance().getStageDefinition(id).orElse(null))
-                .filter(java.util.Objects::nonNull).toList()) {
-            for (var row : definition.getLuckPerms().inbound()) {
-                row.groups().forEach(group -> groups.put(group,
-                    luckperms == StageCapabilities.LuckPermsStatus.READY
-                        ? LuckPermsBridge.groupExists(group) ? StageCapabilities.GroupStatus.PRESENT : StageCapabilities.GroupStatus.MISSING
-                        : StageCapabilities.GroupStatus.UNKNOWN));
-            }
-            for (var row : definition.getLuckPerms().commandPermissions()) {
-                commands.put(row.path(), StageCapabilities.CommandStatus.MISSING);
-            }
-        }
-        return new StageCapabilities(team, luckperms,
-            List.of("inherit", "personal", "team", "server"), List.of("synchronized", "permanent"),
-            groups, commands, StageFileLoader.getInstance().getCompiledSnapshot().revision());
+        var server = StageManager.getInstance().getServer();
+        return StageCapabilityResolver.resolve(definitions, team, luckperms, LuckPermsBridge::groupStatus,
+            server == null ? null : server.getCommands().getDispatcher().getRoot(),
+            StageFileLoader.getInstance().getCompiledSnapshot().revision());
     }
 
     /** Validate raw stage source with the same parser used for installed definitions. */
@@ -169,54 +172,74 @@ public final class ProgressiveStagesAPI {
             StageFileParser.ParseResult parsed = StageFileParser.parseText(
                 entry.getValue() == null ? "" : entry.getValue(), file, "validation", false);
             if (!parsed.isSuccess()) {
-                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.ERROR, file, "stage",
-                    Optional.empty(), "invalid_stage", parsed.getErrorMessage()));
+                parsed.getFieldDiagnostic(file).ifPresent(diagnostics::add);
                 continue;
             }
-            StageDefinition definition = parsed.getStageDefinition();
-            if (definition.isServerScope() && definition.getTeamStage().isPresent()) {
-                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.ERROR, file, "stage.team_stage",
-                    Optional.empty(), "server_override", "server stages cannot declare team_stage"));
+            diagnostics.addAll(validateStageOptions(parsed.getStageDefinition(), file, capabilities));
+        }
+        return List.copyOf(diagnostics);
+    }
+
+    /** Validate provider references on an already parsed stage without reparsing package child files. */
+    public static List<FieldDiagnostic> validateStageOptions(StageDefinition definition, String file,
+                                                              StageCapabilities capabilities) {
+        List<FieldDiagnostic> diagnostics = new ArrayList<>();
+        if (definition.isServerScope() && definition.getTeamStage().isPresent()) {
+            diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.ERROR, file, "stage.team_stage",
+                Optional.empty(), "server_override", "Server stages cannot declare team_stage."));
+        }
+        if (capabilities == null) return List.copyOf(diagnostics);
+        if (!definition.isServerScope() && definition.getTeamStage().orElse(StageConfig.isFtbTeamsMode())
+                && capabilities.teamProvider() != StageCapabilities.TeamProviderStatus.READY) {
+            diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file, "stage.team_stage",
+                Optional.empty(), "provider_fallback", "The team provider is unavailable. This stage uses solo fallback under the current server settings."));
+        }
+        var options = definition.getLuckPerms();
+        if (options.hasBridgeMappings()) {
+            if (!options.enabled()) {
+                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file, "luckperms.enabled",
+                    Optional.empty(), "bridge_disabled", "This stage's LuckPerms mappings are disabled. Their configuration is preserved."));
+            } else if (capabilities.luckPerms() != StageCapabilities.LuckPermsStatus.READY) {
+                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file, "luckperms",
+                    Optional.empty(), "provider_unavailable", "LuckPerms mappings remain dormant until the provider is ready. Current state. "
+                        + capabilities.luckPerms().name().toLowerCase(java.util.Locale.ROOT) + "."));
             }
-            if (definition.getTeamStage().orElse(false)
-                    && capabilities != null
-                    && capabilities.teamProvider() != StageCapabilities.TeamProviderStatus.READY) {
-                diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file, "stage.team_stage",
-                    Optional.empty(), "provider_fallback", "the team provider is unavailable, so this stage uses solo fallback"));
-            }
-            if (capabilities != null && definition.getLuckPerms().present()) {
-                if (capabilities.luckPerms() == StageCapabilities.LuckPermsStatus.ABSENT
-                        || capabilities.luckPerms() == StageCapabilities.LuckPermsStatus.FAILED) {
-                    diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file, "luckperms",
-                        Optional.empty(), "provider_unavailable", "luckperms mappings remain dormant until the provider is ready"));
+            if (capabilities.luckPerms() == StageCapabilities.LuckPermsStatus.READY) {
+                for (var row : options.inbound()) {
+                    for (String group : row.groups()) addGroupDiagnostic(diagnostics, file, "luckperms.inbound", row.id(), group, capabilities);
                 }
-                for (var row : definition.getLuckPerms().inbound()) {
-                    for (String group : row.groups()) {
-                        if (capabilities.configuredGroupStatus().get(group) == StageCapabilities.GroupStatus.MISSING) {
-                            diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file,
-                                "luckperms.inbound", Optional.of(row.id()), "missing_group",
-                                "the configured luckperms group does not exist: " + group));
-                        }
-                    }
-                }
-                for (var row : definition.getLuckPerms().outbound()) {
-                    if (row.kind() == com.enviouse.progressivestages.common.config.LuckPermsStageOptions.OutboundKind.GROUP
-                            && capabilities.configuredGroupStatus().get(row.value()) == StageCapabilities.GroupStatus.MISSING) {
-                        diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file,
-                            "luckperms.outbound", Optional.of(row.id()), "missing_group",
-                            "the outbound luckperms group does not exist: " + row.value()));
-                    }
-                }
-                for (var row : definition.getLuckPerms().commandPermissions()) {
-                    if (capabilities.configuredCommandStatus().get(row.path()) == StageCapabilities.CommandStatus.MISSING) {
-                        diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file,
-                            "command_permissions", Optional.of(row.id()), "missing_command",
-                            "the command path is not resolved in the current dispatcher: " + row.path()));
+                for (var row : options.outbound()) {
+                    if (row.kind() == com.enviouse.progressivestages.common.config.LuckPermsStageOptions.OutboundKind.GROUP) {
+                        addGroupDiagnostic(diagnostics, file, "luckperms.outbound", row.id(), row.value(), capabilities);
                     }
                 }
             }
         }
+        for (var row : options.commandPermissions()) {
+            var status = capabilities.configuredCommandStatus().get(row.path());
+            if (status == StageCapabilities.CommandStatus.RESOLVED) continue;
+            String code = status == StageCapabilities.CommandStatus.MISSING ? "missing_command"
+                : status == StageCapabilities.CommandStatus.AMBIGUOUS ? "ambiguous_command" : "command_unobserved";
+            String message = status == StageCapabilities.CommandStatus.MISSING
+                ? "The command path is not resolved in the current dispatcher. "
+                : status == StageCapabilities.CommandStatus.AMBIGUOUS
+                    ? "The command path matches multiple literal nodes. Verify each affected command branch. "
+                    : "The command dispatcher is unavailable. Validate again after server startup. ";
+            diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file,
+                "command_permissions", Optional.of(row.id()), code, message + row.path()));
+        }
         return List.copyOf(diagnostics);
+    }
+
+    private static void addGroupDiagnostic(List<FieldDiagnostic> diagnostics, String file, String field,
+                                           String rowId, String group, StageCapabilities capabilities) {
+        var status = capabilities.configuredGroupStatus().get(group);
+        if (status == StageCapabilities.GroupStatus.PRESENT) return;
+        boolean missing = status == StageCapabilities.GroupStatus.MISSING;
+        diagnostics.add(new FieldDiagnostic(FieldDiagnostic.Severity.WARNING, file, field, Optional.of(rowId),
+            missing ? "missing_group" : "group_unobserved", missing
+                ? "The configured LuckPerms group does not exist. " + group
+                : "The LuckPerms group lookup is pending or unavailable. Validate again to refresh. " + group));
     }
 
     public static boolean hasAllStages(ServerPlayer player, Collection<StageId> stageIds) {
@@ -241,12 +264,13 @@ public final class ProgressiveStagesAPI {
      * @param player The player to grant the stage to
      * @param stageId The stage to grant
      * @param cause The reason for granting (for tracking/events)
-     * @return true if the stage was newly granted, false if already had it
+     * @return true if independent ownership was added
      */
     public static boolean grantStage(ServerPlayer player, StageId stageId, StageCause cause) {
-        Set<StageId> before = getStages(player);
-        StageManager.getInstance().grantStageWithCause(player, stageId, cause);
-        return !before.equals(getStages(player));
+        StageManager manager = StageManager.getInstance();
+        boolean independent = manager.hasIndependentStage(player, stageId);
+        manager.grantStageWithCause(player, stageId, cause);
+        return !independent && manager.hasIndependentStage(player, stageId);
     }
 
     /** Grant derived access while retaining source attribution for later reconciliation. */
@@ -264,14 +288,13 @@ public final class ProgressiveStagesAPI {
      * @param player The player to revoke the stage from
      * @param stageId The stage to revoke
      * @param cause The reason for revoking (for tracking/events)
-     * @return true if the stage was revoked, false if didn't have it
+     * @return true if stored access was removed or current permission eligibility was suppressed
      */
     public static boolean revokeStage(ServerPlayer player, StageId stageId, StageCause cause) {
-        if (!hasStage(player, stageId)) {
-            return false;
-        }
-        StageManager.getInstance().revokeStageWithCause(player, stageId, cause);
-        return !hasStage(player, stageId);
+        StageManager manager = StageManager.getInstance();
+        long before = manager.getMutationRevision();
+        manager.revokeStageWithCause(player, stageId, cause);
+        return manager.getMutationRevision() != before;
     }
 
     /** remove one derived source and retain independently earned access. */
@@ -282,9 +305,11 @@ public final class ProgressiveStagesAPI {
 
     /** Grant an existing stage without checking or auto-granting its prerequisites. */
     public static boolean grantStageBypass(ServerPlayer player, StageId stageId, StageCause cause) {
-        if (!stageExists(stageId) || hasStage(player, stageId)) return false;
-        StageManager.getInstance().grantStageBypassDependencies(player, stageId, cause);
-        return hasStage(player, stageId);
+        if (!stageExists(stageId)) return false;
+        StageManager manager = StageManager.getInstance();
+        boolean independent = manager.hasIndependentStage(player, stageId);
+        manager.grantStageBypassDependencies(player, stageId, cause);
+        return !independent && manager.hasIndependentStage(player, stageId);
     }
 
     /** Grant several requested stages and return how many requested targets changed. */

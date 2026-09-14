@@ -23,6 +23,15 @@ public class TeamProvider {
     private ITeamIntegration integration;
     private ITeamIntegration ftbIntegration;
     private boolean ftbTeamsAvailable = false;
+    private final java.util.concurrent.atomic.AtomicLong membershipRevision = new java.util.concurrent.atomic.AtomicLong();
+
+    public long membershipRevision() {
+        return membershipRevision.get();
+    }
+
+    public void invalidateMembership() {
+        membershipRevision.incrementAndGet();
+    }
 
     public static TeamProvider getInstance() {
         if (INSTANCE == null) {
@@ -37,6 +46,7 @@ public class TeamProvider {
      * Initialize the team provider
      */
     public void initialize() {
+        invalidateMembership();
         // Check if FTB Teams integration is enabled in config
         if (!StageConfig.isFtbTeamsIntegrationEnabled()) {
             ftbTeamsAvailable = false;
@@ -112,6 +122,12 @@ public class TeamProvider {
         return ftbIntegration.getTeamId(player);
     }
 
+    public Optional<UUID> getOfflineTeamId(UUID subject, boolean forceTeam) {
+        if (subject == null) return Optional.empty();
+        ITeamIntegration selected = forceTeam ? ftbIntegration : integration;
+        return selected == null ? Optional.of(subject) : selected.getOfflineTeamId(subject);
+    }
+
     /** Return members for an explicitly team-owned stage. */
     public Set<ServerPlayer> getTeamMembersForOwner(UUID teamId, ServerPlayer requester) {
         if (ftbIntegration != null) return ftbIntegration.getTeamMembers(teamId, requester);
@@ -131,12 +147,16 @@ public class TeamProvider {
         UUID getTeamId(ServerPlayer player);
         Set<ServerPlayer> getTeamMembers(UUID teamId, ServerPlayer requester);
         default boolean hasTeam(ServerPlayer player) { return false; }
+        default Optional<UUID> getOfflineTeamId(UUID subject) { return Optional.empty(); }
     }
 
     /**
      * Solo mode implementation - each player is their own team
      */
     private static class SoloIntegration implements ITeamIntegration {
+        @Override
+        public Optional<UUID> getOfflineTeamId(UUID subject) { return Optional.of(subject); }
+
         @Override
         public UUID getTeamId(ServerPlayer player) {
             return player.getUUID();
@@ -161,6 +181,25 @@ public class TeamProvider {
         private java.lang.reflect.Method getIdMethod;
         private java.lang.reflect.Method getMembersMethod;
         private boolean reflectionFailed = false;
+
+        @Override
+        public Optional<UUID> getOfflineTeamId(UUID subject) {
+            ensureReflection();
+            if (reflectionFailed) return Optional.empty();
+            try {
+                Object manager = getManagerMethod.invoke(cachedApi);
+                Class<?> managerType = Class.forName("dev.ftb.mods.ftbteams.api.TeamManager");
+                Object value = managerType.getMethod("getTeamForPlayerID", UUID.class).invoke(manager, subject);
+                if (!(value instanceof Optional<?> team)) return Optional.empty();
+                if (team.isEmpty()) return Optional.of(subject);
+                Class<?> teamType = Class.forName("dev.ftb.mods.ftbteams.api.Team");
+                Object id = teamType.getMethod("getId").invoke(team.get());
+                return id instanceof UUID uuid ? Optional.of(uuid) : Optional.empty();
+            } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
+                LOGGER.debug("Unable to resolve offline stage ownership", failure);
+                return Optional.empty();
+            }
+        }
 
         private void ensureReflection() {
             if (cachedApi != null || reflectionFailed) return;

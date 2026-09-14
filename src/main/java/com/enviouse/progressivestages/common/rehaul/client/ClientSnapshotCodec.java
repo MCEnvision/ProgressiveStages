@@ -28,7 +28,12 @@ public final class ClientSnapshotCodec {
     }
 
     public static PreparedClientSnapshot prepare(CompiledSnapshot snapshot, long baseRevision, byte[] baseBytes) {
-        byte[] raw = encode(snapshot);
+        return prepare(snapshot, baseRevision, baseBytes, true);
+    }
+
+    public static PreparedClientSnapshot prepare(CompiledSnapshot snapshot, long baseRevision, byte[] baseBytes,
+                                                 boolean blockInteractions) {
+        byte[] raw = encode(snapshot, blockInteractions);
         byte[] compressed = compress(raw);
         boolean delta = false;
         if (baseRevision > 0 && baseBytes != null && baseBytes.length > 0) {
@@ -49,7 +54,7 @@ public final class ClientSnapshotCodec {
         ClientSnapshotManifest manifest = new ClientSnapshotManifest(PROTOCOL_VERSION, 4, snapshot.revision(),
             baseRevision, checksum(raw), chunks.size(), compressed.length, raw.length,
             Set.of("stage_graph", "rule_presentation", "viewer_policy", "challenge_hud", "atomic_activation",
-                "safe_delta"), delta);
+                "safe_delta", InteractionPrediction.CAPABILITY), delta);
         return new PreparedClientSnapshot(manifest, chunks);
     }
 
@@ -101,6 +106,10 @@ public final class ClientSnapshotCodec {
     }
 
     public static byte[] encode(CompiledSnapshot snapshot) {
+        return encode(snapshot, true);
+    }
+
+    public static byte[] encode(CompiledSnapshot snapshot, boolean blockInteractions) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(bytes);
@@ -124,6 +133,9 @@ public final class ClientSnapshotCodec {
                     text(out, rule.viewerPolicy().jei().name());
                 }
             }
+            int interactionStart = bytes.size();
+            InteractionPrediction.from(snapshot, blockInteractions).write(out);
+            InteractionPrediction.writeFooter(out, bytes.size() - interactionStart);
             out.flush();
             if (bytes.size() > MAX_SNAPSHOT_BYTES) throw new IllegalArgumentException("Compiled client snapshot exceeds the configured maximum");
             return bytes.toByteArray();

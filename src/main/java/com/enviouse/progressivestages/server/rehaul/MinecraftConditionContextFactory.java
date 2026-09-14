@@ -32,10 +32,7 @@ public final class MinecraftConditionContextFactory {
         for (var stage : StageManager.getInstance().getStages(player)) {
             stages.add(stage.toString());
             values.put("stages." + stage, stages);
-            var definition = com.enviouse.progressivestages.common.stage.StageOrder.getInstance()
-                .getStageDefinition(stage).orElse(null);
-            java.util.UUID owner = definition != null && definition.isServerScope()
-                ? StageManager.SERVER_TEAM : TeamProvider.getInstance().getTeamId(player);
+            var owner = StageManager.getInstance().getStageOwner(player, stage);
             long granted = com.enviouse.progressivestages.server.triggers.StageRegressionData
                 .get(player.server).getGrantTime(owner, stage);
             if (granted >= 0) values.put("stage_held_for." + stage,

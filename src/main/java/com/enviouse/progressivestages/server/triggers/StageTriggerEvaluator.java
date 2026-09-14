@@ -642,10 +642,7 @@ public final class StageTriggerEvaluator {
         StageId target;
         try { target = StageId.parse(c.targetBody()); } catch (Exception e) { return 0; }
         if (!ProgressiveStagesAPI.hasStage(player, target)) return 0;
-        StageDefinition def = StageOrder.getInstance().getStageDefinition(target).orElse(null);
-        UUID key = (def != null && def.isServerScope())
-            ? com.enviouse.progressivestages.common.stage.StageManager.SERVER_TEAM
-            : com.enviouse.progressivestages.common.team.TeamProvider.getInstance().getTeamId(player);
+        var key = com.enviouse.progressivestages.common.stage.StageManager.getInstance().getStageOwner(player, target);
         long grant = StageRegressionData.get(player.server).getGrantTime(key, target);
         if (grant <= 0) return 0;
         return (System.currentTimeMillis() - grant) / 1000L;

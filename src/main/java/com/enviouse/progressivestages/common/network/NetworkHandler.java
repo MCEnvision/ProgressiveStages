@@ -135,6 +135,9 @@ public class NetworkHandler {
             )
         );
 
+        registrar.optional().playToClient(OpenStageGuiPayload.TYPE, OpenStageGuiPayload.STREAM_CODEC,
+            new DirectionalPayloadHandler<>(NetworkHandler::handleOpenStageGuiClient, (payload, context) -> {}));
+
         // v2.3: stage-tree GUI request (client -> server; e.g. keybind press)
         registrar.playToServer(
             RequestStageGuiPayload.TYPE,
@@ -249,10 +252,28 @@ public class NetworkHandler {
     }
 
     /**
-     * v2.3: gather the player's live per-stage trigger progress and push it to the client,
-     * which opens the stage-tree GUI on arrival.
+     * gather live stage progress and send it to the client.
+     * explicit screen opening uses openStageGui.
      */
     public static void sendStageGuiData(ServerPlayer player) {
+        if (guiResponses.request(player.getUUID())) sendCurrentStageGuiData(player);
+    }
+
+    public static void openStageGui(ServerPlayer player) {
+        if (player.connection.hasChannel(OpenStageGuiPayload.TYPE)) {
+            PacketDistributor.sendToPlayer(player, OpenStageGuiPayload.INSTANCE);
+        }
+        sendStageGuiData(player);
+    }
+
+    public static void tickGuiResponses(net.minecraft.server.MinecraftServer server) {
+        guiResponses.tick(id -> {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player != null) sendCurrentStageGuiData(player);
+        });
+    }
+
+    private static void sendCurrentStageGuiData(ServerPlayer player) {
         // Build the per-stage "unlocks" preview once by scanning the item registry a single time
         // and bucketing each item under every stage that gates it (cheap, on-demand).
         final int SAMPLE_CAP = 90;
@@ -302,7 +323,8 @@ public class NetworkHandler {
 
     private static CostInfo computeCostInfo(ServerPlayer player, StageId stageId) {
         var defOpt = StageOrder.getInstance().getStageDefinition(stageId);
-        if (defOpt.isEmpty() || !defOpt.get().isPurchasable()) return CostInfo.NONE;
+        if (defOpt.isEmpty() || !defOpt.get().isPurchasable()
+                || StageManager.getInstance().hasIndependentStage(player, stageId)) return CostInfo.NONE;
         com.enviouse.progressivestages.common.config.StageCost cost = defOpt.get().getCost();
         StringBuilder sb = new StringBuilder();
         if (cost.xpLevels() > 0) sb.append(cost.xpLevels()).append(" lvl");
@@ -510,11 +532,11 @@ public class NetworkHandler {
             .toList();
     }
 
-    /** Authoritative purchase check: purchasable, not owned, prereq stages met, triggers met (unless bypass), affordable. */
+    /** Checks independent ownership and the ordinary purchase requirements. */
     private static boolean canPurchase(ServerPlayer player, StageDefinition def) {
         if (!def.isPurchasable()) return false;
         StageManager sm = StageManager.getInstance();
-        if (sm.hasStage(player, def.getId())) return false;
+        if (sm.hasIndependentStage(player, def.getId())) return false;
         if (!sm.getMissingDependencies(player, def.getId()).isEmpty()) return false;
         if (!sm.getSlotDecision(player, def).allowed()) return false;
         com.enviouse.progressivestages.common.config.StageCost cost = def.getCost();
@@ -523,8 +545,11 @@ public class NetworkHandler {
             return false;
         }
         if (player.experienceLevel < cost.xpLevels()) return false;
+        Map<ResourceLocation, Integer> remainingItems = new HashMap<>();
         for (var ic : cost.items()) {
-            if (countItem(player, ic.item()) < ic.count()) return false;
+            int remaining = remainingItems.computeIfAbsent(ic.item(), item -> countItem(player, item));
+            if (remaining < ic.count()) return false;
+            remainingItems.put(ic.item(), remaining - ic.count());
         }
         return purchaseCooldownRemainingMillis(player, cost) <= 0L;
     }
@@ -544,7 +569,11 @@ public class NetworkHandler {
     /** v3.0: per-player skill-tree purchase cooldown tracking (transient, in-memory). */
     private static final java.util.Map<java.util.UUID, Long> lastPurchase = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private static final java.util.Map<java.util.UUID, Long> acknowledgedClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
+    private record SnapshotAcknowledgement(long revision, String checksum, boolean blockInteractions) {}
+    private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> acknowledgedClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<java.util.UUID, SnapshotAcknowledgement> offeredClientSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final SnapshotRequestQueue snapshotRequests = new SnapshotRequestQueue();
+    private static final GuiResponseQueue guiResponses = new GuiResponseQueue();
     private static final java.util.Map<java.util.UUID, Integer> challengeHudFingerprints = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Map<Long, byte[]> clientSnapshotHistory = java.util.Collections.synchronizedMap(
         new java.util.LinkedHashMap<>() {
@@ -556,30 +585,47 @@ public class NetworkHandler {
     public static void clearServerRuntimeState() {
         lastPurchase.clear();
         acknowledgedClientSnapshots.clear();
+        offeredClientSnapshots.clear();
+        snapshotRequests.clear();
+        guiResponses.clear();
         challengeHudFingerprints.clear();
         clientSnapshotHistory.clear();
     }
 
     public static void clearPlayerRuntimeState(java.util.UUID player) {
         acknowledgedClientSnapshots.remove(player);
+        offeredClientSnapshots.remove(player);
+        snapshotRequests.clear(player);
+        guiResponses.clear(player);
         challengeHudFingerprints.remove(player);
     }
 
     public static void sendCompiledSnapshot(ServerPlayer player) {
-        long base = acknowledgedClientSnapshots.getOrDefault(player.getUUID(), 0L);
+        var acknowledged = acknowledgedClientSnapshots.get(player.getUUID());
+        long base = acknowledged == null ? 0 : acknowledged.revision();
         sendCompiledSnapshot(player, base);
     }
 
     private static void sendCompiledSnapshot(ServerPlayer player, long base) {
         var snapshot = com.enviouse.progressivestages.server.loader.StageFileLoader.getInstance().getCompiledSnapshot();
         byte[] baseBytes = clientSnapshotHistory.get(base);
-        var prepared = com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.prepare(snapshot, base, baseBytes);
+        var acknowledged = acknowledgedClientSnapshots.get(player.getUUID());
+        if (acknowledged == null || acknowledged.revision() != base || baseBytes == null
+                || !acknowledged.checksum().equals(
+                    com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.checksum(baseBytes))) {
+            baseBytes = null;
+        }
+        boolean blockInteractions = com.enviouse.progressivestages.common.config.StageConfig.isBlockInteractions();
+        var prepared = com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.prepare(
+            snapshot, base, baseBytes, blockInteractions);
         clientSnapshotHistory.put(snapshot.revision(),
-            com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.encode(snapshot));
+            com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.encode(snapshot, blockInteractions));
         PacketDistributor.sendToPlayer(player, new ClientSnapshotManifestPayload(prepared.manifest()));
         for (var chunk : prepared.chunks()) {
             PacketDistributor.sendToPlayer(player, new ClientSnapshotChunkPayload(chunk));
         }
+        offeredClientSnapshots.put(player.getUUID(), new SnapshotAcknowledgement(snapshot.revision(),
+            prepared.manifest().checksum(), blockInteractions));
     }
 
     private static void handleClientSnapshotManifest(ClientSnapshotManifestPayload payload, IPayloadContext context) {
@@ -606,9 +652,12 @@ public class NetworkHandler {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
                 var snapshot = com.enviouse.progressivestages.server.loader.StageFileLoader.getInstance().getCompiledSnapshot();
-                var expected = com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.prepare(snapshot, 0).manifest();
-                if (payload.revision() == snapshot.revision() && payload.checksum().equals(expected.checksum())) {
-                    acknowledgedClientSnapshots.put(player.getUUID(), payload.revision());
+                var offered = offeredClientSnapshots.get(player.getUUID());
+                if (offered != null && payload.revision() == snapshot.revision()
+                        && offered.revision() == snapshot.revision()
+                        && offered.blockInteractions() == com.enviouse.progressivestages.common.config.StageConfig.isBlockInteractions()
+                        && offered.checksum().equals(payload.checksum())) {
+                    acknowledgedClientSnapshots.put(player.getUUID(), offered);
                 }
             }
         });
@@ -616,11 +665,24 @@ public class NetworkHandler {
 
     private static void handleClientSnapshotRequest(ClientSnapshotRequestPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (context.player() instanceof ServerPlayer player) {
-                if (payload.knownRevision() == 0) acknowledgedClientSnapshots.remove(player.getUUID());
-                sendCompiledSnapshot(player, payload.knownRevision());
+            if (context.player() instanceof ServerPlayer player
+                    && snapshotRequests.request(player.getUUID(), payload.knownRevision())) {
+                sendRequestedSnapshot(player, payload.knownRevision());
             }
         });
+    }
+
+    public static void tickSnapshotRequests(net.minecraft.server.MinecraftServer server) {
+        snapshotRequests.tick((id, revision) -> {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player != null) sendRequestedSnapshot(player, revision);
+        });
+    }
+
+    private static void sendRequestedSnapshot(ServerPlayer player, long revision) {
+        long base = Math.max(0, revision);
+        if (base == 0) acknowledgedClientSnapshots.remove(player.getUUID());
+        sendCompiledSnapshot(player, base);
     }
 
     public static void sendEditorOpen(ServerPlayer player,
@@ -681,16 +743,13 @@ public class NetworkHandler {
             }
             if (cost.xpLevels() > 0) player.giveExperienceLevels(-cost.xpLevels());
             for (var ic : cost.items()) consumeItem(player, ic.item(), ic.count());
-            StageManager.getInstance().grantStageWithCause(player, stageId,
-                com.enviouse.progressivestages.common.api.StageCause.PURCHASE);
-            if (!StageManager.getInstance().hasStage(player, stageId)) {
+            if (!StageManager.getInstance().grantPurchasedStage(player, stageId, cost)) {
                 restoreCost(player, cost);
                 player.sendSystemMessage(com.enviouse.progressivestages.common.util.TextUtil
                     .parseColorCodes("&cThe purchase could not be completed. Your cost was restored."));
                 sendStageGuiData(player);
                 return;
             }
-            StageManager.getInstance().markPurchased(player, stageId);
             if (cost.cooldownSeconds() > 0) lastPurchase.put(player.getUUID(), System.currentTimeMillis());
             sendStageGuiData(player);
         });
@@ -746,7 +805,11 @@ public class NetworkHandler {
 
     private static void handleStageGuiDataClient(StageGuiDataPayload payload, IPayloadContext context) {
         context.enqueueWork(() ->
-            com.enviouse.progressivestages.client.ClientTriggerProgress.acceptAndOpen(payload.stages()));
+            com.enviouse.progressivestages.client.ClientTriggerProgress.acceptResponse(payload.stages()));
+    }
+
+    private static void handleOpenStageGuiClient(OpenStageGuiPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> com.enviouse.progressivestages.client.gui.StageTreeScreen.open());
     }
 
     /**
@@ -1473,7 +1536,7 @@ public class NetworkHandler {
         );
     }
 
-    /** v2.4: a purchasable stage's cost summary + whether the player can buy it right now. */
+    /** A purchase offer for the recipient and whether its requirements are met. */
     public record CostInfo(boolean purchasable, int costXp, String summary, boolean canPurchase) {
         public static final CostInfo NONE = new CostInfo(false, 0, "", false);
         public static final StreamCodec<FriendlyByteBuf, CostInfo> STREAM_CODEC = StreamCodec.composite(
@@ -1578,7 +1641,15 @@ public class NetworkHandler {
         };
     }
 
-    /** Server -> client: per-stage trigger progress; the client opens the GUI when it arrives. */
+    public record OpenStageGuiPayload() implements CustomPacketPayload {
+        public static final Type<OpenStageGuiPayload> TYPE = new Type<>(Constants.STAGE_GUI_OPEN_PACKET);
+        public static final OpenStageGuiPayload INSTANCE = new OpenStageGuiPayload();
+        public static final StreamCodec<FriendlyByteBuf, OpenStageGuiPayload> STREAM_CODEC = StreamCodec.unit(INSTANCE);
+
+        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+
+    /** server gui data retains its legacy wire format. */
     public record StageGuiDataPayload(List<StageProgress> stages) implements CustomPacketPayload {
         public static final Type<StageGuiDataPayload> TYPE = new Type<>(Constants.STAGE_GUI_DATA_PACKET);
 

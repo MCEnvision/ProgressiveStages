@@ -1,17 +1,20 @@
 package com.enviouse.progressivestages.server.loader;
 
+import com.electronwill.nightconfig.core.Config;
+import com.electronwill.nightconfig.core.io.ParsingException;
+import com.electronwill.nightconfig.core.io.ParsingMode;
+import com.electronwill.nightconfig.toml.TomlParser;
+
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 public final class StagePackageDiscovery {
-
-    private static final Pattern STAGE_HEADER = Pattern.compile("(?m)^\\s*\\[stage]\\s*(?:#.*)?$");
 
     private StagePackageDiscovery() {}
 
@@ -61,13 +64,38 @@ public final class StagePackageDiscovery {
             boolean belongsToPackage = packageRoots.stream().anyMatch(root -> file.startsWith(root));
             if (belongsToPackage) continue;
             try {
-                if (STAGE_HEADER.matcher(Files.readString(file)).find()) legacy.add(file);
+                if (hasStageDefinition(Files.readString(file))) legacy.add(file);
                 else ignored.add(file);
             } catch (IOException error) {
                 errors.add(normalizedRoot.relativize(file) + ". " + error.getMessage());
             }
         }
         return new DiscoveryResult(packages, legacy, ignored, errors);
+    }
+
+    static boolean hasStageDefinition(String text) {
+        Config parsed = Config.inMemory();
+        try {
+            new TomlParser().parse(new StringReader(text), parsed, ParsingMode.REPLACE);
+            return parsed.contains("stage");
+        } catch (ParsingException error) {
+            return parsed.contains("stage") || text.lines().anyMatch(StagePackageDiscovery::declaresStage);
+        }
+    }
+
+    private static boolean declaresStage(String line) {
+        String candidate = line.stripLeading();
+        if (candidate.isEmpty() || candidate.startsWith("#")) return false;
+        if (!candidate.startsWith("[")) {
+            int assignment = candidate.indexOf('=');
+            if (assignment < 0) return false;
+            candidate = candidate.substring(0, assignment + 1) + " { _ = true }\n";
+        } else candidate += "\n_ = true\n";
+        try {
+            return new TomlParser().parse(candidate).contains("stage");
+        } catch (ParsingException error) {
+            return false;
+        }
     }
 
     private static boolean isToml(Path path) {

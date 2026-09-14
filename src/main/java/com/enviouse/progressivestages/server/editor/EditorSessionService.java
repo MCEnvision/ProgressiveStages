@@ -100,9 +100,12 @@ public final class EditorSessionService {
         String action = string(request, "action", "bootstrap");
         EditorDraft draft = drafts.get(session.draftId);
         if (draft == null) return error("missing_draft", "The editor draft no longer exists");
+        EditorCapture capture = EditorCapture.begin(operator, draft, action, request);
+        Object response = null;
+        String failureCode = "";
         try {
             if (normalizeLegacyRecipeRules(operator.getUUID(), draft)) persist(draft);
-            Object response = switch (action) {
+            response = switch (action) {
                 case "bootstrap" -> bootstrap(session, draft);
                 case "catalog" -> catalog(request);
                 case "mutate" -> mutate(operator, draft, request);
@@ -131,9 +134,14 @@ public final class EditorSessionService {
             };
             return GSON.toJson(response);
         } catch (EditorDraft.DraftConflictException conflict) {
-            return GSON.toJson(Map.of("error", "draft_conflict", "currentRevision", conflict.currentRevision()));
+            failureCode = "draft_conflict";
+            return GSON.toJson(Map.of("error", "draft_conflict", "currentRevision", conflict.currentRevision(),
+                "explanation", "The draft changed. Review the current changes before trying again."));
         } catch (RuntimeException failure) {
+            failureCode = "request_failed";
             return error("request_failed", failure.getMessage());
+        } finally {
+            if (capture != null) capture.finish(operator, draft, response, failureCode);
         }
     }
 
@@ -188,6 +196,10 @@ public final class EditorSessionService {
         out.put("schemas", EditorSchemaRegistry.get().all());
         out.put("extensions", ExtensionMetadataRegistry.get().snapshot());
         out.put("capabilities", ProgressiveStagesRehaulAPI.capabilities());
+        DraftValidation validation = EditorDraftValidator.validate(draft.files(), draft.revision());
+        out.put("validation", validation);
+        out.put("stageCapabilities", validation.stageCapabilities());
+        out.put("teamMode", com.enviouse.progressivestages.common.config.StageConfig.getTeamMode());
         var catalog = com.enviouse.progressivestages.common.rehaul.catalog.EditorCatalogService.get().snapshot();
         out.put("catalog", Map.of("revision", catalog.revision(), "configurationRevision", catalog.configurationRevision(),
             "ids", catalog.catalogIds(), "checksum", catalog.checksum(), "providerErrors", catalog.providerErrors()));
@@ -340,15 +352,24 @@ public final class EditorSessionService {
         }
         Map<String, String> imported = stringMap(request.getAsJsonObject("files"));
         if (!imported.containsKey("stage.toml")) throw new IllegalArgumentException("An imported package requires stage.toml");
-        long revision = number(request, "revision", -1);
+        Map<String, String> normalized = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : imported.entrySet()) {
-            if (!Set.of("stage.toml", "rules.toml", "progression.toml").contains(entry.getKey())) {
-                throw new IllegalArgumentException("An imported package contains an unsupported file");
+            String path = EditorPaths.normalize(entry.getKey());
+            if (path.indexOf(':') >= 0) {
+                throw new IllegalArgumentException("An imported package requires relative TOML paths");
             }
-            revision = draft.mutate(operator.getUUID(), revision, destination + entry.getKey(), entry.getValue());
+            if (normalized.putIfAbsent(path, entry.getValue()) != null) {
+                throw new IllegalArgumentException("An imported package contains duplicate file paths");
+            }
         }
-        persist(draft);
-        return draftView(draft);
+        synchronized (draft) {
+            long revision = number(request, "revision", -1);
+            for (Map.Entry<String, String> entry : normalized.entrySet()) {
+                revision = draft.mutate(operator.getUUID(), revision, destination + entry.getKey(), entry.getValue());
+            }
+            persist(draft);
+            return draftView(draft);
+        }
     }
 
     private void relocate(ServerPlayer operator, EditorDraft draft, String source, String destination,
@@ -371,7 +392,13 @@ public final class EditorSessionService {
     private Object collaborator(ServerPlayer operator, EditorDraft draft, JsonObject request, boolean add) {
         UUID collaborator = UUID.fromString(string(request, "player", ""));
         if (add) draft.addCollaborator(operator.getUUID(), collaborator);
-        else draft.removeCollaborator(operator.getUUID(), collaborator);
+        else {
+            draft.removeCollaborator(operator.getUUID(), collaborator);
+            if (!draft.owner().equals(collaborator)) {
+                sessions.entrySet().removeIf(entry -> entry.getValue().draftId.equals(draft.id())
+                    && entry.getValue().owner.equals(collaborator));
+            }
+        }
         persist(draft);
         return Map.of("collaborators", draft.collaborators());
     }
@@ -387,6 +414,15 @@ public final class EditorSessionService {
     }
 
     private EditorApplyResult apply(MinecraftServer server, UUID actor, EditorDraft draft, JsonObject request) {
+        synchronized (draft) {
+            if (number(request, "revision", -1) != draft.revision()) {
+                throw new EditorDraft.DraftConflictException(draft.revision());
+            }
+            return applyReviewed(server, actor, draft, request);
+        }
+    }
+
+    private EditorApplyResult applyReviewed(MinecraftServer server, UUID actor, EditorDraft draft, JsonObject request) {
         long current = StageFileLoader.getInstance().getCompiledSnapshot().revision();
         EditorApplyResult result = applyService.apply(server, actor, draft, current,
             bool(request, "confirmed", false));
@@ -404,6 +440,12 @@ public final class EditorSessionService {
         if (session == null || !session.owner.equals(operator.getUUID())) throw new SecurityException("The editor session is unavailable");
         if (!operator.hasPermissions(3)) { revoke(sessionId); throw new SecurityException("Operator permission was lost"); }
         if (!MessageDigest.isEqual(session.secretHash, hash(secret))) throw new SecurityException("The editor session secret is invalid");
+        EditorDraft draft = drafts.get(session.draftId);
+        if (draft == null || !draft.owner().equals(operator.getUUID())
+                && !draft.collaborators().contains(operator.getUUID())) {
+            revoke(sessionId);
+            throw new SecurityException("Access to the editor draft was removed");
+        }
         session.lastAccessAt = System.currentTimeMillis();
         return session;
     }

@@ -1,6 +1,6 @@
 # ProgressiveStages 3.0.5 — Complete Documentation
 
-> ProgressiveStages **3.0.5** for NeoForge 1.21.1, Java 21.
+> ProgressiveStages **3.0.5** for Minecraft 1.21.1, NeoForge 21.1.248, Java 21.
 > Mod id: `progressivestages`  Java package root: `com.enviouse.progressivestages`  
 > This document is exhaustive — every feature, every TOML field, every config key,
 > every command, every integration, every troubleshooting tip. If a section of
@@ -11,8 +11,9 @@
 
 > **3.0.5 development candidate:** The authenticated editor now has an Access tab for per stage
 > ownership, optional LuckPerms mappings, command gates, and direct interaction definitions. This
-> checked candidate is merged and tagged for verification. No CurseForge, Modrinth, or GitHub
-> release is published by this work.
+> candidate uses NeoForge 21.1.248 for the build, dedicated server and client. The loader update
+> and interaction followups require renewed acceptance before integration. No CurseForge,
+> Modrinth, or GitHub release is published by this work.
 
 > **3.0.2 maintenance release:** The authenticated localhost editor now works for permission level
 > 3 operators in integrated single-player worlds as well as dedicated servers. The editor has a
@@ -472,7 +473,7 @@ To create a stage without knowing TOML:
     minimum, maximum, priority, and exclusive stacking. This
     creates `[[drop_modifiers]]`; the generated Diamond Engineer demonstrates a purchase for 32
     diamonds plus a Fortune only double diamond rule.
-12. Open Access for guided ownership, LuckPerms, command, and direct interaction definitions. Choose personal, team, inherited, or server ownership. Enable the optional bridge, choose synchronized removal or permanent retention, add group or Boolean permission conditions with all or any matching and nested contexts, add transient group or permission outputs, and gate command literals with optional descendants. The direct interaction builder includes item on block, block right click, item on entity, and item into inventory rows. Its Selling Bin presets write `tag:c:armors` or `all:*` with `id:selling_bin:selling_bin`.
+12. Open Access for guided ownership, LuckPerms, command, and direct interaction definitions. Choose personal, team, inherited, or server ownership. Enable the optional bridge, choose synchronized removal or permanent retention, add group or Boolean permission conditions with all or any matching and nested contexts, add transient group or permission outputs, and gate command literals with optional descendants. The direct interaction builder includes item on block, block right click, item on entity, and item into inventory rows. Its Selling Bin presets write `tag:c:armors` or `all:*` with `id:selling_bin:selling_bin`. When adding a selective held item rule, enable **Also restrict GUI insertion** to create the matching inventory rule in the same draft change. Both use the selected item and block, require the same stage, and remain independently editable. The inventory rule priority defaults to 100. Whole bin access uses a separate block right click rule; conditional activation is available in the Rules tab.
 13. Open Advanced for guided challenge, variable, formula, lifecycle state, affinity profile, and
     reusable template builders. A challenge can define start, success, and end conditions, retries,
     timeout, hit limit, measured budget, ordered step, and detailed HUD presentation. Registered
@@ -1126,8 +1127,13 @@ fixture, command, sample-capacity property, calculation, and interpretation rule
 
 ### 4.11 `[[interactions]]` — fine-grained "X-on-Y" rules
 
+The [Selling Bin transaction GameTests](docs/test/selling-bin.md) exercise the real optional mod
+on a disposable server. Their fixture and coverage limits are separate from client acceptance.
+
 This is a **table-array** rather than a single table, so you can write as many
 entries as you want, each describing one specific interaction to gate.
+
+For denied `item_on_block` and `block_right_click` requests, the server event returns `InteractionResult.FAIL` and sends full inventory and open menu state even when no authoritative stack changed. It also sends the clicked block entity's normal update packet when available. Ordinary change broadcasts alone cannot repair every locally predicted change when the server's cached inventory already equals its current state. The server still checks every request independently; no cooldown converts a later permitted empty hand action into a denial. GUI insertion uses the separate `item_into_inventory` policy described in the [inventory insertion guide](docs/features/inventory-insertion.md).
 
 ```toml
 [[interactions]]
@@ -2000,6 +2006,24 @@ Expiry is a regression like any other: it reports `StageCause.REGRESSION`, and
 if the stage's `[revoke].cascade = true`, expiring it also cascades to
 dependents.
 
+Grant clocks now use the complete owner kind and UUID. A personal profession and a team stage
+with the same UUID have separate timestamps, as do server records. Stage expiry, slot replacement
+by age, legacy `stage_held_for` triggers and compiled held duration conditions all use the resolved
+stage owner. Changing scope does not copy the old owner's clock into the new namespace.
+
+`world/data/progressivestages_regression.dat` retains legacy `grant_times` and adds
+`clock_schema = 1` with `owner_grant_times`. Typed keys contain the lowercase owner kind, UUID and
+stage ID. Legacy UUID methods remain available and address team owners, with the zero UUID reserved
+for the server owner. They never read or clear a personal clock. Legacy timestamps remain readable
+in their original team or server namespace, and a new typed write replaces only its matching
+legacy timestamp. Unrecognized legacy keys remain preserved. Unsupported clock schema versions
+and malformed clock maps or timestamps are rejected without changing the supplied data. An unreadable
+existing regression save cannot fall through to an empty replacement; loading reports an error
+and leaves the file available for recovery.
+
+This owner separation does not complete the LuckPerms expiry episode and manual suppression
+contract. Those lifecycle gates remain tracked in the [bridge verification record](docs/verification/luckperms-bridge.md).
+
 ### 4.26 `[cost]` — skill-tree purchasable stages
 
 **New in 2.4.** A `[cost]` table turns a stage into a **purchasable node** that
@@ -2023,6 +2047,38 @@ refund_percent      = 50                                  # New in 3.0 — % of 
 | `cooldown` / `cooldown_seconds` | string / int | **New in 3.0.** Per-player **rate limit** between skill-tree purchases. Use either `cooldown_seconds = 300` or a friendly `cooldown = "5m"` (units `s`/`m`/`h`/`d`, bare number = minutes). `0` (default) = no cooldown. |
 | `refund_percent` | int | **New in 3.0.** Percentage (`0`–`100`) of this purchased stage's **item / XP cost** returned to the player when the stage is later **revoked**. `0` (default) = no refund. |
 
+Repeated item rows are cumulative. For example,
+`items = ["minecraft:bread:4", "minecraft:bread:4"]` requires eight bread, not four.
+The server checks each row against the quantity remaining after earlier rows before changing
+inventory, experience, stage ownership or purchase receipts. Insufficient payment rejects the
+whole purchase. Cost rows remain unchanged in the definition and receipt, preserving existing
+refund calculation and rounding. See the [purchase accounting regression](docs/test/purchase-accounting.md).
+
+A purchase earns independent ownership at the stage's resolved personal, team or server owner.
+Temporary access does not count as an existing purchase or independent grant. The stage map
+keeps its effective unlocked status while offering **Purchase** for independent acquisition.
+The offer remains visible but disabled when prerequisites, trigger requirements, affordability,
+slot rules or cooldown prevent purchase. Once independent ownership exists, the offer disappears.
+
+An open map notices full stage synchronizations, individual stage updates and definition reloads
+on its next client tick. It rebuilds node and detail state without recentering the map. Updates
+within the same tick share that rebuild. A full synchronization also invalidates the view when
+the effective stage set is unchanged, because independent ownership and purchase eligibility
+may have changed while another source preserves access.
+
+Peers that negotiate the separate GUI opening channel request fresh purchase and trigger data
+through the existing server response budget. The response updates only an open map and cannot
+reopen one closed before it arrives. Older peers retain their existing explicit opening and
+data response behavior; automatic offer requests are omitted because a legacy response also
+opens the screen. Server qualification and payment remain authoritative in either case.
+
+A successful purchase charges its initiator and applies ordinary acquisition rewards once.
+It leaves temporary lease sources separate, so leaving a leased area does not remove or refund
+the independently purchased stage. An explicit revoke or the stage's configured expiry still
+applies normally. A purchase whose grant fails to establish independent ownership restores its
+cost and records no purchase receipt. This distinction does not make timed stages permanent
+or cause permission reconciliation to purchase stages automatically.
+
 **`cooldown` (New in 3.0).** A **per-player** minimum interval between
 skill-tree purchases, enforced **server-side**. While the cooldown is active the
 purchase is rejected and the player is told how many seconds remain. Set it as
@@ -2033,15 +2089,35 @@ player.
 
 **`refund_percent` (New in 3.0).** When a stage that was **actually purchased**
 via its `[cost]` is later **revoked** (by command, regression, cascade, etc.),
-this percentage of its `items` + `xp_levels` cost is **returned** to the player.
-The mod records each real purchase (persisted) and consumes that record on
-refund, so a stage **earned** via a trigger / command / quest reward — or a
-temporary purchasable stage that auto-expires — is **never** refunded (no free
-items), and each purchase is refunded at most once.
+this percentage of its `items` + `xp_levels` cost is **returned** to the payer.
+New purchases persist the typed personal, team, or server owner, the payer UUID,
+and the item cost, XP cost, and refund percentage used by that purchase. A later
+cost or ownership edit cannot increase an existing refund or redirect it to a
+teammate. The payer receives it immediately when online, or once through the login
+path after returning. Multiple purchases can retain separate pending receipts.
+An unpaid stage earned through a trigger, command, or quest has no purchase refund.
+A paid temporary stage follows the same refund rules when it expires.
+
+The server records the receipt before sending grant notifications or applying rewards.
+If a grant callback or reward command immediately revokes the purchased stage, that revocation
+uses the recorded refund terms. The original purchase remains completed and retains its
+cooldown. Later ownership is not used to misclassify the purchase as a failed grant and restore
+its entire cost after rewards have already run. The existing ordinary grant API remains unpaid;
+the purchase handler uses `StageManager.grantPurchasedStage` after validating and consuming the
+payment. Its result describes whether that grant committed, even if a callback changes ownership.
+
+The existing `progressivestages_purchases.dat` now records `purchase_schema = 1`,
+`actor_paid`, and `actor_pending_refunds` alongside the retained legacy `paid` and
+`pending_refunds` lists. Old entries have no recorded payer and retain their team
+or server meaning and existing refund behavior. They never become personal
+purchase receipts. Unknown newer schemas and malformed new receipts fail loading;
+preserve the original file and restore a compatible backup instead of creating
+empty replacement purchase data. Receipt delivery does not replay a stage grant,
+reward, trigger counter, or grant clock.
 
 **`bypass_requirements`:**
 
-- `false` (default) — the GUI's **Unlock** button only appears once the stage's
+- `false` (default) — the GUI's purchase button is enabled only once the stage's
   prerequisites **and** its `[[triggers]]` are all met. Paying the cost is the
   **final confirmation** of an already-earned stage.
 - `true` — paying the cost unlocks the stage **immediately even if the
@@ -2224,6 +2300,11 @@ player who earned / bought the stage** — not once per online team member, and 
 to every player on a server-scoped grant (that would duplicate items / commands /
 teleports). It does **not** re-fire on login or sync. Every field is optional —
 an empty / absent `[rewards]` does nothing.
+
+For an explicit offline actor grant, ownership and its original reward receipt are saved together.
+The actual actor receives those rewards on return. Another team member cannot collect them, and
+later reward configuration changes do not rewrite the receipt. Delivery does not grant the stage
+again or reset its expiry. See the [actor API contract](#151-progressivestagesapi).
 
 ```toml
 [rewards]
@@ -2860,6 +2941,15 @@ The generated [fifty stage showcase](SHOWCASE_PACK.md) contains all three common
 
 ### 4.38 LuckPerms bridge and command gates
 
+The current exact runtime candidate, LuckPerms 5.4.140, fails actual player login on NeoForge
+21.1.248 with `Invalid player data` and an uninitialized capability exception, including when
+ProgressiveStages is absent. The [dependency only verification](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
+records the failure. A separate [adapter source audit](docs/verification/luckperms-bridge.md#adapter-source-audit)
+also found persistent writes, incomplete context isolation, ownership and cleanup defects in
+ProgressiveStages. The outbound storage, reference and query repairs below address part of that audit;
+real provider context isolation and complete lifecycle acceptance remain open. The configuration
+below describes the accepted schema and intended runtime contract, not verified provider behavior.
+
 LuckPerms is an optional server integration. A stage may read inherited groups or true Boolean
 permissions through `[[luckperms.inbound]]` rows and may contribute an existing group or positive
 permission through `[[luckperms.outbound]]`. The default inbound mode is `synchronized`, which
@@ -2890,12 +2980,212 @@ descendants = true
 ```
 
 Rows support `all` and `any` matching, bounded context maps, and stable IDs. Only a Boolean true
-qualifies a permission. Reconciliation has no acquisition effects. It does not charge a cost,
-execute a reward, grant a prerequisite, refresh an expiry, or rewrite trigger counter scope.
-Outbound output is transient and reference counted. It never overwrites administrative nodes or
-external membership, and bridge-created output is excluded from inbound feedback queries.
+qualifies a permission. The required reconciliation contract forbids acquisition effects,
+including costs, rewards, prerequisite grants, expiry refreshes and counter scope changes.
+The complete lifecycle and source preservation matrix remains open.
 
-`command_permissions` is evaluated at the parsed Brigadier execution boundary. Descendant rules
+Inbound source labels now include the contributing player UUID, stable row ID and retention mode
+inside the resolved personal, team or server owner namespace. A first derived grant creates only
+that source. Adding a derived source to a preexisting legacy stage with no source labels preserves
+its independent meaning. Separate subjects and rows remain separate contributors, so losing one
+source cannot remove another source or an independent earning. Source changes notify the affected
+owner view without replaying an unchanged grant.
+
+Each reconciliation checks current dependencies, slots and purchase restrictions before adding a
+source. It does not grant prerequisites, replace another slot occupant or charge for a purchase.
+For a still registered definition and the current owner, removed rows or a removed LuckPerms table
+withdraw that subject's synchronized sources. Permanent history remains retained when mappings
+change or permission eligibility disappears. Legacy labels without a subject UUID are recognized
+as derived in source explanations, but are not silently assigned to the current player or deleted.
+Before evaluating new inbound grants, reconciliation removes the current subject's synchronized
+contributions under obsolete owners or deleted stage definitions. It uses a subject index rebuilt
+from existing source records during load and copy, then maintained by grant, revoke, bulk replacement
+and owner removal. This contribution index is reconstructed from saved sources and a subject lookup
+does not scan every owner's saved stages. The separate eligibility history below has its own persisted records. All obsolete contributions are removed before publishing
+owner invalidation and evaluating new grants. Online beneficiaries receive current views and a bulk
+change event, without an acquisition or refund operation. The existing FTB membership detector
+reconciles before its team synchronization path. Migration of unattributed labels, offline contributor
+invalidation, startup provider revalidation, exact membership event timing and expiry episode recovery remain
+open lifecycle work.
+
+Saved synchronized sources begin inactive when `TeamStageData` is decoded. Their records and
+subject attribution remain stored for revalidation; independent and permanent sources remain
+effective. Activation is runtime state, is preserved by an in-process copy, and is never serialized.
+The stage manager's actor and legacy UUID access checks, effective lists, dependency views and
+source explanations exclude inactive synchronized contributions. A qualified reconciliation can
+reactivate the existing label and synchronize its owner view without adding independent ownership
+or firing another acquisition event, so its stored grant timestamp is not refreshed by that path.
+
+Storage access remains distinct from effective access. `TeamStageData` storage getters retain all
+records; its effective getters filter pending sources. `StageManager.hasStoredStage` and
+`getStoredStages` support explicit revocation. API revoke, command revoke-all and KubeJS revoke-all
+remove pending stored entitlements as well as active ones. Starter-stage eligibility also uses stored
+progression so pending access does not turn a returning player into a new-player grant. Offline loading
+and eligibility history are described below. The complete real provider convergence matrix remains open.
+
+Permission eligibility history is stored in the level attachment as `permission_episode_schema = 1`
+and `permission_episodes`, separately from `stage_sources` and its runtime activation state. Each
+record identifies the owner kind, owner UUID, stage, subject and stable row. It retains an observation
+fingerprint, positive eligibility, administrative suppression, acquisition time and absolute expiry.
+The attachment serializer retains the entire original NBT payload if decoding fails, including an
+unknown ownership or episode schema. The resulting state exposes no effective grants and rejects
+mutations. Its save and copy paths preserve the unreadable payload rather than replacing it with
+empty progression. Recovery requires compatible software or a compatible backup.
+The fingerprint covers the independent conditions, their all or any policy, configured contexts and
+the actual query contexts. It contains no permission tree. Row order, retention mode and definition
+revision are not episode identity. A false observation in a different query context or under edited
+conditions cannot prove loss of the original eligibility. Unavailable input is not a false observation.
+
+Full revocation and bulk removal suppress positive episodes, including stored inactive sources and
+history whose contribution was already withdrawn. The public revoke API and bulk, tag and category
+commands do not skip this history. A repeated revoke reports no new change. Bulk revoke visits
+registered stages at their resolved owners, preserving incompatible historical owner namespaces.
+Source withdrawal preserves the history without suppressing it. A currently positive episode cannot
+refresh its first acquisition or expiry after reload, outage, context changes or source reactivation.
+Only authoritative false then true observations of the same conditions and contexts rearm it, or a
+deliberate administrative grant clears it. A first qualified source inherits an existing owner clock
+so adding another contributor or changing retention cannot extend the current stage lifetime.
+Permanent contributions survive permission loss, but still respect expiry and explicit revocation.
+Expired permission contributions are excluded from effective access even before reconciliation.
+
+Suppressed subjects remain in the bounded offline discovery cursor after their last contribution
+is removed. Offline observations use fixed server contexts and cannot infer a loss from a remembered
+world. A completion invalidated before its final guard restores the subject's prior episode records
+and leaves synchronized sources inactive. Successful offline grants restore the owner clock from
+active source history. Permission source changes publish effective view changes instead of ordinary
+acquisition events. Independently earning a previously derived stage still runs the normal dependency,
+slot and acquisition path once. Normal and bypass grant APIs report that independent acquisition
+even if effective access was already present. Administrative single, bulk, tag and category grants
+use the same distinction. Committed mutation listeners observe these source changes even when the
+effective stage set stays unchanged. There is no additional public configuration setting for suppression.
+The [episode regression](docs/verification/luckperms-bridge.md#permission-episode-regression) records the
+bounded checks; actual provider login, cache invalidation, membership revisions and client acceptance
+remain separate gates.
+
+Outbound output must use attributable transient contributions and preserve administrative nodes,
+independent membership and explicit negative permissions. The adapter now delegates mutations to
+`LuckPermsTransientNodes`, which uses only `User.transientData()` and never saves a user. Each
+created node has a private ownership token in node metadata, separate from its permission contexts.
+An equal node without that token is a conflict and is not adopted or removed. Contributors are
+tracked separately by subject, node kind, value, contexts and row owner; the last reference removes
+only the marked node. A row replacement removes its previous contribution before adding the new
+one. Failed or ambiguous writes remain tracked for retry and cleanup.
+
+Logout attempts to remove that subject's output. Shutdown cleans tracked and pending contributions
+before dropping provider access. Incomplete cleanup reports a warning and retains the adapter and
+references; a later bind cannot silently replace them. Mutation diagnostics distinguish applied,
+unavailable, conflict and failed outcomes. These paths have isolated API and core regression
+coverage. Actual provider node behavior, marker invalidation, explicit negative precedence,
+offline reconciliation and the complete lifecycle matrix remain unverified.
+
+`LuckPermsProjectionContexts` registers the reserved context calculator through API 5.4. The
+calculator reads only concurrent projection state for the exact platform player object; it does
+not query provider contexts, the world or stage state. A reconciliation ticket is captured before
+eligibility queries. The marker is published only after all intended node mutations are confirmed
+and the ticket remains current. Dirty events, reload and disconnect invalidate the ticket and
+marker before queued work or node removal. Replacing a player object cannot reuse its old ticket.
+Failed publication leaves the marker inactive and schedules a retry. Shutdown invalidates every
+marker before signaling context updates, removes exact nodes, and unregisters the calculator.
+An incomplete context notification or calculator shutdown preserves the adapter for cleanup retry.
+The adapter reports shutdown completion explicitly, so successful node removal alone cannot discard
+a failed calculator teardown. Core and isolated API verification remain distinct from actual
+provider cache, event, inherited graph and native command behavior.
+
+`LuckPermsEventSubscriptions` subscribes through API 5.4 to user load and unload, node mutation,
+group load, creation, deletion and full load, post synchronization and configuration reload events.
+User events copy the subject UUID; group and global events request a resumable rescan. These
+callbacks only invalidate projection state and enqueue work. They do not call StageManager,
+query user data, perform storage operations or notify the provider context manager. A global
+generation invalidates all calculator projections without scanning players on the callback thread.
+Provider context cache notifications occur during server reconciliation. Previously cached provider
+answers and full offline contributor recovery still require the real provider acceptance matrix.
+
+Cache recalculation events are deliberately excluded because the bridge's own query and context
+publication can cause recalculation. Owned node mutations can schedule another reconciliation;
+confirmed unchanged nodes require no further provider mutation. Listener closure disables delivery
+before detaching every subscription. A failed detachment retains only failed subscription handles
+for retry while late callbacks remain inactive. Bridge cleanup stops listeners before context and
+node cleanup, preventing teardown from enqueuing its own mutations into a replacement session.
+
+Native FTB membership changes invalidate the captured membership revision and queue that subject
+for current bridge qualification. The server event removes only their synchronized contributions
+whose resolved owners changed, before normal native membership handling returns. StageManager
+supports both online and offline explicit subjects for this withdrawal and publishes one committed
+owner change after removing all obsolete contributions. Other subjects, independent grants,
+permanent history and compatible personal or server sources remain. Old offline observations and
+outbound projections are invalidated before reevaluation. No new owner grant or acquisition effect
+runs merely because the player moved teams. The existing bounded queue handles current qualification;
+an offline member does not need to log in before the former team's derived access is withdrawn.
+
+`LuckPermsOfflineQueries` holds at most eight pending or unacknowledged user observations. It loads
+an absent user asynchronously, queries only the configured inbound permission keys and inherited
+groups under the provider's static context options, and returns immutable data. The reserved
+bridge marker is excluded. Already loaded users are not released by the query; users loaded for
+the query are passed to `cleanupUser` afterward. Failed cleanup retains the user reference and
+prevents that observation from becoming trusted. Shutdown rejects notifications from late results,
+retains unfinished cleanup and prevents replacement until outstanding loads finish.
+
+An owned user load event does not restart its pending query. User cache unload events enqueue a
+subject only while the calculator still tracks a platform player. Cache eviction after an offline
+query is not an authoritative rank removal and must not create a repeated load and unload cycle.
+Node and global changes invalidate outstanding observations. Completed observations remain owned
+until the server has checked and acknowledged them, so an event arriving after completion can
+still prevent their application.
+
+The shared scan visits online players and then advances through the ordered persisted contributor
+UUID index. Removing an earlier contributor does not skip the next UUID. Offline requests and
+result application use the same sixteen subject operations per tick and 256 entry queue as online
+work. A full loader keeps pending subjects queued instead of starting additional requests.
+
+`StageOwnership.offlineOwner` resolves personal and server owners directly and queries the pinned
+FTB Teams API through `getTeamForPlayerID` when team ownership applies. Provider lookup failure is
+unknown ownership, distinct from the established absent provider or confirmed solo fallback.
+`StageManager` captures definition identity, revision and resolved owners, then checks them again
+on the server before applying an offline result. Qualification uses the current effective source
+view, dependencies and slot policy; reconciliation neither buys a stage nor grants prerequisites
+or runs player acquisition events. Synchronized sources become inactive while data is pending.
+Authoritative loss removes only the affected subject's source. Permanent and independent grants
+remain separate. A provider observation invalidated during application cannot leave a newly added
+permanent grant, and affected online beneficiaries receive fresh snapshots and bulk change events.
+Actual provider cache behavior, complete membership revision handling, source expiry episodes and
+combined multiplayer acceptance still require their separate verification gates.
+
+`LuckPermsQueries` builds contextual queries from the loaded user's current provider query options,
+falling back to authoritative static options for a loaded offline user. It removes the reserved
+bridge marker while preserving other contexts, every value per key, and query flags. Group and
+permission queries use this policy without enumerating the permission tree or starting a user
+load. Inbound matching no longer rejects an independently held group merely because an outbound
+row names the same group. Context matching uses AND across keys and OR across values, with the
+provider's case insensitive context semantics. Configuration retains its original casing, but
+reserved marker aliases and duplicate keys differing only in case are rejected.
+
+Permission results distinguish unavailable data from authoritative TRUE, FALSE and UNDEFINED.
+Only ready TRUE results qualify inbound. An independent FALSE result or unavailable query prevents
+positive outbound publication and withdraws an existing contribution through the owned tracker.
+A ready UNDEFINED result permits the configured positive contribution. Core server fixtures verify
+these decisions and recovery with a controlled adapter. They do not prove actual LuckPerms negative
+precedence, inherited exclusion or marker activation. The real provider prerequisite remains open.
+
+The online reconciliation queue coalesces repeated subject updates and retains at most 256 pending
+subjects. Overflow requests a resumable scan rather than clearing pending updates or filling the
+queue from the entire online population. Dirty work and scan work alternate within the bridge's
+limit of sixteen reconciliations per tick. Further overflow requests another complete pass without
+resetting an active cursor. Disconnect requests a followup pass to cover changes in player list
+indices, and shutdown clears both pending work and scan state. This repair covers online event
+overflow and reload. Reload invalidates outbound projections immediately and requests the same
+resumable online scan, without querying the full population in the reload call. Bounded offline
+loads, persisted contributor rescans, complete provider event invalidation and asynchronous load
+completion guards remain open.
+
+`command_permissions` is evaluated inside Minecraft's command execution tasks after redirects.
+`ExecuteCommandMixin` checks ordinary execution immediately before `ContextChain.runExecutable`;
+`BuildContextsMixin` checks custom command executors before their `run` call. Both use the effective
+source, preserve failed result callbacks, and require their exact injection target. The outer
+NeoForge command event is insufficient because it can contain only a wrapper command.
+
+`CommandRuleBinding` resolves literal configuration to the current dispatcher's nodes and execution
+bindings, without stripping namespaces. Cached bindings are replaced with the dispatcher or stage
+definition and cleared on server shutdown. Missing paths warn and remain inactive. Descendant rules
 cover a literal subtree. Non descendant rules cover the configured deepest literal and its argument
 values. Aliases and namespaced literals use their actual dispatcher binding. Native permission
 predicates remain required, so a stage gate cannot elevate a player. See
@@ -3398,8 +3688,8 @@ background = "mypack:gui/progression"
 
 **Skill-tree Unlock button — New in 2.4.** When a stage declares a `[cost]`
 table (§4.26), its detail pane shows an **Unlock** button: the GUI doubles as a
-**skill tree** where players *buy* stages. The button appears according to the
-stage's `[cost].bypass_requirements` setting, and clicking it runs a
+**skill tree** where players *buy* stages. The button is enabled according to the
+stage's requirements, affordability and `[cost].bypass_requirements` setting, and clicking it runs a
 **server-validated purchase** (consuming the `xp_levels` / `items`) that grants
 the stage with `StageCause.PURCHASE`. The map is otherwise read-only; the
 Unlock button is the **only** way it mutates stages, and only for `[cost]`
@@ -3559,7 +3849,7 @@ compatibility with existing configurations.
 | `integration.ftbteams.enabled` | `true` | Master toggle for FTB Teams integration |
 | `integration.ftbquests.enabled` | `true` | Master toggle for FTB Quests integration |
 | `integration.ftbquests.recheck_budget_per_tick` | `10` | Max stage-task rechecks per tick (1–100) |
-| `integration.ftbquests.team_mode` | `false` | Delegate FTB Quests stage operations to FTB Teams' `TeamStagesHelper` instead of the local backend |
+| `integration.ftbquests.team_mode` | `false` | Retain legacy helper reads and removals for undefined stages; all defined stages use ProgressiveStages ownership |
 
 ### 6.8 `[messages]`
 
@@ -3602,12 +3892,12 @@ permission level 2; authoring/reload/validation operations require level 3.
 | `/stage progress next [player]` | Lists every stage the player can currently unlock (deps met, not yet granted) with the full `[[triggers]]` rule/condition breakdown for each one. Player defaults to the caller. |
 | `/stage progress all [player]` | Lists **every** stage the player doesn't yet have — including those still locked behind unmet dependencies — in registration order. Useful for pack-author audits and "show me the whole roadmap" queries. |
 | `/stage progress <stage> [player]` | `[[triggers]]` rule/condition breakdown for one specific stage. Player defaults to the caller. |
-| `/stage tag grant <players> <tag>` | **New in 3.0.** Grant **every stage tagged `<tag>`** to each selected player. **Bypasses dependencies** and **skips stages already owned** (only un-owned tagged stages are granted). Reports the change count across stages × players. |
-| `/stage tag revoke <players> <tag>` | **New in 3.0.** Revoke every stage tagged `<tag>` from each player (skips stages they don't have). |
+| `/stage tag grant <players> <tag>` | **New in 3.0.** Grant **every stage tagged `<tag>`** to each selected player. **Bypasses dependencies** and adds independent ownership, including stages already provided by a rank. Repeated independent grants are no ops. Reports the change count across stages and players. |
+| `/stage tag revoke <players> <tag>` | **New in 3.0.** Revoke every tagged stage and suppress its current positive permission eligibility, including unavailable sources. |
 | `/stage tag list <tag>` | **New in 3.0.** List every stage that declares `<tag>` in its `[stage].tags`. Tab-completes from all declared tags. |
 | `/stage category grant\|revoke <players> <category>` | **New in 3.0.** Bulk-change every stage assigned to a GUI category. Quote category names containing spaces. |
 | `/stage category list <category>` | **New in 3.0.** List every stage in a category. |
-| `/stage bulk grant\|revoke <players>` | **New in 3.0.** Grant or revoke the complete defined/owned stage set. |
+| `/stage bulk grant\|revoke <players>` | **New in 3.0.** Grant or revoke the complete defined stage set, including positive permission eligibility awaiting revalidation. |
 | `/stage sync <players>` | **New in 3.0.** Re-send definitions, lock registry, ownership, and bypass state to selected clients. |
 | `/stage simulate [player]` | **New in 3.0.** **Dry-run** of what the player can unlock next: lists their **reachable-next** stages (deps met, not yet owned) sorted by completion %, and for each shows exactly which `[[triggers]]` conditions are still **short** (`current/threshold`, "need N more"). Then lists **dependency-blocked** stages with the prerequisites they're still missing. Player defaults to the caller. Read-only. |
 | `/stage explain scope <player> <stage>` | **New in 3.0.5.** Admin-only owner explanation showing optional `team_stage` presence, provider availability, and the resolved personal, team, server, or fallback owner. |
@@ -3815,11 +4105,51 @@ FTB Quests' built-in Stage Tasks. This means:
   stage triggers recheck → recheck completes quest → quest grants stage →
   etc.).
 
+Defined stages always use the ProgressiveStages owner backend for provider checks, grants and
+removals. Personal professions stay with the claimant, team stages use their resolved team,
+and server stages use the server entitlement. A stale FTB helper record cannot authorize a
+defined stage. The legacy `integration.ftbquests.team_mode` setting permits helper reads and
+removals for undefined stages; it does not create stage definitions or bypass their ownership.
+
+Native FTB team rewards and team stage tasks normally use `TeamStagesHelper` directly. Two
+optional mixins redirect only those storage choices for registered ProgressiveStages IDs.
+They preserve FTB's reward distribution and saved quest settings. A team reward can still be
+claimable only once for the quest team while its personal stage belongs only to the actual
+claimant. Configure a per player reward when each teammate should claim a profession separately.
+Undefined external stages retain FTB's native storage, and disabling the integration leaves
+that native route unchanged.
+
+With both FTB integrations enabled, the first valid server startup imports existing helper
+records for currently defined stages once. It includes offline teams and writes each grant as
+independent ownership under its original team UUID. Personal and server definitions mask those
+team records; migration never copies a shared grant into personal or server ownership. Restoring
+team scope can expose the preserved team record again. Import does not charge costs, grant
+prerequisites, replay stage rewards or reset grant clocks. The original FTB properties remain
+unchanged for rollback.
+
+The ownership attachment stores `ftb_helper_import_schema = 1` and `ftb_helper_imports`, mapping
+team UUIDs to the imported stage IDs. The receipt and grants are installed together. The receipt
+survives stage revocation and team record removal, preventing stale helper records from granting
+access again on later polls, reloads or restarts. Missing receipt fields mean the import has not
+run. Unsupported receipt versions and malformed owners fail loading through the existing
+ownership data protection. Undefined external stage IDs are excluded, and later helper changes
+are not an ongoing progression source. Use ProgressiveStages grants or native quest rewards for
+new progression after import. The existing membership polling remains responsible for membership
+synchronization. The exact native reward and task coverage, including remaining
+client acceptance boundaries, is recorded in the
+[ownership verification](docs/verification/progression-ownership.md).
+
 ### 9.2 As a stage-reward backend
 
 FTB Quests can grant ProgressiveStages stages as quest rewards. Stage IDs are
 normalized automatically — both `iron_age` and `progressivestages:iron_age`
 work in the FTB Quests reward editor.
+
+The [authenticated quest fixture](docs/verification/ftb-quest-client/README.md) records native
+checkmark completion, a manually claimed personal profession grant, stage task qualification,
+removal and repeated claims after restart on NeoForge 21.1.248. It includes source fixtures,
+sanitized quest ledgers and laptop images. That run used one player; its scope does not establish
+two player team reward distribution or the combined permissions workflow.
 
 ### 9.3 Native "Stage Required" property on quests and chapters
 
@@ -3906,16 +4236,19 @@ PlayerEvents.tick(event => {
 })
 ```
 
-> **Correction (2.5).** Earlier docs claimed PS fires KubeJS's native
-> `STAGE_ADDED` / `STAGE_REMOVED` events on **every** grant/revoke. **It does
-> not** — KubeJS 7.x has **no native stage events**. KubeJS only fires its own
-> internal sync when a script itself calls `player.stages.add/remove(...)`; an
-> **engine** grant (a `[[triggers]]` unlock, a command, a quest reward, a
-> skill-tree purchase, a regression) does **not** route through that path and
-> therefore never fired a KubeJS stage event. The reliable lifecycle hook is the
-> new `ProgressiveStages.onGranted` / `onRevoked` API below.
+> KubeJS fires `PlayerEvents.stageAdded` and `PlayerEvents.stageRemoved` when its
+> `player.stages.add/remove(...)` methods actually change a stage. These methods also perform
+> KubeJS stage synchronization. Other engine changes, including triggers, commands, quest rewards,
+> purchases, and regression, do not pass through those methods. Use
+> `ProgressiveStages.onGranted` and `ProgressiveStages.onRevoked` below to observe those engine
+> changes as well.
 
 ### 11.1 The `ProgressiveStages` global object — **New in 2.5**
+
+Server script callbacks and extension metadata reset immediately before an actual server script
+load. Creating another KubeJS execution context does not clear them. This preserves startup
+registrations when execution moves from the loading thread to the server thread, while reload
+replaces the old callbacks. See [the actual script regression procedure](docs/test/kubejs.md).
 
 A dedicated KubeJS plugin
 ([`ProgressiveStagesKubeJSPlugin`](src/main/java/com/enviouse/progressivestages/compat/kubejs/ProgressiveStagesKubeJSPlugin.java),
@@ -3957,12 +4290,12 @@ ProgressiveStages.progressCondition('reputation', player => getReputation(player
 | Call | Returns | Notes |
 |------|---------|-------|
 | `ProgressiveStages.has(player, 'stage')` | boolean | Does the player (team) own the stage |
-| `ProgressiveStages.grant(player, 'stage')` | boolean | Grant with cause `SCRIPT`; true only when ownership changes |
-| `ProgressiveStages.revoke(player, 'stage')` | boolean | Revoke with cause `SCRIPT`; true only when ownership changes |
+| `ProgressiveStages.grant(player, 'stage')` | boolean | Grant with cause `SCRIPT`; true when independent ownership is added, including after derived access |
+| `ProgressiveStages.revoke(player, 'stage')` | boolean | Revoke with cause `SCRIPT`; true when stored access is removed or positive permission eligibility is suppressed |
 | `ProgressiveStages.toggle(player, 'stage')` | boolean | Toggle and return the new ownership state |
 | `ProgressiveStages.grantBypass(player, 'stage')` | boolean | Grant one stage while intentionally ignoring prerequisites |
 | `ProgressiveStages.grantMany/revokeMany(player, stages)` | int | Bulk requested-target change count |
-| `ProgressiveStages.grantAll/revokeAll(player)` | int | Bulk change every defined/owned stage |
+| `ProgressiveStages.grantAll/revokeAll(player)` | int | Bulk change every defined stage, including positive permission eligibility |
 | `ProgressiveStages.exists('stage')` | boolean | Does the definition exist |
 | `ProgressiveStages.available(player, 'stage')` | boolean | Exists, unowned, dependencies satisfied, and its slot policy permits the grant |
 | `ProgressiveStages.hasAll/hasAny(player, stages)` | boolean | Collection ownership tests |
@@ -4155,6 +4488,80 @@ Static facade in [`ProgressiveStagesAPI.java`](src/main/java/com/enviouse/progre
 Mutation methods must run on the logical server thread; queries should normally
 be made there because they read live world/team state.
 
+`resolveActorOwner(UUID, StageId)` and `getActorSnapshot(UUID)` explicitly identify an individual
+actor, whether connected or offline. Both require the running server thread and throw
+`IllegalStateException` outside it. Resolve requires a registered stage and throws
+`IllegalArgumentException` for an unknown stage. Offline snapshots include registered stages
+whose current personal, team, or server owner has an active source. Persisted synchronized
+sources remain inactive until authoritative revalidation. Returned sets and source maps are
+immutable and do not change when later membership or ownership changes.
+
+If an enabled team provider cannot resolve an offline actor, resolution and the complete snapshot
+query throw `IllegalStateException`; they do not guess an owner or return a partial view. A
+disabled or absent provider retains the normal solo fallback. Querying personal or server
+ownership does not require a team lookup. These explicitly named methods leave legacy UUID
+team queries unchanged. They read state without granting access, publishing mutation events,
+or replaying acquisition effects. Offline revocation uses the explicit mutation context described below.
+
+`resolveStageOwner` captures the current membership revision along with the definition revision
+and typed owner. `mutateStage` rejects calls outside the server thread with `wrong_thread`, stale
+membership with `stale_membership`, a different owner with `owner_mismatch`, and stale definitions
+with `stale_revision`. Rejection changes no stage, mutation revision or committed event. Resolve
+a new context and reevaluate the intended operation on the server thread before retrying.
+
+An explicit offline context supports `StageOperation.GRANT` and `StageOperation.REVOKE`. It resolves the actor's current
+owners before modifying state; an unavailable required owner returns `owner_unavailable` without
+partial revocation. Personal cascades preserve independently earned shared milestones and another
+actor's records. Shared and server cascades use the existing concrete owner rules. Removed owners
+lose their grant clocks immediately. Purchase refunds retain their original payer and terms;
+offline payers receive pending refunds through the normal return path. Repeating the revoke does
+not emit another change or refund. Legacy UUID team APIs retain their existing meaning.
+
+Each concrete offline grant or removal emits `StageActorChangeEvent` with the explicit actor
+context, concrete owner, stage, change type and cause. It has no player entity. The existing
+`StageChangeEvent` and player based script callbacks remain connected player interfaces and are
+not replayed on login or delivered through a teammate. The committed mutation subscription
+reports the offline actor and affected online recipients; online stage views and bulk listeners
+refresh after the mutation.
+
+Offline grants use the same dependency plan and slot resolver as connected grants. Another member's
+personal prerequisite cannot qualify the actor. Linear progression resolves each automatic
+prerequisite's own owner. A missing prerequisite or rejected slot returns `dependency_denied` or
+`slot_denied` before installing any draft ownership or rewards. Independent acquisition while a
+derived source exists still creates one independent grant and one acquisition reward. Repeated
+grants do not refresh its clock or create another reward.
+
+The existing ownership attachment stores `pending_reward_schema = 1` and `pending_rewards` beside
+stage ownership. Each pending entry contains a unique receipt, actor UUID, typed owner, stage ID
+and the original reward values. Commands, items, effects, teleport and XP survive definition and
+scope changes. Unsupported versions, duplicate receipts and malformed records fail the attachment
+load while the existing serializer preserves the original data for recovery. Copies retain the
+pending entries; permission reconciliation does not consume them.
+
+A returning actor receives its pending rewards through `syncStagesOnLogin`, before starting stage
+checks. Delivery consumes each receipt before executing its effects and checks the current
+attachment again for every receipt, including when a reward command changes progression. A
+teammate cannot consume it. Normal repeated synchronization or saving and loading consumed state
+does not replay rewards or grant events. An offline acquisition's clock starts at grant time and
+is not restarted by delivery. This queue represents effects owed by an earlier acquisition,
+including one subsequently revoked, rather than a new grant at login. Player based script
+callbacks remain connected interfaces; integrations can observe explicit offline changes through
+`StageActorChangeEvent`. Actual provider, script and authenticated client acceptance remain
+separate from the core server fixture results.
+
+The membership revision is a conservative server wide generation. Provider initialization, player
+login/logout, server shutdown and the native FTB Teams `PLAYER_CHANGED` event invalidate previously
+captured contexts, even when the resulting owner UUID is unchanged. A different player's membership
+event may therefore require a fresh context too. The native listener is registered only inside the
+optional FTB integration and detached at server shutdown. Existing team polling remains responsible
+for its other synchronization work; this context guard does not establish complete membership or
+permission callback acceptance.
+
+Pending offline permission observations carry the same membership revision. Both the initial
+validation and the final commit check reject a changed generation, even if all resolved owner
+UUIDs and definitions still match. Stale results request fresh provider input; they cannot create
+a retained entitlement or eligibility episode from the old observation.
+
 ```java
 // Existence checks
 boolean exists = ProgressiveStagesAPI.stageExists(StageId.parse("iron_age"));
@@ -4166,6 +4573,8 @@ Set<StageId> stages = ProgressiveStagesAPI.getStages(player);
 OwnerRef owner = ProgressiveStagesAPI.getStageOwner(player, StageId.parse("profession:chef"));
 EffectiveStageSnapshot snapshot = ProgressiveStagesAPI.getEffectiveSnapshot(player);
 StageActorContext context = ProgressiveStagesAPI.resolveStageOwner(player, StageId.parse("profession:chef"));
+EffectiveStageSnapshot actorSnapshot = ProgressiveStagesAPI.getActorSnapshot(actorId);
+StageActorContext actorContext = ProgressiveStagesAPI.resolveActorOwner(actorId, StageId.parse("profession:chef"));
 ProgressiveStagesAPI.grantStageFromSource(player, StageId.parse("profession:chef"),
     "luckperms_synchronized", StageCause.PERMISSION);
 List<StageId> available = ProgressiveStagesAPI.getAvailableStages(player);
@@ -4276,6 +4685,7 @@ ProgressiveStages syncs three pieces of state to the client:
 | Stage definitions (id, display name, deps, icon) | (in `ClientStageCache`) | `STAGE_DEFINITIONS_SYNC_PACKET` |
 | Creative bypass flag | (in `ClientStageCache`) | `CREATIVE_BYPASS_PACKET` |
 | Reveal-stage-names policy | (in `ClientStageCache`) | `REVEAL_POLICY_PACKET` |
+| Direct interaction selector pairs and enforcement flag | `ClientCompiledSnapshotCache` | Existing compiled snapshot manifest and chunks |
 
 Sync strategy:
 
@@ -4291,6 +4701,87 @@ using NeoForge's `PayloadRegistrar`. Packets are bound to the mod's
 `Constants.STAGE_SYNC_PACKET` etc. resource locations.
 
 ---
+
+The compiled snapshot includes an optional `interaction_prediction` capability. Its bounded,
+checksummed payload carries the stage ID, held item selector, target block selector, and whether
+a nonempty item is required for each `item_on_block` or `block_right_click` rule. It also carries
+the server interaction enforcement flag. An additive framed section preserves protocol 2 and
+the existing stage presentation bytes. Older clients can retain the snapshot without reading
+this section. New clients receiving an older snapshot leave interaction prediction disabled.
+The existing 16 MiB snapshot limit and 24 KiB compressed chunks remain unchanged.
+The assembler checks each new chunk against the remaining declared compressed byte count before
+retaining it. Unique chunk data therefore cannot exceed the manifest's compressed size while
+waiting for the rest of the snapshot. Duplicates and unrelated revisions consume no additional
+budget. The size and checksum checks after assembly still apply. This bounds retained chunk data;
+temporary decoding, assembly and decompression buffers are separate allocations.
+
+Only a complete, checksum verified snapshot activates its interaction rules. A malformed section
+cannot replace the previous valid rules. Snapshot deltas require the exact acknowledged revision
+and checksum, including when an enforcement setting changes without a different stage revision.
+The server records the exact revision, checksum and interaction enforcement policy offered to
+each player after sending the snapshot. An acknowledgement must match that offer and the current
+compiled revision and policy. Unsolicited, stale, wrong player and incorrect checksum acknowledgements
+cannot establish a new delta base. Repeated acknowledgements perform the same bounded metadata
+comparison without encoding, compressing or hashing the snapshot again. Player disconnect and
+server shutdown clear offers along with acknowledged bases. The payload format is unchanged.
+Client recovery requests are bounded separately. The first request responds immediately; later
+requests from that player coalesce into one pending response, serviced after 20 server ticks.
+Repeated requests do not extend that deadline. A requested full snapshot takes precedence over
+any pending delta base. Deferred sends read the current compiled snapshot and revalidate the
+acknowledged base when serviced. Negative requested revisions normalize to full recovery.
+Each player has independent state. Logout and server shutdown cancel pending work, idle entries
+expire, and ordinary server initiated synchronization bypasses this request cooldown. These
+internal bounds add no configuration field or protocol change. They bound resend work, not the
+transport's packet admission or unrelated GUI requests.
+The [snapshot acknowledgement tests](docs/test/snapshot-acknowledgements.md) exercise the actual
+server handler; their evidence does not replace laptop reconnect acceptance.
+
+The cache clears on disconnect. Definition reloads replace the rules, while ordinary effective
+stage updates immediately change their missing stage checks. Creative bypass uses the existing
+server supplied bypass flag.
+
+GUI responses have a separate per player queue at `NetworkHandler.sendStageGuiData`. This shared
+entry point covers GUI request packets, purchase success and rejection feedback, and the public
+`stage`, `stage gui`, `stages` and `pstages` commands. The first call builds and sends immediately.
+Further calls retain one pending response, serviced after 20 server ticks without extending the
+deadline. The server builds that response from current definitions and player state, so a
+purchase or reload during the interval does not replay stale view data. Different players have
+independent budgets. Logout and shutdown cancel queued work; inactive entries expire. Purchase
+validation and stage mutations still execute immediately. Only their GUI refresh may wait for
+the next response interval. This bounds repeated GUI reconstruction and output, not transport
+admission or all work performed by purchase and command handlers. The existing request, purchase
+and GUI data payload formats remain unchanged.
+
+The optional server to client `progressivestages:stage_gui_open` payload carries no fields.
+It uses the existing protocol version and is sent only when the peer negotiated that channel.
+`NetworkHandler.openStageGui` sends this explicit opening instruction for public GUI commands
+and the `ProgressiveStages.openGui(player)` script binding,
+then requests current data through the shared response budget. Matching clients open locally
+when the configured keybind is pressed. Incoming GUI data updates the cache and rebuilds an
+existing stage screen, checking the current screen on the client thread; it never opens a closed
+screen. An intentional command, keybind or script call can reopen immediately during the data cooldown.
+Purchase feedback updates an open view without forcing it back after closure. Peers without
+the optional channel retain the legacy behavior of opening on data arrival. Both sides should
+use the matching build for the delayed response correction.
+
+The existing `CostInfo` payload now represents the recipient's purchase offer. An independently
+owned or nonpurchasable stage receives `CostInfo.NONE`. An offered stage includes its full cost
+summary even when it cannot currently be purchased. The client uses this offer flag instead of
+effective unlocked status to decide whether to show a purchase control. Its stage node still
+reflects effective access. The payload fields and codec remain unchanged; matching builds are
+required for the updated purchase presentation.
+
+The [GUI response tests](docs/test/gui-responses.md) cover server response budgeting, optional
+opening negotiation and the separate laptop presentation regression.
+
+The client `RightClickBlock` handler returns `FAIL` for a missing stage before local block or item
+prediction. The normal server use packet still runs the authoritative checks and feedback. This
+also ends the current click before item use or another hand can continue locally. Tag selectors
+use current client registry holders. Empty hands do not match item rules, unrelated items and
+blocks remain available, and independent `block_right_click` rules control whole block access.
+GUI insertion remains a separate server enforced `item_into_inventory` policy. See the
+[interaction verification record](docs/verification/selling-bin-interaction-repair.md) for the
+remaining physical client acceptance gates.
 
 ## 17. Troubleshooting
 
@@ -4688,6 +5179,323 @@ Start at [Phase 1](PHASES_1_TO_19.md#phase-1-install-the-mod-and-generate-the-co
 if the mod is already installed. The early phases establish paths and ownership rules that every
 later example assumes.
 
+### Editor apply revision boundary
+
+The authenticated session `apply` request includes `revision`, taken from the displayed review.
+The session service checks it while holding the draft monitor through validation and apply.
+A missing or stale revision returns `draft_conflict`, the current revision, and recovery feedback
+before invoking the file transaction or loader. Other draft mutations use the same monitor.
+Every apply also compares live configuration files with the draft's original file snapshot.
+An external edit, addition or deletion returns `configuration_conflict` before writing files or
+reloading, even when the compiled configuration revision has not changed. Both the external files
+and editable draft remain intact. A revision change with identical source files alone does not
+produce a file conflict. This comparison detects changes present when apply starts; it does not
+lock out another process writing files during the transaction.
+
+On a conflict, the Easy Builder clears the rejected review and refreshes the server draft. It
+requires a fresh review before another apply attempt. An older cached editor that omits the
+revision fails safely and must reload the current packaged assets. This does not change stage
+schema or the transport protocol. See the [editor recovery guide](docs/troubleshooting/easy-builder.md).
+
+### Editor session authorization
+
+Every editor request checks the current draft owner or collaborator membership as well as the
+session owner, secret, expiry and permission level 3 requirement. Removing a collaborator
+invalidates all of that operator's sessions for the draft, without revoking the owner's session
+or sessions for unrelated drafts. Adding the collaborator again does not reactivate revoked
+sessions. They must resume the draft with a fresh session. This authorization applies before
+read, validation, export, apply and rollback dispatch, as well as before ordinary edits.
+The [server authorization regression](docs/test/editor-authorization.md) covers this boundary;
+browser error presentation and authenticated client transport remain separate acceptance work.
+
+### Editor package import
+
+The `export_stage` file map can be passed to `import_stage` without flattening nested includes
+or dropping helper TOML files. Import requires the exact `stage.toml` entry. Every package path
+is validated before any draft mutation. Absolute paths, paths escaping the package, drive paths,
+non TOML files and duplicate normalized paths are rejected. File contents remain unchanged.
+
+The import holds the draft monitor through its mutations and persistence. Stale revisions and
+invalid package paths leave the draft unchanged. Successful imports retain the existing per file
+undo and redo behavior. Existing destination files are updated by path and unrelated files remain
+in the draft. Import does not apply live configuration; validation, review and apply remain separate
+actions. See the [package import regressions](docs/test/editor-import.md).
+
+### Editor field diagnostics
+
+`StageFileParser.ParseResult.getFieldDiagnostic(file)` preserves validation metadata from the
+stage ownership and LuckPerms parser. A diagnostic contains severity, the caller supplied source
+path, owning field, optional stable rule ID, code and message. Package parsing preserves these
+fields through its error boundary. Indexed paths such as `luckperms.inbound[0].groups` identify a
+specific source row; its valid stable ID is also supplied. Invalid or absent IDs are omitted.
+
+The editor validation response adds `diagnostics` while retaining `errors`, `warnings`, `stages`
+and `validatedRevision`. Its JSON projection uses a string rule ID when present and omits it
+otherwise. The existing five argument `DraftValidation` constructor remains supported. Package
+identity diagnostics use the draft relative `stages/.../stage.toml` path. Errors without a known
+package source retain the existing summary rather than assigning a guessed file or field.
+The public raw stage validation API uses the same parser diagnostics.
+
+Context maps allow at most 8 keys, 8 values per key, and 256 expanded combinations per mapping.
+Both constructor and parser validation enforce these bounds. Parser failures identify the indexed
+inbound or outbound `contexts` field and its stable mapping ID. The editor schema publishes
+`maxKeys`, `maxValues`, and `maxCombinations` hints for both mapping context fields; controls read
+these hints while the server remains the validation authority.
+
+Access mapping forms represent contexts as key rows with individual value controls. Commas and
+line breaks remain inside values. Duplicate keys reject saving without discarding either row.
+Targeted context edits preserve quoted keys, multiline arrays, value comments, unchanged known
+fields, omitted defaults, and unrelated child tables. Invalid existing context text stays intact
+and reports a source correction message. Failed saves retain input and keep the dialog open.
+
+Command `descendants` defaults to true in legacy files, packages, schema metadata, and guided
+controls. Explicit false restricts the gate to that literal and its arguments, excluding child
+literals. Native permissions remain required. Editing another command field preserves an omitted
+descendant setting. Command and interaction edits replace values inside the selected array row,
+retain field comments and unknown child tables, and leave conditional activation intact. Clearing
+a description writes an empty value; changing priority preserves the surrounding rule source.
+Failed saves keep their dialogs and entered values available.
+
+The source helpers identify table and assignment spans while skipping strings, comments,
+multiline arrays, and inline values. Quoted path segments, escaped Unicode keys, and spaces
+around table paths resolve to the same fields as bare keys. Quoted keys containing a literal
+dot remain distinct from dotted paths. Targeted access edits retain line endings, indentation,
+field comments, adjacent tables, and blank lines inside unrelated multiline values. Array row
+replacement no longer normalizes whitespace across the file. Ownership and retention edits
+preserve omitted settings when their effective value is unchanged. Unterminated values reject
+guided mutation instead of guessing the next table boundary. Scalar field controls, including
+ownership and LuckPerms retention, read and edit nested inline tables and dotted fields inside
+them. Adding or removing a field preserves sibling values and the enclosing inline structure.
+Comments inside a replaced array move before the containing assignment so they remain valid
+TOML. A scalar or array cannot be silently replaced with a table to create a nested field.
+The Access tab also reads, edits, adds, and removes inline arrays of interaction rules, command
+gates, and inbound or outbound LuckPerms mappings. A new mapping array can be added inside an
+existing inline LuckPerms table. New rows use the collection's existing representation; no
+conflicting array table is appended after an inline array. Context controls handle nested inline
+context maps and dotted context assignments. Replacing dotted contexts consolidates that map
+without leaving duplicate declarations. Unchanged rows retain their source bytes. Array comments
+are retained once when rows are removed, and unknown nested values remain in edited rows.
+Mixed arrays containing values that are not tables reject guided mutation rather than discarding
+entries omitted by the guided view.
+
+The Rules tab discovers inventory insertion rules in inline arrays and quoted array tables.
+Existing inventory rules are updated by changed field rather than serialized as a replacement
+row. Priority, destination, lifetime, activation, and reset edits retain unrelated settings.
+Condition target edits keep the existing `id`, `value`, or `callback` spelling and unknown
+condition fields. Child condition tables remain tables when their scalar fields change.
+Choosing no activation removes that condition explicitly while retaining surrounding comments
+and unrelated sections. Missing condition counts use the documented default of one. Failed
+saves retain the form, and a changed source row must be reopened before saving. Rule removal
+and reordering use parsed table boundaries rather than scanning apparent headers inside text.
+
+Config and datapack discovery use parsed TOML to recognize stage definitions rather than a
+literal header match. Quoted and escaped stage keys, dotted assignments, and inline stage
+tables reach the normal domain parser. A header printed inside a valid multiline string does
+not create a stage. Malformed candidate declarations are retained for normal syntax diagnostics;
+unrelated helper files and hidden archives retain their discovery exclusions.
+
+`luckperms.enabled` and command `descendants` require actual TOML booleans. Inbound `groups` and
+`permissions` require arrays containing only strings. Omitted fields retain their documented
+true, false or empty defaults. The normal domain validation still rejects unsupported modes,
+invalid contexts, empty conditions, invalid commands and duplicate IDs. Validation does not
+rewrite source or install a partial draft. The builder retains diagnostics from validation, review
+and rejected apply only for the matching draft ID and revision. A changed draft hides earlier
+results, and a delayed older validation cannot produce a current success notice. Ownership fields
+and indexed access rows display their matching errors or returned warnings. The draft summary
+and review preserve all ordinary errors, including failures without structured locations.
+Bootstrap preserves its existing string `capabilities` list and adds typed `stageCapabilities`,
+`teamMode`, and the draft `validation` result. Validate, review, and apply return the same typed
+capabilities inside `DraftValidation`. Its existing five and six argument constructors remain
+supported. The group and command maps contain only references from successfully parsed draft
+stages, including new stages and outbound groups. Package child files are not reparsed as legacy
+stages. Bootstrap validation and later results are displayed only for their matching draft revision.
+
+`ProgressiveStagesAPI.getStageCapabilities(Collection<StageDefinition>)` accepts the draft definitions;
+the existing no argument method uses installed definitions. Command status uses the actual server
+Brigadier dispatcher and `CommandRuleBinding` literal traversal. A path can be resolved, missing,
+or ambiguous across multiple literal nodes. No dispatcher leaves the path unobserved rather than
+claiming it is missing. Command warnings also work without a LuckPerms table or provider.
+
+The optional LuckPerms adapter checks loaded groups first, then uses the provider's asynchronous
+`loadGroup` query for referenced unloaded names. An empty completed result confirms a missing group;
+a pending or failed lookup stays unknown. This never creates a group, blocks on a future, or changes
+stage authority from a callback. Diagnostic lookup work is limited to eight pending requests and
+256 cached observations. Completed observations expire after ten seconds; pending requests keep
+their concurrency slot until completion. Adapter shutdown clears its observations without canceling
+provider owned work. Revalidate to refresh lookup results. The provider's loaded cache alone cannot
+prove absence, as specified by the [LuckPerms GroupManager API](https://www.javadocs.dev/net.luckperms/api/5.4/net/luckperms/api/model/group/GroupManager.html).
+
+Warnings identify disabled stage mappings, unavailable providers, unknown or missing groups,
+unresolved or ambiguous commands, and team fallback under current server settings. They preserve
+source and do not block an otherwise valid apply. Ownership feedback describes the current server's
+global sharing mode, not an unapplied global configuration edit. Actual browser acceptance and the
+real LuckPerms runtime matrix remain separate gates.
+
+### Diagnostic candidate identity
+
+Capture startup snapshots the baked main configuration and immutable compiled stage map. The
+writer computes `configuration_sha256` using fingerprint schema 1, including compatibility
+stage definitions, ownership, permission mappings, rule conditions and progression settings.
+Map and set order do not affect it, ordered lists retain order, and concrete condition kinds remain
+distinct. File provenance is excluded so equivalent loaded configuration on different hosts can
+be compared. The existing compiled snapshot checksum and transport protocol remain unchanged.
+Unsupported, cyclic or excessive configuration graphs stop the capture safely with output failure.
+
+The header records loaded mod IDs and versions, bounded artifact hashes, and the production
+archive's `Build-Commit` and `Build-Dirty` manifest attributes. A dirty build names its base commit;
+use its artifact hash to distinguish the actual bytes. Header preparation uses the same writer,
+output budget, target and lifecycle as decision records. No artifact paths or configuration values
+are emitted. The [capture guide](docs/troubleshooting/interaction-locks.md) documents limits and
+unavailable development identity. The [dedicated server benchmark](docs/test/diagnostics.md)
+measures three 1,000 attempt rounds per recording path with normal writer output and unchanged
+capture limits. It checks enabled CPU and elapsed overhead against disabled calls, requires no
+disabled diagnostic allocation, and validates every accepted output record. Capture startup and
+asynchronous output costs are outside the timed recording region. Full category, lifecycle,
+provider and client acceptance remain separate gates.
+
+### Diagnostic capture output lifecycle
+
+The [authenticated lifecycle verification](docs/verification/capture-client/README.md) records
+actual operator input, nonoperator rejection, manual stop, definition reload, idle timeout,
+connection loss and process restart on the pinned production client and dedicated server.
+These observations complement the recording benchmark and do not replace provider or browser
+acceptance, every limit, or output failure testing.
+
+The interaction, progression, and permission capture commands share the `/stage debug` parent.
+The shared capture manager accepts only its selected category and online target. Record timestamps,
+rate windows, and timeout checks use the server tick clock rather than persisted world game time.
+All supported categories create a new file below `logs/progressivestages/<category>/`.
+The capture buffers immutable record strings and writes them off the server thread. UTF-8 byte
+accounting rejects an excessive record in full. Reaching the sample, rate, or byte limit stops
+recording immediately while accepted records drain.
+
+`CaptureStatus` reports category, queued records, remaining seconds, and output state alongside
+its existing counters and stop reason. Recording can be stopped while the writer is still draining.
+A new capture waits until that writer closes. Late I/O failure replaces a manual stop reason with
+`output_error`; an existing output file is never truncated. Status reads the live last capture so
+writer completion and errors remain visible. No blocking writer wait occurs on the server thread.
+
+Strings are escaped as JSON, including all control characters, and decoded strings remain within
+256 characters including truncation marks. Stage arrays contain at most 32 values with separate
+total and truncation fields. Owner labels are bounded, capture local labels without UUID hashes.
+The [shared support procedure](docs/troubleshooting/interaction-locks.md) explains collection and
+failure handling. Full category, packaged workflow, and runtime overhead acceptance remains tracked
+in the [3.0.5 verification record](docs/verification/3.0.5-acceptance.md).
+
 ---
 
 *End of document.*
+
+
+### Editor operation capture
+
+The `/stage debug editor on <player>`, `status`, and `off` controls share the existing manager,
+authority and output budgets. `EditorSessionService` observes authenticated operations after
+resolving the draft. The disabled path returns before snapshot allocation. Accepted operations
+reserve one queue entry and 4096 output bytes before mutation, validation or reload. The existing
+writer processes the immutable completion snapshot, hashes both source file maps and replaces the
+reservation with the actual UTF8 output size. Failure or timeout stops diagnostics without
+altering the editor response. No session secret, raw request, source path, source text or exception
+message enters the output.
+
+Reload prevents new observations while a previously accepted apply operation can finish its
+reserved record. This correlates the final apply and definition revisions without restarting
+capture or extending its authority to another operation. The manager drains accepted records
+within the shared output limit; an incomplete editor observation fails after 60 seconds. Stop
+reasons use `sample_limit` and `byte_limit` for the corresponding shared limits.
+
+Editor records cover draft operation and apply outcomes and project one structured diagnostic
+when present. The first error takes precedence over warnings. `file_role`, `field`, `rule_id`,
+`severity` and `validation_code` identify it; `operation_code` preserves the request outcome.
+`diagnostic_count` and `diagnostics_truncated` disclose any omitted entries while the editor
+response retains its complete list. Only bounded roles, field keys, row IDs and codes are written,
+without source paths or message text. Operations without diagnostics keep the draft field and
+NONE severity. Full capability detail, positive joined player controls and packaged browser
+acceptance remain separate gates. See the [editor capture procedure](docs/troubleshooting/easy-builder.md).
+
+
+### Online permission observation consistency
+
+Online reconciliation reads each distinct inbound permission once for the complete active definition
+set before changing sources or eligibility history. An unavailable permission result invalidates the
+whole observation, so earlier successful queries cannot grant access from a partial provider view.
+Unavailable input withdraws synchronized access without recording authoritative rank loss and preserves
+permanent and independent ownership under the existing retention rules.
+
+The bridge captures its provider event revision, adapter identity and readiness, membership generation,
+compiled definition revision, ordered definition objects, concrete stage owners and stage mutation
+revision around those reads. A change discards the complete input and queues a fresh reconciliation
+before any source or eligibility mutation. Native provider callbacks only advance a generation and
+request bounded queue work. Adapter replacement and shutdown also invalidate captured input.
+
+After collection, `StageManager.reconcileOnlinePermissionSources` evaluates expiration, old owner
+withdrawal, row eligibility, dependencies, slots, purchases and retention in an isolated permission
+view. The view contains the actor's resolved stage owners and existing permission contribution and
+episode locations, including other contributors at those same owner and stage pairs. It does not
+copy unrelated players or replace the world attachment. Invalidating the draft leaves live sources,
+episodes, acquisition clocks and committed revisions unchanged.
+
+The final guard checks the provider context, attachment identity and expected stage revision before
+`TeamStageData.replacePermissionSubject` applies only that subject's contributions and episode history.
+The server thread completes this mutation and restores acquisition clocks before synchronization,
+bulk events or committed listeners. A changed batch advances one mutation revision and publishes one
+committed result; an unchanged batch performs no publication. Independent grants, other contributors
+and equal UUIDs in distinct ownership namespaces are preserved.
+
+Listeners see the complete committed source state and may deliberately revoke or grant stages. Those
+later mutations are preserved. The bridge compares the committed revision and input context again
+before starting outbound reconciliation, so a callback invalidation queues a fresh attempt instead
+of publishing output from the earlier context.
+
+Outbound permission checks and node mutations use the captured adapter. The bridge rechecks the
+complete server context before the first mutation, between mutations and around publication. A stale
+batch stops immediately, invalidates its projection and queues fresh work. Nodes already submitted
+remain in the exact ownership manifest for retry or removal. Reentrant cleanup for the same subject
+cannot discard an in flight contribution; it reports incomplete until that provider call returns.
+
+Publication also carries a guard using atomic stage, provider and membership generations plus the
+volatile compiled snapshot identity. The context calculator can check it without reading player,
+world or mutable stage state. Stage initialization and shutdown invalidate captured guards even when
+the public mutation revision resets. A rejected publication withdraws the matching ticket and a new
+prepare step is required before it can publish again. This does not make multiple external node writes
+atomic. Actual LuckPerms cache invalidation, permission consumption and provider concurrency remain
+separate runtime acceptance gates.
+
+
+### Offline permission transaction consistency
+
+Offline reconciliation evaluates source expiration, obsolete owner withdrawal, eligibility history,
+dependencies, slots, purchases and retained grants in a subject limited permission view. Evaluation
+does not write live sources, episode history, acquisition clocks or mutation revisions. It runs only
+on the server thread and rejects a subject that is currently online.
+
+Before committing, the manager checks provider validity, server identity, the stage mutation
+generation and revision, attachment identity, current offline status and the captured definition and
+membership context. Rejected drafts leave live state untouched. Pending source deactivation remains a
+separate response to unavailable provider data; rejection does not attempt partial rollback or erase
+an independently committed change.
+
+A valid draft replaces only its subject's contributions and episode history. Independent earnings,
+other subjects and distinct owner namespaces retain their existing state. Acquisition clocks are
+restored before notifications. A changed transaction advances one revision and publishes one result
+with its captured recipients and committed revision; an unchanged transaction publishes nothing.
+The existing synchronized and permanent retention, suppression and expiry rules are unchanged.
+Actual offline provider loads and complete multiplayer recovery remain separate acceptance gates.
+
+## Frontend development checks
+
+The editor source lives in `editor-ui`. Use Node.js 22 and `npm ci` to install the exact
+lockfile. `npm run typecheck` delegates to `npm run check`, which executes `tsc --noEmit`.
+Both command names remain supported. The shared quality workflow recognizes `typecheck`
+and runs it before `npm test` and `npm run build`; a type error stops the check runner.
+
+Vitest runs the node and jsdom tests. Vite writes the production assets to
+`src/main/resources/assets/progressivestages/editor` for normal mod packaging. Edit the
+TypeScript and styles, then rebuild through this pipeline instead of modifying bundled files
+directly. A Vite build alone does not replace the TypeScript check. No dependency version or
+lockfile update is needed to use the additional command name.
+
+Frontend checks do not prove actual browser behavior or close dependency advisories. See the
+[3.0.5 acceptance record](docs/verification/3.0.5-acceptance.md#frontend-type-checking-in-ci)
+and [dependency assessment](docs/verification/3.0.5-dependency-review.md) for their separate
+evidence and remaining limits.

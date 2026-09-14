@@ -3,6 +3,7 @@ package com.enviouse.progressivestages.compat.kubejs;
 import com.enviouse.progressivestages.common.compat.ScriptHooks;
 import dev.latvian.mods.kubejs.plugin.KubeJSPlugin;
 import dev.latvian.mods.kubejs.script.BindingRegistry;
+import dev.latvian.mods.kubejs.script.ScriptManager;
 import dev.latvian.mods.kubejs.script.ScriptType;
 
 /**
@@ -16,12 +17,16 @@ import dev.latvian.mods.kubejs.script.ScriptType;
 public class ProgressiveStagesKubeJSPlugin implements KubeJSPlugin {
 
     @Override
-    public void registerBindings(BindingRegistry bindings) {
-        // Server scripts own the lifecycle/condition registrations; clear them once per server reload.
-        if (bindings.type() == ScriptType.SERVER) {
+    public void beforeScriptsLoaded(ScriptManager manager) {
+        // Binding contexts are also created when execution moves to another thread.
+        if (manager.scriptType == ScriptType.SERVER) {
             ScriptHooks.reset();
             com.enviouse.progressivestages.common.rehaul.extension.ExtensionMetadataRegistry.get().beginReload();
         }
+    }
+
+    @Override
+    public void registerBindings(BindingRegistry bindings) {
         bindings.add("ProgressiveStages", new PSKubeBindings());
     }
 }

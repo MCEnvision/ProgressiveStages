@@ -12,9 +12,27 @@ Use this page to find the maintained project documentation.
 ## Verification
 
 - [Selling Bin interaction repair](verification/selling-bin-interaction-repair.md)
+- [Selling Bin transaction GameTests](test/selling-bin.md)
+- [KubeJS ownership regression](test/kubejs.md)
+- [Diagnostic capture performance](test/diagnostics.md)
+- [Authenticated diagnostic capture lifecycle](verification/capture-client/README.md)
+- [Editor session authorization](test/editor-authorization.md)
+- [Editor package import](test/editor-import.md)
+- [Editor external file changes](test/editor-external-changes.md)
+- [Snapshot acknowledgement and recovery handlers](test/snapshot-acknowledgements.md)
+- [GUI response budget, command and script opening, and laptop verification](test/gui-responses.md)
+- [Purchase accounting, independent ownership and refunds](test/purchase-accounting.md)
+- [Purchase and lease laptop observations](verification/purchase-lease-client/README.md)
+- [Live map synchronization, source changes and reconnect verification](verification/map-synchronization-client/README.md)
+- [Selling Bin artifact manifest](verification/selling-bin-artifacts.json)
+- [Selling Bin client observations and image hashes](verification/selling-bin-client/observations.json)
 - [Progression ownership](verification/progression-ownership.md)
+- [Authenticated FTB Quests profession rewards and restart](verification/ftb-quest-client/README.md)
 - [LuckPerms bridge](verification/luckperms-bridge.md)
+- [LuckPerms 21.1.248 login observations](verification/luckperms-login/observations.json)
 - [3.0.5 acceptance](verification/3.0.5-acceptance.md)
+- [3.0.5 security review](verification/3.0.5-security-review.md)
+- [3.0.5 dependency review](verification/3.0.5-dependency-review.md)
 
 ## Troubleshooting
 

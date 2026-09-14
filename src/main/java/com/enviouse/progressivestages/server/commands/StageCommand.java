@@ -408,7 +408,7 @@ public class StageCommand {
                     .then(Commands.literal("status").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::interactionCaptureStatus))
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
-                        .executes(StageCommand::stopInteractionCapture))))
+                        .executes(StageCommand::stopInteractionCapture)))
                 .then(Commands.literal("progression").requires(source -> source.hasPermission(3))
                     .then(Commands.literal("on").requires(source -> source.hasPermission(3))
                         .then(Commands.argument("player", EntityArgument.player())
@@ -425,6 +425,14 @@ public class StageCommand {
                         .executes(StageCommand::permissionsCaptureStatus))
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
                         .executes(StageCommand::stopPermissionsCapture)))
+                .then(Commands.literal("editor").requires(source -> source.hasPermission(3))
+                    .then(Commands.literal("on").requires(source -> source.hasPermission(3))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(context -> startCapture(context, EntityArgument.getPlayer(context, "player"), "editor"))))
+                    .then(Commands.literal("status").requires(source -> source.hasPermission(3))
+                        .executes(context -> captureStatus(context, "editor")))
+                    .then(Commands.literal("off").requires(source -> source.hasPermission(3))
+                        .executes(context -> stopCapture(context, "editor")))))
         );
 
         // Friendly public command aliases.
@@ -834,7 +842,7 @@ public class StageCommand {
 
     private static int openGui(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        com.enviouse.progressivestages.common.network.NetworkHandler.sendStageGuiData(player);
+        com.enviouse.progressivestages.common.network.NetworkHandler.openStageGui(player);
         return 1;
     }
 
@@ -1169,14 +1177,10 @@ public class StageCommand {
         int changes = 0;
         for (ServerPlayer p : players) {
             for (StageId s : stages) {
-                boolean has = StageManager.getInstance().hasStage(p, s);
-                if (grant && !has) {
-                    StageManager.getInstance().grantStageBypassDependencies(p, s, cause);
-                    changes++;
-                } else if (!grant && has) {
-                    StageManager.getInstance().revokeStageWithCause(p, s, cause);
-                    changes++;
-                }
+                boolean changed = grant
+                    ? com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.grantStageBypass(p, s, cause)
+                    : com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.revokeStage(p, s, cause);
+                if (changed) changes++;
             }
         }
         final int ch = changes, ns = stages.size(), np = players.size();
@@ -1268,7 +1272,7 @@ public class StageCommand {
                 }
             } else {
                 changed += com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.revokeStages(
-                    player, new ArrayList<>(StageManager.getInstance().getStages(player)),
+                    player, StageOrder.getInstance().getOrderedStages(),
                     com.enviouse.progressivestages.common.api.StageCause.COMMAND);
             }
         }
@@ -1497,7 +1501,7 @@ public class StageCommand {
         }
         
         // Check if player already has this stage
-        if (StageManager.getInstance().hasStage(player, stageId)) {
+        if (StageManager.getInstance().hasIndependentStage(player, stageId)) {
             context.getSource().sendFailure(TextUtil.parseColorCodes(
                 StageConfig.getMsgCmdAlreadyHasStage().replace("{stage}", stageName)));
             return 0;
@@ -1843,7 +1847,7 @@ public class StageCommand {
             return 0;
         }
         if (result.alreadyActive()) {
-            context.getSource().sendFailure(Component.literal("A diagnostic capture is already active"));
+            context.getSource().sendFailure(Component.literal("A diagnostic capture is active or its output is still draining."));
             return 0;
         }
         InteractionCaptureManager.CaptureStatus status = result.status();
@@ -1866,11 +1870,19 @@ public class StageCommand {
 
     private static int captureStatus(CommandContext<CommandSourceStack> context, String category) {
         InteractionCaptureManager.CaptureStatus status = InteractionCaptureManager.status();
-        context.getSource().sendSuccess(() -> Component.literal(category + " capture. "
-            + (status.active() ? "active" : "off") + ". Target. " + status.target()
-            + ". Records. " + status.records() + ". Dropped. " + status.dropped()
-            + ". Bytes. " + status.bytes() + ". Stop reason. " + status.stopReason()
-            + (status.output() == null ? "" : ". Output. " + status.output())), false);
+        context.getSource().sendSuccess(() -> Component.literal("Diagnostic capture"
+            + "\nCategory: " + (status.category().isEmpty() ? category : status.category())
+            + "\nState: " + (status.active() ? "Active" : "Stopped")
+            + "\nTarget: " + status.target()
+            + "\nTime remaining: " + status.remainingSeconds() + " seconds"
+            + "\nRecords: " + status.records() + " / " + InteractionCaptureManager.MAX_DECISIONS
+            + "\nRate limit: " + InteractionCaptureManager.MAX_DECISIONS_PER_SECOND + " records per second"
+            + "\nDropped: " + status.dropped()
+            + "\nBytes: " + status.bytes() + " / " + InteractionCaptureManager.MAX_OUTPUT_BYTES
+            + "\nQueued: " + status.queued() + " / " + InteractionCaptureManager.MAX_QUEUE
+            + "\nWriter: " + status.outputState()
+            + "\nStop reason: " + status.stopReason()
+            + (status.output() == null ? "" : "\nOutput: " + status.output())), false);
         return 1;
     }
 

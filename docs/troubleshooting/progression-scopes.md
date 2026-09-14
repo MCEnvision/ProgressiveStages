@@ -29,9 +29,98 @@ labels in `stage_sources`. A player's effective view is the union of their perso
 resolved team record, and server records. Personal records never move when team membership changes.
 Legacy team records remain in their original namespace and are not copied to every member.
 
+Native FTB membership events immediately withdraw the moving player's synchronized contributions
+from obsolete owners, including when the player is offline. Other contributors, independently
+earned stages, permanent grants and still compatible personal or server sources remain. The
+bridge invalidates old observations and queues current qualification for the new owner. Joining
+or rejoining alone does not restore a withdrawn synchronized source.
+
 An owner or provider change masks incompatible history while retaining the original record. Restoring
 the compatible setting reveals that history again. Use an explicit administrative regrant when a
 pack intentionally wants a new owner to receive a stage.
+
+An integration using `StageActorContext` must resolve a fresh context after membership, login,
+logout or provider initialization changes. `mutateStage` returns `stale_membership` instead of
+applying a delayed grant or revoke, including when the owner UUID remains the same. The revision
+is server wide, so another player's membership change can also invalidate a captured context.
+Resolve and reevaluate on the server thread before retrying. Rejected contexts do not publish
+committed changes or alter stored stages.
+
+Use `ProgressiveStagesAPI.resolveActorOwner(actorId, stageId)` and
+`ProgressiveStagesAPI.getActorSnapshot(actorId)` for explicit individual queries while an actor
+is offline. Call them on the running server thread. An unavailable offline team lookup raises
+an error rather than returning guessed or partial access. The snapshot reports active sources,
+so persisted synchronized grants awaiting revalidation stay excluded. These queries preserve
+legacy UUID team API meanings. A freshly resolved context can grant or revoke offline ownership
+through `mutateStage`; unavailable required owners reject without partial changes. Grants reserve
+original rewards for the actual actor's return. Missing dependencies and rejected slots do not
+reserve rewards, and repeated grants do not reset acquisition clocks. See the
+[Java API contract](../../DOCUMENTATION.md#151-progressivestagesapi) for errors and examples.
+
+## Quest provider ownership
+
+Defined stages use their ProgressiveStages owner for quest checks, grants and removals,
+including native FTB team reward and team stage task settings. A stale FTB helper record cannot
+authorize a defined stage. The legacy `integration.ftbquests.team_mode` option applies only to
+helper reads and removals for undefined stages.
+
+Stage ownership and reward distribution are separate. A team reward may be claimable once by
+the quest team, but a personal profession goes only to its actual claimant. Use per player
+rewards if each teammate should claim their own profession. The storage hooks preserve saved
+quest settings and FTB's handling of undefined external stages. See the
+[actual provider verification](../verification/progression-ownership.md) for tested boundaries.
+
+Existing helper grants for defined stages are imported once when both integrations are enabled
+and definitions are ready. They remain independent team records, including when current personal
+or server scope masks them. Import preserves the native properties and does not replay rewards
+or reset grant clocks. The persisted import receipt prevents a revoked stage from returning from
+stale helper data. Later helper property edits are not a progression source; use stage commands
+or quest rewards for new grants. Undefined external stages remain with FTB.
+
+## Permission contributors
+
+Source labels distinguish the contributing player, mapping row and retention mode within each
+owner namespace. Removing one synchronized source preserves other contributors and independently
+earned access. Adding the first derived source to an existing stage with no source labels preserves
+that legacy stage as independent. A newly derived stage receives no independent grant.
+
+When the current subject reconciles after an owner change, obsolete synchronized contributions are
+removed from their original owner before new grants are evaluated. Deleting a definition also
+withdraws that subject's synchronized contribution. Independent and permanent owner history stays
+in place. This path does not migrate a contribution to another owner or grant an offline player.
+
+Synchronized records loaded from disk remain stored but do not contribute effective access until
+revalidated. Independent and permanent records remain effective. Explicit revocation and bulk
+revocation still address pending stored entitlements. Inactive contributions cannot satisfy stage
+dependencies or appear as effective source kinds.
+
+The [LuckPerms guide](luckperms.md#inbound-source-ownership) describes current cleanup coverage and
+the remaining migration and membership lifecycle limitations.
+
+## Purchase refunds
+
+New skill tree purchases retain the actual payer and typed owner in a separate receipt. A teammate
+revoking a shared stage cannot collect that payer's refund. When the payer is offline, the receipt
+survives saving and loading and is delivered once through their login path, even if membership or
+the definition has since changed. Item amounts, XP levels and the refund percentage come from the
+original purchase. Legacy receipts have no payer information and retain their old team or server
+behavior; they cannot be consumed as personal purchase history. See
+[purchase persistence](../../DOCUMENTATION.md#426-cost--skill-tree-purchasable-stages) before recovery
+from a schema or receipt error.
+
+## Grant clocks
+
+Temporary expiry, slot age and both held duration condition paths read the resolved stage owner's
+clock. Personal, team and server clocks remain separate even when UUIDs match. Changing a stage's
+ownership setting does not copy its old clock. Legacy UUID timestamps remain team or server history;
+they are never inferred to be personal history. A personal timed stage with no personal clock
+follows the existing missing timestamp behavior and starts its clock when checked.
+
+The regression save now includes `clock_schema = 1` and `owner_grant_times` alongside retained
+legacy `grant_times`. Do not rewrite owner prefixes to transfer progression. Keep the original
+save if loading reports an unsupported clock schema or malformed timestamp. The current file must
+be read by a compatible version before restarting the server and retrying. LuckPerms expiry episodes and manual revoke
+suppression still require the separate lifecycle work recorded in the bridge verification guide.
 
 ## diagnostics
 
@@ -57,3 +146,8 @@ permission trees are not written.
 
 If a reload fails, the last valid stage snapshot remains active. Stop an active capture before a
 reload or shutdown; the lifecycle hooks stop it automatically and drain the bounded writer.
+
+Capture status distinguishes stopped recording from completed output. Wait for `Writer: drained`
+before reading the finished support file. `Writer: failed` leaves the capture incomplete; a later
+write failure remains visible after manual stop. The [shared capture procedure](interaction-locks.md)
+describes category isolation, fixed limits, server tick timing, and bounded JSON fields.

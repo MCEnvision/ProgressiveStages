@@ -153,6 +153,7 @@ dependencies {
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'net.luckperms:api:5.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -163,6 +164,23 @@ tasks.named('test', Test) {
 
 tasks.named('compileJava', JavaCompile) {
     options.compilerArgs.add('-Xlint:deprecation')
+}
+
+def buildCommit = providers.exec {
+    commandLine 'git', 'rev-parse', 'HEAD'
+    ignoreExitValue = true
+}.standardOutput.asText.map { it.trim() ?: 'unavailable' }
+def buildDirty = providers.exec {
+    commandLine 'git', 'status', '--porcelain', '--untracked-files=normal', '--',
+        'src/main', 'build.gradle', 'gradle.properties', 'settings.gradle', 'gradle'
+    ignoreExitValue = true
+}.standardOutput.asText.map { buildCommit.get() == 'unavailable' || !it.trim().isEmpty() }
+tasks.named('jar', Jar) {
+    inputs.property('buildCommit', buildCommit)
+    inputs.property('buildDirty', buildDirty)
+    doFirst {
+        manifest.attributes('Build-Commit': buildCommit.get(), 'Build-Dirty': buildDirty.get().toString())
+    }
 }
 
 

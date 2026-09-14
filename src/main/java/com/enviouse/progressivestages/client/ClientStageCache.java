@@ -20,10 +20,12 @@ public class ClientStageCache {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<StageId> stages = new HashSet<>();
+    private static long revision;
     private static StageId currentStage = null;
     private static volatile boolean hideStageNamesFromNonOps = false;
 
     public static boolean isHideStageNamesFromNonOps() { return hideStageNamesFromNonOps; }
+    public static long revision() { return revision; }
     public static void setHideStageNamesFromNonOps(boolean v) { hideStageNamesFromNonOps = v; }
 
     // v1.3: Stage definitions with dependencies
@@ -122,6 +124,7 @@ public class ClientStageCache {
     public static void setStageDefinitions(Map<StageId, StageDefinitionData> definitions) {
         stageDefinitions.clear();
         stageDefinitions.putAll(definitions);
+        revision++;
         LOGGER.info("[ProgressiveStages] Client cached {} stage definitions", definitions.size());
     }
 
@@ -222,6 +225,8 @@ public class ClientStageCache {
         boolean changed = !stages.equals(newStages);
         stages.clear();
         stages.addAll(newStages);
+        // Independent ownership can change while effective access stays the same.
+        revision++;
         updateCurrentStage();
 
         // Debug logging
@@ -242,6 +247,7 @@ public class ClientStageCache {
      */
     public static void addStage(StageId stageId) {
         boolean changed = stages.add(stageId);
+        revision++;
         updateCurrentStage();
 
         // Debug logging
@@ -261,6 +267,7 @@ public class ClientStageCache {
      */
     public static void removeStage(StageId stageId) {
         boolean changed = stages.remove(stageId);
+        revision++;
         updateCurrentStage();
 
         // Debug logging
@@ -455,6 +462,7 @@ public class ClientStageCache {
      */
     public static void clear() {
         stages.clear();
+        revision++;
         currentStage = null;
         stageDefinitions.clear();
         ClientLockCache.clear();

@@ -66,8 +66,21 @@ export interface ExtensionRegistration {
   arguments?: ExtensionArgument[];
 }
 
+export interface StageCapabilities {
+  teamProvider: "ABSENT" | "DISABLED" | "READY";
+  luckPerms: "ABSENT" | "DISABLED" | "STARTING" | "READY" | "FAILED";
+  supportedOwnership: string[];
+  supportedInboundModes: string[];
+  configuredGroupStatus: Record<string, "PRESENT" | "MISSING" | "UNKNOWN">;
+  configuredCommandStatus: Record<string, "RESOLVED" | "MISSING" | "AMBIGUOUS">;
+  definitionRevision: number;
+}
+
 export interface Bootstrap {
   protocol: number;
+  stageCapabilities?: StageCapabilities;
+  teamMode?: string;
+  validation?: ValidationResult;
   session: SessionView;
   draft: DraftView;
   schemas: FieldSchema[];
@@ -106,12 +119,25 @@ export interface CatalogPage {
   truncated: boolean;
 }
 
+export interface FieldDiagnostic {
+  severity: "ERROR" | "WARNING";
+  file: string;
+  field: string;
+  ruleId?: string;
+  code: string;
+  message: string;
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
   stages: number;
-  revision: number;
+  validatedRevision?: number;
+  revision?: number;
+  diagnostics?: FieldDiagnostic[];
+  stageCapabilities?: StageCapabilities;
+  teamMode?: string;
 }
 
 export interface ReviewResult {
@@ -159,6 +185,7 @@ export interface InboundModel {
   permissions: string[];
   match: "all" | "any";
   contexts: Record<string, string[]>;
+  contextSourceError?: string;
   sourceText?: string;
 }
 
@@ -167,6 +194,7 @@ export interface OutboundModel {
   kind: "group" | "permission";
   value: string;
   contexts: Record<string, string[]>;
+  contextSourceError?: string;
   sourceText?: string;
 }
 

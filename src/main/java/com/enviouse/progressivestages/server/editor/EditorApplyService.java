@@ -38,7 +38,7 @@ final class EditorApplyService {
         List<DraftDiffEntry> diff = draft.diff();
         DraftValidation validation = EditorDraftValidator.validate(draft.files(), draft.revision());
         if (!validation.valid()) return result(false, "", currentRevision, diff, validation, "validation_failed", "The draft is invalid");
-        if (draft.baseConfigurationRevision() != currentRevision && !liveFilesMatch(draft.baseFiles())) {
+        if (!liveFilesMatch(draft.baseFiles())) {
             return result(false, "", currentRevision, diff, validation, "configuration_conflict",
                 "The live configuration files changed after this draft opened");
         }

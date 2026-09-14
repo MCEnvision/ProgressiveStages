@@ -133,7 +133,7 @@ public final class PSKubeBindings {
 
     public int revokeAll(Player player) {
         return player instanceof ServerPlayer sp
-            ? ProgressiveStagesAPI.revokeStages(sp, new ArrayList<>(ProgressiveStagesAPI.getStages(sp)), StageCause.SCRIPT) : 0;
+            ? ProgressiveStagesAPI.revokeStages(sp, ProgressiveStagesAPI.getAllStageIds(), StageCause.SCRIPT) : 0;
     }
 
     /** Toggle a stage and return the player's new ownership state. */
@@ -473,7 +473,7 @@ public final class PSKubeBindings {
     /** Open the vanilla-style stage map for a player. */
     public void openGui(Player player) {
         if (player instanceof ServerPlayer sp) {
-            com.enviouse.progressivestages.common.network.NetworkHandler.sendStageGuiData(sp);
+            com.enviouse.progressivestages.common.network.NetworkHandler.openStageGui(sp);
         }
     }
 

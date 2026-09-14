@@ -38,13 +38,18 @@ public class StageManager {
     private static StageManager INSTANCE;
     private MinecraftServer server;
     private long mutationRevision;
+    private final java.util.concurrent.atomic.AtomicLong mutationGeneration = new java.util.concurrent.atomic.AtomicLong();
     private final CopyOnWriteArrayList<Consumer<StageMutationResult>> committedListeners = new CopyOnWriteArrayList<>();
 
     /** v2.4: synthetic "team" that holds server-wide ({@code scope = "server"}) stages shared by everyone. */
     public static final UUID SERVER_TEAM = new UUID(0L, 0L);
 
     /** One concrete stage removal from its real persistence owner. */
-    private record RevokedStage(UUID owner, StageId stageId) {}
+    private record RevokedStage(OwnerRef owner, StageId stageId) {
+        private RevokedStage(UUID owner, StageId stageId) {
+            this(new OwnerRef(SERVER_TEAM.equals(owner) ? OwnerKind.SERVER : OwnerKind.TEAM, owner), stageId);
+        }
+    }
 
     private record GrantResult(List<StageId> granted, List<StageId> replaced, String denial) {
         private GrantResult {
@@ -73,6 +78,12 @@ public class StageManager {
             : data.hasStage(owner.id(), stageId);
     }
 
+    private static boolean hasIndependentOwnership(TeamStageData data, OwnerRef owner, StageId stageId) {
+        if (!hasOwned(data, owner, stageId)) return false;
+        Set<String> sources = data.getSources(owner, stageId);
+        return sources.isEmpty() || sources.contains("independent");
+    }
+
     private static boolean grantOwned(TeamStageData data, OwnerRef owner, StageId stageId) {
         return owner.kind() == OwnerKind.PERSONAL
             ? data.grantPersonalStage(owner.id(), stageId)
@@ -93,7 +104,10 @@ public class StageManager {
     }
 
     private void markMutation(boolean changed) {
-        if (changed) mutationRevision++;
+        if (changed) {
+            mutationGeneration.incrementAndGet();
+            mutationRevision++;
+        }
     }
 
     private void captureProgression(ServerPlayer player, StageId stageId, Set<StageId> before,
@@ -121,6 +135,10 @@ public class StageManager {
         Set<UUID> players = affectedPlayers(player, changed, owners);
         StageMutationResult result = new StageMutationResult(changed, reason, mutationRevision, owners,
             Set.copyOf(players));
+        publishMutation(result);
+    }
+
+    private void publishMutation(StageMutationResult result) {
         for (Consumer<StageMutationResult> listener : committedListeners) {
             try { listener.accept(result); } catch (RuntimeException exception) {
                 LOGGER.warn("Stage mutation listener failed", exception);
@@ -131,14 +149,23 @@ public class StageManager {
     private Set<UUID> affectedPlayers(ServerPlayer player, boolean changed, Set<OwnerRef> owners) {
         Set<UUID> players = new LinkedHashSet<>();
         if (player != null) players.add(player.getUUID());
-        if (changed && player != null && server != null && owners != null) {
+        if (changed && server != null && owners != null) {
             for (OwnerRef affected : owners) {
                 switch (affected.kind()) {
                     case SERVER -> server.getPlayerList().getPlayers()
                         .forEach(candidate -> players.add(candidate.getUUID()));
-                    case TEAM -> TeamProvider.getInstance().getTeamMembersForOwner(affected.id(), player)
-                        .forEach(candidate -> players.add(candidate.getUUID()));
-                    case PERSONAL -> players.add(affected.id());
+                    case TEAM -> {
+                        if (player != null) TeamProvider.getInstance().getTeamMembersForOwner(affected.id(), player)
+                            .forEach(candidate -> players.add(candidate.getUUID()));
+                        else for (ServerPlayer candidate : server.getPlayerList().getPlayers()) {
+                            TeamProvider provider = TeamProvider.getInstance();
+                            if (provider.getTeamId(candidate).equals(affected.id())
+                                || provider.getFtbTeamId(candidate).equals(affected.id())) players.add(candidate.getUUID());
+                        }
+                    }
+                    case PERSONAL -> {
+                        if (player != null || server.getPlayerList().getPlayer(affected.id()) != null) players.add(affected.id());
+                    }
                 }
             }
         }
@@ -150,8 +177,16 @@ public class StageManager {
         if (context == null || stageId == null || operation == null || server == null) {
             return new StageMutationResult(false, "invalid_context", mutationRevision, Set.of(), Set.of());
         }
+        if (!server.isSameThread()) {
+            return new StageMutationResult(false, "wrong_thread", mutationRevision, Set.of(), Set.of());
+        }
         ServerPlayer player = server.getPlayerList().getPlayer(context.actorId());
-        if (player == null) return new StageMutationResult(false, "actor_offline", mutationRevision, Set.of(), Set.of());
+        if (player == null) {
+            return mutateOfflineStage(context, stageId, operation, cause);
+        }
+        if (context.membershipRevision() != TeamProvider.getInstance().membershipRevision()) {
+            return new StageMutationResult(false, "stale_membership", mutationRevision, Set.of(), Set.of(player.getUUID()));
+        }
         if (!owner(player, stageId).equals(context.owner())) {
             return new StageMutationResult(false, "owner_mismatch", mutationRevision, Set.of(), Set.of(player.getUUID()));
         }
@@ -159,6 +194,7 @@ public class StageManager {
             return new StageMutationResult(false, "stale_revision", mutationRevision, Set.of(), Set.of(player.getUUID()));
         }
         Set<StageId> before = getStages(player);
+        long beforeRevision = mutationRevision;
         if (operation == StageOperation.GRANT) grantStageWithCause(player, stageId, cause);
         else revokeStageWithCause(player, stageId, cause);
         Set<StageId> after = getStages(player);
@@ -168,9 +204,139 @@ public class StageManager {
         changedStages.addAll(after);
         changedStages.removeIf(stage -> before.contains(stage) && after.contains(stage));
         changedStages.forEach(stage -> affectedOwners.add(owner(player, stage)));
-        boolean changed = !before.equals(after);
+        boolean changed = mutationRevision != beforeRevision;
         return new StageMutationResult(changed, changed ? "committed" : "already_owned", mutationRevision,
             affectedOwners, affectedPlayers(player, changed, affectedOwners));
+    }
+
+    private StageMutationResult mutateOfflineStage(StageActorContext context, StageId stageId, StageOperation operation, StageCause cause) {
+        Set<UUID> actors = Set.of(context.actorId());
+        if (context.membershipRevision() != TeamProvider.getInstance().membershipRevision()) {
+            return new StageMutationResult(false, "stale_membership", mutationRevision, Set.of(), actors);
+        }
+        if (context.definitionRevision() != StageFileLoader.getInstance().getCompiledSnapshot().revision()) {
+            return new StageMutationResult(false, "stale_revision", mutationRevision, Set.of(), actors);
+        }
+        Optional<OwnerRef> resolved = StageOwnership.offlineOwner(context.actorId(), stageId);
+        if (resolved.isEmpty()) {
+            return new StageMutationResult(false, "owner_unavailable", mutationRevision, Set.of(), actors);
+        }
+        OwnerRef root = resolved.orElseThrow();
+        if (!root.equals(context.owner())) {
+            return new StageMutationResult(false, "owner_mismatch", mutationRevision, Set.of(), actors);
+        }
+        Map<StageId, OwnerRef> owners = new LinkedHashMap<>();
+        Set<StageId> effective = new LinkedHashSet<>();
+        TeamStageData data = getTeamStageData();
+        for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+            Optional<OwnerRef> owner = StageOwnership.offlineOwner(context.actorId(), stage);
+            if (owner.isEmpty()) {
+                return new StageMutationResult(false, "owner_unavailable", mutationRevision, Set.of(), actors);
+            }
+            owners.put(stage, owner.orElseThrow());
+            if (data.hasEffectiveStage(owner.orElseThrow(), stage)) effective.add(stage);
+        }
+        if (operation == StageOperation.GRANT) return grantOfflineStage(context, stageId, owners, effective, cause);
+        Optional<UUID> team = root.kind() == OwnerKind.TEAM ? Optional.of(root.id())
+            : TeamProvider.getInstance().getOfflineTeamId(context.actorId(), false);
+        if (root.kind() == OwnerKind.SERVER && team.isEmpty()) {
+            return new StageMutationResult(false, "owner_unavailable", mutationRevision, Set.of(), actors);
+        }
+        boolean suppressed = data.suppressPermissionEpisodes(root, stageId);
+        List<RevokedStage> revoked = root.kind() == OwnerKind.PERSONAL
+            ? revokeStageFromActorInternal(owners::get, effective, stageId)
+            : revokeStageFromTeamInternal(team.orElseThrow(), stageId);
+        boolean changed = suppressed || !revoked.isEmpty();
+        markMutation(changed);
+        Set<OwnerRef> affected = new LinkedHashSet<>();
+        if (suppressed) affected.add(root);
+        for (RevokedStage change : revoked) {
+            affected.add(change.owner());
+            com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server)
+                .clear(change.owner(), change.stageId());
+            refundPurchasedStage(null, change);
+            fireOfflineStageChange(context, change.owner(), change.stageId(), StageChangeType.REVOKED, cause);
+        }
+        return publishOfflineMutation(context, changed, affected);
+    }
+
+    private StageMutationResult grantOfflineStage(StageActorContext context, StageId stageId,
+                                                  Map<StageId, OwnerRef> owners, Set<StageId> effective, StageCause cause) {
+        TeamStageData live = getTeamStageData();
+        OwnerRef root = owners.get(stageId);
+        if (hasIndependentOwnership(live, root, stageId)) {
+            boolean changed = cause == StageCause.COMMAND && live.allowPermissionEpisodes(root, stageId);
+            Set<String> before = live.getSources(root, stageId);
+            grantOwnedFromSource(live, root, stageId, "independent");
+            changed |= !before.equals(live.getSources(root, stageId));
+            markMutation(changed);
+            return publishOfflineMutation(context, changed, changed ? Set.of(root) : Set.of());
+        }
+        if (!StageConfig.isLinearProgression() && !StageOrder.getInstance().getMissingDependencies(effective, stageId).isEmpty()) {
+            return new StageMutationResult(false, "dependency_denied", mutationRevision, Set.of(), Set.of(context.actorId()));
+        }
+        TeamStageData draft = live.copy();
+        GrantResult grant = grantStageToActorInternal(draft, owners::get, effective, stageId, false);
+        if (!grant.denial().isBlank()) {
+            return new StageMutationResult(false, "slot_denied", mutationRevision, Set.of(), Set.of(context.actorId()));
+        }
+        if (grant.granted().isEmpty()) {
+            return new StageMutationResult(false, "dependency_denied", mutationRevision, Set.of(), Set.of(context.actorId()));
+        }
+        for (StageId granted : grant.granted()) {
+            var rewards = StageOrder.getInstance().getStageDefinition(granted).orElseThrow().getRewards();
+            if (!rewards.isEmpty()) draft.queueReward(new PendingStageReward(UUID.randomUUID(), context.actorId(), owners.get(granted), granted, rewards));
+            if (cause == StageCause.COMMAND) draft.allowPermissionEpisodes(owners.get(granted), granted);
+        }
+        var clocks = com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server);
+        if (!grant.replaced().isEmpty()) com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(server);
+        server.overworld().setData(StageAttachments.TEAM_STAGES, draft);
+        markMutation(true);
+        Set<OwnerRef> affected = new LinkedHashSet<>();
+        for (StageId replaced : grant.replaced()) {
+            OwnerRef owner = owners.get(replaced);
+            affected.add(owner);
+            clocks.clear(owner, replaced);
+            refundPurchasedStage(null, new RevokedStage(owner, replaced));
+        }
+        long now = System.currentTimeMillis();
+        for (StageId granted : grant.granted()) {
+            OwnerRef owner = owners.get(granted);
+            affected.add(owner);
+            clocks.markGranted(owner, granted, now);
+        }
+        for (StageId replaced : grant.replaced()) {
+            fireOfflineStageChange(context, owners.get(replaced), replaced, StageChangeType.REVOKED, StageCause.GROUP_POLICY);
+        }
+        for (StageId granted : grant.granted()) {
+            fireOfflineStageChange(context, owners.get(granted), granted, StageChangeType.GRANTED, cause);
+        }
+        return publishOfflineMutation(context, true, affected);
+    }
+
+    private void fireOfflineStageChange(StageActorContext context, OwnerRef owner, StageId stage,
+                                        StageChangeType type, StageCause cause) {
+        NeoForge.EVENT_BUS.post(new com.enviouse.progressivestages.common.api.StageActorChangeEvent(
+            new StageActorContext(context.actorId(), owner, context.definitionRevision(), context.membershipRevision()),
+            stage, type, cause));
+    }
+
+    private StageMutationResult publishOfflineMutation(StageActorContext context, boolean changed, Set<OwnerRef> affected) {
+        Set<UUID> recipients = new LinkedHashSet<>(affectedPlayers(null, changed, affected));
+        recipients.add(context.actorId());
+        StageMutationResult result = new StageMutationResult(changed, changed ? "committed" : "already_owned",
+            mutationRevision, affected, recipients);
+        if (changed) {
+            for (UUID recipient : recipients) {
+                ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+                if (online != null) {
+                    syncToPlayer(online);
+                    fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
+                }
+            }
+            publishMutation(result);
+        }
+        return result;
     }
 
     public static StageManager getInstance() {
@@ -187,12 +353,14 @@ public class StageManager {
      */
     public void initialize(MinecraftServer server) {
         this.server = server;
+        mutationGeneration.incrementAndGet();
         this.mutationRevision = 0L;
     }
 
     public void shutdown(MinecraftServer stoppingServer) {
         if (this.server == stoppingServer) {
             this.server = null;
+            mutationGeneration.incrementAndGet();
             this.mutationRevision = 0L;
         }
     }
@@ -214,7 +382,16 @@ public class StageManager {
     public boolean hasStage(ServerPlayer player, StageId stageId) {
         if (player == null || stageId == null) return false;
         TeamStageData data = getTeamStageData();
-        return hasOwned(data, owner(player, stageId), stageId);
+        return data.hasEffectiveStage(owner(player, stageId), stageId);
+    }
+
+    public boolean hasStoredStage(ServerPlayer player, StageId stageId) {
+        return player != null && stageId != null && hasOwned(getTeamStageData(), owner(player, stageId), stageId);
+    }
+
+    public boolean hasIndependentStage(ServerPlayer player, StageId stageId) {
+        return player != null && stageId != null
+            && hasIndependentOwnership(getTeamStageData(), owner(player, stageId), stageId);
     }
 
     public OwnerRef getStageOwner(ServerPlayer player, StageId stageId) {
@@ -227,7 +404,9 @@ public class StageManager {
     public boolean hasStage(UUID teamId, StageId stageId) {
         TeamStageData data = getTeamStageData();
         // v2.4: server-wide stages live under SERVER_TEAM and count for every team.
-        return data.hasStage(teamId, stageId) || data.hasStage(SERVER_TEAM, stageId);
+        OwnerRef team = new OwnerRef(SERVER_TEAM.equals(teamId) ? OwnerKind.SERVER : OwnerKind.TEAM, teamId);
+        return data.hasEffectiveStage(team, stageId)
+            || data.hasEffectiveStage(new OwnerRef(OwnerKind.SERVER, SERVER_TEAM), stageId);
     }
 
     /**
@@ -246,47 +425,435 @@ public class StageManager {
                 || !StageOrder.getInstance().stageExists(stageId)) return false;
         OwnerRef stageOwner = owner(player, stageId);
         TeamStageData data = getTeamStageData();
+        Set<StageId> before = getStages(player);
+        if (!canGrantStageFromSource(player, stageId)) return false;
+        if (!preparePermissionGrant(stageOwner, stageId, source)) return false;
         boolean alreadyOwned = hasOwned(data, stageOwner, stageId);
-        if (alreadyOwned) {
-            Set<String> beforeSources = data.getSources(stageOwner, stageId);
-            if (stageOwner.kind() == OwnerKind.PERSONAL) {
-                data.grantPersonalStageFromSource(stageOwner.id(), stageId, source);
-            } else {
-                data.grantStageFromSource(stageOwner.id(), stageId, source);
+        Set<String> previousSources = data.getSources(stageOwner, stageId);
+        Set<String> previousEffectiveSources = data.getEffectiveSources(stageOwner, stageId);
+        grantOwnedFromSource(data, stageOwner, stageId, source);
+        boolean added = !previousSources.equals(data.getSources(stageOwner, stageId))
+            || !previousEffectiveSources.equals(data.getEffectiveSources(stageOwner, stageId));
+        if (!added) return false;
+        markMutation(true);
+        boolean permissionSource = PermissionStageSource.parse(source).isPresent();
+        if (!alreadyOwned && !permissionSource) {
+            fireStageChangeEvent(player, stageOwner.id(), stageId, StageChangeType.GRANTED, cause);
+        }
+        restorePermissionClock(stageOwner, stageId, source);
+        syncStageView(player, stageId);
+        if ((alreadyOwned || permissionSource) && !before.contains(stageId) && hasStage(player, stageId)) {
+            for (UUID recipient : affectedPlayers(player, true, Set.of(stageOwner))) {
+                ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+                if (online != null) fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
             }
-            boolean added = !beforeSources.equals(data.getSources(stageOwner, stageId));
-            if (added) {
-                markMutation(true);
-                syncStageView(player, stageId);
-                publishMutation(player, stageId, false, "already_owned", Set.of(stageOwner));
+        }
+        publishMutation(player, stageId, true, "source_added", Set.of(stageOwner));
+        captureProgression(player, stageId, before, getStages(player), cause, "source_added");
+        return true;
+    }
+
+    public record PermissionObservation(String fingerprint, boolean eligible) {}
+
+    public boolean observePermissionEligibility(OwnerRef owner, StageId stage, PermissionStageSource source,
+                                                PermissionObservation observation) {
+        if (observation == null) return false;
+        TeamStageData data = getTeamStageData();
+        PermissionEpisode previous = data.getPermissionEpisode(owner, stage, source);
+        if (previous == null && !observation.eligible()) return false;
+        PermissionEpisode next = previous == null
+            ? new PermissionEpisode(owner, stage, source.subject(), source.row(), observation.fingerprint(), true, false, 0, 0)
+            : previous.observe(observation.fingerprint(), observation.eligible());
+        boolean changed = data.putPermissionEpisode(next);
+        markMutation(changed);
+        return changed;
+    }
+
+    public void expirePermissionSources(ServerPlayer player) {
+        if (player == null || server == null) return;
+        long now = System.currentTimeMillis();
+        TeamStageData data = getTeamStageData();
+        for (StageId stage : getStoredStages(player)) {
+            OwnerRef resolved = owner(player, stage);
+            for (String label : data.getSources(resolved, stage)) {
+                var source = PermissionStageSource.parse(label);
+                PermissionEpisode episode = source.isEmpty() ? null : data.getPermissionEpisode(resolved, stage, source.get());
+                if (episode != null && episode.expired(now)) revokeStageFromSource(player, stage, label, StageCause.PERMISSION);
             }
-            return added;
+        }
+    }
+
+    public String permissionEpisodeDenial(OwnerRef owner, StageId stage, PermissionStageSource source) {
+        PermissionEpisode episode = getTeamStageData().getPermissionEpisode(owner, stage, source);
+        if (episode == null) return "";
+        if (episode.suppressed()) return "suppressed_episode";
+        return episode.expired(System.currentTimeMillis()) ? "expired_episode" : "";
+    }
+
+    private boolean preparePermissionGrant(OwnerRef owner, StageId stage, String label) {
+        var source = PermissionStageSource.parse(label);
+        if (source.isEmpty()) return true;
+        TeamStageData data = getTeamStageData();
+        PermissionEpisode episode = data.getPermissionEpisode(owner, stage, source.get());
+        if (episode == null) return true;
+        if (!episode.positive() || episode.suppressed()) return false;
+        StageDefinition definition = StageOrder.getInstance().getStageDefinition(stage).orElseThrow();
+        PermissionEpisode acquired = episode.acquire(System.currentTimeMillis(),
+            hasOwned(data, owner, stage) ? grantTime(owner, stage) : 0, definition.getDurationMillis());
+        markMutation(data.putPermissionEpisode(acquired));
+        return !acquired.expired(System.currentTimeMillis());
+    }
+
+    private void restorePermissionClock(OwnerRef owner, StageId stage, String label) {
+        var source = PermissionStageSource.parse(label);
+        PermissionEpisode episode = source.isEmpty() ? null : getTeamStageData().getPermissionEpisode(owner, stage, source.get());
+        if (episode != null && episode.acquiredAt() > 0 && server != null) {
+            var clocks = com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server);
+            long current = clocks.getGrantTime(owner, stage);
+            long earliest = Long.MAX_VALUE;
+            boolean independent = false;
+            for (String active : getTeamStageData().getEffectiveSources(owner, stage)) {
+                var parsed = PermissionStageSource.parse(active);
+                PermissionEpisode other = parsed.isEmpty() ? null : getTeamStageData().getPermissionEpisode(owner, stage, parsed.get());
+                if (other == null) independent = true;
+                else if (other.acquiredAt() > 0) earliest = Math.min(earliest, other.acquiredAt());
+            }
+            if (independent && current > 0) earliest = Math.min(earliest, current);
+            if (earliest != Long.MAX_VALUE && current != earliest) clocks.markGranted(owner, stage, earliest);
+        }
+    }
+
+    public boolean withdrawObsoletePermissionOwners(ServerPlayer player) {
+        return player != null && withdrawObsoletePermissionOwners(player.getUUID(), player);
+    }
+
+    public boolean withdrawObsoletePermissionOwners(UUID subject) {
+        if (subject == null || server == null) return false;
+        return withdrawObsoletePermissionOwners(subject, server.getPlayerList().getPlayer(subject));
+    }
+
+    private boolean withdrawObsoletePermissionOwners(UUID subject, ServerPlayer player) {
+        if (server == null || !server.isSameThread()) return false;
+        TeamStageData data = getTeamStageData();
+        Set<OwnerRef> affectedOwners = new LinkedHashSet<>();
+        for (TeamStageData.PermissionContribution contribution : data.getPermissionContributions(subject)) {
+            if (contribution.source().permanent()) continue;
+            StageId stage = contribution.stage();
+            Optional<OwnerRef> currentOwner = player == null ? StageOwnership.offlineOwner(subject, stage)
+                : StageOrder.getInstance().stageExists(stage) ? Optional.of(owner(player, stage)) : Optional.empty();
+            if (currentOwner.filter(contribution.owner()::equals).isPresent()) continue;
+            if (data.revokeStageFromSource(contribution.owner(), stage, contribution.source().label())) {
+                affectedOwners.add(contribution.owner());
+            }
+        }
+        if (affectedOwners.isEmpty()) return false;
+        markMutation(true);
+        for (UUID recipient : affectedPlayers(player, true, affectedOwners)) {
+            ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+            if (online != null) {
+                syncToPlayer(online);
+                fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
+            }
+        }
+        publishMutation(player, null, true, "source_owner_changed", Set.copyOf(affectedOwners));
+        return true;
+    }
+
+    public boolean canGrantStageFromSource(ServerPlayer player, StageId stageId) {
+        if (player == null || stageId == null) return false;
+        StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
+        if (definition == null) return false;
+        Set<StageId> effective = getStages(player);
+        if (!StageOrder.getInstance().getMissingDependencies(effective, stageId).isEmpty()) return false;
+        StageSlotResolver.Decision slot = slotDecision(player, definition, effective);
+        return slot.allowed() && slot.replacements().isEmpty()
+            && (!definition.isPurchasable() || hasOwned(getTeamStageData(), owner(player, stageId), stageId));
+    }
+
+    public record PermissionDenial(StageId stage, String row, String reason) {}
+    public record OnlinePermissionResult(boolean accepted, long revision, List<PermissionDenial> denials) {
+        public OnlinePermissionResult { denials = List.copyOf(denials); }
+    }
+
+    public OnlinePermissionResult reconcileOnlinePermissionSources(ServerPlayer player,
+            List<StageDefinition> definitions, Map<StageId, OwnerRef> owners,
+            Map<StageId, Map<String, PermissionObservation>> observations,
+            Map<StageId, Set<String>> eligibleRows, long expectedRevision,
+            java.util.function.BooleanSupplier current) {
+        if (server == null || !server.isSameThread() || player == null
+            || mutationRevision != expectedRevision || !current.getAsBoolean()) {
+            return new OnlinePermissionResult(false, mutationRevision, List.of());
+        }
+        TeamStageData data = getTeamStageData();
+        UUID subject = player.getUUID();
+        TeamStageData draft = data.copyPermissionView(subject, owners);
+        List<PermissionDenial> denials = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        for (var contribution : draft.getPermissionContributions(subject)) {
+            var episode = draft.getPermissionEpisode(contribution.owner(), contribution.stage(), contribution.source());
+            if (episode != null && episode.expired(now) || !contribution.source().permanent()
+                    && !contribution.owner().equals(owners.get(contribution.stage()))) {
+                draft.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label());
+            }
+        }
+        for (StageDefinition definition : definitions) {
+            StageId stage = definition.getId();
+            OwnerRef resolved = owners.get(stage);
+            var options = definition.getLuckPerms();
+            Set<String> activeRows = new HashSet<>();
+            for (var row : options.inbound()) {
+                boolean permanent = options.inboundMode() == com.enviouse.progressivestages.common.config.LuckPermsStageOptions.InboundMode.PERMANENT;
+                var source = new PermissionStageSource(subject, row.id(), permanent);
+                var observation = observations.getOrDefault(stage, Map.of()).get(row.id());
+                var episode = draft.getPermissionEpisode(resolved, stage, source);
+                if (observation != null && (episode != null || observation.eligible())) {
+                    episode = episode == null ? new PermissionEpisode(resolved, stage, subject, row.id(),
+                        observation.fingerprint(), true, false, 0, 0) : episode.observe(observation.fingerprint(), observation.eligible());
+                    draft.putPermissionEpisode(episode);
+                }
+                String denial = episode == null ? "" : episode.suppressed() ? "suppressed_episode"
+                    : episode.expired(now) ? "expired_episode" : "";
+                if (!denial.isEmpty()) {
+                    denials.add(new PermissionDenial(stage, row.id(), denial));
+                    draft.revokeStageFromSource(resolved, stage, new PermissionStageSource(subject, row.id(), true).label());
+                }
+                boolean eligible = observation != null && observation.eligible() && denial.isEmpty()
+                    && eligibleRows.getOrDefault(stage, Set.of()).contains(row.id());
+                if (eligible) {
+                    Set<StageId> effective = new HashSet<>();
+                    owners.forEach((id, owner) -> { if (draft.hasEffectiveStage(owner, id)) effective.add(id); });
+                    StageSlotResolver.Decision slot = StageSlotResolver.resolve(definition, effective,
+                        id -> StageOrder.getInstance().getStageDefinition(id), id -> grantTime(owners.get(id), id));
+                    denial = !StageOrder.getInstance().getMissingDependencies(effective, stage).isEmpty() ? "dependency_denied"
+                        : !slot.allowed() || !slot.replacements().isEmpty() ? "slot_denied"
+                        : definition.isPurchasable() && !hasOwned(draft, resolved, stage) ? "purchase_required" : "";
+                    eligible = denial.isEmpty();
+                    if (!eligible) denials.add(new PermissionDenial(stage, row.id(), denial));
+                }
+                if (eligible) {
+                    activeRows.add(row.id());
+                    if (episode != null) {
+                        episode = episode.acquire(now, hasOwned(draft, resolved, stage) ? grantTime(resolved, stage) : 0,
+                            definition.getDurationMillis());
+                        draft.putPermissionEpisode(episode);
+                    }
+                    if (episode == null || !episode.expired(now)) grantOwnedFromSource(draft, resolved, stage, source.label());
+                    else denials.add(new PermissionDenial(stage, row.id(), "expired_episode"));
+                }
+                if (!eligible || permanent) {
+                    draft.revokeStageFromSource(resolved, stage, new PermissionStageSource(subject, row.id(), false).label());
+                }
+            }
+            for (String label : draft.getSources(resolved, stage)) {
+                PermissionStageSource.parse(label).filter(source -> source.subject().equals(subject)
+                    && !source.permanent() && !activeRows.contains(source.row()))
+                    .ifPresent(source -> draft.revokeStageFromSource(resolved, stage, label));
+            }
+        }
+        if (!current.getAsBoolean() || data != getTeamStageData() || mutationRevision != expectedRevision) {
+            return new OnlinePermissionResult(false, mutationRevision, List.of());
         }
         Set<StageId> before = getStages(player);
-        if (!StageOrder.getInstance().getMissingDependencies(before, stageId).isEmpty()) return false;
-        StageDefinition derivedDefinition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
-        StageSlotResolver.Decision derivedSlot = slotDecision(player, derivedDefinition, before);
-        if (!derivedSlot.allowed() || !derivedSlot.replacements().isEmpty()) return false;
-        GrantResult result = grantStageToActorInternal(player, stageId, true);
-        if (!result.denial().isBlank() || result.granted().isEmpty()) return false;
-        if (stageOwner.kind() == OwnerKind.PERSONAL) {
-            data.grantPersonalStageFromSource(stageOwner.id(), stageId, source);
-        } else {
-            data.grantStageFromSource(stageOwner.id(), stageId, source);
+        Set<StageId> changedStages = new LinkedHashSet<>();
+        owners.forEach((stage, owner) -> {
+            if (!data.getSources(owner, stage).equals(draft.getSources(owner, stage))
+                || !data.getEffectiveSources(owner, stage).equals(draft.getEffectiveSources(owner, stage))) changedStages.add(stage);
+        });
+        Set<OwnerRef> changed = data.replacePermissionSubject(subject, draft);
+        markMutation(!changed.isEmpty());
+        long committedRevision = mutationRevision;
+        if (!changed.isEmpty()) {
+            for (var contribution : data.getPermissionContributions(subject)) {
+                if (data.getEffectiveSources(contribution.owner(), contribution.stage()).contains(contribution.source().label())) {
+                    restorePermissionClock(contribution.owner(), contribution.stage(), contribution.source().label());
+                }
+            }
+            Set<StageId> after = getStages(player);
+            for (StageId stage : changedStages) {
+                captureProgression(player, stage, before, after, StageCause.PERMISSION, "source_reconciled");
+            }
+            Set<UUID> recipients = Set.copyOf(affectedPlayers(player, true, changed));
+            StageMutationResult result = new StageMutationResult(true, "source_reconciled", committedRevision, changed, recipients);
+            for (UUID recipient : recipients) {
+                ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+                if (online != null) {
+                    syncToPlayer(online);
+                    fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
+                }
+            }
+            publishMutation(result);
         }
-        markMutation(true);
-        for (StageId replaced : result.replaced()) {
-            fireStageChangeEvent(player, owner(player, replaced).id(), replaced,
-                StageChangeType.REVOKED, StageCause.GROUP_POLICY);
+        return new OnlinePermissionResult(true, committedRevision, denials);
+    }
+
+    public record OfflinePermissionContext(UUID subject, long definitionRevision, Map<StageId, OwnerRef> owners,
+                                            Map<StageId, StageDefinition> definitions, long membershipRevision) {
+        public OfflinePermissionContext { owners = Map.copyOf(owners); definitions = Map.copyOf(definitions); }
+
+        public OfflinePermissionContext(UUID subject, long definitionRevision, Map<StageId, OwnerRef> owners,
+                                         Map<StageId, StageDefinition> definitions) {
+            this(subject, definitionRevision, owners, definitions, TeamProvider.getInstance().membershipRevision());
         }
-        for (StageId granted : result.granted()) {
-            fireStageChangeEvent(player, owner(player, granted).id(), granted, StageChangeType.GRANTED, cause);
+    }
+
+    public OfflinePermissionContext captureOfflinePermissionContext(UUID subject) {
+        Map<StageId, OwnerRef> owners = new LinkedHashMap<>();
+        Map<StageId, StageDefinition> definitions = new LinkedHashMap<>();
+        for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+            StageOwnership.offlineOwner(subject, stage).ifPresent(owner -> owners.put(stage, owner));
+            definitions.put(stage, StageOrder.getInstance().getStageDefinition(stage).orElseThrow());
         }
-        syncToPlayer(player);
-        publishMutation(player, stageId, !before.equals(getStages(player)), "committed",
-            Set.of(stageOwner));
-        captureProgression(player, stageId, before, getStages(player), cause, "committed");
+        return new OfflinePermissionContext(subject, StageFileLoader.getInstance().getCompiledSnapshot().revision(), owners, definitions);
+    }
+
+    public UUID nextPermissionSubject(UUID previous) {
+        return getTeamStageData().nextPermissionSubject(previous);
+    }
+
+    public void deactivateOfflinePermissionSources(UUID subject) {
+        if (server == null) return;
+        notifyOwnerChange(getTeamStageData().deactivatePermissionSources(subject), "source_pending");
+    }
+
+    public boolean reconcileOfflinePermissionSources(OfflinePermissionContext context, Map<StageId, Set<String>> desired,
+                                                     java.util.function.BooleanSupplier current) {
+        return reconcileOfflinePermissionSources(context, desired, Map.of(), current);
+    }
+
+    public boolean reconcileOfflinePermissionSources(OfflinePermissionContext context, Map<StageId, Set<String>> desired,
+            Map<StageId, Map<PermissionStageSource, PermissionObservation>> observations,
+            java.util.function.BooleanSupplier current) {
+        if (server == null || !server.isSameThread() || server.getPlayerList().getPlayer(context.subject()) != null
+            || !current.getAsBoolean() || !context.equals(captureOfflinePermissionContext(context.subject()))) return false;
+        MinecraftServer capturedServer = server;
+        long expectedRevision = mutationRevision;
+        var stagesCurrent = mutationGuard();
+        TeamStageData live = getTeamStageData();
+        TeamStageData draft = live.copyPermissionView(context.subject(), context.owners());
+        long now = System.currentTimeMillis();
+        for (var contribution : draft.getPermissionContributions(context.subject())) {
+            PermissionEpisode episode = draft.getPermissionEpisode(contribution.owner(), contribution.stage(), contribution.source());
+            if (episode != null && episode.expired(now)) {
+                draft.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label());
+            }
+        }
+        observations.forEach((stage, rows) -> {
+            OwnerRef owner = context.owners().get(stage);
+            if (owner != null) rows.forEach((source, observation) -> {
+                if (!source.subject().equals(context.subject()) || observation == null) return;
+                PermissionEpisode previous = draft.getPermissionEpisode(owner, stage, source);
+                if (previous == null && !observation.eligible()) return;
+                draft.putPermissionEpisode(previous == null
+                    ? new PermissionEpisode(owner, stage, source.subject(), source.row(), observation.fingerprint(), true, false, 0, 0)
+                    : previous.observe(observation.fingerprint(), observation.eligible()));
+            });
+        });
+        for (TeamStageData.PermissionContribution contribution : draft.getPermissionContributions(context.subject())) {
+            if (contribution.source().permanent()) continue;
+            if (!contribution.owner().equals(context.owners().get(contribution.stage()))
+                || !desired.getOrDefault(contribution.stage(), Set.of()).contains(contribution.source().label())) {
+                draft.revokeStageFromSource(contribution.owner(), contribution.stage(), contribution.source().label());
+            }
+        }
+        for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+            OwnerRef resolved = context.owners().get(stage);
+            if (resolved == null) continue;
+            StageDefinition definition = context.definitions().get(stage);
+            Set<String> sources = desired.getOrDefault(stage, Set.of());
+            Set<StageId> effective = new HashSet<>();
+            context.owners().forEach((id, owner) -> { if (draft.hasEffectiveStage(owner, id)) effective.add(id); });
+            StageSlotResolver.Decision slot = StageSlotResolver.resolve(definition, effective,
+                id -> Optional.ofNullable(context.definitions().get(id)), id -> grantTime(context.owners().get(id), id));
+            boolean qualified = StageOrder.getInstance().getMissingDependencies(effective, stage).isEmpty()
+                && slot.allowed() && slot.replacements().isEmpty()
+                && (!definition.isPurchasable() || hasOwned(draft, resolved, stage));
+            if (qualified) {
+                for (String source : sources) {
+                    var parsed = PermissionStageSource.parse(source);
+                    if (parsed.isEmpty() || !parsed.get().subject().equals(context.subject())) continue;
+                    PermissionEpisode episode = draft.getPermissionEpisode(resolved, stage, parsed.get());
+                    if (episode != null) {
+                        if (!episode.positive() || episode.suppressed()) {
+                            draft.revokeStageFromSource(resolved, stage, source);
+                            continue;
+                        }
+                        episode = episode.acquire(now, hasOwned(draft, resolved, stage) ? grantTime(resolved, stage) : 0,
+                            definition.getDurationMillis());
+                        draft.putPermissionEpisode(episode);
+                        if (episode.expired(now)) {
+                            draft.revokeStageFromSource(resolved, stage, source);
+                            continue;
+                        }
+                    }
+                    grantOwnedFromSource(draft, resolved, stage, source);
+                }
+            } else {
+                for (String source : draft.getSources(resolved, stage)) {
+                    PermissionStageSource.parse(source).filter(parsed -> parsed.subject().equals(context.subject())
+                        && !parsed.permanent()).ifPresent(parsed -> draft.revokeStageFromSource(resolved, stage, source));
+                }
+            }
+        }
+        if (!current.getAsBoolean() || server != capturedServer || !stagesCurrent.getAsBoolean()
+            || mutationRevision != expectedRevision || live != getTeamStageData()
+            || server.getPlayerList().getPlayer(context.subject()) != null
+            || !context.equals(captureOfflinePermissionContext(context.subject()))) return false;
+        Set<OwnerRef> changed = live.replacePermissionSubject(context.subject(), draft);
+        for (var contribution : live.getPermissionContributions(context.subject())) {
+            if (live.getEffectiveSources(contribution.owner(), contribution.stage()).contains(contribution.source().label())) {
+                restorePermissionClock(contribution.owner(), contribution.stage(), contribution.source().label());
+            }
+        }
+        notifyOwnerChange(changed, "source_reconciled");
         return true;
+    }
+
+    private void notifyOwnerChange(Set<OwnerRef> owners, String reason) {
+        if (owners.isEmpty() || server == null) return;
+        markMutation(true);
+        Set<UUID> recipients = Set.copyOf(affectedPlayers(null, true, owners));
+        StageMutationResult result = new StageMutationResult(true, reason, mutationRevision, Set.copyOf(owners), recipients);
+        for (UUID recipient : recipients) {
+            ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+            if (online != null) {
+                syncToPlayer(online);
+                fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
+            }
+        }
+        publishMutation(result);
+    }
+
+    public boolean hasImportedFtbHelperStages() {
+        return server != null && getTeamStageData().hasImportedFtbHelperStages();
+    }
+
+    public boolean importFtbHelperStages(Map<UUID, Set<StageId>> legacyTeams) {
+        if (server == null || !server.isSameThread() || legacyTeams == null
+            || getTeamStageData().hasImportedFtbHelperStages()) return false;
+        Map<UUID, Set<StageId>> registered = new LinkedHashMap<>();
+        legacyTeams.forEach((team, stages) -> {
+            if (team == null || SERVER_TEAM.equals(team)) {
+                throw new IllegalArgumentException("FTB helper imports require a team owner");
+            }
+            Set<StageId> known = new LinkedHashSet<>();
+            for (StageId stage : stages) {
+                if (stage != null && StageOrder.getInstance().getStageDefinition(stage).isPresent()) known.add(stage);
+            }
+            if (!known.isEmpty()) registered.put(team, Set.copyOf(known));
+        });
+        TeamStageData draft = getTeamStageData().copy();
+        draft.importFtbHelperStages(registered);
+        server.overworld().setData(StageAttachments.TEAM_STAGES, draft);
+        Set<OwnerRef> owners = new LinkedHashSet<>();
+        registered.keySet().forEach(team -> owners.add(new OwnerRef(OwnerKind.TEAM, team)));
+        if (owners.isEmpty()) markMutation(true);
+        else notifyOwnerChange(Set.copyOf(owners), "legacy_ftb_imported");
+        return true;
+    }
+
+    public Set<String> getStageSources(ServerPlayer player, StageId stageId) {
+        if (player == null || stageId == null) return Set.of();
+        return getTeamStageData().getSources(owner(player, stageId), stageId);
     }
 
     /** remove one derived source while retaining independent or other derived access. */
@@ -300,10 +867,17 @@ public class StageManager {
         if (!sources.contains(source)) return false;
         if (!hasOwned(data, stageOwner, stageId)) return false;
         if (sources.size() == 1) {
-            boolean removed = revokeOwned(data, stageOwner, stageId);
+            boolean removed = data.revokeStageFromSource(stageOwner, stageId, source);
             if (!removed) return false;
             markMutation(true);
-            fireStageChangeEvent(player, stageOwner.id(), stageId, StageChangeType.REVOKED, cause);
+            if (PermissionStageSource.parse(source).isEmpty()) {
+                fireStageChangeEvent(player, stageOwner.id(), stageId, StageChangeType.REVOKED, cause);
+            } else {
+                for (UUID recipient : affectedPlayers(player, true, Set.of(stageOwner))) {
+                    ServerPlayer online = server.getPlayerList().getPlayer(recipient);
+                    if (online != null) fireBulkChangedEvent(online, StagesBulkChangedEvent.Reason.OTHER);
+                }
+            }
             syncStageView(player, stageId);
             publishMutation(player, stageId, true, "source_removed", Set.of(stageOwner));
             captureProgression(player, stageId, before, getStages(player), cause, "source_removed");
@@ -313,7 +887,7 @@ public class StageManager {
         if (removed) {
             markMutation(true);
             syncStageView(player, stageId);
-            publishMutation(player, stageId, false, "source_removed", Set.of(stageOwner));
+            publishMutation(player, stageId, true, "source_removed", Set.of(stageOwner));
         }
         return removed;
     }
@@ -331,18 +905,33 @@ public class StageManager {
      * @param cause The reason for the grant
      */
     public void grantStageWithCause(ServerPlayer player, StageId stageId, StageCause cause) {
+        grantStageWithCause(player, stageId, cause, null);
+    }
+
+    /** Records an already validated payment before grant notifications and rewards run. */
+    public boolean grantPurchasedStage(ServerPlayer player, StageId stageId,
+                                      com.enviouse.progressivestages.common.config.StageCost paidCost) {
+        return grantStageWithCause(player, stageId, StageCause.PURCHASE,
+            java.util.Objects.requireNonNull(paidCost));
+    }
+
+    private boolean grantStageWithCause(ServerPlayer player, StageId stageId, StageCause cause,
+                                       com.enviouse.progressivestages.common.config.StageCost paidCost) {
         Set<StageId> before = getStages(player);
         TeamStageData data = getTeamStageData();
         OwnerRef directOwner = owner(player, stageId);
-        if (hasOwned(data, directOwner, stageId)) {
+        if (hasIndependentOwnership(data, directOwner, stageId)) {
+            boolean allowed = cause == StageCause.COMMAND && data.allowPermissionEpisodes(directOwner, stageId);
+            markMutation(allowed);
             Set<String> beforeSources = data.getSources(directOwner, stageId);
             grantOwnedFromSource(data, directOwner, stageId, "independent");
-            if (!beforeSources.equals(data.getSources(directOwner, stageId))) {
-                markMutation(true);
+            boolean sourceAdded = !beforeSources.equals(data.getSources(directOwner, stageId));
+            markMutation(sourceAdded);
+            if (allowed || sourceAdded) {
                 publishMutation(player, stageId, true, "source_added", Set.of(directOwner));
                 captureProgression(player, stageId, before, before, cause, "source_added");
             }
-            return;
+            return false;
         }
         // For automatic grants (triggers, rewards), check dependencies unless linear_progression is on
         if (!StageConfig.isLinearProgression()) {
@@ -360,7 +949,7 @@ public class StageManager {
                             .replace("{dependencies}", missingStr)));
                 publishMutation(player, stageId, false, "dependency_denied", Set.of(owner(player, stageId)));
                 captureProgression(player, stageId, before, before, cause, "dependency_denied");
-                return;
+                return false;
             }
         }
 
@@ -369,19 +958,22 @@ public class StageManager {
             player.sendSystemMessage(TextUtil.parseColorCodes("&c" + result.denial()));
             publishMutation(player, stageId, false, "slot_denied", Set.of(owner(player, stageId)));
             captureProgression(player, stageId, before, before, cause, "slot_denied");
-            return;
+            return false;
         }
+        boolean committed = result.granted().contains(stageId);
+        if (committed && paidCost != null) markPurchased(player, stageId, paidCost);
         markMutation(!result.granted().isEmpty() || !result.replaced().isEmpty());
 
         for (StageId replaced : result.replaced()) {
             UUID owner = owner(player, replaced).id();
             fireStageChangeEvent(player, owner, replaced,
                 StageChangeType.REVOKED, StageCause.GROUP_POLICY);
-            refundPurchasedStage(player, new RevokedStage(owner, replaced));
+            refundPurchasedStage(player, new RevokedStage(owner(player, replaced), replaced));
         }
 
         // Fire events for each newly granted stage
         for (StageId granted : result.granted()) {
+            if (cause == StageCause.COMMAND) markMutation(getTeamStageData().allowPermissionEpisodes(owner(player, granted), granted));
             fireStageChangeEvent(player, owner(player, granted).id(), granted, StageChangeType.GRANTED, cause);
             applyRewardsOnce(player, granted);
             OwnerRef stageOwner = owner(player, granted);
@@ -404,10 +996,11 @@ public class StageManager {
         affectedOwners.add(owner(player, stageId));
         result.granted().forEach(id -> affectedOwners.add(owner(player, id)));
         result.replaced().forEach(id -> affectedOwners.add(owner(player, id)));
-        publishMutation(player, stageId, !before.equals(getStages(player)),
+        publishMutation(player, stageId, !result.granted().isEmpty() || !result.replaced().isEmpty(),
             result.granted().isEmpty() ? "already_owned" : "committed", affectedOwners);
         captureProgression(player, stageId, before, getStages(player), cause,
             result.granted().isEmpty() ? "already_owned" : "committed");
+        return committed;
     }
 
     /** v3.0: apply a newly-granted stage's [rewards] ONCE, to the player who earned/bought it. */
@@ -417,15 +1010,22 @@ public class StageManager {
     }
 
     /**
-     * v3.0: record that {@code player}'s team actually PAID for a stage (called from the purchase
-     * handler), so {@code refund_percent} only refunds stages that were bought — not ones earned via
-     * trigger/command/quest, which would otherwise mint free items on every revoke/expiry.
+     * Record the actual payer and stage owner after a successful purchase.
+     * Refund terms belong to that purchase and cannot be collected by another member.
+     * Earned stages do not acquire a purchase receipt.
      */
     public void markPurchased(ServerPlayer player, StageId stageId) {
         if (player.server == null) return;
-        UUID storeTeam = owner(player, stageId).id();
+        StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
+        if (definition == null || !definition.isPurchasable()) return;
+        markPurchased(player, stageId, definition.getCost());
+    }
+
+    public void markPurchased(ServerPlayer player, StageId stageId,
+                              com.enviouse.progressivestages.common.config.StageCost paidCost) {
+        if (player.server == null) return;
         com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(player.server)
-            .markPaid(storeTeam, stageId);
+            .markActorPurchase(owner(player, stageId), stageId, player.getUUID(), paidCost);
     }
 
     /**
@@ -504,15 +1104,20 @@ public class StageManager {
     /** Grant using the requesting actor's per-stage owner, preserving team APIs above. */
     private GrantResult grantStageToActorInternal(ServerPlayer player, StageId stageId,
                                                   boolean bypassDependencies) {
+        return grantStageToActorInternal(getTeamStageData(), id -> owner(player, id), getStages(player), stageId, bypassDependencies);
+    }
+
+    private GrantResult grantStageToActorInternal(TeamStageData data, java.util.function.Function<StageId, OwnerRef> owners,
+                                                 Set<StageId> effectiveOwned, StageId stageId, boolean bypassDependencies) {
         if (!StageOrder.getInstance().stageExists(stageId)) {
             LOGGER.warn("Attempted to grant non-existent actor stage.");
             return new GrantResult(List.of(), List.of(), "Stage does not exist. " + stageId);
         }
-        TeamStageData data = getTeamStageData();
-        Set<StageId> effectiveOwned = new LinkedHashSet<>(getStages(player));
         Set<StageId> toGrant = new LinkedHashSet<>();
         if (!bypassDependencies && StageConfig.isLinearProgression()) {
-            collectRequiredGrantPlan(stageId, effectiveOwned, toGrant, new HashSet<>());
+            Set<StageId> grantPlanOwned = new LinkedHashSet<>(effectiveOwned);
+            if (!hasIndependentOwnership(data, owners.apply(stageId), stageId)) grantPlanOwned.remove(stageId);
+            collectRequiredGrantPlan(stageId, grantPlanOwned, toGrant, new HashSet<>());
         } else {
             toGrant.add(stageId);
         }
@@ -521,7 +1126,8 @@ public class StageManager {
         LinkedHashSet<StageId> replaced = new LinkedHashSet<>();
         for (StageId id : toGrant) {
             StageDefinition definition = StageOrder.getInstance().getStageDefinition(id).orElse(null);
-            StageSlotResolver.Decision decision = slotDecision(player, definition, simulated);
+            StageSlotResolver.Decision decision = StageSlotResolver.resolve(definition, simulated,
+                candidate -> StageOrder.getInstance().getStageDefinition(candidate), candidate -> grantTime(owners.apply(candidate), candidate));
             if (!decision.allowed()) return new GrantResult(List.of(), List.of(), decision.explanation());
             replaced.addAll(decision.replacements());
             simulated.removeAll(decision.replacements());
@@ -529,10 +1135,10 @@ public class StageManager {
         }
         List<StageId> removed = replaced.stream().filter(initial::contains)
             .filter(id -> !simulated.contains(id)).toList();
-        for (StageId id : removed) revokeOwned(data, owner(player, id), id);
+        for (StageId id : removed) revokeOwned(data, owners.apply(id), id);
         List<StageId> newlyGranted = toGrant.stream().filter(simulated::contains)
-            .filter(id -> !initial.contains(id)).toList();
-        for (StageId id : newlyGranted) grantOwned(data, owner(player, id), id);
+            .filter(id -> !hasIndependentOwnership(data, owners.apply(id), id)).toList();
+        for (StageId id : newlyGranted) grantOwned(data, owners.apply(id), id);
         return new GrantResult(newlyGranted, removed, "");
     }
 
@@ -554,7 +1160,7 @@ public class StageManager {
                                                      Set<StageId> owned) {
         return StageSlotResolver.resolve(definition, owned,
             id -> StageOrder.getInstance().getStageDefinition(id),
-            id -> grantTime(owner(player, id).id(), id));
+            id -> grantTime(owner(player, id), id));
     }
 
     private StageSlotResolver.Decision slotDecision(UUID teamId, StageDefinition definition,
@@ -565,9 +1171,13 @@ public class StageManager {
     }
 
     private long grantTime(UUID teamId, StageId stageId) {
+        UUID storage = storageTeam(teamId, stageId);
+        return grantTime(new OwnerRef(SERVER_TEAM.equals(storage) ? OwnerKind.SERVER : OwnerKind.TEAM, storage), stageId);
+    }
+
+    private long grantTime(OwnerRef owner, StageId stageId) {
         if (server == null) return -1L;
-        return com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server)
-            .getGrantTime(storageTeam(teamId, stageId), stageId);
+        return com.enviouse.progressivestages.server.triggers.StageRegressionData.get(server).getGrantTime(owner, stageId);
     }
 
     private void collectRequiredGrantPlan(StageId stageId, Set<StageId> effectiveOwned,
@@ -616,6 +1226,10 @@ public class StageManager {
      * Grant a stage bypassing dependency checks (admin override).
      */
     public void grantStageBypassDependencies(ServerPlayer player, StageId stageId, StageCause cause) {
+        if (hasIndependentStage(player, stageId)) {
+            grantStageWithCause(player, stageId, cause);
+            return;
+        }
         Set<StageId> before = getStages(player);
         GrantResult result = grantStageToActorInternal(player, stageId, true);
         if (!result.denial().isBlank()) {
@@ -630,11 +1244,12 @@ public class StageManager {
             UUID owner = owner(player, replaced).id();
             fireStageChangeEvent(player, owner, replaced,
                 StageChangeType.REVOKED, StageCause.GROUP_POLICY);
-            refundPurchasedStage(player, new RevokedStage(owner, replaced));
+            refundPurchasedStage(player, new RevokedStage(owner(player, replaced), replaced));
         }
 
         // Fire events for each newly granted stage
         for (StageId granted : result.granted()) {
+            if (cause == StageCause.COMMAND) markMutation(getTeamStageData().allowPermissionEpisodes(owner(player, granted), granted));
             fireStageChangeEvent(player, owner(player, granted).id(), granted, StageChangeType.GRANTED, cause);
             applyRewardsOnce(player, granted);
             OwnerRef stageOwner = owner(player, granted);
@@ -657,7 +1272,7 @@ public class StageManager {
         affectedOwners.add(owner(player, stageId));
         result.granted().forEach(id -> affectedOwners.add(owner(player, id)));
         result.replaced().forEach(id -> affectedOwners.add(owner(player, id)));
-        publishMutation(player, stageId, !before.equals(getStages(player)),
+        publishMutation(player, stageId, !result.granted().isEmpty() || !result.replaced().isEmpty(),
             result.granted().isEmpty() ? "already_owned" : "committed", affectedOwners);
         captureProgression(player, stageId, before, getStages(player), cause,
             result.granted().isEmpty() ? "already_owned" : "committed");
@@ -679,7 +1294,7 @@ public class StageManager {
             if (revokeOwned(getTeamStageData(), replacedOwner, replaced)) {
                 fireStageChangeEvent(player, replacedOwner.id(), replaced,
                     StageChangeType.REVOKED, StageCause.GROUP_POLICY);
-                refundPurchasedStage(player, new RevokedStage(replacedOwner.id(), replaced));
+                refundPurchasedStage(player, new RevokedStage(replacedOwner, replaced));
             }
         }
         OwnerRef stageOwner = owner(player, stageId);
@@ -743,9 +1358,12 @@ public class StageManager {
      * @param cause The reason for the revocation
      */
     public void revokeStageWithCause(ServerPlayer player, StageId stageId, StageCause cause) {
+        if (player == null || stageId == null || !StageOrder.getInstance().stageExists(stageId)) return;
         Set<StageId> before = getStages(player);
         boolean serverScoped = isServerScoped(stageId);
         OwnerRef rootOwner = owner(player, stageId);
+        boolean suppressed = getTeamStageData().suppressPermissionEpisodes(rootOwner, stageId);
+        markMutation(suppressed);
         UUID teamId = rootOwner.kind() == OwnerKind.TEAM ? rootOwner.id()
             : TeamProvider.getInstance().getTeamId(player);
         List<RevokedStage> revoked = rootOwner.kind() == OwnerKind.PERSONAL
@@ -758,44 +1376,59 @@ public class StageManager {
         // regression clocks and integration state stale for every other team.
         for (RevokedStage change : revoked) {
             StageId revokedStage = change.stageId();
-            ServerPlayer affectedPlayer = onlineRepresentative(change.owner(), player).orElse(player);
-            fireStageChangeEvent(affectedPlayer, change.owner(), revokedStage, StageChangeType.REVOKED, cause);
+            ServerPlayer affectedPlayer = change.owner().kind() == OwnerKind.PERSONAL ? player
+                : onlineRepresentative(change.owner().id(), player).orElse(player);
+            fireStageChangeEvent(affectedPlayer, change.owner().id(), revokedStage, StageChangeType.REVOKED, cause);
             refundPurchasedStage(player, change);
         }
 
         boolean affectedMultipleTeams = serverScoped || rootOwner.kind() == OwnerKind.TEAM && revoked.stream()
-            .anyMatch(change -> SERVER_TEAM.equals(change.owner()) || !teamId.equals(change.owner()));
+            .anyMatch(change -> change.owner().kind() == OwnerKind.SERVER || !teamId.equals(change.owner().id()));
         if (affectedMultipleTeams) syncAllPlayers();
         else if (revoked.stream().anyMatch(change -> owner(player, change.stageId()).kind() == OwnerKind.TEAM)) syncToTeamMembers(teamId, player);
         else syncToPlayer(player);
-        publishMutation(player, stageId, !before.equals(getStages(player)),
-            revoked.isEmpty() ? "already_owned" : "committed",
-            revoked.stream().map(change -> owner(player, change.stageId())).collect(java.util.stream.Collectors.toUnmodifiableSet()));
+        Set<OwnerRef> affectedOwners = revoked.stream().map(RevokedStage::owner)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (suppressed) affectedOwners.add(rootOwner);
+        boolean changed = suppressed || !revoked.isEmpty();
+        publishMutation(player, stageId, changed, changed ? "committed" : "already_owned", Set.copyOf(affectedOwners));
         captureProgression(player, stageId, before, getStages(player), cause,
-            revoked.isEmpty() ? "already_owned" : "committed");
+            changed ? "committed" : "already_owned");
     }
 
     private void refundPurchasedStage(ServerPlayer player, RevokedStage change) {
+        if (server == null) return;
+        var purchaseData = com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(server);
+        var purchase = purchaseData.deferActorRefund(change.owner(), change.stageId());
+        if (purchase.isPresent()) {
+            var receipt = purchase.orElseThrow();
+            ServerPlayer payer = player != null && player.getUUID().equals(receipt.payer()) ? player
+                : server.getPlayerList().getPlayer(receipt.payer());
+            if (payer != null && purchaseData.consumeActorRefund(receipt.receiptId(), payer.getUUID())) {
+                refundCost(payer, receipt.cost());
+            }
+            return;
+        }
+        if (change.owner().kind() == OwnerKind.PERSONAL) return;
         StageDefinition definition = StageOrder.getInstance().getStageDefinition(change.stageId()).orElse(null);
-        if (definition == null || !definition.isPurchasable() || definition.getCost().refundPercent() <= 0
-                || player.server == null) return;
-        var purchaseData = com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(player.server);
-        if (!purchaseData.isPaid(change.owner(), change.stageId())) return;
-        Optional<ServerPlayer> recipient = onlineRepresentative(change.owner(), player);
-        if (recipient.isPresent() && purchaseData.consumePaid(change.owner(), change.stageId())) {
+        if (definition == null || !definition.isPurchasable() || definition.getCost().refundPercent() <= 0) return;
+        if (!purchaseData.isPaid(change.owner().id(), change.stageId())) return;
+        Optional<ServerPlayer> recipient = player == null ? Optional.empty()
+            : onlineRepresentative(change.owner().id(), player);
+        if (recipient.isPresent() && purchaseData.consumePaid(change.owner().id(), change.stageId())) {
             refundCost(recipient.get(), definition.getCost());
         } else {
-            purchaseData.deferRefund(change.owner(), change.stageId());
+            purchaseData.deferRefund(change.owner().id(), change.stageId());
         }
     }
 
     /** v3.0: return refund_percent of a purchased stage's item/xp cost to the player. */
     private void refundCost(ServerPlayer player, com.enviouse.progressivestages.common.config.StageCost cost) {
         int pct = cost.refundPercent();
-        int xp = cost.xpLevels() * pct / 100;
+        int xp = (int) ((long) cost.xpLevels() * pct / 100);
         if (xp > 0) player.giveExperienceLevels(xp);
         for (var ic : cost.items()) {
-            int give = ic.count() * pct / 100;
+            int give = (int) ((long) ic.count() * pct / 100);
             if (give <= 0) continue;
             net.minecraft.world.item.Item item =
                 net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(ic.item()).orElse(null);
@@ -820,25 +1453,30 @@ public class StageManager {
     }
 
     private List<RevokedStage> revokeStageFromActorInternal(ServerPlayer player, StageId stageId) {
+        return revokeStageFromActorInternal(id -> owner(player, id), getStages(player), stageId);
+    }
+
+    private List<RevokedStage> revokeStageFromActorInternal(java.util.function.Function<StageId, OwnerRef> owners,
+                                                           Set<StageId> effective, StageId stageId) {
         if (!StageOrder.getInstance().stageExists(stageId)) return Collections.emptyList();
         TeamStageData data = getTeamStageData();
-        OwnerRef rootOwner = owner(player, stageId);
+        OwnerRef rootOwner = owners.apply(stageId);
         if (!revokeOwned(data, rootOwner, stageId)) return Collections.emptyList();
         List<RevokedStage> revoked = new ArrayList<>();
-        revoked.add(new RevokedStage(rootOwner.id(), stageId));
+        revoked.add(new RevokedStage(rootOwner, stageId));
         StageDefinition rootDefinition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
         boolean cascade = StageConfig.isLinearProgression()
             || (rootDefinition != null && rootDefinition.getRevoke().cascade());
         if (!cascade) return revoked;
-        Set<StageId> remaining = new LinkedHashSet<>(getStages(player));
+        Set<StageId> remaining = new LinkedHashSet<>(effective);
         remaining.remove(stageId);
         for (StageId dependent : StageOrder.getInstance().getAllDependents(stageId)) {
             StageDefinition definition = StageOrder.getInstance().getStageDefinition(dependent).orElse(null);
             if (definition == null || definition.dependenciesSatisfied(remaining)) continue;
-            OwnerRef dependentOwner = owner(player, dependent);
+            OwnerRef dependentOwner = owners.apply(dependent);
             if (!dependentOwner.equals(rootOwner)) continue;
             if (revokeOwned(data, dependentOwner, dependent)) {
-                revoked.add(new RevokedStage(dependentOwner.id(), dependent));
+                revoked.add(new RevokedStage(dependentOwner, dependent));
                 remaining.remove(dependent);
             }
         }
@@ -872,7 +1510,7 @@ public class StageManager {
 
         while (!pending.isEmpty()) {
             RevokedStage change = pending.removeFirst();
-            if (!data.revokeStage(change.owner(), change.stageId())) continue;
+            if (!data.revokeStage(change.owner().id(), change.stageId())) continue;
             revoked.add(change);
             if (!cascade) continue;
 
@@ -891,8 +1529,8 @@ public class StageManager {
                     continue;
                 }
 
-                Collection<UUID> owners = SERVER_TEAM.equals(change.owner())
-                    ? new ArrayList<>(data.getAllTeamIds()) : List.of(change.owner());
+                Collection<UUID> owners = change.owner().kind() == OwnerKind.SERVER
+                    ? new ArrayList<>(data.getAllTeamIds()) : List.of(change.owner().id());
                 for (UUID owner : owners) {
                     if (SERVER_TEAM.equals(owner) || !data.hasStage(owner, dependent)) continue;
                     if (!definition.dependenciesSatisfied(effectiveStages(data, owner))) {
@@ -908,8 +1546,9 @@ public class StageManager {
     }
 
     private static Set<StageId> effectiveStages(TeamStageData data, UUID teamId) {
-        Set<StageId> result = new LinkedHashSet<>(data.getStages(teamId));
-        if (!SERVER_TEAM.equals(teamId)) result.addAll(data.getStages(SERVER_TEAM));
+        OwnerRef owner = new OwnerRef(SERVER_TEAM.equals(teamId) ? OwnerKind.SERVER : OwnerKind.TEAM, teamId);
+        Set<StageId> result = new LinkedHashSet<>(data.getEffectiveStages(owner));
+        if (!SERVER_TEAM.equals(teamId)) result.addAll(data.getEffectiveStages(new OwnerRef(OwnerKind.SERVER, SERVER_TEAM)));
         return result;
     }
 
@@ -927,20 +1566,33 @@ public class StageManager {
      * Get all stages for a player
      */
     public Set<StageId> getStages(ServerPlayer player) {
+        return resolvedStages(player, false);
+    }
+
+    public Set<StageId> getStoredStages(ServerPlayer player) {
+        return resolvedStages(player, true);
+    }
+
+    private Set<StageId> resolvedStages(ServerPlayer player, boolean includeInactive) {
         if (player == null) return Set.of();
         TeamStageData data = getTeamStageData();
         Set<StageId> result = new LinkedHashSet<>();
         for (StageId stage : data.getPersonalStages(player.getUUID())) {
-            if (owner(player, stage).kind() == OwnerKind.PERSONAL) result.add(stage);
+            OwnerRef resolved = owner(player, stage);
+            if (resolved.kind() == OwnerKind.PERSONAL
+                    && (includeInactive || data.hasEffectiveStage(resolved, stage))) result.add(stage);
         }
         for (UUID teamId : data.getAllTeamIds()) {
             for (StageId stage : data.getStages(teamId)) {
                 OwnerRef resolved = owner(player, stage);
-                if (resolved.kind() == OwnerKind.TEAM && resolved.id().equals(teamId)) result.add(stage);
+                if (resolved.kind() == OwnerKind.TEAM && resolved.id().equals(teamId)
+                        && (includeInactive || data.hasEffectiveStage(resolved, stage))) result.add(stage);
             }
         }
         for (StageId stage : data.getStages(SERVER_TEAM)) {
-            if (owner(player, stage).kind() == OwnerKind.SERVER) result.add(stage);
+            OwnerRef resolved = owner(player, stage);
+            if (resolved.kind() == OwnerKind.SERVER
+                    && (includeInactive || data.hasEffectiveStage(resolved, stage))) result.add(stage);
         }
         return Collections.unmodifiableSet(result);
     }
@@ -951,22 +1603,29 @@ public class StageManager {
         Set<StageId> stages = getStages(player);
         Map<StageId, Set<StageSourceKind>> sources = new LinkedHashMap<>();
         TeamStageData data = getTeamStageData();
-        for (StageId stage : data.getPersonalStages(player.getUUID())) {
-            if (owner(player, stage).kind() != OwnerKind.PERSONAL) continue;
-            addSources(sources, stage, data.getSources(new OwnerRef(OwnerKind.PERSONAL, player.getUUID()), stage));
+        for (StageId stage : stages) addSources(sources, stage, data.getEffectiveSources(owner(player, stage), stage));
+        return new EffectiveStageSnapshot(player.getUUID(), mutationRevision, stages, sources);
+    }
+
+    /** Read an individual actor snapshot without interpreting the actor id as a legacy team id. */
+    public EffectiveStageSnapshot getActorSnapshot(UUID actorId) {
+        Objects.requireNonNull(actorId, "actorId");
+        if (server == null || !server.isSameThread()) {
+            throw new IllegalStateException("Stage actor queries require the running server thread.");
         }
-        for (UUID teamId : data.getAllTeamIds()) {
-            for (StageId stage : data.getStages(teamId)) {
-                OwnerRef resolved = owner(player, stage);
-                if (resolved.kind() != OwnerKind.TEAM || !resolved.id().equals(teamId)) continue;
-                addSources(sources, stage, data.getSources(resolved, stage));
+        ServerPlayer player = server.getPlayerList().getPlayer(actorId);
+        if (player != null) return getEffectiveSnapshot(player);
+        Set<StageId> stages = new LinkedHashSet<>();
+        Map<StageId, Set<StageSourceKind>> sources = new LinkedHashMap<>();
+        TeamStageData data = getTeamStageData();
+        for (StageId stage : StageOrder.getInstance().getOrderedStages()) {
+            OwnerRef resolved = StageOwnership.contextForActor(actorId, stage).owner();
+            if (data.hasEffectiveStage(resolved, stage)) {
+                stages.add(stage);
+                addSources(sources, stage, data.getEffectiveSources(resolved, stage));
             }
         }
-        for (StageId stage : data.getStages(SERVER_TEAM)) {
-            if (owner(player, stage).kind() != OwnerKind.SERVER) continue;
-            addSources(sources, stage, data.getSources(new OwnerRef(OwnerKind.SERVER, SERVER_TEAM), stage));
-        }
-        return new EffectiveStageSnapshot(player.getUUID(), mutationRevision, stages, sources);
+        return new EffectiveStageSnapshot(actorId, mutationRevision, stages, sources);
     }
 
     private static void addSources(Map<StageId, Set<StageSourceKind>> target, StageId stage,
@@ -980,6 +1639,13 @@ public class StageManager {
     }
 
     public long getMutationRevision() { return mutationRevision; }
+
+    /** captures a generation that can be checked without reading game state. */
+    public java.util.function.BooleanSupplier mutationGuard() {
+        var generation = mutationGeneration;
+        long expected = generation.get();
+        return () -> generation.get() == expected;
+    }
 
     /** refresh effective stage and lock views after an external source mutation. */
     public void syncStageView(ServerPlayer player, StageId stageId) {
@@ -995,8 +1661,9 @@ public class StageManager {
      */
     public Set<StageId> getStages(UUID teamId) {
         TeamStageData data = getTeamStageData();
-        Set<StageId> server = data.getStages(SERVER_TEAM);
-        Set<StageId> team = data.getStages(teamId);
+        Set<StageId> server = data.getEffectiveStages(new OwnerRef(OwnerKind.SERVER, SERVER_TEAM));
+        Set<StageId> team = data.getEffectiveStages(new OwnerRef(
+            SERVER_TEAM.equals(teamId) ? OwnerKind.SERVER : OwnerKind.TEAM, teamId));
         if (server.isEmpty() || teamId.equals(SERVER_TEAM)) return team; // fast path / server view
         // v2.4: union server-wide stages into every team's effective stage set.
         Set<StageId> union = new LinkedHashSet<>(team);
@@ -1030,7 +1697,7 @@ public class StageManager {
             return;
         }
 
-        Set<StageId> currentStages = getStages(player);
+        Set<StageId> currentStages = getStoredStages(player);
 
         // Only grant starting stages if player has no stages yet, unless reapply is enabled.
         // (data.grantStage already short-circuits when the team already has the stage.)
@@ -1183,13 +1850,22 @@ public class StageManager {
      * Call this instead of multiple grantStage calls when a player logs in.
      */
     public void syncStagesOnLogin(ServerPlayer player) {
+        TeamStageData rewards = getTeamStageData();
+        for (PendingStageReward receipt : rewards.getPendingRewards(player.getUUID())) {
+            if (getTeamStageData().consumeReward(receipt.receipt(), player.getUUID())) {
+                com.enviouse.progressivestages.server.enforcement.StageRewardApplier.apply(player, receipt.stage(), receipt.rewards());
+            }
+        }
         // Grant starting stage if needed (this is a single operation, not bulk)
         grantStartingStage(player);
 
-        // A global revoke cascade may have removed a purchased team stage while every member was
-        // offline. Deliver its persisted refund to the first member who returns.
+        // Deliver actor receipts only to their payer after an offline revocation.
+        // Legacy receipts without payer information retain their team delivery policy.
         if (player.server != null) {
             var purchaseData = com.enviouse.progressivestages.server.triggers.StagePurchaseData.get(player.server);
+            for (var receipt : purchaseData.getPendingActorRefunds(player.getUUID())) {
+                if (purchaseData.consumeActorRefund(receipt.receiptId(), player.getUUID())) refundCost(player, receipt.cost());
+            }
             UUID teamId = TeamProvider.getInstance().getTeamId(player);
             Set<StageId> pendingStages = new LinkedHashSet<>(purchaseData.getPendingRefunds(teamId));
             pendingStages.addAll(purchaseData.getPendingRefunds(TeamProvider.getInstance().getFtbTeamId(player)));
@@ -1197,7 +1873,8 @@ public class StageManager {
             for (StageId pending : pendingStages) {
                 StageDefinition def = StageOrder.getInstance().getStageDefinition(pending).orElse(null);
                 UUID refundOwner = owner(player, pending).id();
-                if (def != null && def.isPurchasable() && def.getCost().refundPercent() > 0
+                if (def != null && owner(player, pending).kind() != OwnerKind.PERSONAL
+                        && def.isPurchasable() && def.getCost().refundPercent() > 0
                         && purchaseData.consumePendingRefund(refundOwner, pending)) {
                     refundCost(player, def.getCost());
                 }

@@ -28,7 +28,10 @@ public final class StageRewardApplier {
     private StageRewardApplier() {}
 
     public static void apply(ServerPlayer player, StageDefinition def) {
-        StageRewards r = def.getRewards();
+        apply(player, def.getId(), def.getRewards());
+    }
+
+    public static void apply(ServerPlayer player, com.enviouse.progressivestages.common.api.StageId stage, StageRewards r) {
         if (r == null || r.isEmpty() || player.server == null) return;
 
         // Items — split across stacks; drop whatever doesn't fit.
@@ -68,7 +71,7 @@ public final class StageRewardApplier {
                 try {
                     player.server.getCommands().performPrefixedCommand(source, cmd.replace("{player}", name));
                 } catch (Throwable t) {
-                    LOGGER.warn("[ProgressiveStages] reward command failed for {}: {}", def.getId(), cmd, t);
+                    LOGGER.warn("[ProgressiveStages] reward command failed for {}: {}", stage, cmd, t);
                 }
             }
         }

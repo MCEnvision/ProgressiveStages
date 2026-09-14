@@ -1,97 +1,76 @@
 package com.enviouse.progressivestages.server.enforcement;
 
 import com.enviouse.progressivestages.common.api.StageId;
-import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
+import com.enviouse.progressivestages.common.api.ProgressiveStagesAPI;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.stage.StageOrder;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.tree.RootCommandNode;
+import com.mojang.logging.LogUtils;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.event.CommandEvent;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
-/** enforces configured stage command gates at the actual parsed command boundary. */
+/** Enforces stage and native permissions for the effective command actor. */
 public final class CommandPermissionGate {
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static RootCommandNode<CommandSourceStack> dispatcherRoot;
+    private static final Map<StageDefinition, List<CommandRuleBinding<CommandSourceStack>>> bindings =
+        new WeakHashMap<>();
+
     private CommandPermissionGate() {}
 
-    @SubscribeEvent
-    public static void onCommand(CommandEvent event) {
-        if (event == null || event.getParseResults() == null) return;
-        CommandSourceStack source = event.getParseResults().getContext().getSource();
-        ServerPlayer player;
-        try {
-            player = source.getPlayer();
-        } catch (Exception ignored) {
-            player = null;
+    public static boolean checkExecution(CommandSourceStack source,
+                                         CommandContext<CommandSourceStack> context) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return true;
+        var root = source.getServer().getCommands().getDispatcher().getRoot();
+        if (dispatcherRoot != root) {
+            bindings.clear();
+            dispatcherRoot = root;
         }
-        if (player == null) return;
-        List<String> path = new ArrayList<>();
-        for (var node : event.getParseResults().getContext().getNodes()) {
-            if (node.getNode() instanceof com.mojang.brigadier.tree.LiteralCommandNode<?> literal) {
-                path.add(literal.getLiteral());
-            }
-        }
-        if (path.isEmpty()) return;
         for (StageId stageId : StageOrder.getInstance().getOrderedStages()) {
             StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
             if (definition == null || definition.getLuckPerms().commandPermissions().isEmpty()) continue;
-            if (!hasApplicableRule(definition.getLuckPerms().commandPermissions(), path)) continue;
-            if (!com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.hasStage(player, stageId)) {
-                event.setCanceled(true);
-                player.sendSystemMessage(Component.literal("You need the stage " + stageId.getPath() + " to use this command."));
-                InteractionCaptureManager.recordCommandPermission(player, stageId, String.join(" ", path), false, "command_denied");
-                return;
+            var resolved = bindings.computeIfAbsent(definition, value -> {
+                var result = new ArrayList<CommandRuleBinding<CommandSourceStack>>();
+                for (var rule : value.getLuckPerms().commandPermissions()) {
+                    var binding = CommandRuleBinding.resolve(root, rule.path(), rule.descendants());
+                    if (!binding.isResolved()) {
+                        LOGGER.warn("Unresolved command rule {} in stage {}. Path {} remains inactive.",
+                            rule.id(), stageId, rule.path());
+                    }
+                    result.add(binding);
+                }
+                return List.copyOf(result);
+            });
+            if (resolved.stream().noneMatch(binding -> binding.matches(context))) continue;
+            boolean stageAllowed = ProgressiveStagesAPI.hasStage(player, stageId);
+            boolean nativeAllowed = context.getRootNode().canUse(source)
+                && context.getNodes().stream().allMatch(node -> node.getNode().canUse(source));
+            String reason = !nativeAllowed ? "native_denied" : !stageAllowed ? "command_denied" : "reconciled";
+            InteractionCaptureManager.recordCommandPermission(player, stageId, context, stageAllowed, nativeAllowed, reason);
+            if (!nativeAllowed || !stageAllowed) {
+                source.sendFailure(nativeAllowed
+                    ? Component.translatable("progressivestages.command.stage_required", definition.getDisplayName())
+                    : Component.translatable("progressivestages.command.native_denied"));
+                return false;
             }
-            InteractionCaptureManager.recordCommandPermission(player, stageId, String.join(" ", path), true, "reconciled");
-        }
-    }
-
-    public static boolean isAllowed(ServerPlayer player, List<String> path) {
-        if (player == null || path == null || path.isEmpty()) return true;
-        for (StageId stageId : StageOrder.getInstance().getOrderedStages()) {
-            StageDefinition definition = StageOrder.getInstance().getStageDefinition(stageId).orElse(null);
-            if (definition != null && hasApplicableRule(definition.getLuckPerms().commandPermissions(), path)
-                    && !com.enviouse.progressivestages.common.api.ProgressiveStagesAPI.hasStage(player, stageId)) return false;
         }
         return true;
     }
 
-    private static boolean hasApplicableRule(List<LuckPermsStageOptions.CommandPermissionRule> rules,
-                                             List<String> path) {
-        for (var rule : rules) {
-            if (matchesPath(rule.path(), path, rule.descendants())) return true;
-        }
-        return false;
-    }
-
-    public static boolean matchesPath(String configured, List<String> actual, boolean descendants) {
-        if (configured == null || actual == null || actual.isEmpty()) return false;
-        String[] expected = configured.split(" ");
-        for (int index = 0; index < expected.length; index++) expected[index] = normalizeLiteral(expected[index]);
-        if (actual.size() < expected.length) return false;
-        if (descendants) return startsWith(actual, expected);
-        return deepestLiteralPath(actual).equals(String.join(" ", expected));
-    }
-
-    private static boolean startsWith(List<String> actual, String[] expected) {
-        for (int index = 0; index < expected.length; index++) {
-            String observed = actual.get(index);
-            observed = normalizeLiteral(observed);
-            if (!expected[index].equals(observed)) return false;
-        }
-        return true;
-    }
-
-    private static String deepestLiteralPath(List<String> path) {
-        return path.stream().map(CommandPermissionGate::normalizeLiteral)
-            .collect(java.util.stream.Collectors.joining(" "));
-    }
-
-    private static String normalizeLiteral(String token) {
-        int separator = token == null ? -1 : token.indexOf(':');
-        return separator >= 0 ? token.substring(separator + 1) : token;
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        bindings.clear();
+        dispatcherRoot = null;
     }
 }

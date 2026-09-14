@@ -647,3 +647,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     transition: opacity .14s ease, transform .14s ease;
   }
 }
+
+.field-diagnostics { display: block; width: 100%; }
+.field-diagnostic { display: grid; gap: 0.3rem; margin-top: 0.5rem; padding: 0.65rem; border: 1px solid currentColor; border-radius: 0.4rem; overflow-wrap: anywhere; }
+.field-diagnostic.error { color: #ffb4ab; }
+.field-diagnostic.warning { color: #f5d68a; }
+.field-diagnostic code { white-space: normal; overflow-wrap: anywhere; }
+.draft-validation { margin: 0.75rem 0; padding: 0.75rem; border: 1px solid #766446; border-radius: 0.5rem; }
+.draft-validation summary { cursor: pointer; }
+
+.context-editor, .context-entry { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); }
+.context-editor { display: grid; gap: 12px; }
+.context-entry { display: grid; gap: 10px; }
+.context-editor legend, .context-entry legend { padding: 0 6px; font-weight: 600; }
+.context-value { display: flex; align-items: flex-end; gap: 10px; }
+.context-value .field { flex: 1; min-width: 0; }
+@media (max-width: 600px) { .context-value { flex-direction: column; align-items: stretch; } }

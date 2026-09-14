@@ -1,6 +1,9 @@
 package com.enviouse.progressivestages.server.editor;
 
 import com.enviouse.progressivestages.common.api.StageId;
+import com.enviouse.progressivestages.common.api.ProgressiveStagesAPI;
+import com.enviouse.progressivestages.common.config.StageConfig;
+import com.enviouse.progressivestages.common.stage.FieldDiagnostic;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.lock.LockDefinition;
 import com.enviouse.progressivestages.common.rehaul.SelectorSpec;
@@ -41,27 +44,52 @@ final class EditorDraftValidator {
             }
             StagePackageDiscovery.DiscoveryResult discovery = StagePackageDiscovery.discover(temporary);
             List<String> errors = new ArrayList<>(discovery.errors());
+            List<DraftValidation.Diagnostic> diagnostics = new ArrayList<>();
             Map<StageId, StageDefinition> definitions = new LinkedHashMap<>();
+            Map<StageId, String> sourceFiles = new LinkedHashMap<>();
             for (var source : discovery.packages()) {
                 var parsed = StagePackageParser.parse(source);
-                if (!parsed.isSuccess()) { errors.add(source.root().getFileName() + ". " + parsed.getErrorMessage()); continue; }
+                if (!parsed.isSuccess()) {
+                    errors.add(source.root().getFileName() + ". " + parsed.getErrorMessage());
+                    parsed.getFieldDiagnostic("stages/" + temporary.relativize(source.identityFile()).toString().replace('\\', '/'))
+                        .filter(diagnostic -> !diagnostic.code().equals("invalid_stage"))
+                        .map(DraftValidation.Diagnostic::from).ifPresent(diagnostics::add);
+                    continue;
+                }
                 StageDefinition definition = parsed.getStageDefinition();
                 try { Schema4StageCompiler.compile(definition, parsed.getSourceConfig(), source.sourceId(), 0); }
                 catch (RuntimeException error) { errors.add(definition.getId() + ". " + error.getMessage()); }
                 validateInventoryTargets(definition, errors);
                 if (definitions.putIfAbsent(definition.getId(), definition) != null) errors.add("Duplicate stage id. " + definition.getId());
+                sourceFiles.putIfAbsent(definition.getId(), "stages/" + temporary.relativize(source.identityFile()).toString().replace('\\', '/'));
             }
             for (Path source : discovery.legacyFiles()) {
                 var parsed = StageFileParser.parseWithErrors(source);
-                if (!parsed.isSuccess()) { errors.add(source.getFileName() + ". " + parsed.getErrorMessage()); continue; }
+                if (!parsed.isSuccess()) {
+                    errors.add(source.getFileName() + ". " + parsed.getErrorMessage());
+                    parsed.getFieldDiagnostic("stages/" + temporary.relativize(source).toString().replace('\\', '/'))
+                        .map(DraftValidation.Diagnostic::from).ifPresent(diagnostics::add);
+                    continue;
+                }
                 StageDefinition definition = parsed.getStageDefinition();
                 if (definitions.putIfAbsent(definition.getId(), definition) != null) errors.add("Duplicate stage id. " + definition.getId());
+                sourceFiles.putIfAbsent(definition.getId(), "stages/" + temporary.relativize(source).toString().replace('\\', '/'));
             }
             errors.addAll(StageOrder.validateDefinitions(definitions.values()));
             Path validationRoot = temporary;
-            List<String> warnings = discovery.ignoredFiles().stream()
-                .map(path -> "Ignored helper TOML. " + validationRoot.relativize(path)).toList();
-            return new DraftValidation(errors.isEmpty(), errors, warnings, definitions.size(), revision);
+            List<String> warnings = new ArrayList<>(discovery.ignoredFiles().stream()
+                .map(path -> "Ignored helper TOML. " + validationRoot.relativize(path)).toList());
+            var capabilities = ProgressiveStagesAPI.getStageCapabilities(definitions.values());
+            for (var definition : definitions.values()) {
+                for (var diagnostic : ProgressiveStagesAPI.validateStageOptions(definition, sourceFiles.get(definition.getId()), capabilities)) {
+                    diagnostics.add(DraftValidation.Diagnostic.from(diagnostic));
+                    String summary = diagnostic.file() + ". " + diagnostic.message();
+                    if (diagnostic.severity() == FieldDiagnostic.Severity.ERROR) errors.add(summary);
+                    else warnings.add(summary);
+                }
+            }
+            return new DraftValidation(errors.isEmpty(), errors, warnings, definitions.size(), revision,
+                diagnostics, capabilities, StageConfig.getTeamMode());
         } catch (IOException | RuntimeException error) {
             return new DraftValidation(false, List.of(error.getMessage()), List.of(), 0, revision);
         } finally {

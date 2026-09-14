@@ -756,9 +756,8 @@ public class StageConfig {
         .defineInRange("integration.ftbquests.recheck_budget_per_tick", 10, 1, 100);
 
     private static final ModConfigSpec.BooleanValue FTBQUESTS_TEAM_MODE = BUILDER
-        .comment("If true, FTB Quests stage rewards/tasks delegate has/add/remove to FTB Teams'",
-                 "TeamStagesHelper instead of ProgressiveStages' own backend.",
-                 "Useful when running in solo team_mode but wanting team-shared questing.",
+        .comment("If true, legacy stage reads and removals may use FTB Teams TeamStagesHelper.",
+                 "Defined stages always use ProgressiveStages ownership for checks, grants and removals.",
                  "Falls back to ProgressiveStages' own backend if FTB Teams isn't available.")
         .define("integration.ftbquests.team_mode", false);
 
@@ -927,6 +926,9 @@ public class StageConfig {
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
+        if (event.getConfig().getSpec() == SPEC) {
+            com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
+        }
         // Starting stages (v1.3 - supports list)
         List<? extends String> stagesList = STARTING_STAGES.get();
         startingStages = new ArrayList<>();

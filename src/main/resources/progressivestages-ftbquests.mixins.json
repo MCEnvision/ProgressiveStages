@@ -7,7 +7,9 @@
   "mixins": [
     "QuestMixin",
     "ChapterMixin",
-    "TeamDataMixin"
+    "TeamDataMixin",
+    "StageRewardMixin",
+    "StageTaskMixin"
   ],
   "injectors": {
     "defaultRequire": 0

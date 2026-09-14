@@ -53,13 +53,43 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **Guided ownership and access builder.** The editor's Access tab writes inherited, personal,
   team, and server ownership, optional LuckPerms inbound and outbound mappings, retention mode,
   context values, command descendant gates, and direct interaction definitions without requiring
-  raw TOML. Existing source comments and unrelated files remain in the draft.
+  raw TOML. Contexts use separate key and value controls, so commas and line breaks remain
+  inside their values. Command gates include descendants by default, with an explicit opt out.
+  Duplicate keys and failed saves retain editable input. Existing source
+  comments and unrelated files remain in the draft. Quoted table paths and multiline values
+  remain intact when editing access settings and interaction rows. Config and datapack discovery
+  recognize quoted stage headers as well as dotted and inline stage definitions. Ownership
+  and retention controls also edit fields inside inline tables while preserving their structure.
+  The Access tab supports inline arrays of interactions, command gates, and permission mappings,
+  including additions, removals, contexts, and the paired Selling Bin preset. Inventory rule
+  condition edits in the Rules tab retain descriptions, aliases, and unknown nested fields.
+- **Strict access configuration validation.** Incorrect LuckPerms booleans and non-string
+  group or permission entries are rejected instead of silently changing their meaning. The
+  builder places returned diagnostics beside ownership and access rules, with a full validation
+  summary. Results are tied to the draft revision and disappear after an edit. Provider feedback
+  explains current team fallback, dormant LuckPerms mappings, pending or missing groups, and
+  unresolved command paths without rewriting the source.
 - **Selling Bin interaction presets.** Direct interactions can be authored with
   `tag:c:armors` or `all:*` held item selectors and the exact
-  `id:selling_bin:selling_bin` block selector.
-- **Optional LuckPerms bridge.** Inbound mappings can be synchronized or permanent per stage,
-  outbound group and permission contributions are transient and owned, and command gates retain
-  native permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
+  `id:selling_bin:selling_bin` block selector. For selected items such as bread, enable
+  **Also restrict GUI insertion** to create matching held item and inventory insertion rules
+  together. Whole bin access remains a separate block right click rule.
+- **Optional LuckPerms configuration.** The builder supports synchronized or permanent inbound
+  mappings and outbound group or permission mappings. Outbound mutations use transient nodes with
+  tracked ownership and cleanup retries. Queries preserve current context values and separate
+  unavailable data from an authoritative permission result. Real provider context isolation and
+  lifecycle verification remain open, and the selected provider fails player login on NeoForge 21.1.248.
+  The online update queue retains pending work on overflow and resumes its population scan
+  within the existing per tick budget. Online reconciliation collects all inbound permissions
+  before changing sources and retries the complete observation when input changes during queries.
+  Source and eligibility changes commit together before listeners or client updates run, preserving
+  deliberate administrative changes made by a listener after that commit.
+  Outbound updates recheck the captured state between provider writes and before publication.
+  Rejected updates retain exact node ownership for cleanup and retry.
+  Offline source and eligibility changes also use an isolated draft and commit together only
+  while the captured provider, stage, membership and server state remains current.
+  Runtime integration is not accepted. Command gates retain native
+  permission checks. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
 
 ## What's new in 3.0.4
 
@@ -174,6 +204,10 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **Author-controlled map layout** — each stage's `[display]` can set `x`, `y`, `frame`, `background`, `reveal`, and `sort_order`; omit `x` + `y` for automatic dependency graph layout. Reveal can be `always`, `dependencies`, or `unlocked`. The React editor's **Player layout** page pans, zooms, drags icons using these same coordinates, draws new prerequisite branches, removes existing branch lines, and saves exact X and Y positions.
 - **Named trigger counters** — `type = "custom_counter", counter = "quest_points", count = 10` bridges stage TOML to `/stage counter get|add|set|reset ...` and `ProgressiveStages.counter/addCounter/setCounter/resetCounter(...)` in KubeJS.
 - **Expanded KubeJS API** — actual-change `grant`/`revoke`, plus `toggle`, `exists`, slot-aware `available`, `slot` decision details, dependency queries, tag queries/bulk operations, counters, immediate trigger evaluation, and `openGui`.
+- **KubeJS callback lifecycle**. Server script callbacks survive the transition from startup loading to the server thread. Reload replaces their registrations. See the [actual script regression procedure](docs/test/kubejs.md).
+- **Explicit actor APIs**. Java integrations can resolve ownership and read immutable individual snapshots for online or offline actors. Fresh offline contexts support grants and revocation, with actor specific deferred rewards, cascades and refunds. Legacy UUID team queries retain their meaning. See the [API contract](DOCUMENTATION.md#151-progressivestagesapi).
+- **Purchase attribution**. Players with temporary access can still purchase independent ownership, retaining their separate lease. Repeated item cost rows require their combined quantity before any payment is taken. New purchase refunds belong to the payer, including deferred refunds after logout. Grant callbacks and reward commands use the committed purchase receipt, so immediate revocation applies the configured refund and preserves the purchase cooldown. Personal and team receipts remain separate, and later configuration edits preserve the original refund terms. See [purchase configuration](DOCUMENTATION.md#426-cost--skill-tree-purchasable-stages).
+- **Live progression map updates**. An open map updates its nodes and details after stage synchronization. Matching clients and servers also refresh purchase offers through the existing response limit, without reopening a map that the player closes.
 - **Correctness and dedicated-server parity** — per-stage exemptions and `[unlocks]` are scoped to their owning stage, secondary categories retain every gating stage, mixed team/server-scope dependencies store correctly, reload/stop clears runtime state, biome time is exact for any polling interval, and block/fluid/mod locks now sync to dedicated clients and recipe viewers.
 - **Reproducible build + tests** — optional integrations resolve from publisher Maven repositories; a fresh clone no longer needs ignored `libs/*.jar` files.
 - **`[rewards]` on grant** — the companion to `[cost]`. `[rewards]` hands a stage's loot out **the moment it's granted**: `items = ["minecraft:diamond:5"]`, `effects = ["minecraft:strength:60:1"]` (`id:seconds:amplifier`), `commands = ["give {player} ..."]` (run as the player at permission 2; `{player}` substituted; singular `command` also accepted), `teleport = "[dim] x y z"` (dimension optional), `xp_levels`, `xp_points`. Fires **once per real grant** — applied to the player who earned/bought the stage (not per team member), not on login/sync — for every cause.
@@ -243,7 +277,7 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 - **Every player-visible message is a config template** with `&` color codes and named placeholders (`{stage}`, `{type}`, `{count}`, `{player}`, `{progress}`, ...). Pack devs can retheme the entire UX from `progressivestages.toml`.
 - **JEI deep hiding** — multi-`FluidStack` ingredient-type enumeration, two-pass refresh (JEI clears the blacklist on add), reflective `IngredientFilter.rebuildItemFilter()`, JEI uid embedded namespace regex, generic ingredient sweep for Mekanism gases/pigments via `Class.getModule().getName()`.
 - **EMI hide-by-class** — `removeEmiStacks` predicate covers items, fluids, abstract ids, AND class-module owning mod, catching Mekanism chemicals whose registry id is `mekanism:*` but whose class lives in the mekanism module.
-- **FTB Quests deep gating** — the `Quest` / `Chapter` `required_stage` field now also gates `TeamData.canStartTasks`, so progression is blocked even if visibility is overridden by another mod. Optional `ftbquests_team_mode` reflectively delegates `has` / `add` / `remove` to FTB Teams' `TeamStagesHelper`.
+- **FTB Quests deep gating** — the `Quest` / `Chapter` `required_stage` field now also gates `TeamData.canStartTasks`, so progression is blocked even if visibility is overridden by another mod. Defined stages use ProgressiveStages ownership for native quest checks, grants and removals, including FTB team reward and task settings. The optional `integration.ftbquests.team_mode` retains legacy helper reads and removals for undefined stages. An initial import preserves existing defined helper grants in their original team namespace without replaying rewards.
 - **Spectator bypass parity** — spectators always bypass locks (matching the existing creative-bypass pathway).
 - **`reapply_starting_stages_on_login`** opt-in lets pack devs add a starting stage to an existing world and have all online players pick it up next login.
 
@@ -251,11 +285,17 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 
 ## Installation
 
-1. Install [NeoForge](https://neoforged.net/) for Minecraft 1.21.1.
+1. For the 3.0.5 development candidate, install [NeoForge](https://neoforged.net/) 21.1.248 for Minecraft 1.21.1 on both the server and client.
 2. Drop the jar into `mods/`.
 3. Optional integrations (auto-detected when their mods are present): EMI, JEI, FTB Quests + FTB Library, FTB Teams, Curios, Lootr, Mekanism, KubeJS, NaturesCompass, Visual Workbench.
 4. Launch the game once. ProgressiveStages generates the main file at `config/progressivestages/progressivestages.toml` and fifty schema 4 showcase packages under `config/progressivestages/stages/` when that folder is empty.
 5. Run `/pstages editor` as a permission level 3 operator to open the local React stage editor. It opens directly on the stage list. Use the guided stage workspace, the movable and zoomable Player UI, Registry, Settings, or Extensions without touching a file. Direct TOML remains available under Source. Reload at runtime with `/pstages reload`.
+
+The editor's package export and import preserve nested TOML includes and helper TOML files,
+including comments and quoted keys. Import requires `stage.toml` and safe relative TOML paths.
+An invalid package leaves the draft and its undo history unchanged.
+Apply also rejects external configuration file changes made since the draft opened, even when
+those changes have not been reloaded. The external files and editable draft are preserved.
 
 ---
 
@@ -325,7 +365,88 @@ Each category lives in its own TOML section. Lists accept the unified prefix syn
 
 For `item_on_block` and `block_right_click`, selectors are checked against the live item and block holders. Use `tag:c:armors`, `id:selling_bin:selling_bin`, or `all:*`; the legacy `#c:armors` form remains valid. An item-on-block rule requires a nonempty held stack. See the [interaction lock troubleshooting guide](docs/troubleshooting/interaction-locks.md).
 
-Stages can optionally integrate with LuckPerms. Add `[luckperms]`, `[[luckperms.inbound]]`, and `[[luckperms.outbound]]` to read inherited groups or true Boolean permissions and to contribute existing groups or positive permissions. `inbound_mode = "synchronized"` removes access after a qualifying rank is lost. `inbound_mode = "permanent"` keeps the attributed stage. Add `[[command_permissions]]` rows to require a stage at an actual literal command path while native command permissions remain required. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
+Matching clients suppress local item and block prediction for denied direct interactions using synchronized rules and stage ownership. The server still checks the ordinary request and resends authoritative inventory state when it denies the interaction. Selective restrictions inside an open GUI use a separate `item_into_inventory` rule; `block_right_click` controls access independently. The [real Selling Bin transaction tests](docs/test/selling-bin.md) cover server insertion and sale paths. Client acceptance remains open in the [verification record](docs/verification/selling-bin-interaction-repair.md).
+
+Client snapshot acknowledgements must match the revision, checksum and enforcement policy sent
+to that player. Repeated acknowledgements reuse the stored offer instead of rebuilding the
+snapshot. Disconnect clears the offer. Recovery requests receive one immediate response; repeats
+coalesce into one pending response per player every 20 server ticks. A full recovery request takes
+precedence over a delta base, and normal server updates remain immediate. Disconnect cancels
+pending recovery. See the [snapshot handler tests](docs/test/snapshot-acknowledgements.md).
+
+Clients enforce the snapshot's declared compressed size as chunks arrive. Duplicate chunks do
+not consume the remaining byte budget, and excess data cannot accumulate until the final chunk.
+
+Stage GUI requests, including purchase feedback and public GUI commands, share a response budget
+per player. The first view is immediate; repeated requests combine into one current view after
+20 server ticks. Matching clients open the screen for an explicit command, keybind or script
+`ProgressiveStages.openGui(player)` call. A delayed refresh cannot reopen a screen the player closed. Disconnect cancels pending GUI work.
+See the [GUI response tests](docs/test/gui-responses.md).
+
+Stages can optionally integrate with LuckPerms. Add `[luckperms]`, `[[luckperms.inbound]]`, and `[[luckperms.outbound]]` to read inherited groups or true Boolean permissions and to contribute existing groups or positive permissions. `inbound_mode = "synchronized"` removes access after a qualifying rank is lost. `inbound_mode = "permanent"` keeps the attributed stage. Native team changes withdraw the moving player's synchronized contribution from the old owner while preserving independent and permanent grants. Add `[[command_permissions]]` rows to require a stage at an actual literal command path while native command permissions remain required. See the [LuckPerms troubleshooting guide](docs/troubleshooting/luckperms.md).
+
+Inbound grants track each contributing player and mapping separately. Losing one synchronized
+contribution preserves other contributors and independently earned access. Removing a mapping
+withdraws its synchronized source from the current owner; permanent grants remain retained.
+Reconciliation also removes that player's synchronized contributions from obsolete owners and
+deleted definitions before evaluating new grants. Legacy contributor migration, offline recovery
+and the full provider lifecycle remain under verification.
+
+Stage expiry and held duration checks use separate personal, team and server clocks. A personal
+profession cannot overwrite a team clock even when their UUIDs match. Legacy team and server
+timestamps remain readable without copying them into personal ownership.
+
+Permission grants retain eligibility history after their source is removed. Manual revocation
+suppresses the current positive grant, and reloads, provider outages or context changes do not
+renew its timer. A confirmed loss and return of the same independent permission conditions, or a
+deliberate administrative grant, can start a new grant. Timed permanent grants still expire.
+Administrative grants record independent ownership even when a rank already provides access. Bulk,
+tag and category revokes also suppress existing positive eligibility while its source is unavailable.
+The [episode verification record](docs/verification/luckperms-bridge.md#permission-episode-regression)
+distinguishes these core checks from the remaining real provider acceptance.
+
+After loading saved data, synchronized grants wait for authoritative revalidation. Independent and
+permanent grants remain available. Pending synchronized grants stay stored so they can be rechecked
+or explicitly revoked; they do not satisfy access checks while pending.
+
+Outbound privileges use a reserved provider context that becomes active only after their current
+node changes are confirmed. Dirty state, reload, disconnect and shutdown invalidate that context
+before cleanup or reevaluation. Reload work shares the bounded reconciliation queue. Actual
+provider and combined gameplay verification remain open.
+
+Provider user, node, group, configuration reload and synchronization events now schedule the same
+bounded reconciliation work. Callbacks invalidate projection state without querying stages or
+loading users. Shutdown disables callbacks before removing their subscriptions and retries failed
+listener cleanup.
+
+Offline contributors now share the reconciliation queue. Up to eight provider loads can be pending,
+and offline checks use fixed server contexts instead of a remembered world. Current ownership,
+definitions and provider observations are checked before applying results. Synchronized sources
+wait inactive for unavailable data; permanent and independent grants remain retained. The complete
+real provider and team lifecycle acceptance remains under verification.
+
+Command gates now check Minecraft's command execution tasks after redirects resolve. Registered
+node and execution bindings identify aliases; namespace text alone does not establish equivalence.
+The [command regression evidence](docs/verification/luckperms-bridge.md#command-execution-regression)
+distinguishes the core checks from the outstanding real provider and client acceptance.
+
+Actor context mutations reject stale membership and definition revisions before changing stages.
+Integrations must resolve a fresh context on the server thread after membership or session changes.
+
+Easy Builder applies only the reviewed draft revision. If another edit changes the draft, it
+reloads the current source and asks for a new review before applying.
+Removing a draft collaborator revokes their existing sessions. Adding them again requires
+a fresh session before they can read, review, or apply that draft.
+
+Diagnostic capture status shows the category, remaining limits, and writer completion.
+Capture headers identify the candidate archives and captured effective configuration.
+`/stage debug editor` also records authenticated draft operations and apply outcomes.
+See the [capture procedure](docs/troubleshooting/interaction-locks.md) before collecting support logs.
+
+The selected LuckPerms 5.4.140 candidate fails player login on NeoForge 21.1.248 even without
+ProgressiveStages installed. Its successful server startup does not establish compatibility.
+The [verification record](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
+documents this unresolved integration gate; no replacement provider build is verified yet.
 | `[[regions]]` | `dimension`, `pos1`, `pos2`, `prevent_entry`, `prevent_explosions`, ... | 3D bounding-box gates |
 | `[structures]` | `locked_entry` + `[structures.rules]` (`prevent_block_break`, `prevent_block_place`, `prevent_explosions`, `disable_mob_spawning`, **`entry_padding`** — new in 2.5) | Block entry into specific generated structures. **New in 2.5:** breaching players teleport back to their last safe position; `entry_padding` (blocks) keeps the fallback push clear of the boundary. |
 | `[enforcement]` | `allowed_use`, `allowed_pickup`, `allowed_hotbar`, `allowed_mouse_pickup`, `allowed_inventory` | Per-stage exception lists for in-inventory enforcement |
@@ -484,8 +605,8 @@ sort_order = 20                        # ordering hint for automatic layout
 | **EMI** | **Optional** (`type = "optional"`, mixins `required: false`). Items + fluids + abstract ingredients hidden via `removeEmiStacks` predicate; class-module fallback for Mekanism gases/pigments; re-shown on unlock. **3.0:** the recipe-viewer reload no longer crashes when EMI is absent (a `NoClassDefFoundError` class-load guard was fixed) |
 | **JEI** | **Optional** (`type = "optional"`, no hard dependency). Items + fluids (every `FluidStack` ingredient type, not just `NeoForgeTypes.FLUID_STACK`) hidden; two-pass refresh; reflective ingredient-filter rebuild; uid namespace regex scan; live `IIngredientListener`; re-shown on unlock |
 | **FTB Quests** | `Quest` / `Chapter` `required_stage` field gates both `isVisible` and `canStartTasks`; required-stage entry in the editor config UI |
-| **FTB Library** | `StageProvider` Proxy registration so FTB's native Stage Required, Stage Task, and Stage Reward all flow through ProgressiveStages |
-| **FTB Teams** | Default backend when `team_mode = "ftb_teams"`; optional `integration.ftbquests.team_mode` reflectively delegates FTB Quests stage reads to `TeamStagesHelper` |
+| **FTB Library** | `StageProvider` proxy registration and native quest storage hooks preserve each defined stage's personal, team or server owner. FTB reward distribution settings remain separate |
+| **FTB Teams** | Default backend when `team_mode = "ftb_teams"`; defined quest stages use the same owner backend as other progression; optional `integration.ftbquests.team_mode` retains legacy helper reads and removals for undefined stages |
 | **Curios** | Optional Curios 9.5.1 public-API bridge. Per-slot stage locks via `[curios].locked_slots`; the configured inventory sweep safely removes stale locked curio contents. |
 | **Lootr** | `ILootrFilterProvider` filters stage-locked loot from per-player chest snapshots |
 | **Mekanism** | Entity-join + block-break hooks honor stage gates; gases/pigments hidden in EMI via class-module detection |
@@ -544,7 +665,7 @@ Every line of every command's output is a configurable template via `messages.cm
 - **`[enforcement]`** — every per-category enforcement toggle (`block_item_use`, `block_block_placement`, `block_dimension_travel`, `block_enchants`, `block_crop_growth`, `block_pet_interact`, `block_loot_drops`, `block_mob_spawns`, `block_mob_replacements`, `block_region_entry`, `block_structure_entry`, `block_screen_open`, ...), plus `allow_creative_bypass`, `mask_locked_item_names`, `obscure_locked_item_icons` (new — replace a locked item's icon with a `?`), `trigger_poll_interval` (new — `[[triggers]]` poll cadence in ticks), `notification_cooldown`, `reveal_stage_names_only_to_operators`, lock-sound config, eject-blocked-inventory frequency.
 - **`[messages]`** — every player-facing string. Supports `&` color codes (`&0`–`&f`, `&l/m/n/o/k/r`) and named placeholders. Generic `*_generic` variants are emitted when `reveal_stage_names_only_to_operators = true` and the player is non-op. Includes the `messages.prefix` template, `messages.tooltip_*` (now including `tooltip_stage_description`), `messages.cmd_*`, `messages.type_label_*`, and `messages.cmd_ftb_status_*` families.
 - **`[jei]` and `[emi]`** — independent `enabled` controls for each optional viewer. `[emi]` also keeps `show_lock_icon`, `lock_icon_position`, `lock_icon_size`, `show_highlight`, `highlight_color`, `show_tooltip`, `show_stage_description_on_tooltip` (new — append the gating stage's description to a locked item's tooltip), and `show_locked_recipes` for compatibility.
-- **`[integration.ftbquests]`** — `enabled`, `team_mode` (delegates to FTB Teams' `TeamStagesHelper`), `recheck_budget_per_tick`.
+- **`[integration.ftbquests]`** — `enabled`, `team_mode` (retains legacy helper reads and removals for undefined stages), `recheck_budget_per_tick`.
 - **`[integration.ftbteams]`** — `enabled`.
 - **`[performance]`** — `enable_lock_cache`, `lock_cache_size`.
 
@@ -751,6 +872,21 @@ compat/
 
 ---
 
+## Building the editor
+
+Use Node.js 22 and the checked in lockfile. From `editor-ui`, run:
+
+```sh
+npm ci
+npm run typecheck
+npm test
+npm run build
+```
+
+`typecheck` runs the existing `check` script and is recognized by the shared quality workflow.
+The build updates the editor assets packaged with the mod. See the
+[frontend verification reference](DOCUMENTATION.md#frontend-development-checks).
+
 ## Documentation
 
 - Beginner walkthrough: [GETTING_STARTED.md](GETTING_STARTED.md).
@@ -758,6 +894,9 @@ compat/
 - Temporary, triggered, context, timer, and priority rules: [TEMPORARY_AND_TRIGGERED_LOCKS.md](TEMPORARY_AND_TRIGGERED_LOCKS.md).
 - Architecture, folder structure, data flow, and extension guide: [ARCHITECTURE.md](ARCHITECTURE.md).
 - Build, smoke-test, multiplayer, and integration matrix: [TESTING.md](TESTING.md).
+- Dedicated server capture benchmark: [Diagnostic capture performance](docs/test/diagnostics.md).
+- Authenticated capture controls and recovery: [Laptop lifecycle verification](docs/verification/capture-client/README.md).
+- Native quest rewards and profession recovery: [FTB Quests laptop verification](docs/verification/ftb-quest-client/README.md).
 - Copy-ready tested tutorial stages: [examples/beginner_pack](examples/beginner_pack/README.md).
 - CurseForge 3.0 project description: [CURSEFORGE.md](CURSEFORGE.md).
 - Implemented 3.0 scope and remaining runtime matrix:

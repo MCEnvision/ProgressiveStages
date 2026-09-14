@@ -26,7 +26,13 @@ public final class ClientSnapshotAssembler {
         Candidate active = candidate;
         if (active == null || chunk.revision() != active.manifest.configurationRevision()) return Optional.empty();
         if (chunk.sequence() >= active.manifest.chunks()) throw new IllegalArgumentException("Client snapshot chunk sequence is invalid");
-        if (active.chunks.putIfAbsent(chunk.sequence(), chunk.data()) != null) return Optional.empty();
+        if (active.chunks.containsKey(chunk.sequence())) return Optional.empty();
+        byte[] data = chunk.data();
+        if (data.length > active.manifest.compressedBytes() - active.receivedBytes) {
+            throw new IllegalArgumentException("Client snapshot chunks exceed the declared compressed size");
+        }
+        active.chunks.put(chunk.sequence(), data);
+        active.receivedBytes += data.length;
         if (active.chunks.size() != active.manifest.chunks()) return Optional.empty();
         ByteArrayOutputStream compressed = new ByteArrayOutputStream(active.manifest.compressedBytes());
         for (int sequence = 0; sequence < active.manifest.chunks(); sequence++) {
@@ -68,6 +74,7 @@ public final class ClientSnapshotAssembler {
     private static final class Candidate {
         final ClientSnapshotManifest manifest;
         final Map<Integer, byte[]> chunks = new ConcurrentHashMap<>();
+        int receivedBytes;
         Candidate(ClientSnapshotManifest manifest) { this.manifest = manifest; }
     }
 }

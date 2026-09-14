@@ -2,6 +2,7 @@ package com.enviouse.progressivestages.common.rehaul.schema;
 
 import com.electronwill.nightconfig.core.UnmodifiableConfig;
 import com.enviouse.progressivestages.common.config.StageConfig;
+import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
@@ -66,9 +67,18 @@ final class BuiltinEditorSchemas {
         add(sink, "permissions.luckperms.outbound", "stage.toml", "luckperms.outbound", "Outbound rules",
             "Transient existing groups or positive permissions contributed by this stage.", SchemaValueType.OBJECT,
             List.of(), false, catalog("permissions"), Set.of(), List.of());
+        for (String direction : List.of("inbound", "outbound")) {
+            add(sink, "permissions.luckperms." + direction + ".contexts", "stage.toml",
+                "luckperms." + direction + "[].contexts", "Contexts",
+                "All context keys must match. Any listed value may match within one key.",
+                SchemaValueType.OBJECT, Map.of(), false, null, Set.of(), List.of());
+        }
         add(sink, "permissions.command_permissions", "stage.toml", "command_permissions", "Command gates",
             "Literal command paths that require this stage while native permissions remain required.", SchemaValueType.OBJECT,
             List.of(), false, catalog("commands"), Set.of(), List.of());
+        add(sink, "permissions.command_descendants", "stage.toml", "command_permissions[].descendants", "Gate descendants",
+            "Require the stage for child literals and their arguments. Enabled when omitted.", SchemaValueType.BOOLEAN,
+            true, false, null, Set.of(), List.of());
         add(sink, "display.background", "stage.toml", "display.background", "Background", "The stage map background texture.",
             SchemaValueType.RESOURCE_ID, "minecraft:textures/gui/advancements/backgrounds/stone.png", false,
             catalog("textures"), Set.of(), List.of());
@@ -194,6 +204,11 @@ final class BuiltinEditorSchemas {
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath("progressivestages", idPath.replace('.', '/'));
         List<String> enumValues = type == SchemaValueType.ENUM ? values : List.of();
         Map<String, Object> hints = type == SchemaValueType.PREFIX ? Map.of("actions", values) : Map.of();
+        if (path.equals("luckperms.inbound[].contexts") || path.equals("luckperms.outbound[].contexts")) {
+            hints = Map.of("maxKeys", LuckPermsStageOptions.MAX_CONTEXT_KEYS,
+                "maxValues", LuckPermsStageOptions.MAX_CONTEXT_VALUES,
+                "maxCombinations", LuckPermsStageOptions.MAX_CONTEXT_COMBINATIONS);
+        }
         sink.accept(id, new EditorFieldSchema(id, file, path, label, help, type, defaultValue,
             required, catalog, prefixes, enumValues, Set.of(), RestartRequirement.LIVE_APPLY, hints));
     }

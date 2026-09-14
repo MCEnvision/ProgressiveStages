@@ -11,6 +11,8 @@
   "progressivestages.command.revoke_success": "Revoked stage %s from %s",
   "progressivestages.command.stage_not_found": "Stage not found: %s",
   "progressivestages.command.reload_success": "Reloaded stage definitions",
+  "progressivestages.command.stage_required": "You need the stage %s to use this command.",
+  "progressivestages.command.native_denied": "You do not have permission to use this command.",
 
   "key.categories.progressivestages": "ProgressiveStages",
   "key.progressivestages.open_tree": "Open Progression Tree",
@@ -43,6 +45,7 @@
   "gui.progressivestages.tree.prerequisites.count": "Prerequisites. %s required.",
   "gui.progressivestages.tree.unlocks": "Unlocks. %s total.",
   "gui.progressivestages.tree.purchase": "Unlock. %s",
+  "gui.progressivestages.tree.purchase.ownership": "Purchase: %s",
   "gui.progressivestages.tree.purchase.need": "Need. %s",
   "gui.progressivestages.tree.inventory_button": "Open Progression Map",
   "gui.progressivestages.tree.inventory_button.tooltip": "Open Progression Map\nDrag to pan. Scroll to zoom.",

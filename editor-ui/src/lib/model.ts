@@ -1,10 +1,11 @@
+import { extractRows } from "./tomlRows";
+import { readInventoryCondition } from "./inventoryInsertion";
 import { CATEGORIES } from "../data";
 import type { ProgressionModel, RuleModel, StagePackage } from "../types";
 import { enchantmentGenerationRules } from "./enchantments";
 import {
   booleanValue,
   extractArrayBlocks,
-  extractArrayGroups,
   inlineObjectValue,
   numberValue,
   parseSimpleArray,
@@ -113,7 +114,7 @@ export function ruleModels(text: string): RuleModel[] {
   for (const table of ["rules", "temporary_rules"] as const) {
     extractArrayBlocks(text, table).forEach(block => models.push(parseRuleBlock(block.text, table, block.index)));
   }
-  extractArrayGroups(text, "interactions").forEach(block => {
+  extractRows(text, "interactions").forEach((block, index) => {
     const type = stringValue(readBlockValue(block.text, "type"));
     if (type !== "item_into_inventory") return;
     const targetKind = stringValue(readBlockValue(block.text, "target_kind"));
@@ -125,7 +126,7 @@ export function ruleModels(text: string): RuleModel[] {
     if (!heldItem || !destination || !["block", "menu", "inventory"].includes(targetKind)) return;
     models.push({
       table: "interactions",
-      tableIndex: block.index,
+      tableIndex: index,
       id: stringValue(readBlockValue(block.text, "id")),
       category: "interactions",
       action: type,
@@ -208,22 +209,7 @@ export function ruleModels(text: string): RuleModel[] {
   return models;
 }
 
-function interactionCondition(text: string, key: "while" | "when" | "condition" | "reset_condition"): string {
-  const inline = readBlockValue(text, key);
-  if (inline) return inline;
-
-  const lines = text.split(/\r?\n/);
-  const start = lines.findIndex(line => line.trim() === `[interactions.${key}]`);
-  if (start < 0) return "";
-
-  const entries: string[] = [];
-  for (let index = start + 1; index < lines.length; index++) {
-    if (/^\s*\[\[?[^\]]+\]\]?\s*(?:#.*)?$/.test(lines[index])) break;
-    const assignment = lines[index].match(/^\s*([A-Za-z0-9_.-]+)\s*=\s*(.+?)\s*(?:#.*)?$/);
-    if (assignment) entries.push(`${assignment[1]} = ${assignment[2]}`);
-  }
-  return entries.length ? `{ ${entries.join(", ")} }` : "";
-}
+const interactionCondition = readInventoryCondition;
 
 function parseRuleBlock(text: string, table: "rules" | "temporary_rules", tableIndex: number): RuleModel {
   const targetMatch = text.match(/^\s*targets\.([A-Za-z0-9_.-]+)\s*=\s*([^\n]+)/m);

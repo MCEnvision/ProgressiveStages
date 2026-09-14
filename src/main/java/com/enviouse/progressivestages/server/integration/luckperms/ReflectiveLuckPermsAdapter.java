@@ -4,21 +4,20 @@ import com.mojang.logging.LogUtils;
 import net.neoforged.fml.ModList;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
-/** reflection-only luckperms adapter. it stays dormant when the optional mod is absent. */
+/** optional luckperms adapter with guarded provider access. */
 final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     private static final Logger LOGGER = LogUtils.getLogger();
     private Object api;
-    private Method getUser;
-    private Method saveUser;
-    private Class<?> queryOptionsClass;
+    private final GroupAvailabilityCache groupAvailability = new GroupAvailabilityCache();
+    private LuckPermsQueries queries;
+    private LuckPermsTransientNodes transientNodes;
+    private LuckPermsProjectionContexts projectionContexts;
+    private LuckPermsEventSubscriptions eventSubscriptions;
+    private LuckPermsOfflineQueries offlineQueries;
+    private boolean closing;
 
     static ReflectiveLuckPermsAdapter create() {
         ReflectiveLuckPermsAdapter adapter = new ReflectiveLuckPermsAdapter();
@@ -31,12 +30,19 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
         try {
             Class<?> provider = Class.forName("net.luckperms.api.LuckPermsProvider");
             api = provider.getMethod("get").invoke(null);
-            Object users = api.getClass().getMethod("getUserManager").invoke(api);
-            getUser = users.getClass().getMethod("getUser", UUID.class);
-            saveUser = users.getClass().getMethod("saveUser", Class.forName("net.luckperms.api.model.user.User"));
-            queryOptionsClass = Class.forName("net.luckperms.api.query.QueryOptions");
-        } catch (ReflectiveOperationException | LinkageError exception) {
+            queries = new LuckPermsQueries(api);
+            transientNodes = new LuckPermsTransientNodes(api);
+            offlineQueries = new LuckPermsOfflineQueries(api);
+            projectionContexts = new LuckPermsProjectionContexts(api);
+            projectionContexts.register();
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
             LOGGER.warn("luckperms integration is unavailable", exception);
+            if (projectionContexts != null) {
+                try { projectionContexts.close(); }
+                catch (RuntimeException | LinkageError cleanup) {
+                    LOGGER.warn("LuckPerms projection context cleanup is incomplete", cleanup);
+                }
+            }
             api = null;
         }
     }
@@ -44,57 +50,35 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     @Override
     public State state() {
         if (!ModList.get().isLoaded("luckperms")) return State.ABSENT;
-        return api == null ? State.FAILED : State.READY;
+        return api == null || closing ? State.FAILED : State.READY;
     }
 
     @Override
     public SubjectSnapshot snapshot(UUID player) {
-        if (api == null || player == null) return SubjectSnapshot.unavailable();
+        if (api == null || closing || player == null) return SubjectSnapshot.unavailable();
         try {
-            Object user = getUser.invoke(api.getClass().getMethod("getUserManager").invoke(api), player);
-            if (user == null) return SubjectSnapshot.unavailable();
-            Object query = queryOptionsClass.getMethod("nonContextual").invoke(null);
-            Object cached = user.getClass().getMethod("getCachedData").invoke(user);
-            Object permissions = cached.getClass().getMethod("getPermissionData", queryOptionsClass).invoke(cached, query);
-            Set<String> groups = new LinkedHashSet<>();
-            Object inherited = user.getClass().getMethod("getInheritedGroups", queryOptionsClass).invoke(user, query);
-            if (inherited instanceof Collection<?> collection) {
-                for (Object group : collection) {
-                    Object name = group.getClass().getMethod("getName").invoke(group);
-                    if (name != null) groups.add(String.valueOf(name));
-                }
-            }
-            Map<String, PermissionValue> values = new LinkedHashMap<>();
-            Map<String, String> contexts = new LinkedHashMap<>();
-            Object contextSet = queryOptionsClass.getMethod("context").invoke(query);
-            Object flattened = contextSet.getClass().getMethod("toFlattenedMap").invoke(contextSet);
-            if (flattened instanceof Map<?, ?> map) {
-                for (var entry : map.entrySet()) contexts.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
-            }
-            return new SubjectSnapshot(true, groups, values, contexts);
-        } catch (ReflectiveOperationException | RuntimeException exception) {
-            LOGGER.debug("unable to read luckperms user", exception);
+            return queries.snapshot(player);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.debug("Unable to read independent LuckPerms contexts and groups", exception);
             return SubjectSnapshot.unavailable();
         }
     }
 
     @Override
     public PermissionValue permission(UUID player, String node) {
-        if (api == null || player == null || node == null || node.isBlank()) return PermissionValue.UNDEFINED;
+        return permissionResult(player, node).value();
+    }
+
+    @Override
+    public PermissionResult permissionResult(UUID player, String node) {
+        if (api == null || closing || player == null || node == null || node.isBlank()) {
+            return PermissionResult.unavailable();
+        }
         try {
-            Object users = api.getClass().getMethod("getUserManager").invoke(api);
-            Object user = getUser.invoke(users, player);
-            if (user == null) return PermissionValue.UNDEFINED;
-            Object query = queryOptionsClass.getMethod("nonContextual").invoke(null);
-            Object cached = user.getClass().getMethod("getCachedData").invoke(user);
-            Object permissions = cached.getClass().getMethod("getPermissionData", queryOptionsClass).invoke(cached, query);
-            Object result = permissions.getClass().getMethod("checkPermission", String.class).invoke(permissions, node);
-            String value = String.valueOf(result).toUpperCase(java.util.Locale.ROOT);
-            if (value.contains("TRUE")) return PermissionValue.TRUE;
-            if (value.contains("FALSE")) return PermissionValue.FALSE;
-            return PermissionValue.UNDEFINED;
-        } catch (ReflectiveOperationException | RuntimeException exception) {
-            return PermissionValue.UNDEFINED;
+            return queries.permission(player, node);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.debug("Unable to read an independent LuckPerms permission", exception);
+            return PermissionResult.unavailable();
         }
     }
 
@@ -110,42 +94,188 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
     }
 
     @Override
-    public void addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
-                             String ownerKey) {
-        mutate(player, kind, value, contexts, ownerKey, true);
+    public com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus groupStatus(String group) {
+        var unknown = com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.UNKNOWN;
+        if (api == null || group == null || group.isBlank()) return unknown;
+        try {
+            Object manager = api.getClass().getMethod("getGroupManager").invoke(api);
+            Class<?> managerType = Class.forName("net.luckperms.api.model.group.GroupManager");
+            if (managerType.getMethod("getGroup", String.class).invoke(manager, group) != null) {
+                return com.enviouse.progressivestages.common.stage.StageCapabilities.GroupStatus.PRESENT;
+            }
+            return groupAvailability.query(group, () -> {
+                try {
+                    Object result = managerType.getMethod("loadGroup", String.class).invoke(manager, group);
+                    if (!(result instanceof java.util.concurrent.CompletableFuture<?> future)) {
+                        return java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("Group lookup is unavailable"));
+                    }
+                    return future.thenApply(value -> {
+                        if (!(value instanceof java.util.Optional<?> loaded)) throw new IllegalStateException("Invalid group lookup result");
+                        return loaded.isPresent();
+                    });
+                } catch (ReflectiveOperationException | RuntimeException failure) {
+                    return java.util.concurrent.CompletableFuture.failedFuture(failure);
+                }
+            });
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException failure) {
+            return unknown;
+        }
     }
 
     @Override
-    public void removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
-                                String ownerKey) {
-        mutate(player, kind, value, contexts, ownerKey, false);
+    public boolean subscribeChanges(java.util.function.Consumer<UUID> subjectChanged, Runnable allChanged) {
+        if (api == null || closing) return true;
+        if (eventSubscriptions != null) throw new IllegalStateException("LuckPerms events are already subscribed");
+        try {
+            java.util.function.Consumer<UUID> changed = subject -> {
+                offlineQueries.invalidate(subject);
+                projectionContexts.markInvalid(subject);
+                subjectChanged.accept(subject);
+            };
+            eventSubscriptions = new LuckPermsEventSubscriptions(api, changed, subject -> {
+                if (!offlineQueries.owns(subject)) changed.accept(subject);
+            }, subject -> {
+                if (projectionContexts.tracksSubject(subject)) changed.accept(subject);
+            }, () -> {
+                offlineQueries.invalidateAll();
+                projectionContexts.markAllInvalid();
+                allChanged.run();
+            });
+            eventSubscriptions.register();
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            closing = true;
+            projectionContexts.markAllInvalid();
+            stopListening();
+            LOGGER.warn("LuckPerms event registration failed. The bridge remains unavailable.", failure);
+            return false;
+        }
     }
 
-    private void mutate(UUID player, NodeKind kind, String value, Map<String, String> contexts,
-                        String ownerKey, boolean add) {
-        if (api == null || player == null || value == null || value.isBlank()) return;
+    @Override
+    public boolean stopListening() {
+        if (eventSubscriptions == null) return true;
         try {
-            Object users = api.getClass().getMethod("getUserManager").invoke(api);
-            Object user = getUser.invoke(users, player);
-            if (user == null) return;
-            Class<?> nodeClass = Class.forName("net.luckperms.api.node.Node");
-            Class<?> builderType = kind == NodeKind.GROUP
-                ? Class.forName("net.luckperms.api.node.types.InheritanceNode") : nodeClass;
-            Object builder = builderType.getMethod("builder", String.class).invoke(null, value);
-            builder.getClass().getMethod("withContext", String.class, String.class)
-                .invoke(builder, "progressivestages_bridge", "active");
-            if (contexts != null) {
-                for (var context : contexts.entrySet()) {
-                    builder.getClass().getMethod("withContext", String.class, String.class)
-                        .invoke(builder, context.getKey(), context.getValue());
-                }
+            eventSubscriptions.close();
+            eventSubscriptions = null;
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.warn("LuckPerms event cleanup is incomplete. Subscriptions are retained for retry.", failure);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean requestOffline(UUID subject, java.util.Set<String> permissions, java.util.function.Consumer<UUID> completed) {
+        return api != null && !closing && offlineQueries != null && offlineQueries.request(subject, permissions, completed);
+    }
+
+    @Override
+    public OfflineResult takeOffline(UUID subject) {
+        if (offlineQueries == null || closing) return null;
+        try { return offlineQueries.take(subject); }
+        catch (RuntimeException | LinkageError failure) {
+            LOGGER.warn("Offline LuckPerms query cleanup is incomplete. Owned user references are retained.", failure);
+            return null;
+        }
+    }
+
+    @Override public void invalidateOffline(UUID subject) { if (offlineQueries != null) offlineQueries.invalidate(subject); }
+    @Override public void invalidateOffline() { if (offlineQueries != null) offlineQueries.invalidateAll(); }
+    @Override public boolean isOfflineCurrent(UUID subject) { return !closing && offlineQueries != null && offlineQueries.current(subject); }
+    @Override public void completeOffline(UUID subject) { if (offlineQueries != null) offlineQueries.complete(subject); }
+
+    @Override
+    public long prepareProjection(UUID subject, Object target) {
+        if (api == null || closing || projectionContexts == null) return -1;
+        try {
+            return projectionContexts.prepare(subject, target);
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.debug("Unable to invalidate the previous LuckPerms projection", failure);
+            return -1;
+        }
+    }
+
+    @Override
+    public boolean publishProjection(UUID subject, long ticket) {
+        return publishProjection(subject, ticket, () -> true);
+    }
+
+    @Override
+    public boolean publishProjection(UUID subject, long ticket, java.util.function.BooleanSupplier current) {
+        if (api == null || closing || projectionContexts == null) return false;
+        try {
+            return projectionContexts.publish(subject, ticket, current);
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.debug("Unable to publish the LuckPerms projection context", failure);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean invalidateProjection(UUID subject) {
+        if (projectionContexts == null) return true;
+        try {
+            projectionContexts.invalidate(subject);
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.debug("Unable to invalidate the LuckPerms projection context", failure);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean invalidateProjections() {
+        return projectionContexts == null || projectionContexts.invalidateAll();
+    }
+
+    @Override
+    public boolean cleanupTransientNodes() {
+        boolean complete = invalidateProjections();
+        complete &= transientNodes == null || transientNodes.cleanup();
+        if (!complete) LOGGER.warn("LuckPerms output cleanup is incomplete. Owned references are retained for retry.");
+        return complete;
+    }
+
+    @Override
+    public boolean shutdown() {
+        closing = true;
+        groupAvailability.clear();
+        boolean complete = stopListening();
+        complete &= offlineQueries == null || offlineQueries.close();
+        complete &= cleanupTransientNodes();
+        if (projectionContexts != null) {
+            try { projectionContexts.close(); }
+            catch (RuntimeException | LinkageError failure) {
+                complete = false;
+                LOGGER.warn("LuckPerms projection context cleanup is incomplete", failure);
             }
-            Object node = builder.getClass().getMethod("build").invoke(builder);
-            Object data = user.getClass().getMethod("data").invoke(user);
-            data.getClass().getMethod(add ? "add" : "remove", nodeClass).invoke(data, node);
-            saveUser.invoke(users, user);
-        } catch (ReflectiveOperationException | RuntimeException exception) {
-            LOGGER.debug("unable to update luckperms transient node", exception);
+        }
+        if (complete) api = null;
+        return complete;
+    }
+
+    @Override
+    public MutationResult addTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
+                                       String ownerKey) {
+        if (api == null || closing || transientNodes == null) return MutationResult.UNAVAILABLE;
+        try {
+            return transientNodes.add(player, new NodeSpec(kind, value, contexts), ownerKey);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.debug("Unable to add owned LuckPerms output", exception);
+            return MutationResult.FAILED;
+        }
+    }
+
+    @Override
+    public MutationResult removeTransient(UUID player, NodeKind kind, String value, Map<String, String> contexts,
+                                          String ownerKey) {
+        if (transientNodes == null) return MutationResult.APPLIED;
+        try {
+            return transientNodes.remove(player, new NodeSpec(kind, value, contexts), ownerKey);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.debug("Unable to remove owned LuckPerms output", exception);
+            return MutationResult.FAILED;
         }
     }
 }

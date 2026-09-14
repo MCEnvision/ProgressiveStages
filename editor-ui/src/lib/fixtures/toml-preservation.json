@@ -1,0 +1,69 @@
+[
+  {
+    "name": "quoted ownership with comments",
+    "before": "[ \"sta\\u0067e\" ] # Header.\r\n\"id\" = \"chef\"\r\n\"team_stage\" = false # Private.\r\n\r\n\r\n[extension]\r\nnotes = \"keep\"",
+    "after": "[ \"sta\\u0067e\" ] # Header.\r\n\"id\" = \"chef\"\r\n\"team_stage\" = true # Private.\r\n\r\n\r\n[extension]\r\nnotes = \"keep\"",
+    "target": [
+      "stage",
+      "team_stage"
+    ],
+    "value": true,
+    "operation": "ownership"
+  },
+  {
+    "name": "inbound context after misleading multiline text",
+    "before": "[[ \"luckperms\" . 'inbound' ]]\n\"id\" = 'chef'\ngroups = ['chef']\nnotes = \"\"\"\n[luckperms.inbound.contexts]\nworld = [\"fake\"]\n\"\"\"\n[ 'luckperms' . \"inbound\" . 'contexts' ] # Contexts.\n\"world\" = ['one'] # World.\n[luckperms.inbound.future]\nvalue = 'keep'\n",
+    "after": "[[ \"luckperms\" . 'inbound' ]]\n\"id\" = 'chef'\ngroups = ['chef']\nnotes = \"\"\"\n[luckperms.inbound.contexts]\nworld = [\"fake\"]\n\"\"\"\n[ 'luckperms' . \"inbound\" . 'contexts' ] # Contexts.\n\"world\" = [\"two\"] # World.\n[luckperms.inbound.future]\nvalue = 'keep'\n",
+    "target": [
+      "luckperms",
+      "inbound",
+      0,
+      "contexts",
+      "world"
+    ],
+    "value": [
+      "two"
+    ],
+    "operation": "inbound"
+  },
+  {
+    "name": "outbound context with quoted punctuation",
+    "before": "[[ 'luckperms' . \"outbound\" ]]\nid = 'chef'\nkind = 'permission'\nvalue = 'profession.chef'\n[\"luckperms\".'outbound'.\"contexts\"]\n\"world.name\" = ['one']\n[luckperms.outbound.future]\nvalue = 'keep'\n",
+    "after": "[[ 'luckperms' . \"outbound\" ]]\nid = 'chef'\nkind = 'permission'\nvalue = 'profession.chef'\n[\"luckperms\".'outbound'.\"contexts\"]\n\"world.name\" = [\"two\"]\n[luckperms.outbound.future]\nvalue = 'keep'\n",
+    "target": [
+      "luckperms",
+      "outbound",
+      0,
+      "contexts",
+      "world.name"
+    ],
+    "value": [
+      "two"
+    ],
+    "operation": "outbound"
+  },
+  {
+    "name": "command value with fake array in multiline text",
+    "before": "[[ 'command_permissions' ]]\nnotes = \"\"\"\n[[command_permissions]]\npath = 'fake'\n\"\"\"\n\"id\" = 'chef'\n'path' = 'sethome' # Preserve this note.\n[command_permissions.future]\nvalue = 'keep'\n",
+    "after": "[[ 'command_permissions' ]]\nnotes = \"\"\"\n[[command_permissions]]\npath = 'fake'\n\"\"\"\n\"id\" = 'chef'\n'path' = \"home\" # Preserve this note.\n[command_permissions.future]\nvalue = 'keep'\n",
+    "target": [
+      "command_permissions",
+      0,
+      "path"
+    ],
+    "value": "home",
+    "operation": "command"
+  },
+  {
+    "name": "interaction literal string and quoted child",
+    "before": "[[ \"interactions\" ]]\nnotes = \"\"\"\n[[interactions]]\nheld_item = 'fake'\n\"\"\"\ntype = 'item_on_block'\nheld_item = 'id:minecraft:bread' # Item.\ntarget_block = 'id:selling_bin:selling_bin'\n[ 'interactions' . \"while\" ]\ntype = 'dimension'\nid = 'minecraft:the_end'\n\n\n[extension]\nnotes = \"\"\"before\n\n\nafter\"\"\"\n",
+    "after": "[[ \"interactions\" ]]\nnotes = \"\"\"\n[[interactions]]\nheld_item = 'fake'\n\"\"\"\ntype = 'item_on_block'\nheld_item = \"id:minecraft:carrot\" # Item.\ntarget_block = 'id:selling_bin:selling_bin'\n[ 'interactions' . \"while\" ]\ntype = 'dimension'\nid = 'minecraft:the_end'\n\n\n[extension]\nnotes = \"\"\"before\n\n\nafter\"\"\"\n",
+    "target": [
+      "interactions",
+      0,
+      "held_item"
+    ],
+    "value": "id:minecraft:carrot",
+    "operation": "interaction"
+  }
+]

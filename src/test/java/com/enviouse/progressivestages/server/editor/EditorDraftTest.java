@@ -11,6 +11,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EditorDraftTest {
     @Test
+    void returnsSerializableFieldDiagnosticsForThePackageIdentityFile() {
+        String identity = "[schema]\nversion = 4\n[stage]\nid = \"test:chef\"\n[luckperms]\nenabled = \"false\"\n";
+        Map<String, String> files = Map.of("stages/chef/stage.toml", identity,
+            "stages/chef/rules.toml", "# Rules remain editable.\n");
+        DraftValidation validation = EditorDraftValidator.validate(files, 17);
+        assertTrue(!validation.valid());
+        assertEquals(17, validation.validatedRevision());
+        assertEquals("stages/chef/stage.toml", validation.diagnostics().getFirst().file());
+        assertEquals("luckperms.enabled", validation.diagnostics().getFirst().field());
+        var json = com.google.gson.JsonParser.parseString(new com.google.gson.Gson().toJson(validation)).getAsJsonObject();
+        assertEquals("invalid_type", json.getAsJsonArray("diagnostics").get(0).getAsJsonObject().get("code").getAsString());
+        assertEquals(identity, files.get("stages/chef/stage.toml"));
+        assertTrue(!json.toString().contains("progressivestages-editor-validation-"));
+    }
+
+    @Test
     void serializesMutationsAndSupportsSemanticUndoRedo() {
         UUID owner = UUID.randomUUID();
         EditorDraft draft = new EditorDraft(UUID.randomUUID(), owner, 5, 8,

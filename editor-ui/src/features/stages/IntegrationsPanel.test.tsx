@@ -116,6 +116,8 @@ describe("guided selective insertion", () => {
   it("keeps the original wildcard preset a standalone held item rule", async () => {
     openInteraction();
     fireEvent.click(screen.getByRole("button", { name: "All items" }));
+    expect(screen.getByText(/whole block/).textContent).toContain("all:*");
+    expect(screen.getByText(/whole block/).textContent).toContain("empty hand menu open");
     fireEvent.click(screen.getByRole("button", { name: "Save interaction" }));
     await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
     const [, source] = editor.mutateFile.mock.calls[0] as unknown as [string, string];

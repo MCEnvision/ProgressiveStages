@@ -1,7 +1,7 @@
 {
   "date": "2026-09-14",
-  "source_commit": "31c17e7e6300b1a956e959415f73a218a994fd56",
-  "candidate_sha256": "50f449d1eb52da2ba72a39a4a09267d9887af2f1dca29ce2233110afc24b6652",
+  "source_commit": "6b5a2ba9a54005b4d9825f7ae7cbbcd55fe0207c",
+  "candidate_sha256": "5e0b9d950bdc7a496506192299b61887bddd2639b7aacde0eca8431e51bc8468",
   "minecraft": "1.21.1",
   "neoforge": "21.1.248",
   "java": "21",
@@ -63,6 +63,11 @@
       "sha256": "fa7f033ba5ec917a9cb3969e93f12cfc65a22366fd3fc65305959912559593ea"
     }
   ],
+  "browser": {
+    "family": "Brave",
+    "result": "rebuilt packaged editor opened through the client bridge; access controls, both Selling Bin selectors, whole block empty hand guidance, and the insertion pairing control were visible",
+    "console_errors": 0
+  },
   "audio": {
     "master_volume_before_start": 0.0,
     "owned_stream_muted": true,

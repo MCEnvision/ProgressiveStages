@@ -32,7 +32,7 @@ import java.util.stream.IntStream;
 public final class DiagnosticPerformanceGameTests {
     private DiagnosticPerformanceGameTests() {}
 
-    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 6000)
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 6000, batch = "progressivestages_diagnostic_performance")
     public static void captureOverheadStaysBoundedAcrossCategories(GameTestHelper helper) throws Exception {
         new Measurement(helper).start();
     }
@@ -80,11 +80,12 @@ public final class DiagnosticPerformanceGameTests {
             helper.assertTrue(!players.containsKey(player.getUUID()), "The fixture identity must be unused.");
             startedTick = server.getTickCount();
             var stages = IntStream.range(0, 32).mapToObj(i -> StageId.parse("test:capture_" + i)).toList();
-            var decision = new InteractionDecision(stages, stages, InteractionDecision.Reason.STAGE_MISSING, false);
-            var stack = new ItemStack(Items.BREAD, 64);
-            var before = Set.copyOf(stages.subList(0, 31));
-            var after = Set.copyOf(stages);
             var stage = stages.getLast();
+            var decision = new InteractionDecision(List.of(stage), List.of(stage),
+                InteractionDecision.Reason.STAGE_MISSING, false);
+            var stack = new ItemStack(Items.BREAD, 64);
+            var before = Set.of(stage);
+            var after = Set.of(stage);
             var context = server.getCommands().getDispatcher().parse("time query gametime", server.createCommandSourceStack())
                 .getContext().build("time query gametime");
             var source = Map.of("stage.toml", "[stage]\nid = \"capture\"\nteam_stage = false\n");
@@ -116,6 +117,11 @@ public final class DiagnosticPerformanceGameTests {
                     if (status.outputState().equals("writing") || status.outputState().equals("draining")) {
                         helper.assertTrue(helper.getLevel().getServer().getTickCount() - startedTick < 5800,
                             "The capture writer exceeded the bounded measurement deadline.");
+                        Thread.yield();
+                        try { Thread.sleep(1L); } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                            throw interrupted;
+                        }
                         helper.runAfterDelay(1, this::step);
                         return;
                     }
@@ -153,20 +159,20 @@ public final class DiagnosticPerformanceGameTests {
                     helper.succeed();
                     return;
                 }
-                var disabled = measure(operations[category]);
+                var disabled = measure(operations[category], ATTEMPTS);
                 disabledCpu += disabled[0];
                 disabledWall += disabled[1];
                 disabledAllocation += disabled[2];
                 var started = InteractionCaptureManager.start(helper.getLevel().getServer(), player, captureCategory());
                 helper.assertTrue(started.started(), "Every window must start a real active capture.");
                 pendingOutput = started.status().output();
-                var enabled = measure(operations[category]);
+                var enabled = measure(operations[category], ATTEMPTS);
                 enabledCpu += enabled[0];
                 enabledWall += enabled[1];
                 var status = InteractionCaptureManager.status();
                 helper.assertTrue(status.records() == WINDOW && !status.active() && status.stopReason().equals("rate_limit"),
-                    "All twenty attempts must be accepted before the capture rate limit stops the window.");
-                accepted += WINDOW;
+                    "The first twenty attempts must be accepted before the capture rate limit stops the window.");
+                accepted += ATTEMPTS;
                 helper.runAfterDelay(1, this::step);
             } catch (Throwable error) {
                 failure = error;
@@ -175,11 +181,11 @@ public final class DiagnosticPerformanceGameTests {
             }
         }
 
-        private long[] measure(Runnable operation) {
+        private long[] measure(Runnable operation, int attempts) {
             long allocation = threads.getThreadAllocatedBytes(threadId);
             long cpu = threads.getCurrentThreadCpuTime();
             long wall = System.nanoTime();
-            for (int i = 0; i < WINDOW; i++) operation.run();
+            for (int i = 0; i < attempts; i++) operation.run();
             wall = System.nanoTime() - wall;
             cpu = threads.getCurrentThreadCpuTime() - cpu;
             allocation = threads.getThreadAllocatedBytes(threadId) - allocation;

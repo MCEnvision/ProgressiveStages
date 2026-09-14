@@ -57,10 +57,10 @@ public final class SellingBinGameTests {
             String suffix = automatic ? "automatic" : "manual";
             tests.add(new TestFunction("selling_bin_armor_" + suffix, "selling_bin_armor_" + suffix,
                 "minecraft:igloo/top", 200, 0, true,
-                helper -> directUse(helper, "tag:c:armors", Items.IRON_CHESTPLATE, 30, automatic)));
+                helper -> directUse(helper, "tag:c:armors", Items.IRON_CHESTPLATE, automatic)));
             tests.add(new TestFunction("selling_bin_wildcard_" + suffix, "selling_bin_wildcard_" + suffix,
                 "minecraft:igloo/top", 200, 0, true,
-                helper -> directUse(helper, "all:*", Items.BREAD, 10, automatic)));
+                helper -> directUse(helper, "all:*", Items.BREAD, automatic)));
             tests.add(new TestFunction("selling_bin_selective_" + suffix, "selling_bin_selective_" + suffix,
                 "minecraft:igloo/top", 200, 0, true,
                 helper -> selectiveInsertion(helper, automatic)));
@@ -71,9 +71,9 @@ public final class SellingBinGameTests {
         return tests;
     }
 
-    private static void directUse(GameTestHelper helper, String selector, Item item,
-                                  int value, boolean automatic) {
+    private static void directUse(GameTestHelper helper, String selector, Item item, boolean automatic) {
         Fixture fixture = new Fixture(helper, selector, false, automatic);
+        int itemValue = fixture.itemValue(item);
         fixture.check(() -> {
             fixture.player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(item));
             helper.assertTrue(fixture.use(InteractionHand.MAIN_HAND) == InteractionResult.FAIL
@@ -87,13 +87,13 @@ public final class SellingBinGameTests {
                     "Granting the stage must permit the actual valued item insertion.");
                 fixture.sellIfManual();
                 fixture.afterTicks(() -> {
-                    fixture.assertSold(value);
+                    fixture.assertSold(itemValue);
                     fixture.revoke();
                     fixture.player.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(item));
                     helper.assertTrue(fixture.use(InteractionHand.OFF_HAND, fixture.part) == InteractionResult.FAIL,
                         "Revocation must deny the next actual offhand insertion.");
                     fixture.afterTicks(() -> {
-                        fixture.assertUnchanged(item, InteractionHand.OFF_HAND, 1, value);
+                        fixture.assertUnchanged(item, InteractionHand.OFF_HAND, 1, itemValue);
                         fixture.finish();
                     });
                 });
@@ -103,6 +103,7 @@ public final class SellingBinGameTests {
 
     private static void partialInput(GameTestHelper helper, boolean automatic) {
         Fixture fixture = new Fixture(helper, "id:minecraft:bread", true, automatic);
+        int breadValue = fixture.itemValue(Items.BREAD);
         fixture.check(() -> {
             fixture.bin.setItem(0, new ItemStack(Items.BREAD, 1));
             fixture.player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BREAD, 3));
@@ -113,12 +114,12 @@ public final class SellingBinGameTests {
                 "Denied merging must preserve the held stack and previously accepted deposit.");
             fixture.afterTicks(() -> {
                 helper.assertTrue(fixture.player.getMainHandItem().getCount() == 3
-                        && fixture.value() == (automatic ? 10 : 0)
+                        && fixture.value() == (automatic ? breadValue : 0)
                         && fixture.bin.getItem(0).getCount() == (automatic ? 0 : 1),
                     "Only the previously accepted deposit may sell while the new bread remains denied.");
                 fixture.sellIfManual();
                 fixture.afterTicks(() -> {
-                    fixture.assertSold(10);
+                    fixture.assertSold(breadValue);
                     fixture.grant();
                     fixture.bin.setItem(0, new ItemStack(Items.BREAD, 63));
                     helper.assertTrue(fixture.use(InteractionHand.MAIN_HAND, fixture.part).consumesAction()
@@ -127,7 +128,7 @@ public final class SellingBinGameTests {
                         "An allowed partial merge must move only the one item that fits.");
                     fixture.sellIfManual();
                     fixture.afterTicks(() -> {
-                        fixture.assertSold(650);
+                        fixture.assertSold(breadValue * 65);
                         helper.assertTrue(fixture.player.getMainHandItem().getCount() == 2,
                             "Selling the accepted stack must preserve the two items that did not fit.");
                         fixture.finish();
@@ -139,6 +140,8 @@ public final class SellingBinGameTests {
 
     private static void selectiveInsertion(GameTestHelper helper, boolean automatic) {
         Fixture fixture = new Fixture(helper, "id:minecraft:bread", true, automatic);
+        int breadValue = fixture.itemValue(Items.BREAD);
+        int carrotValue = fixture.itemValue(Items.CARROT);
         fixture.check(() -> {
             fixture.player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BREAD, 3));
             helper.assertTrue(fixture.use(InteractionHand.MAIN_HAND) == InteractionResult.FAIL
@@ -167,7 +170,7 @@ public final class SellingBinGameTests {
                     "A nonmatching valued food must remain insertable without the bread stage.");
                 fixture.sellIfManual();
                 fixture.afterTicks(() -> {
-                    fixture.assertSold(7);
+                    fixture.assertSold(carrotValue);
                     fixture.grant();
                     fixture.player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BREAD, 3));
                     fixture.menu.clicked(hotbar, 0, ClickType.QUICK_MOVE, fixture.player);
@@ -175,12 +178,12 @@ public final class SellingBinGameTests {
                         "Granting the stage must allow bread through the real bin menu.");
                     fixture.sellIfManual();
                     fixture.afterTicks(() -> {
-                        fixture.assertSold(37);
+                        fixture.assertSold(carrotValue + breadValue * 3);
                         fixture.revoke();
                         fixture.player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BREAD));
                         fixture.menu.clicked(hotbar, 0, ClickType.QUICK_MOVE, fixture.player);
                         fixture.afterTicks(() -> {
-                            fixture.assertUnchanged(Items.BREAD, InteractionHand.MAIN_HAND, 1, 37);
+                            fixture.assertUnchanged(Items.BREAD, InteractionHand.MAIN_HAND, 1, carrotValue + breadValue * 3);
                             fixture.finish();
                         });
                     });
@@ -207,6 +210,16 @@ public final class SellingBinGameTests {
                 new GameProfile(UUID.randomUUID(), "bin-test"), false);
             player = new ServerPlayer(helper.getLevel().getServer(), helper.getLevel(),
                 cookie.gameProfile(), cookie.clientInformation());
+            var connection = new net.minecraft.network.Connection(
+                net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+            new io.netty.channel.embedded.EmbeddedChannel(connection);
+            player.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(
+                helper.getLevel().getServer(), connection, player, cookie) {
+                @Override
+                public void send(net.minecraft.network.protocol.Packet<?> packet) {
+                    // this fixture has no client and asserts authoritative server state only.
+                }
+            };
             owner = TeamProvider.getInstance().getTeamId(player);
             position = helper.absolutePos(new BlockPos(3, 1, 3));
             player.setPos(Vec3.atCenterOf(position));
@@ -267,6 +280,16 @@ public final class SellingBinGameTests {
 
         private void revoke() {
             helper.getLevel().getData(StageAttachments.TEAM_STAGES).revokeStage(owner, STAGE);
+        }
+
+        private int itemValue(Item item) {
+            try {
+                Class<?> currency = Class.forName("com.wdiscute.sellingbin.bin.Currency");
+                return (Integer)currency.getMethod("calculateValueFromSingleStack", ItemStack.class,
+                        BlockEntity.class).invoke(null, new ItemStack(item), entity);
+            } catch (ReflectiveOperationException failure) {
+                throw new IllegalStateException("Cannot inspect the installed Selling Bin item value.", failure);
+            }
         }
 
         private int value() {

@@ -121,6 +121,7 @@ public final class LuckPermsBridge {
         if (!closeAdapter()) {
             throw new IllegalStateException("Owned LuckPerms output cleanup is incomplete");
         }
+        dirty.clear();
         adapter = replacement == null ? ReflectiveLuckPermsAdapter.create() : replacement;
         offlineContexts.clear();
         adapter.subscribeChanges(this::providerChanged, this::providerChanged);

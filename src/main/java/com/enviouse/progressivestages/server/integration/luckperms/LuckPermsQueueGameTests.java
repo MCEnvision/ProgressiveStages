@@ -22,7 +22,7 @@ import java.util.UUID;
 public final class LuckPermsQueueGameTests {
     private LuckPermsQueueGameTests() {}
 
-    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", batch = "progressivestages_luckperms_queue")
     @SuppressWarnings("unchecked")
     public static void overflowingPermissionEventsReachEveryOnlineSubject(GameTestHelper helper) throws Exception {
         var server = helper.getLevel().getServer();
@@ -123,7 +123,7 @@ public final class LuckPermsQueueGameTests {
         @Override public SubjectSnapshot snapshot(UUID subject) {
             queries++;
             visited.add(subject);
-            return SubjectSnapshot.unavailable();
+            return new SubjectSnapshot(true, Set.of(), Map.of(), Map.of());
         }
         @Override public boolean groupExists(String group) { return false; }
         @Override public MutationResult addTransient(UUID subject, NodeKind kind, String value,

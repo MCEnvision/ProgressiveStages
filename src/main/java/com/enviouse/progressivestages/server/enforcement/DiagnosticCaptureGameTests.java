@@ -16,7 +16,7 @@ import java.util.UUID;
 public final class DiagnosticCaptureGameTests {
     private DiagnosticCaptureGameTests() {}
 
-    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100)
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100, batch = "progressivestages_diagnostic_capture")
     public static void captureUsesServerTicksInAnExistingWorld(GameTestHelper helper) {
         var level = helper.getLevel();
         var server = level.getServer();
@@ -51,6 +51,11 @@ public final class DiagnosticCaptureGameTests {
             player.discard();
         }
         helper.succeedWhen(() -> {
+            Thread.yield();
+            try { Thread.sleep(1L); } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Capture verification was interrupted.", interrupted);
+            }
             helper.assertTrue(capture.canReplace(), "The stopped capture writer must finish.");
             helper.assertTrue(capture.status().outputState().equals("drained"),
                 "The accepted record must drain successfully.");

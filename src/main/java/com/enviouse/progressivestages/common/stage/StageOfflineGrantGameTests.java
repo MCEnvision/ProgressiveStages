@@ -67,11 +67,16 @@ public final class StageOfflineGrantGameTests {
         var lookup = PlayerList.class.getDeclaredField("playersByUUID");
         lookup.setAccessible(true);
         var players = (Map<UUID, ServerPlayer>) lookup.get(server.getPlayerList());
+        var onlineLookup = PlayerList.class.getDeclaredField("players");
+        onlineLookup.setAccessible(true);
+        var onlinePlayers = (List<ServerPlayer>) onlineLookup.get(server.getPlayerList());
         helper.assertTrue(!players.containsKey(actor) && !players.containsKey(other), "Fixture actors must be unused.");
-        var cookie = net.minecraft.server.network.CommonListenerCookie.createInitial(new GameProfile(actor, "offline-earner"), false);
+        var cookie = net.minecraft.server.network.CommonListenerCookie.createInitial(new GameProfile(actor, "offline_earner"), false);
         var first = new ServerPlayer(server, helper.getLevel(), cookie.gameProfile(), cookie.clientInformation());
+        net.luckperms.api.LuckPermsProvider.get().getUserManager().loadUser(actor, "offline_earner").join();
+        var connection = new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
         first.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(server,
-            new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND), first, cookie);
+            connection, first, cookie);
         var second = new FakePlayer(helper.getLevel(), new GameProfile(other, "offline-member"));
         var order = StageOrder.getInstance();
         var definitions = order.getOrderedStages().stream().map(id -> order.getStageDefinition(id).orElseThrow()).toList();
@@ -90,7 +95,7 @@ public final class StageOfflineGrantGameTests {
         var personal = new OwnerRef(OwnerKind.PERSONAL, actor);
         var rewards = new StageRewards(List.of(new StageCost.ItemCost(ResourceLocation.parse("minecraft:bread"), 4)),
             List.of(new StageRewards.EffectReward(ResourceLocation.parse("minecraft:speed"), 1200, 1)),
-            List.of("experience add @s 1 levels"), "1 180 1", 5, 0);
+            List.of("experience add offline_earner 1 levels"), "1 180 1", 5, 0);
         var events = new ArrayList<StageActorChangeEvent>();
         Consumer<StageActorChangeEvent> listener = (StageActorChangeEvent event) -> {
             if (linear && event.getChangeType() == com.enviouse.progressivestages.common.api.StageChangeType.GRANTED) {
@@ -163,6 +168,7 @@ public final class StageOfflineGrantGameTests {
             manager.syncStagesOnLogin(second);
             helper.assertTrue(second.experienceLevel == 0 && second.getInventory().countItem(Items.BREAD) == 0
                 && data.getPendingRewards(actor).size() == 1, "A teammate cannot consume the actor's reserved acquisition.");
+            onlinePlayers.add(first);
             players.put(actor, first);
             manager.syncStagesOnLogin(first);
             helper.assertTrue(first.experienceLevel == 6 && first.getInventory().countItem(Items.BREAD) == 4
@@ -181,6 +187,9 @@ public final class StageOfflineGrantGameTests {
             helper.succeed();
         } finally {
             players.remove(actor, first);
+            onlinePlayers.remove(first);
+            var user = net.luckperms.api.LuckPermsProvider.get().getUserManager().getUser(actor);
+            if (user != null) net.luckperms.api.LuckPermsProvider.get().getUserManager().cleanupUser(user);
             players.remove(other, second);
             first.discard();
             second.discard();

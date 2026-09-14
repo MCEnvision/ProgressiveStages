@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 public final class GuiResponseGameTests {
     private GuiResponseGameTests() {}
 
-    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 400)
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 400, batch = "progressivestages_gui_packet")
     public static void guiPacketPurchaseAndCommandBurstsShareOneResponseBudget(GameTestHelper helper) throws Exception {
         var capture = new Capture();
         var player = player(helper, capture);
@@ -70,11 +70,11 @@ public final class GuiResponseGameTests {
         } finally {
             bean.setThreadAllocatedMemoryEnabled(wasEnabled);
             NetworkHandler.clearPlayerRuntimeState(player.getUUID());
-            player.discard();
+            cleanupPlayer(player);
         }
     }
 
-    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100)
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100, batch = "progressivestages_gui_queue")
     @SuppressWarnings("unchecked")
     public static void queuedGuiResponsesUseCurrentDataAndStopAfterDisconnect(GameTestHelper helper) throws Exception {
         var capture = new Capture();
@@ -95,8 +95,8 @@ public final class GuiResponseGameTests {
             definitions.forEach(order::registerStage);
             NetworkHandler.clearPlayerRuntimeState(player.getUUID());
             NetworkHandler.clearPlayerRuntimeState(other.getUUID());
-            player.discard();
-            other.discard();
+            cleanupPlayer(player);
+            cleanupPlayer(other);
         };
         try {
             players.put(player.getUUID(), player);
@@ -129,7 +129,7 @@ public final class GuiResponseGameTests {
         }
     }
 
-    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100)
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100, batch = "progressivestages_gui_explicit")
     @SuppressWarnings("unchecked")
     public static void explicitGuiCommandsOpenWhileQueuedResponsesOnlyRefresh(GameTestHelper helper) throws Exception {
         var capture = new Capture();
@@ -145,8 +145,8 @@ public final class GuiResponseGameTests {
             players.remove(player.getUUID(), player);
             NetworkHandler.clearPlayerRuntimeState(player.getUUID());
             NetworkHandler.clearPlayerRuntimeState(legacy.getUUID());
-            player.discard();
-            legacy.discard();
+            cleanupPlayer(player);
+            cleanupPlayer(legacy);
         };
         try {
             players.put(player.getUUID(), player);
@@ -194,8 +194,9 @@ public final class GuiResponseGameTests {
     }
 
     private static FakePlayer player(GameTestHelper helper, Capture capture) {
-        var profile = new GameProfile(UUID.randomUUID(), "gui-response");
+        var profile = new GameProfile(UUID.randomUUID(), "gui_response");
         var player = new FakePlayer(helper.getLevel(), profile);
+        net.luckperms.api.LuckPermsProvider.get().getUserManager().loadUser(profile.getId(), "gui_response").join();
         player.connection = new ServerGamePacketListenerImpl(helper.getLevel().getServer(),
             new Connection(PacketFlow.SERVERBOUND), player, CommonListenerCookie.createInitial(profile, false)) {
             @Override public boolean hasChannel(net.minecraft.resources.ResourceLocation channel) {
@@ -212,6 +213,12 @@ public final class GuiResponseGameTests {
             }
         };
         return player;
+    }
+
+    private static void cleanupPlayer(ServerPlayer player) {
+        var user = net.luckperms.api.LuckPermsProvider.get().getUserManager().getUser(player.getUUID());
+        if (user != null) net.luckperms.api.LuckPermsProvider.get().getUserManager().cleanupUser(user);
+        player.discard();
     }
 
     private static IPayloadContext context(ServerPlayer player) {

@@ -2,7 +2,7 @@
 
 ProgressiveStages evaluates `item_on_block` and `block_right_click` rules on the server before a player interaction continues. The held item and clicked block are matched against their live registry holders, so tags use the actual tag membership of the item or block.
 
-Use either modern selectors such as `tag:c:armors`, `id:selling_bin:selling_bin`, and `all:*`, or the legacy `#c:armors` tag form. An unprefixed namespaced identifier remains an exact identifier. The held stack must be nonempty for an `item_on_block` rule. Empty hand behavior remains available through ordinary block rules.
+Use either modern selectors such as `tag:c:armors`, `id:selling_bin:selling_bin`, and `all:*`, or the legacy `#c:armors` tag form. An unprefixed namespaced identifier remains an exact identifier. Selective `item_on_block` rules require a nonempty held stack. A whole block `all:*` `item_on_block` rule also gates an empty hand menu open. Use `block_right_click` when whole block access should be expressed separately.
 
 A missing required stage cancels the server interaction before the protected action continues. The client never decides whether an interaction is allowed. Creative bypass and unrelated interactions retain their existing behavior.
 

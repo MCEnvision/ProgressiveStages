@@ -1,0 +1,76 @@
+{
+  "date": "2026-09-14",
+  "source_commit": "b8ee00c21ef9e6c3cbdb8748f059288b690050f4",
+  "candidate_sha256": "9ecf19e7ec508d13aec508e0b6daae4acbe608cde44bb79a67fd6de496f8f29d",
+  "minecraft": "1.21.1",
+  "neoforge": "21.1.248",
+  "java": "21",
+  "selling_bin": "1.6",
+  "luckperms": "5.4.150",
+  "server_host": "node-1",
+  "server_runtime": "/mnt/hermes/projects/ProgressiveStages/.phase-worktrees/phase-003/build/final-mixed-production-20260914",
+  "server_endpoint": "127.0.0.1:25587 through the existing private ssh tunnel",
+  "client_host": "envision",
+  "client_runtime": "/home/envy/.local/share/PrismLauncher/instances/pstages-final-acceptance-20260914",
+  "renderer": "NVIDIA GeForce RTX 5090 Laptop GPU, NVIDIA 610.57.04",
+  "fixture": {
+    "bin": "selling_bin:selling_bin at 0,71,1",
+    "stage": "Builder Stage",
+    "whole_rule": "all:* item_on_block to id:selling_bin:selling_bin",
+    "armor_rule": "tag:c:armors item_on_block to id:selling_bin:selling_bin",
+    "selective_rule": "id:minecraft:bread item_on_block and item_into_inventory to id:selling_bin:selling_bin",
+    "prices": "bread 10, iron chestplate 30, emerald currency 1"
+  },
+  "game_tests": {
+    "command": "./build/moddev/run-progressivestages-gametest.sh",
+    "required_passed": 97,
+    "log_result": "All 97 required tests passed"
+  },
+  "actions": [
+    {
+      "case": "whole all wildcard empty hand",
+      "stage": "revoked",
+      "result": "empty hand right click was denied, menu did not open, lock feedback was visible",
+      "screenshot": "repair_empty_hand_denied_20260914.png",
+      "sha256": "6ceda92cfb60e84fd8e90aae59ace108322564f14cc06afe5cdc35fb89b2b6b8"
+    },
+    {
+      "case": "whole all wildcard empty hand",
+      "stage": "granted",
+      "result": "the same empty hand right click opened the real Selling Bin menu",
+      "screenshot": "repair_empty_hand_allowed_20260914.png",
+      "sha256": "73af87a3c6853d486fba44cf196f1eca4b2b42ecea4d1564d6692d8bfdf50fb6"
+    },
+    {
+      "case": "selective bread insertion",
+      "stage": "granted",
+      "result": "bread moved from the hotbar into the actual bin input",
+      "screenshot": "repair_bread_allowed_20260914.png",
+      "sha256": "6f760f7ab02095579b047ce980b3cc051f99d9ead7b293ac938106e104e98d11"
+    },
+    {
+      "case": "selective bread insertion while menu stayed open",
+      "stage": "revoked",
+      "result": "fresh bread remained in the player inventory and was not inserted",
+      "screenshot": "repair_bread_denied_open_menu_20260914.png",
+      "sha256": "598432ef293dbfd8655f9883c72ab89f8eef34959250f86768f669b629881589"
+    },
+    {
+      "case": "armor tag direct use",
+      "stage": "revoked",
+      "result": "iron chestplate right click was denied and the menu did not open",
+      "screenshot": "repair_armor_denied_20260914.png",
+      "sha256": "fa7f033ba5ec917a9cb3969e93f12cfc65a22366fd3fc65305959912559593ea"
+    }
+  ],
+  "audio": {
+    "master_volume_before_start": 0.0,
+    "owned_stream_muted": true,
+    "personal_client_touched": false
+  },
+  "cleanup": {
+    "status": "pending final integration cleanup",
+    "personal_instances_preserved": true,
+    "shared_caches_preserved": true
+  }
+}

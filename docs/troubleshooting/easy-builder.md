@@ -60,8 +60,7 @@ For a selective restriction, enter `id:minecraft:bread` and the Selling Bin bloc
 enable **Also restrict GUI insertion**. Set **Inventory rule priority** if another inventory rule
 also matches. Saving creates an `item_on_block` rule and a matching `item_into_inventory` rule
 in one draft change. Both require the containing stage, and both remain independently editable.
-An independent empty hand click can still open the menu; other items follow their own rules.
-Use **Right click a block** as a separate rule when the whole bin should require a stage.
+A selective item rule does not restrict an empty hand menu open by itself. Use `all:*` for a whole block item rule when empty hand access should require the stage, or use **Right click a block** as a separate rule when whole bin access should be explicit.
 
 Editing an existing interaction changes its own row and preserves conditional activation and
 comments. If saving fails, the dialog keeps the entered selectors and reports the error.

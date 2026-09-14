@@ -79,7 +79,7 @@
     "required_checks": "passed",
     "signed_tag": "v3.0.5-final",
     "signed_tag_target": "29ce379dba9c80ced099876ebdef9c6f40c101bd",
-    "wiki_commit": "ce890800eb915789dd6d968d7e2cfc9396757c40",
+    "wiki_commit": "405157d88d8676f065184a285a9ddcb2de88c84f",
     "release_published": false
   },
   "audio": {

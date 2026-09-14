@@ -68,13 +68,39 @@
     "result": "rebuilt packaged editor opened through the client bridge; access controls, both Selling Bin selectors, whole block empty hand guidance, and the insertion pairing control were visible",
     "console_errors": 0
   },
+  "integration": {
+    "pull_request": 49,
+    "merge_commit": "29ce379dba9c80ced099876ebdef9c6f40c101bd",
+    "required_checks": "passed",
+    "signed_tag": "v3.0.5-final",
+    "signed_tag_target": "29ce379dba9c80ced099876ebdef9c6f40c101bd",
+    "wiki_commit": "ce890800eb915789dd6d968d7e2cfc9396757c40",
+    "release_published": false
+  },
   "audio": {
     "master_volume_before_start": 0.0,
     "owned_stream_muted": true,
     "personal_client_touched": false
   },
   "cleanup": {
-    "status": "pending final integration cleanup",
+    "status": "completed",
+    "verified_at": "2026-09-14",
+    "removed_node_paths": [
+      "build/final-mixed-production-20260914",
+      "build/final-mixed-acceptance-20260914",
+      "run-248-gametest",
+      "config",
+      "world",
+      "server.properties",
+      "build/resources/main/data/selling_bin"
+    ],
+    "removed_laptop_path": "PrismLauncher/instances/pstages-final-acceptance-20260914",
+    "owned_processes_stopped": [
+      "client pid 1353462",
+      "ssh tunnel pid 453120",
+      "dedicated server console session 57075"
+    ],
+    "preexisting_run_248_preserved": true,
     "personal_instances_preserved": true,
     "shared_caches_preserved": true
   }

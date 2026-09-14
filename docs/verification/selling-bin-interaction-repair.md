@@ -341,9 +341,9 @@ removed after retaining this bounded evidence.
 
 ## September 14 final repair acceptance
 
-The final repair candidate from source commit `a0f9f88ce0e6f89591a4a261e95ef585168413bf`
+The final repair candidate from source commit `31c17e7e6300b1a956e959415f73a218a994fd56`
 was built and tested with Minecraft 1.21.1, NeoForge 21.1.248 and Java 21. The ProgressiveStages
-JAR SHA-256 is `2b569fdf371b5b50a79714de4d9c49cc17bc49284d1c2d96a4460ff79fb01f9b`. The disposable
+JAR SHA-256 is `50f449d1eb52da2ba72a39a4a09267d9887af2f1dca29ce2233110afc24b6652`. The disposable
 node-1 server used Selling Bin 1.6 and LuckPerms 5.4.150, and the laptop client used the same
 JARs through the existing private loopback SSH tunnel. The laptop renderer was an NVIDIA RTX
 5090 Laptop GPU with driver 610.57.04. The master volume was zero before startup and the owned

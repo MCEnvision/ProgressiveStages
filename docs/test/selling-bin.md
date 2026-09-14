@@ -63,3 +63,7 @@ players, custom components, and reconnect still require the corresponding accept
 Generic container tests are supporting evidence and do not fill those actual bin coverage gaps.
 See the [interaction repair record](../verification/selling-bin-interaction-repair.md) and
 [3.0.5 acceptance record](../verification/3.0.5-acceptance.md).
+
+The September 14, 2026 laptop record extends this server coverage with an actual empty hand
+menu denial for the whole `all:*` rule, armor denial for `tag:c:armors`, and selective bread
+insertion checks while the real menu remains open. See the [repair evidence](../verification/selling-bin-interaction-repair.md#september-14-final-repair-acceptance).

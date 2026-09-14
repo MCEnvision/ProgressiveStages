@@ -73,7 +73,8 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   `tag:c:armors` or `all:*` held item selectors and the exact
   `id:selling_bin:selling_bin` block selector. For selected items such as bread, enable
   **Also restrict GUI insertion** to create matching held item and inventory insertion rules
-  together. Whole bin access remains a separate block right click rule.
+  together. A whole block `all:*` rule also controls an empty hand menu open. Whole bin access
+  remains a separate block right click rule when that behavior should be explicit.
 - **Optional LuckPerms configuration.** The builder supports synchronized or permanent inbound
   mappings and outbound group or permission mappings. Outbound mutations use transient nodes with
   tracked ownership and cleanup retries. Queries preserve current context values and separate
@@ -363,9 +364,9 @@ Each category lives in its own TOML section. Lists accept the unified prefix syn
 | `[[interactions]]` | `type`, `held_item`, `target_block` / `target_entity`, `description` | Block right-click / item-on-block / item-on-entity combos |
 | `[[interactions]]` | `type = "item_into_inventory"`, `held_item`, `target_kind`, `target`, `effect`, `priority` | Gate player item insertion into block, menu, or registered inventory targets. See [inventory insertion rules](docs/features/inventory-insertion.md). |
 
-For `item_on_block` and `block_right_click`, selectors are checked against the live item and block holders. Use `tag:c:armors`, `id:selling_bin:selling_bin`, or `all:*`; the legacy `#c:armors` form remains valid. An item-on-block rule requires a nonempty held stack. See the [interaction lock troubleshooting guide](docs/troubleshooting/interaction-locks.md).
+For `item_on_block` and `block_right_click`, selectors are checked against the live item and block holders. Use `tag:c:armors`, `id:selling_bin:selling_bin`, or `all:*`; the legacy `#c:armors` form remains valid. A selective item-on-block rule requires a nonempty held stack. A whole block `all:*` item-on-block rule also gates an empty hand menu open. See the [interaction lock troubleshooting guide](docs/troubleshooting/interaction-locks.md).
 
-Matching clients suppress local item and block prediction for denied direct interactions using synchronized rules and stage ownership. The server still checks the ordinary request and resends authoritative inventory state when it denies the interaction. Selective restrictions inside an open GUI use a separate `item_into_inventory` rule; `block_right_click` controls access independently. The [real Selling Bin transaction tests](docs/test/selling-bin.md) cover server insertion and sale paths. Client acceptance remains open in the [verification record](docs/verification/selling-bin-interaction-repair.md).
+Matching clients suppress local item and block prediction for denied direct interactions using synchronized rules and stage ownership. The server still checks the ordinary request and resends authoritative inventory state when it denies the interaction. Selective restrictions inside an open GUI use a separate `item_into_inventory` rule; `block_right_click` controls access independently. The [real Selling Bin transaction tests](docs/test/selling-bin.md) cover server insertion and sale paths. The [verification record](docs/verification/selling-bin-interaction-repair.md) records the current client acceptance evidence.
 
 Client snapshot acknowledgements must match the revision, checksum and enforcement policy sent
 to that player. Repeated acknowledgements reuse the stored offer instead of rebuilding the

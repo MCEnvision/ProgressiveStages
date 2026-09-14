@@ -82,6 +82,44 @@ public class InteractionEnforcer {
             return new InteractionDecision(List.of(), List.of(), reason, true);
         }
 
+        return stageDecision(player, matched, hasRules);
+    }
+
+    /**
+     * evaluate whether a block menu may open without requiring a held item.
+     */
+    public static InteractionDecision evaluateBlockMenu(ServerPlayer player, Block targetBlock) {
+        if (!StageConfig.isBlockInteractions()
+                || (player != null && StageConfig.isAllowCreativeBypass() && player.isCreative())) {
+            return new InteractionDecision(List.of(), List.of(), InteractionDecision.Reason.BYPASS, true);
+        }
+
+        Collection<LockRegistry.InteractionLockEntry> itemRules =
+            LockRegistry.getInstance().getAllInteractionLocksOfType(TYPE_ITEM_ON_BLOCK);
+        Collection<LockRegistry.InteractionLockEntry> blockRules =
+            LockRegistry.getInstance().getAllInteractionLocksOfType(TYPE_BLOCK_RIGHT_CLICK);
+        boolean hasRules = !itemRules.isEmpty() || !blockRules.isEmpty();
+        LinkedHashSet<StageId> matched = new LinkedHashSet<>();
+
+        for (LockRegistry.InteractionLockEntry entry : itemRules) {
+            if (wholeBlockRule(entry) && matchesBlockRule(entry, targetBlock)) matched.add(entry.requiredStage);
+        }
+        for (LockRegistry.InteractionLockEntry entry : blockRules) {
+            if (matchesBlockRule(entry, targetBlock)) matched.add(entry.requiredStage);
+        }
+
+        return stageDecision(player, matched, hasRules);
+    }
+
+    private static InteractionDecision stageDecision(ServerPlayer player, Collection<StageId> matched,
+                                                     boolean hasRules) {
+        if (matched.isEmpty()) {
+            InteractionDecision.Reason reason = hasRules
+                ? InteractionDecision.Reason.SELECTOR_MISMATCH
+                : InteractionDecision.Reason.NO_RULE;
+            return new InteractionDecision(List.of(), List.of(), reason, true);
+        }
+
         List<StageId> missing = new ArrayList<>();
         for (StageId stage : matched) {
             if (player == null || !StageManager.getInstance().hasStage(player, stage)) missing.add(stage);
@@ -89,6 +127,12 @@ public class InteractionEnforcer {
         InteractionDecision.Reason reason = missing.isEmpty()
             ? InteractionDecision.Reason.STAGE_OWNED : InteractionDecision.Reason.STAGE_MISSING;
         return new InteractionDecision(List.copyOf(matched), missing, reason, missing.isEmpty());
+    }
+
+    private static boolean wholeBlockRule(LockRegistry.InteractionLockEntry entry) {
+        if (entry == null) return false;
+        String selector = entry.heldItem == null ? "" : entry.heldItem.trim();
+        return selector.isEmpty() || "*".equals(selector) || "all:*".equalsIgnoreCase(selector);
     }
 
     /**

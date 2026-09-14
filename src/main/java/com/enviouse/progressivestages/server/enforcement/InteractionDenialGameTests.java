@@ -96,6 +96,62 @@ public final class InteractionDenialGameTests {
         }
     }
 
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void deniedWholeBlockRuleBlocksEmptyHandMenuOpen(GameTestHelper helper) {
+        StageId stage = StageId.parse("progressivestages:gametest_empty_menu_denial");
+        CommonListenerCookie cookie = CommonListenerCookie.createInitial(
+            new GameProfile(UUID.randomUUID(), "empty-menu-test"), false);
+        ServerPlayer player = new ServerPlayer(helper.getLevel().getServer(), helper.getLevel(),
+            cookie.gameProfile(), cookie.clientInformation());
+        var connection = new net.minecraft.network.Connection(
+            net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+        new io.netty.channel.embedded.EmbeddedChannel(connection);
+        player.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(
+            helper.getLevel().getServer(), connection, player, cookie) {
+            @Override
+            public void send(net.minecraft.network.protocol.Packet<?> packet) {}
+        };
+
+        BlockPos position = helper.absolutePos(new BlockPos(1, 1, 1));
+        helper.getLevel().setBlockAndUpdate(position, Blocks.CHEST.defaultBlockState());
+        StageDefinition definition = StageDefinition.builder(stage).locks(LockDefinition.builder()
+            .interactions(List.of(new LockDefinition.InteractionLock("item_on_block", "all:*",
+                "id:minecraft:chest", "Empty hand menu denial regression"))).build()).build();
+        LockRegistry registry = LockRegistry.getInstance();
+        StageOrder order = StageOrder.getInstance();
+        var stages = helper.getLevel().getData(StageAttachments.TEAM_STAGES);
+        UUID owner = TeamProvider.getInstance().getTeamId(player);
+        order.registerStage(definition);
+        registry.registerStage(definition);
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(position), Direction.UP, position, false);
+        try {
+            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            InteractionResult denied = player.gameMode.useItemOn(player, helper.getLevel(), ItemStack.EMPTY,
+                InteractionHand.MAIN_HAND, hit);
+            helper.assertTrue(denied == InteractionResult.FAIL && player.containerMenu == player.inventoryMenu,
+                "A whole block interaction lock must deny an empty hand menu open.");
+
+            stages.grantStage(owner, stage);
+            InteractionResult allowed = player.gameMode.useItemOn(player, helper.getLevel(), ItemStack.EMPTY,
+                InteractionHand.MAIN_HAND, hit);
+            helper.assertTrue(allowed.consumesAction() && player.containerMenu != player.inventoryMenu,
+                "Granting the stage must permit the empty hand menu open.");
+            player.closeContainer();
+
+            stages.revokeStage(owner, stage);
+            InteractionResult revoked = player.gameMode.useItemOn(player, helper.getLevel(), ItemStack.EMPTY,
+                InteractionHand.MAIN_HAND, hit);
+            helper.assertTrue(revoked == InteractionResult.FAIL && player.containerMenu == player.inventoryMenu,
+                "Revocation must deny a fresh empty hand menu open.");
+            helper.succeed();
+        } finally {
+            player.closeContainer();
+            stages.revokeStage(owner, stage);
+            registry.clear();
+            order.clear();
+        }
+    }
+
     private static final class InventoryCorrection implements ContainerSynchronizer {
         private int fullUpdates;
 

@@ -338,3 +338,34 @@ complete 360 entry path inventory was restored. The temporary backup was removed
 baselines. The runtime library symlink was removed without following it; the original libraries,
 candidate, source and unrelated resources were preserved. Both hosts' scratch output was
 removed after retaining this bounded evidence.
+
+## September 14 final repair acceptance
+
+The final repair candidate from source commit `31c17e7e6300b1a956e959415f73a218a994fd56`
+was built and tested with Minecraft 1.21.1, NeoForge 21.1.248 and Java 21. The ProgressiveStages
+JAR SHA-256 is `50f449d1eb52da2ba72a39a4a09267d9887af2f1dca29ce2233110afc24b6652`. The disposable
+node-1 server used Selling Bin 1.6 and LuckPerms 5.4.150, and the laptop client used the same
+JARs through the existing private loopback SSH tunnel. The laptop renderer was an NVIDIA RTX
+5090 Laptop GPU with driver 610.57.04. The master volume was zero before startup and the owned
+application stream remained muted.
+
+The fixture placed a real Selling Bin at `(0,71,1)` and loaded these rules:
+
+* `all:*` `item_on_block` to `id:selling_bin:selling_bin` for whole bin access.
+* `tag:c:armors` `item_on_block` to `id:selling_bin:selling_bin` for armor access.
+* `id:minecraft:bread` `item_on_block` plus `item_into_inventory` to the same block for selective bread access.
+
+| Client action | Stage state | Authoritative result |
+| --- | --- | --- |
+| Empty hand right click with the whole `all:*` rule | Revoked | The menu stayed closed and the lock message was shown. See [empty hand denied](selling-bin-client/repair_empty_hand_denied_20260914.png). |
+| Empty hand right click with the whole `all:*` rule | Granted | The real Selling Bin menu opened. See [empty hand allowed](selling-bin-client/repair_empty_hand_allowed_20260914.png). |
+| Insert bread into the real bin input | Granted | Bread moved from the hotbar into the bin input. See [bread allowed](selling-bin-client/repair_bread_allowed_20260914.png). |
+| Insert fresh bread while the existing menu stayed open | Revoked | Bread remained in the player inventory and did not enter the bin. See [bread denied](selling-bin-client/repair_bread_denied_open_menu_20260914.png). |
+| Armor right click with the `tag:c:armors` rule | Revoked | The menu stayed closed and the lock message was shown. See [armor denied](selling-bin-client/repair_armor_denied_20260914.png). |
+
+The five screenshots and their hashes are recorded in [repair-20260914.json](selling-bin-client/repair-20260914.json).
+The pinned GameTest command passed all 97 required tests, including the real Selling Bin armor,
+wildcard, selective and partial transaction cases. These checks establish the reported empty hand,
+tagged armor and selective open-menu paths on the final candidate. They do not claim a release or
+resolve the existing upstream `wdUtils` access transformer warning. The owned server, client and
+private tunnel remain subject to the final integration cleanup receipt.

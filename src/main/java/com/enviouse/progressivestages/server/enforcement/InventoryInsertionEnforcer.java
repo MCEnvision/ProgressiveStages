@@ -148,8 +148,9 @@ public final class InventoryInsertionEnforcer {
 
     private static Map<String, SelectorTarget> destinationTargets(ServerPlayer player, AbstractContainerMenu menu, Slot slot) {
         Map<String, SelectorTarget> targets = new LinkedHashMap<>();
-        blockTarget(slot).ifPresent(target -> targets.put("block", target));
-        menuBlockTarget(menu, slot).ifPresent(target -> targets.put("block", target));
+        Optional<SelectorTarget> directBlock = blockTarget(slot);
+        (directBlock.isPresent() ? directBlock : menuBlockTarget(menu, slot))
+            .ifPresent(target -> targets.put("block", target));
         menuTarget(menu).ifPresent(target -> targets.put("menu", target));
         InventoryTargetResolverRegistry.get().resolve(player, menu, slot)
             .map(target -> new SelectorTarget(target.id(), null, target.tags(), java.util.Map.of()))
@@ -173,11 +174,14 @@ public final class InventoryInsertionEnforcer {
             if (!Container.class.isAssignableFrom(field.getType())) continue;
             try {
                 if (field.get(menu) != slot.container) continue;
+                Set<BlockEntity> candidates = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
                 for (Field blockField : fields) {
                     if (!BlockEntity.class.isAssignableFrom(blockField.getType())) continue;
                     Object value = blockField.get(menu);
-                    if (value instanceof BlockEntity blockEntity) return blockTarget(blockEntity);
+                    if (value instanceof BlockEntity blockEntity) candidates.add(blockEntity);
                 }
+                if (candidates.size() != 1) return Optional.empty();
+                return blockTarget(candidates.iterator().next());
             } catch (ReflectiveOperationException | RuntimeException ignored) {
                 return Optional.empty();
             }

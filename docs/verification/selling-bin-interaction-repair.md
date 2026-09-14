@@ -375,8 +375,10 @@ private tunnel were later closed by the final integration cleanup receipt below.
 The repaired candidate source commit `6b5a2ba9a54005b4d9825f7ae7cbbcd55fe0207c` was merged into
 default `master` by pull request 49 as merge commit `29ce379dba9c80ced099876ebdef9c6f40c101bd`.
 The signed annotated tag `v3.0.5-final` points to that merge commit. The packaged JAR remains bound
-to SHA-256 `5e0b9d950bdc7a496506192299b61887bddd2639b7aacde0eca8431e51bc8468`, and the wiki
-update was published at commit `ce890800eb915789dd6d968d7e2cfc9396757c40`.
+to SHA-256 `339fbfda37c56d141e7cfbb5cbeee6d1ef520cc9bf1c131fe7e7677d045318aa` and SHA-512
+`33c6cb3572d147db1920c36a98499fa1cedd7519f7e2e27e5daa506ab9df756365189eb61fcfb48ac927d46ee403854c858c941e44fa6a86af148d352fdb83d6`.
+Its manifest records `Build-Commit: 6b5a2ba9a54005b4d9825f7ae7cbbcd55fe0207c` and
+`Build-Dirty: false`. The wiki update was published at commit `ce890800eb915789dd6d968d7e2cfc9396757c40`.
 
 The final cleanup stopped the owned server, client and tunnel and removed their disposable
 runtimes, browser tabs and scratch output. The preexisting `run-248` runtime, shared dependency

@@ -1,7 +1,12 @@
 {
   "date": "2026-09-14",
   "source_commit": "6b5a2ba9a54005b4d9825f7ae7cbbcd55fe0207c",
-  "candidate_sha256": "5e0b9d950bdc7a496506192299b61887bddd2639b7aacde0eca8431e51bc8468",
+  "candidate_sha256": "339fbfda37c56d141e7cfbb5cbeee6d1ef520cc9bf1c131fe7e7677d045318aa",
+  "candidate_sha512": "33c6cb3572d147db1920c36a98499fa1cedd7519f7e2e27e5daa506ab9df756365189eb61fcfb48ac927d46ee403854c858c941e44fa6a86af148d352fdb83d6",
+  "build_manifest": {
+    "build_commit": "6b5a2ba9a54005b4d9825f7ae7cbbcd55fe0207c",
+    "build_dirty": false
+  },
   "minecraft": "1.21.1",
   "neoforge": "21.1.248",
   "java": "21",

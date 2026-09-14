@@ -434,6 +434,11 @@ distinguishes the core checks from the outstanding real provider and client acce
 Actor context mutations reject stale membership and definition revisions before changing stages.
 Integrations must resolve a fresh context on the server thread after membership or session changes.
 
+Easy Builder keeps generic rule actions separate, preserves additional targets and conditions
+when a rule is edited, and lets permanent conditional rules follow explicit stage ownership.
+Legacy lists keep their original enforced format. See the [editor rule verification guide](docs/test/editor-rule-runtime.md)
+for the covered runtime actions and automation limits.
+
 Easy Builder applies only the reviewed draft revision. If another edit changes the draft, it
 reloads the current source and asks for a new review before applying.
 Removing a draft collaborator revokes their existing sessions. Adding them again requires
@@ -444,10 +449,11 @@ Capture headers identify the candidate archives and captured effective configura
 `/stage debug editor` also records authenticated draft operations and apply outcomes.
 See the [capture procedure](docs/troubleshooting/interaction-locks.md) before collecting support logs.
 
-The selected LuckPerms 5.4.140 candidate fails player login on NeoForge 21.1.248 even without
-ProgressiveStages installed. Its successful server startup does not establish compatibility.
-The [verification record](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
-documents this unresolved integration gate; no replacement provider build is verified yet.
+LuckPerms 5.4.150 has passed authenticated player login on NeoForge 21.1.248. The earlier
+[5.4.140 login failure](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
+applies to that older artifact. Published stage permissions follow the affected player, and native
+LuckPerms context notifications recheck conditional access. Full multiplayer and provider lifecycle
+acceptance remains separate from these [regression checks](docs/test/editor-rule-runtime.md).
 | `[[regions]]` | `dimension`, `pos1`, `pos2`, `prevent_entry`, `prevent_explosions`, ... | 3D bounding-box gates |
 | `[structures]` | `locked_entry` + `[structures.rules]` (`prevent_block_break`, `prevent_block_place`, `prevent_explosions`, `disable_mob_spawning`, **`entry_padding`** — new in 2.5) | Block entry into specific generated structures. **New in 2.5:** breaching players teleport back to their last safe position; `entry_padding` (blocks) keeps the fallback push clear of the boundary. |
 | `[enforcement]` | `allowed_use`, `allowed_pickup`, `allowed_hotbar`, `allowed_mouse_pickup`, `allowed_inventory` | Per-stage exception lists for in-inventory enforcement |

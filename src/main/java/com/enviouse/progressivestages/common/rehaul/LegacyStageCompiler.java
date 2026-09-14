@@ -43,7 +43,7 @@ public final class LegacyStageCompiler {
         addCategory(rules, stage, "professions", "trade", locks.professions(), root);
         addCategory(rules, stage, "advancements", "display", locks.advancements(), root);
         addCategory(rules, stage, "beacon", "apply", locks.beacon(), root);
-        addCategory(rules, stage, "brewing", "brew", locks.brewing(), root);
+        addCategory(rules, stage, "brewing", "take", locks.brewing(), root);
         addCategory(rules, stage, "pets.taming", "tame", locks.petsTaming(), root);
         addCategory(rules, stage, "pets.breeding", "breed", locks.petsBreeding(), root);
         addCategory(rules, stage, "pets.commanding", "command", locks.petsCommanding(), root);

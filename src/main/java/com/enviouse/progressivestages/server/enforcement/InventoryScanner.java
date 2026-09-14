@@ -120,7 +120,7 @@ public class InventoryScanner {
 
             LockRegistry registry = LockRegistry.getInstance();
             java.util.Set<com.enviouse.progressivestages.common.api.StageId> missing =
-                registry.missingStagesForItem(player, stack.getItem());
+                registry.missingStagesForItem(player, stack.getItem(), "hotbar");
             if (missing.isEmpty()
                     || !registry.isCategoryEnforced(missing,
                         com.enviouse.progressivestages.common.lock.EnforcementCategory.ITEM_HOTBAR)

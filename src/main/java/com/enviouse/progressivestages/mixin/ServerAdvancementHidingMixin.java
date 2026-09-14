@@ -1,8 +1,6 @@
 package com.enviouse.progressivestages.mixin;
 
 import com.enviouse.progressivestages.common.lock.LockRegistry;
-import net.minecraft.advancements.AdvancementHolder;
-import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -10,13 +8,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * v2.5: advancement HIDING. Strips advancements gated by {@code [advancements].locked} (whose stage
@@ -30,6 +25,8 @@ import java.util.Map;
  */
 @Mixin(ServerCommonPacketListenerImpl.class)
 public abstract class ServerAdvancementHidingMixin {
+    @Unique
+    private final java.util.Set<ResourceLocation> progressivestages$suppressedToasts = new java.util.HashSet<>();
 
     @ModifyVariable(
         method = "send(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketSendListener;)V",
@@ -40,27 +37,12 @@ public abstract class ServerAdvancementHidingMixin {
         try {
             if (!(packet instanceof ClientboundUpdateAdvancementsPacket adv)) return packet;
             LockRegistry reg = LockRegistry.getInstance();
-            if (!reg.hasAdvancementLocks()) return packet;
+            if (!reg.hasAdvancementLocks() && progressivestages$suppressedToasts.isEmpty()) return packet;
             ServerPlayer player = progressivestages$advPlayer();
             if (player == null) return packet;
 
-            boolean changed = false;
-
-            List<AdvancementHolder> keptAdded = new ArrayList<>(adv.getAdded().size());
-            for (AdvancementHolder h : adv.getAdded()) {
-                if (reg.isAdvancementHiddenFor(player, h.id())) { changed = true; continue; }
-                keptAdded.add(h);
-            }
-
-            Map<ResourceLocation, AdvancementProgress> keptProgress = new LinkedHashMap<>();
-            for (Map.Entry<ResourceLocation, AdvancementProgress> e : adv.getProgress().entrySet()) {
-                if (reg.isAdvancementHiddenFor(player, e.getKey())) { changed = true; continue; }
-                keptProgress.put(e.getKey(), e.getValue());
-            }
-
-            if (!changed) return packet;
-            return new ClientboundUpdateAdvancementsPacket(
-                adv.shouldReset(), keptAdded, adv.getRemoved(), keptProgress);
+            return com.enviouse.progressivestages.server.enforcement.AdvancementHider.filterUpdate(
+                player, adv, progressivestages$suppressedToasts);
         } catch (Throwable t) {
             org.slf4j.LoggerFactory.getLogger("ProgressiveStages")
                 .error("[AdvancementHide] packet filter failed; sending original", t);

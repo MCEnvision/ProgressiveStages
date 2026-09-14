@@ -61,6 +61,16 @@ public abstract class AbstractContainerMenuMixin {
             return;
         }
 
+        ItemStack dropped = slotId == -999 && clickType == ClickType.PICKUP
+            ? ((AbstractContainerMenu) (Object) this).getCarried()
+            : clickType == ClickType.THROW && slotId >= 0 && slotId < slots.size()
+                ? slots.get(slotId).getItem() : ItemStack.EMPTY;
+        if (!ItemEnforcer.canDropItem(serverPlayer, dropped)) {
+            ci.cancel();
+            ((AbstractContainerMenu) (Object) this).sendAllDataToRemote();
+            return;
+        }
+
         // Need at least one enforcement option enabled
         LockRegistry registry = LockRegistry.getInstance();
         if (!StageConfig.isBlockItemInventory() && !StageConfig.isBlockItemMousePickup()
@@ -83,39 +93,23 @@ public abstract class AbstractContainerMenuMixin {
                 return;
             }
 
-            // v2.0 multi-stage: blocked iff ANY gating stage is missing.
-            java.util.Set<com.enviouse.progressivestages.common.api.StageId> missing =
-                registry.missingStagesForItem(serverPlayer, stack.getItem());
-            if (missing.isEmpty()) {
-                // Item is not locked for this player — but check hotbar destination restriction
-                progressivestages$checkHotbarDestination(slotId, clickType, serverPlayer, ci);
+            for (var entry : java.util.Map.of(
+                    "inventory", com.enviouse.progressivestages.common.lock.EnforcementCategory.ITEM_INVENTORY,
+                    "mouse_pickup", com.enviouse.progressivestages.common.lock.EnforcementCategory.ITEM_MOUSE_PICKUP).entrySet()) {
+                if (entry.getKey().equals("mouse_pickup") && clickType != ClickType.PICKUP
+                        && clickType != ClickType.PICKUP_ALL && clickType != ClickType.QUICK_MOVE) continue;
+                var missing = registry.missingStagesForItem(serverPlayer, stack.getItem(), entry.getKey());
+                if (missing.isEmpty() || !registry.isCategoryEnforced(missing, entry.getValue())) continue;
+                boolean exempt = entry.getKey().equals("inventory")
+                    ? registry.isExemptFromInventory(stack.getItem(), missing)
+                    : registry.isExemptFromMousePickup(stack.getItem(), missing);
+                if (exempt) continue;
+                ci.cancel();
+                missing.stream().findFirst().ifPresent(stage -> ItemEnforcer.notifyLockedWithCooldown(
+                    serverPlayer, stage, "This item"));
                 return;
             }
-
-            // Item IS locked for this player — apply enforcement based on config
-
-            // Strictest: block_item_inventory blocks ALL interaction
-            if (registry.isCategoryEnforced(missing,
-                    com.enviouse.progressivestages.common.lock.EnforcementCategory.ITEM_INVENTORY)) {
-                if (!registry.isExemptFromInventory(stack.getItem(), missing)) {
-                    ci.cancel();
-                    ItemEnforcer.notifyLockedWithCooldown(serverPlayer, stack.getItem());
-                    return;
-                }
-            }
-
-            // Medium: block_item_mouse_pickup blocks picking up the locked item with mouse
-            if (registry.isCategoryEnforced(missing,
-                    com.enviouse.progressivestages.common.lock.EnforcementCategory.ITEM_MOUSE_PICKUP)) {
-                if (!registry.isExemptFromMousePickup(stack.getItem(), missing)) {
-                    ci.cancel();
-                    ItemEnforcer.notifyLockedWithCooldown(serverPlayer, stack.getItem());
-                    return;
-                }
-            }
-
-            // Softest: only block_item_hotbar — allow free movement but check destination
-            // (destination check is handled below for the carried item)
+            progressivestages$checkHotbarDestination(slotId, clickType, serverPlayer, ci);
 
         } catch (Exception e) {
             // Silently ignore to prevent crashes
@@ -144,7 +138,7 @@ public abstract class AbstractContainerMenuMixin {
 
         // v2.0 multi-stage
         java.util.Set<com.enviouse.progressivestages.common.api.StageId> missing =
-            registry.missingStagesForItem(player, carried.getItem());
+            registry.missingStagesForItem(player, carried.getItem(), "hotbar");
         if (missing.isEmpty()
                 || !registry.isCategoryEnforced(missing,
                     com.enviouse.progressivestages.common.lock.EnforcementCategory.ITEM_HOTBAR)

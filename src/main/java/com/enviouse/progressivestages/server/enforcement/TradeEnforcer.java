@@ -42,6 +42,10 @@ public final class TradeEnforcer {
      * @return {@code true} if {@code player} must not see or complete this offer.
      */
     public static boolean isOfferLocked(ServerPlayer player, MerchantOffer offer) {
+        return isOfferLocked(player, offer, "purchase");
+    }
+
+    public static boolean isOfferLocked(ServerPlayer player, MerchantOffer offer, String action) {
         if (player == null || offer == null) return false;
         if (!StageConfig.isBlockTrades()) return false;
         // Bypass parity with every other enforcer: creative (when allowed) + spectators.
@@ -54,11 +58,11 @@ public final class TradeEnforcer {
         LockRegistry reg = LockRegistry.getInstance();
         Item item = result.getItem();
         // [trades] — the dedicated category for "block the trade, not the item".
-        if (reg.isTradeBlockedFor(player, item)) return true;
+        if (!reg.restrictionStagesForTrade(player, item, action).isEmpty()) return true;
         // Preserved behavior: a result you can't even hold shouldn't be tradeable.
         if (reg.isItemBlockedFor(player, item)) return true;
         // NBT/enchant-aware (enchanted books, enchanted gear) via the [enchants] category.
-        return EnchantEnforcer.anyEnchantLocked(player, result);
+        return EnchantEnforcer.anyEnchantLocked(player, result, "trade");
     }
 
     /**

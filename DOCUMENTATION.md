@@ -418,7 +418,11 @@ To create a stage without knowing TOML:
    explains each card's parents, prevents dependency cycles, and previews selected paths flowing
    upward into the stage being edited. Choose all selected paths for a hybrid class, any one path
    for alternatives, or an exact minimum for a quorum.
-6. Click `Add rule`. Choose a category. The action menu changes to the actions the server can
+6. Click `Add rule`. Choose a category. Generic rules keep the selected action separate from
+   other actions in that category. For example, an item pickup rule does not block item use,
+   a block placement rule does not block interaction, and an enchantment anvil rule does not
+   remove enchantments already held. Use Access, Direct interactions for held item and block
+   or entity pairs; the general Rules form handles inventory insertion pairs. The action menu changes to the actions the server can
    actually enforce for that category, and the search catalog changes to the matching registry.
    Entity rules cannot accidentally choose an item, block rules cannot accidentally choose a
    fluid, and a mod filter can reduce a large result set to one installed mod. A structure rule
@@ -519,6 +523,30 @@ ProgressiveStages editor. The editor JAR serves `app.js` and does not contain `v
 message normally comes from a browser extension or browser supplied script. It may be ignored when
 the editor works. If it keeps interrupting the page, open the Minecraft supplied address in a
 browser profile with extensions disabled.
+
+The Rules form exposes **Stage ownership** independently of activation and lifetime. A permanent
+rule may have a weather or dimension condition while still participating only when its stage is
+missing. Changing lifetime preserves that ownership choice. Existing compound conditions, reset
+conditions, additional targets, viewer differences, exceptions, and unknown settings remain intact
+when another field is edited. Ambiguous category changes with dependent targets or exceptions
+require an explicit Source edit. Legacy lists remain lists; their action applies to the whole
+category. Conditional crafting locks must use progression to grant or revoke the stage instead of
+writing unsupported generic recipe rules. Stage attributes in schema 4 packages belong to
+`rules.toml`.
+
+Generic fluid `flow` rules intercept native spreading and match the source fluid identifier, so
+`id:minecraft:water` includes flowing water. The nearest player within the configured mob spawn
+check radius supplies progression context. Without a nearby player, flow continues. Generic
+brewing `brew` rules inspect predicted potion outputs before the native brewing transaction using
+the nearest player within 16 blocks; without that player, brewing proceeds. Generic `take` rules
+apply to both player and hopper extraction. Legacy `[brewing].locked` continues to gate extraction
+only. Custom brewing implementations that bypass the vanilla stand need their own integration.
+
+Generic dimension `enter` applies to all dimension travel. `portal` identifies the native portal
+travel path, while direct dimension changes use `teleport`. A modded portal that directly invokes
+dimension travel follows the direct travel path. Generic advancement `toast` suppression leaves
+the advancement visible and restores its normal display when the condition ends and progress is
+next synchronized.
 
 The easy builder writes the same schema that a TOML expert would write. There is no reduced
 runtime, separate simple rule engine, or client only shortcut. Priority, exclusions, temporary
@@ -2941,14 +2969,11 @@ The generated [fifty stage showcase](SHOWCASE_PACK.md) contains all three common
 
 ### 4.38 LuckPerms bridge and command gates
 
-The current exact runtime candidate, LuckPerms 5.4.140, fails actual player login on NeoForge
-21.1.248 with `Invalid player data` and an uninitialized capability exception, including when
-ProgressiveStages is absent. The [dependency only verification](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
-records the failure. A separate [adapter source audit](docs/verification/luckperms-bridge.md#adapter-source-audit)
-also found persistent writes, incomplete context isolation, ownership and cleanup defects in
-ProgressiveStages. The outbound storage, reference and query repairs below address part of that audit;
-real provider context isolation and complete lifecycle acceptance remain open. The configuration
-below describes the accepted schema and intended runtime contract, not verified provider behavior.
+LuckPerms 5.4.150 passes authenticated player login with the current Minecraft 1.21.1 and NeoForge
+21.1.248 candidate. The [historical dependency verification](docs/verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
+records a login failure in 5.4.140, including without ProgressiveStages. The
+[regression guide](docs/test/editor-rule-runtime.md) distinguishes current transaction coverage from
+the remaining authenticated multiplayer and complete provider lifecycle acceptance.
 
 LuckPerms is an optional server integration. A stage may read inherited groups or true Boolean
 permissions through `[[luckperms.inbound]]` rows and may contribute an existing group or positive
@@ -3093,12 +3118,22 @@ provider cache, event, inherited graph and native command behavior.
 
 `LuckPermsEventSubscriptions` subscribes through API 5.4 to user load and unload, node mutation,
 group load, creation, deletion and full load, post synchronization and configuration reload events.
+It also handles external context update notifications, including the native provider's game mode
+and dimension events. Exact thread and target guards ignore notifications produced by the bridge's
+own marker updates. Context callbacks do not query prechange player state; the bounded server queue
+evaluates the completed change. Custom context calculators must signal their changes to LuckPerms.
 User events copy the subject UUID; group and global events request a resumable rescan. These
 callbacks only invalidate projection state and enqueue work. They do not call StageManager,
 query user data, perform storage operations or notify the provider context manager. A global
 generation invalidates all calculator projections without scanning players on the callback thread.
 Provider context cache notifications occur during server reconciliation. Previously cached provider
 answers and full offline contributor recovery still require the real provider acceptance matrix.
+
+Global mutation and input revisions guard reconciliation while it collects and commits a subject's
+state. They do not remain attached to published output. The published projection follows the
+subject's ticket and compiled definition snapshot, so another player's personal stage or node
+change cannot expire it. Subject changes invalidate only the corresponding ticket; reload and
+global provider changes invalidate all projections.
 
 Cache recalculation events are deliberately excluded because the bridge's own query and context
 publication can cause recalculation. Owned node mutations can schedule another reconciliation;

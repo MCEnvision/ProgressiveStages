@@ -73,17 +73,17 @@ public class BlockEnforcer {
         if (state == null) return true;
         if (!isBlockLockedForPlayer(player, state)) return true;
         // v2.3: per-stage override across ALL missing gating stages (most-restrictive wins).
-        java.util.Set<StageId> missing = blockRestrictions(player, state);
+        java.util.Set<StageId> missing = blockRestrictions(player, state, "interact");
         return missing.isEmpty() || !reg.isCategoryEnforced(missing, EnforcementCategory.BLOCK_INTERACTION);
     }
 
-    private static java.util.Set<StageId> blockRestrictions(ServerPlayer player, BlockState state) {
+    private static java.util.Set<StageId> blockRestrictions(ServerPlayer player, BlockState state, String action) {
         LockRegistry reg = LockRegistry.getInstance();
         java.util.Set<StageId> restrictions = new java.util.LinkedHashSet<>(
-            reg.missingStagesForBlock(player, state.getBlock()));
+            reg.missingStagesForBlock(player, state.getBlock(), action));
         BlockState vanilla = VisualWorkbenchShim.resolveVanillaEquivalent(state);
         if (vanilla != null && vanilla.getBlock() != state.getBlock()) {
-            restrictions.addAll(reg.missingStagesForBlock(player, vanilla.getBlock()));
+            restrictions.addAll(reg.missingStagesForBlock(player, vanilla.getBlock(), action));
         }
         return java.util.Set.copyOf(restrictions);
     }
@@ -99,9 +99,19 @@ public class BlockEnforcer {
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) return true;
         if (player != null && player.isSpectator()) return true;
         if (state == null) return true;
-        if (!isBlockLockedForPlayer(player, state)) return true;
-        java.util.Set<StageId> missing = blockRestrictions(player, state);
+        java.util.Set<StageId> missing = blockRestrictions(player, state, "place");
         return missing.isEmpty() || !reg.isCategoryEnforced(missing, EnforcementCategory.BLOCK_PLACEMENT);
+    }
+
+    public static boolean canBreakBlock(ServerPlayer player, BlockState state) {
+        if (player.isSpectator() || StageConfig.isAllowCreativeBypass() && player.isCreative()) return true;
+        var block = state.getBlock();
+        var missing = LockRegistry.getInstance().compiledRestrictions(player, "blocks", "break",
+            net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block),
+            net.minecraft.core.registries.BuiltInRegistries.BLOCK.wrapAsHolder(block), java.util.Set.of());
+        missing.stream().findFirst().ifPresent(stage -> ItemEnforcer.notifyLockedWithCooldown(player, stage,
+            StageConfig.getMsgTypeLabelBlock()));
+        return missing.isEmpty();
     }
 
     /**
@@ -128,7 +138,7 @@ public class BlockEnforcer {
      * v2.0: shows the first gating stage the player is missing.
      */
     public static void notifyPlacementLocked(ServerPlayer player, Block block) {
-        Optional<StageId> requiredStage = LockRegistry.getInstance().primaryRestrictingStageForBlock(player, block);
+        Optional<StageId> requiredStage = LockRegistry.getInstance().missingStagesForBlock(player, block, "place").stream().findFirst();
         if (requiredStage.isPresent()) {
             ItemEnforcer.notifyLocked(player, requiredStage.get(), StageConfig.getMsgTypeLabelBlock());
         }

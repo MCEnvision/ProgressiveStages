@@ -86,6 +86,11 @@ the Rules tab. Use the same activation on both rules when they should apply toge
 
 ## browser and draft recovery
 
+Editor responses complete independently of Minecraft's render thread. A hidden or minimized game
+window must not prevent the browser from receiving a completed server operation. Server draft
+mutations still run on the server thread. A timeout does not prove that a mutation was rejected;
+reopen the current draft and inspect its state before repeating the operation.
+
 `configuration_conflict` means the live files differ from the snapshot taken when the draft
 opened. This includes manual edits that have not yet been reloaded. Apply preserves those files,
 the draft and the last valid runtime. Keep the draft source, open a new draft from the current
@@ -184,3 +189,20 @@ transaction. A draft edit uses `draft_changed`; `source_preserved` and equal sou
 an unchanged source observation. Provider state is `not_observed` unless the operation already
 produced an authoritative capability response. Do not interpret that value as provider readiness.
 Use the [capture privacy and lifecycle guide](interaction-locks.md) when collecting a support report.
+
+## Rule editing and runtime actions
+
+A generic rule preserves fields that the current form does not edit, including additional targets,
+compound conditions, reset conditions, independent JEI and EMI settings, exceptions, cooldowns,
+and extension values. Scalar and array target syntax are both editable. A category change with
+multiple targets or dependent exceptions requires an explicit Source edit so it cannot silently
+change their meaning. Reopen a stale dialog before saving.
+
+Stage ownership and lifetime are independent. Adding a condition to a permanent rule does not
+turn it into an owned stage rule. Weather conditions use `value = "rain"`, `"thunder"`, or `"clear"`.
+Conditional crafting is rejected with instructions to use progression conditions instead. Legacy
+category lists retain their original format and apply to the category's supported actions.
+Attributes created in a schema 4 package are saved in its rules file.
+
+The [runtime regression guide](../test/editor-rule-runtime.md) lists the native action checks and
+the nearby player limits for fluid flow and brewing.

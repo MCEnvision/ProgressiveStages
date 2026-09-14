@@ -81,6 +81,10 @@ public final class EnchantEnforcer {
      * has not unlocked. Used by the anvil hook to block locked-book applications.
      */
     public static boolean anyEnchantLocked(ServerPlayer player, ItemStack stack) {
+        return anyEnchantLocked(player, stack, "anvil");
+    }
+
+    public static boolean anyEnchantLocked(ServerPlayer player, ItemStack stack, String action) {
         if (!LockRegistry.getInstance().isEnchantmentLockConfigured()) return false;
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) return false;
         if (stack.isEmpty()) return false;
@@ -88,22 +92,26 @@ public final class EnchantEnforcer {
         ItemEnchantments active = stack.get(DataComponents.ENCHANTMENTS);
         if (active != null && !active.isEmpty()) {
             for (Holder<Enchantment> holder : active.keySet()) {
-                if (isHolderLockedForPlayer(player, holder)) return true;
+                if (isHolderLockedForPlayer(player, holder, action)) return true;
             }
         }
         ItemEnchantments stored = stack.get(DataComponents.STORED_ENCHANTMENTS);
         if (stored != null && !stored.isEmpty()) {
             for (Holder<Enchantment> holder : stored.keySet()) {
-                if (isHolderLockedForPlayer(player, holder)) return true;
+                if (isHolderLockedForPlayer(player, holder, action)) return true;
             }
         }
         return false;
     }
 
     private static boolean isHolderLockedForPlayer(ServerPlayer player, Holder<Enchantment> holder) {
+        return isHolderLockedForPlayer(player, holder, "hold");
+    }
+
+    private static boolean isHolderLockedForPlayer(ServerPlayer player, Holder<Enchantment> holder, String action) {
         ResourceLocation enchantId = holder.unwrapKey().map(k -> k.location()).orElse(null);
         if (enchantId == null) return false;
         // v2.0: multi-stage — locked when player is missing ANY gating stage for this enchant.
-        return LockRegistry.getInstance().isEnchantmentBlockedFor(player, enchantId, holder);
+        return LockRegistry.getInstance().isEnchantmentBlockedFor(player, enchantId, holder, action);
     }
 }

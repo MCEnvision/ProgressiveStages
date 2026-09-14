@@ -140,6 +140,10 @@ final class ReflectiveLuckPermsAdapter implements LuckPermsAdapter {
                 offlineQueries.invalidateAll();
                 projectionContexts.markAllInvalid();
                 allChanged.run();
+            }, target -> {
+                if (target instanceof net.minecraft.server.level.ServerPlayer player && !projectionContexts.isSignaling(target)) {
+                    changed.accept(player.getUUID());
+                }
             });
             eventSubscriptions.register();
             return true;

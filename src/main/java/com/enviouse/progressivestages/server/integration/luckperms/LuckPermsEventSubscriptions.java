@@ -4,6 +4,7 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.event.EventBus;
 import net.luckperms.api.event.EventSubscription;
 import net.luckperms.api.event.LuckPermsEvent;
+import net.luckperms.api.event.context.ContextUpdateEvent;
 import net.luckperms.api.event.group.GroupCreateEvent;
 import net.luckperms.api.event.group.GroupDeleteEvent;
 import net.luckperms.api.event.group.GroupLoadAllEvent;
@@ -25,6 +26,7 @@ final class LuckPermsEventSubscriptions implements AutoCloseable {
     private final Consumer<UUID> subjectChanged;
     private final Consumer<UUID> subjectLoaded;
     private final Consumer<UUID> subjectUnloaded;
+    private final Consumer<Object> contextChanged;
     private final Runnable allChanged;
     private final List<EventSubscription<?>> subscriptions = new ArrayList<>();
     private boolean registered;
@@ -36,11 +38,17 @@ final class LuckPermsEventSubscriptions implements AutoCloseable {
 
     LuckPermsEventSubscriptions(Object api, Consumer<UUID> subjectChanged, Consumer<UUID> subjectLoaded,
                                 Consumer<UUID> subjectUnloaded, Runnable allChanged) {
+        this(api, subjectChanged, subjectLoaded, subjectUnloaded, allChanged, subject -> {});
+    }
+
+    LuckPermsEventSubscriptions(Object api, Consumer<UUID> subjectChanged, Consumer<UUID> subjectLoaded,
+                                Consumer<UUID> subjectUnloaded, Runnable allChanged, Consumer<Object> contextChanged) {
         events = ((LuckPerms) api).getEventBus();
         this.subjectChanged = subjectChanged;
         this.subjectLoaded = subjectLoaded;
         this.subjectUnloaded = subjectUnloaded;
         this.allChanged = allChanged;
+        this.contextChanged = contextChanged;
     }
 
     void register() {
@@ -60,6 +68,7 @@ final class LuckPermsEventSubscriptions implements AutoCloseable {
         subscribe(GroupLoadAllEvent.class, event -> allChanged.run());
         subscribe(PostSyncEvent.class, event -> allChanged.run());
         subscribe(ConfigReloadEvent.class, event -> allChanged.run());
+        subscribe(ContextUpdateEvent.class, event -> contextChanged.accept(event.getSubject()));
     }
 
     private <T extends LuckPermsEvent> void subscribe(Class<T> type, Consumer<T> handler) {

@@ -317,13 +317,11 @@ public final class LuckPermsBridge {
             dirty.request(player.getUUID());
             return;
         }
-        var stagesCurrent = manager.mutationGuard();
-        var provider = TeamProvider.getInstance();
         var loader = StageFileLoader.getInstance();
         var compiled = loader.getCompiledSnapshot();
-        java.util.function.BooleanSupplier publicationCurrent = () -> stagesCurrent.getAsBoolean()
-            && inputRevision.get() == revision && provider.membershipRevision() == membership
-            && loader.getCompiledSnapshot() == compiled;
+        // subject and provider changes invalidate their projection tickets before queued reconciliation.
+        // global transaction revisions must not expire unrelated published subjects.
+        java.util.function.BooleanSupplier publicationCurrent = () -> loader.getCompiledSnapshot() == compiled;
         reconcileOutbound(player, input.snapshot(), input.snapshot().ready(), ticket, inputAdapter,
             () -> current.getAsBoolean() && manager.getMutationRevision() == result.revision(), publicationCurrent);
     }

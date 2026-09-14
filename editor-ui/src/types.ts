@@ -219,6 +219,8 @@ export interface InteractionModel {
 }
 
 export interface RuleModel {
+  classicField?: "locked" | "allowed" | "always_unlocked";
+  stageState?: string;
   table: "rules" | "temporary_rules" | "classic" | "recipe_items" | "recipe_ids" | "interactions";
   tableIndex: number;
   category: string;

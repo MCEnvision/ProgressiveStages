@@ -139,7 +139,7 @@ public final class EnchantmentSelectionPolicy {
         LockRegistry registry = LockRegistry.getInstance();
         possibleEnchantments.filter(stack::isPrimaryItemFor).forEach(holder -> {
             ResourceLocation id = idOf(holder);
-            if (id == null || registry.isEnchantmentBlockedFor(player, id, holder)) return;
+            if (id == null || registry.isEnchantmentBlockedFor(player, id, holder, "table")) return;
             if (registry.effectiveEnchantSelectionWeight(
                     player, id, holder.value().getWeight()) <= 0) return;
             int maximum = Math.min(holder.value().getMaxLevel(), registry.effectiveEnchantCap(player, id));

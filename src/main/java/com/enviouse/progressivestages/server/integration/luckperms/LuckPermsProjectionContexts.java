@@ -14,6 +14,7 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
     private final ContextManager contexts;
     private final Map<UUID, Projection> subjects = new HashMap<>();
     private final Map<Object, Projection> targets = new ConcurrentHashMap<>();
+    private final ThreadLocal<java.util.ArrayDeque<Object>> notifications = new ThreadLocal<>();
     private long sequence;
     private volatile long generation;
     private volatile boolean closing;
@@ -55,11 +56,11 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
             if (!projection.active) projection.valid = false;
         }
         try {
-            contexts.signalContextUpdate(projection.target);
+            signalUpdate(projection.target);
         } catch (RuntimeException | LinkageError failure) {
             projection.active = false;
             projection.valid = false;
-            try { contexts.signalContextUpdate(projection.target); }
+            try { signalUpdate(projection.target); }
             catch (RuntimeException | LinkageError invalidation) { failure.addSuppressed(invalidation); }
             throw failure;
         }
@@ -89,7 +90,7 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
             projection.active = false;
             projection.valid = false;
         }
-        contexts.signalContextUpdate(projection.target);
+        signalUpdate(projection.target);
         synchronized (this) {
             subjects.remove(subject, projection);
             targets.remove(projection.target, projection);
@@ -114,6 +115,27 @@ final class LuckPermsProjectionContexts implements ContextCalculator<Object>, Au
             }
         }
         return complete;
+    }
+
+    boolean isSignaling(Object target) {
+        var pending = notifications.get();
+        if (pending != null) for (Object subject : pending) if (subject == target) return true;
+        return false;
+    }
+
+    private void signalUpdate(Object target) {
+        var pending = notifications.get();
+        if (pending == null) {
+            pending = new java.util.ArrayDeque<>();
+            notifications.set(pending);
+        }
+        pending.push(target);
+        try {
+            contexts.signalContextUpdate(target);
+        } finally {
+            pending.pop();
+            if (pending.isEmpty()) notifications.remove();
+        }
     }
 
     @Override

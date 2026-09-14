@@ -34,6 +34,23 @@ import java.util.concurrent.ConcurrentHashMap;
  * </ol>
  */
 public class DimensionEnforcer {
+    private static final ThreadLocal<UUID> PORTAL_TRAVELLER = new ThreadLocal<>();
+
+    public static net.minecraft.world.entity.Entity travelThroughPortal(net.minecraft.world.entity.Entity entity,
+            net.minecraft.world.level.portal.DimensionTransition destination) {
+        UUID previous = PORTAL_TRAVELLER.get();
+        PORTAL_TRAVELLER.set(entity.getUUID());
+        try {
+            return entity.changeDimension(destination);
+        } finally {
+            if (previous == null) PORTAL_TRAVELLER.remove();
+            else PORTAL_TRAVELLER.set(previous);
+        }
+    }
+
+    private static String travelAction(ServerPlayer player) {
+        return player.getUUID().equals(PORTAL_TRAVELLER.get()) ? "portal" : "teleport";
+    }
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -80,7 +97,7 @@ public class DimensionEnforcer {
             return true;
         }
 
-        return !isDimensionLockedForPlayer(player, dimension.location());
+        return !isDimensionLockedForPlayer(player, dimension.location(), travelAction(player));
     }
 
     /**
@@ -122,7 +139,7 @@ public class DimensionEnforcer {
         }
 
         // Check if the destination dimension is locked
-        if (!isDimensionLockedForPlayer(player, to.location())) {
+        if (!isDimensionLockedForPlayer(player, to.location(), travelAction(player))) {
             cleanupPlayer(player.getUUID());
             return; // Destination is allowed
         }
@@ -191,8 +208,12 @@ public class DimensionEnforcer {
      * v2.0: multi-stage aware.
      */
     public static boolean isDimensionLockedForPlayer(ServerPlayer player, ResourceLocation dimensionId) {
+        return isDimensionLockedForPlayer(player, dimensionId, "enter");
+    }
+
+    private static boolean isDimensionLockedForPlayer(ServerPlayer player, ResourceLocation dimensionId, String action) {
         LockRegistry reg = LockRegistry.getInstance();
-        Set<StageId> gates = reg.restrictionStagesForDimension(player, dimensionId);
+        Set<StageId> gates = reg.restrictionStagesForDimension(player, dimensionId, action);
         // v2.3: per-stage override — a dimension is "locked for travel" only if its gating stage
         // enforces DIMENSION_TRAVEL (per-stage override, else the global default).
         return !gates.isEmpty() && reg.isCategoryEnforced(gates, EnforcementCategory.DIMENSION_TRAVEL);

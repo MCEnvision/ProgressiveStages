@@ -29,19 +29,30 @@ public final class PetEnforcer {
     private PetEnforcer() {}
 
     public static boolean canInteract(ServerPlayer player, EntityType<?> type, Entity target) {
+        return canInteract(player, type, target, player.getMainHandItem());
+    }
+
+    public static boolean canInteract(ServerPlayer player, EntityType<?> type, Entity target,
+                                      net.minecraft.world.item.ItemStack held) {
         LockRegistry reg = LockRegistry.getInstance();
         if (!StageConfig.isBlockPetInteract() && !reg.hasEnforcementOverrides()) return true;
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) return true;
 
-        PetInteractionKind kind = classify(player, target);
-        if (!isBlockedFor(player, kind, type)) return true;
+        PetInteractionKind kind = classify(player, target, held);
         // v2.3: per-stage override — enforce only if the gating stage requires it.
         Optional<StageId> gate = primary(player, kind, type);
         return gate.isEmpty() || !reg.isCategoryEnforced(gate.get(), EnforcementCategory.PET_INTERACT);
     }
 
+    public static boolean canRide(ServerPlayer player, Entity target) {
+        if (player.isSpectator() || StageConfig.isAllowCreativeBypass() && player.isCreative()) return true;
+        var kind = classify(player, target, net.minecraft.world.item.ItemStack.EMPTY);
+        var gate = primary(player, kind, target.getType(), "ride");
+        return gate.isEmpty() || !LockRegistry.getInstance().isCategoryEnforced(gate.get(), EnforcementCategory.PET_INTERACT);
+    }
+
     public static void notifyLocked(ServerPlayer player, EntityType<?> type, Entity target) {
-        PetInteractionKind kind = classify(player, target);
+        PetInteractionKind kind = classify(player, target, player.getMainHandItem());
         Optional<StageId> required = primary(player, kind, type);
         required.ifPresent(stage -> ItemEnforcer.notifyLockedWithCooldown(player, stage, kind.label()));
     }
@@ -51,25 +62,18 @@ public final class PetEnforcer {
      * is missing. Falls through to the next slot only if the current slot's gating set
      * is empty (preserves original "fall back to taming/breeding" semantics).
      */
-    private static boolean isBlockedFor(ServerPlayer player, PetInteractionKind kind, EntityType<?> type) {
-        LockRegistry reg = LockRegistry.getInstance();
-        return switch (kind) {
-            case COMMANDING -> blockedAtFirstPresent(player,
-                reg.getRequiredStagesForPetCommanding(type),
-                reg.getRequiredStagesForPetBreeding(type),
-                reg.getRequiredStagesForPetTaming(type));
-            case BREEDING -> blockedAtFirstPresent(player,
-                reg.getRequiredStagesForPetBreeding(type),
-                reg.getRequiredStagesForPetTaming(type));
-            case TAMING -> blockedAtFirstPresent(player,
-                reg.getRequiredStagesForPetTaming(type),
-                reg.getRequiredStagesForPetBreeding(type));
+    private static Optional<StageId> primary(ServerPlayer player, PetInteractionKind kind, EntityType<?> type) {
+        String action = switch (kind) {
+            case COMMANDING -> "command";
+            case BREEDING -> "breed";
+            case TAMING -> "tame";
         };
+        return primary(player, kind, type, action);
     }
 
-    private static Optional<StageId> primary(ServerPlayer player, PetInteractionKind kind, EntityType<?> type) {
+    private static Optional<StageId> primary(ServerPlayer player, PetInteractionKind kind, EntityType<?> type, String action) {
         LockRegistry reg = LockRegistry.getInstance();
-        return switch (kind) {
+        Optional<StageId> classic = switch (kind) {
             case COMMANDING -> firstMissingFromFirstPresent(player,
                 reg.getRequiredStagesForPetCommanding(type),
                 reg.getRequiredStagesForPetBreeding(type),
@@ -81,18 +85,10 @@ public final class PetEnforcer {
                 reg.getRequiredStagesForPetTaming(type),
                 reg.getRequiredStagesForPetBreeding(type));
         };
-    }
-
-    @SafeVarargs
-    private static boolean blockedAtFirstPresent(ServerPlayer player, java.util.Set<StageId>... slots) {
-        StageManager sm = StageManager.getInstance();
-        for (java.util.Set<StageId> slot : slots) {
-            if (slot != null && !slot.isEmpty()) {
-                for (StageId s : slot) if (!sm.hasStage(player, s)) return true;
-                return false; // first present slot decides — none missing means allowed
-            }
-        }
-        return false;
+        return reg.compiledRestrictions(player, "pets", action,
+            net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(type),
+            net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(type),
+            classic.map(java.util.Set::of).orElseGet(java.util.Set::of)).stream().findFirst();
     }
 
     @SafeVarargs
@@ -112,7 +108,12 @@ public final class PetEnforcer {
      * player → BREEDING (the only meaningful thing a non-owner does is feed it). Wild tameable
      * or any other creature → TAMING.
      */
-    private static PetInteractionKind classify(ServerPlayer player, Entity target) {
+    private static PetInteractionKind classify(ServerPlayer player, Entity target, net.minecraft.world.item.ItemStack held) {
+        boolean wildPet = target instanceof TamableAnimal tame && !tame.isTame()
+            || target instanceof AbstractHorse horse && !horse.isTamed();
+        if (!wildPet && target instanceof net.minecraft.world.entity.animal.Animal animal && animal.isFood(held)) {
+            return PetInteractionKind.BREEDING;
+        }
         if (target instanceof TamableAnimal tame && tame.isTame()) {
             if (tame.getOwnerUUID() != null && tame.getOwnerUUID().equals(player.getUUID())) {
                 return PetInteractionKind.COMMANDING;

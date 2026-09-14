@@ -105,4 +105,25 @@ class Schema4StageCompilerTest {
         assertEquals(1, compiled.progression().challenges().size());
         assertEquals(2, compiled.progression().challenges().getFirst().budgets().getFirst().maximum());
     }
+    @Test
+    void exceptionsReferenceEveryExpandedParentAndInheritOwnership() {
+        var parsed = StagePackageParser.parseContents("test", "stage.toml",
+            "[schema]\nversion=4\n[stage]\nid=\"pack:trial\"\n", "rules.toml", """
+                [[rules]]
+                id = "pack:food"
+                effect = "lock"
+                stage_state = "always"
+                targets.items = ["all:*", "mod:minecraft"]
+                [[rules.exceptions]]
+                targets.items = ["id:minecraft:bread"]
+                """, "progression.toml", "");
+        assertTrue(parsed.isSuccess(), parsed.getErrorMessage());
+        var rules = Schema4StageCompiler.compile(parsed.getStageDefinition(), parsed.getSourceConfig(), "test", 0).rules();
+        var parents = rules.stream().filter(rule -> rule.effect() == RuleEffect.LOCK).map(rule -> rule.id()).collect(java.util.stream.Collectors.toSet());
+        var exceptions = rules.stream().filter(rule -> rule.effect() == RuleEffect.EXCLUDE).toList();
+        assertEquals(2, exceptions.size());
+        assertEquals(parents, exceptions.stream().map(rule -> rule.parentRuleId()).collect(java.util.stream.Collectors.toSet()));
+        assertTrue(exceptions.stream().allMatch(rule -> "always".equals(rule.settings().get("stage_state"))));
+    }
+
 }

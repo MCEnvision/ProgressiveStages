@@ -17,15 +17,18 @@ export interface InventoryInsertionRuleDraft {
 
 export function serializeInventoryCondition(source: string, type: string, target: string, count: number): string {
   if (type === "none") return "";
+  if (type === "custom") return source;
   const sourceType = inlineObjectValue(source, "type");
   const sourceTarget = inlineObjectValue(source, "id") || inlineObjectValue(source, "value") || inlineObjectValue(source, "callback");
   const sourceCount = Number(inlineObjectValue(source, "count") || "1");
-  if (source && sourceType === type && sourceTarget === target && sourceCount === count) return source;
-  if (!source) return conditionToml(type, target, count);
+  if (!source || sourceType !== type) return conditionToml(type, target, count);
+  const weatherKeyChanged = type === "weather" && !readBlockValue(source, "value");
+  if (sourceTarget === target && sourceCount === count && !weatherKeyChanged) return source;
   let updated = source;
   if (sourceType !== type) updated = updateInlineRow(updated, "type", encodeToml(type));
-  if (sourceTarget !== target) {
-    const key = ["id", "value", "callback"].find(key => readBlockValue(source, key)) || "id";
+  if (sourceTarget !== target || weatherKeyChanged) {
+    const key = type === "weather" ? "value" : ["id", "value", "callback"].find(key => readBlockValue(source, key)) || "id";
+    if (weatherKeyChanged) updated = removeCondition(updated, "id");
     updated = updateInlineRow(updated, key, encodeToml(target));
   }
   if (sourceCount !== count) updated = updateInlineRow(updated, "count", encodeToml(count));
@@ -79,8 +82,11 @@ function removeCondition(row: string, key: string): string {
   return row.slice(0, start) + (notes.length ? notes.join(newline(row)) + newline(row) : "") + row.slice(end);
 }
 
-function writeCondition(row: string, key: string, condition: string, previous: string): string {
+export function writeCondition(row: string, key: string, condition: string, previous: string): string {
   if (!condition) return removeCondition(row, key);
+  if (previous && inlineObjectValue(previous, "type") !== inlineObjectValue(condition, "type")) {
+    return writeField(removeCondition(row, key), key, condition);
+  }
   const source = scanToml(row);
   const path = [...(source.tables[0]?.path || []), key];
   const childTable = source.tables.some(entry => !entry.array && samePath(entry.path, path));

@@ -6,7 +6,7 @@ import { RulesPanel } from "./RulesPanel";
 
 const editor = vi.hoisted(() => ({
   boot: { draft: { files: {} as Record<string, string> } },
-  mutateFile: vi.fn(async () => {}), openDialog: vi.fn(), closeDialog: vi.fn(), runDraftAction: vi.fn()
+  mutateFile: vi.fn(async (..._args: unknown[]) => {}), openDialog: vi.fn(), closeDialog: vi.fn(), runDraftAction: vi.fn()
 }));
 vi.mock("../../store/EditorContext", () => ({ useEditor: () => editor }));
 vi.mock("../../components/CatalogPicker", () => ({ InlineCatalogSearch: () => null }));
@@ -30,6 +30,129 @@ function openRule(source: string) {
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   render(editor.openDialog.mock.calls[0][0].content);
 }
+
+describe("generic rule editing", () => {
+  const source = '# Keep this rule.\r\n[[rules]]\r\nid="chef/bread"\r\neffect="lock"\r\naction="use"\r\npriority=100 # Keep priority.\r\nstage_state="missing"\r\ncooldown="10s"\r\ntargets.items=["id:minecraft:bread", "id:minecraft:apple"]\r\nwhile={all=[{type="weather",value="rain"},{type="dimension",id="minecraft:overworld"}]}\r\npresentation.jei="hide"\r\npresentation.emi="overlay"\r\ncustom="keep"\r\n[[rules.exceptions]]\r\neffect="exclude"\r\npriority=101\r\ntargets.items=["id:minecraft:apple"]\r\n';
+
+  it("retains the complete rule group when saved unchanged", async () => {
+    openRule(source);
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    expect(editor.mutateFile).toHaveBeenCalledWith(rulesPath, source, "Rule saved to the draft");
+  });
+
+  it("edits priority without losing compound conditions or additional settings", async () => {
+    openRule(source);
+    fireEvent.change(screen.getByLabelText(/^Priority/), { target: { value: "175" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    expect(editor.mutateFile).toHaveBeenCalledWith(rulesPath, source.replace("priority=100", "priority=175"), "Rule saved to the draft");
+  });
+
+  it("does not change missing stage ownership when adding a permanent condition", async () => {
+    openRule('[[rules]]\nid="chef/bread"\neffect="lock"\naction="use"\ntargets.items=["id:minecraft:bread"]\n');
+    fireEvent.change(screen.getByLabelText("Activation condition"), { target: { value: "weather" } });
+    fireEvent.change(screen.getByLabelText(/^Condition target/), { target: { value: "rain" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const saved = editor.mutateFile.mock.calls[0][1];
+    expect(saved).toContain("[[rules]]");
+    expect(saved).not.toContain("[[temporary_rules]]");
+    expect(saved).toContain('value = "rain"');
+  });
+
+  it("does not leave an old generic rule behind when changing to a crafting list", async () => {
+    openRule('[[rules]]\nid="chef/bread"\neffect="lock"\naction="use"\ntargets.items=["id:minecraft:bread"]\n');
+    fireEvent.change(screen.getByLabelText("Rule category"), { target: { value: "recipes" } });
+    fireEvent.change(screen.getByLabelText("Recipe output item"), { target: { value: "id:minecraft:bread" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("explicit Source edit"));
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+    expect(editor.closeDialog).not.toHaveBeenCalled();
+  });
+
+  it("does not discard generic settings when changing to inventory insertion", async () => {
+    openRule(source);
+    fireEvent.change(screen.getByLabelText("Rule category"), { target: { value: "interactions" } });
+    fireEvent.change(screen.getByLabelText(/^Inserted item/), { target: { value: "id:minecraft:bread" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /^Destination/ }), { target: { value: "id:minecraft:chest" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("explicit Source edit"));
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+    expect(editor.closeDialog).not.toHaveBeenCalled();
+  });
+
+  it("keeps explicit ownership while changing a rule lifetime", async () => {
+    openRule(source);
+    fireEvent.change(screen.getByLabelText("Lifetime"), { target: { value: "live" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const saved = String(editor.mutateFile.mock.calls[0][1]);
+    expect(saved).toContain("[[temporary_rules]]");
+    expect(saved).toContain('stage_state="missing"');
+    expect(saved).toContain("[[temporary_rules.exceptions]]");
+    expect(saved).toContain('cooldown="10s"');
+    expect(saved).toContain('presentation.emi="overlay"');
+  });
+
+  it("edits a nested weather value without replacing sibling condition settings", async () => {
+    const nested = '[[rules]]\nid="chef/bread"\neffect="lock"\naction="use"\n[rules.targets]\nitems=["id:minecraft:bread", "id:minecraft:apple"]\n[rules.while]\ntype="weather"\nvalue="rain" # Keep this note.\nextension="keep"\n';
+    openRule(nested);
+    fireEvent.change(screen.getByLabelText(/^Condition target/), { target: { value: "thunder" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    expect(editor.mutateFile.mock.calls[0][1]).toBe(nested.replace('value="rain"', 'value="thunder"'));
+  });
+
+  it("replaces a scalar target instead of adding an ignored fallback", async () => {
+    const scalar = '[[rules]]\nid="chef/bread"\neffect="lock"\naction="use"\ntargets.items="id:minecraft:bread"\n';
+    openRule(scalar);
+    fireEvent.change(screen.getByLabelText("Selected target"), { target: { value: "id:minecraft:apple" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    expect(editor.mutateFile.mock.calls[0][1]).toBe(scalar.replace('id:minecraft:bread', 'id:minecraft:apple'));
+  });
+
+  it("refuses category changes that would detach an exception", async () => {
+    openRule(source.replace(', "id:minecraft:apple"', ''));
+    fireEvent.change(screen.getByLabelText("Rule category"), { target: { value: "blocks" } });
+    fireEvent.change(screen.getByLabelText("Selected target"), { target: { value: "id:minecraft:stone" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("dependent targets or exceptions"));
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+  });
+
+  it("refuses stale generic edits", async () => {
+    openRule(source);
+    editor.boot.draft.files[rulesPath] = source.replace('cooldown="10s"', 'cooldown="20s"');
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("changed in another edit"));
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+  });
+
+  it("rejects conditional crafting instead of saving compiler rejected syntax", async () => {
+    openRule('[recipes]\nlocked_items=["id:minecraft:bread"]\n');
+    fireEvent.change(screen.getByLabelText("Activation condition"), { target: { value: "weather" } });
+    fireEvent.change(screen.getByLabelText(/^Condition target/), { target: { value: "rain" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Crafting locks"));
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+  });
+
+  it("keeps legacy enchant edits in the enforced classic category", async () => {
+    const path = "stages/chef.toml";
+    editor.boot.draft.files = { [path]: '[stage]\nid="chef"\n[enchants]\nlocked=["id:minecraft:sharpness|priority=100"]\n' };
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    render(editor.openDialog.mock.calls[0][0].content);
+    fireEvent.change(screen.getByLabelText(/^Priority/), { target: { value: "175" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const saved = editor.mutateFile.mock.calls[0][1];
+    expect(saved).toContain('"id:minecraft:sharpness|priority=175"');
+    expect(saved).not.toContain("[[rules]]");
+  });
+});
 
 describe("inventory condition authoring", () => {
   it.each(sources)("saves an unchanged rule without replacing its source", async source => {

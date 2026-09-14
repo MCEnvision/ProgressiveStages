@@ -109,7 +109,7 @@ public final class CompiledRuleEngine {
         List<DecisionCandidate> candidates = new ArrayList<>();
         int order = 0;
         for (CompiledRule rule : rules) {
-            if (!actionMatches(rule.action(), action)) continue;
+            if (!actionMatches(rule.category(), rule.action(), action)) continue;
             if (legacyContext(rule.condition())) continue;
             SelectorMatch selectorMatch = selectors.match(rule.selector(), target);
             if (!selectorMatch.matched()) continue;
@@ -264,8 +264,11 @@ public final class CompiledRuleEngine {
         while (history.size() > historyCapacity) history.removeFirst();
     }
 
-    private static boolean actionMatches(String ruleAction, String requested) {
+    private static boolean actionMatches(String category, String ruleAction, String requested) {
         if (requested == null || requested.isBlank() || ruleAction.equalsIgnoreCase(requested)) return true;
+        if (category.equals("dimensions") && ruleAction.equalsIgnoreCase("enter")
+                && (requested.equalsIgnoreCase("portal") || requested.equalsIgnoreCase("teleport"))) return true;
+        if (category.equals("abilities") && ruleAction.equalsIgnoreCase("use") && requested.equalsIgnoreCase("perform")) return true;
         return ruleAction.equalsIgnoreCase("access") || ruleAction.equalsIgnoreCase("interact")
             && requested.toLowerCase(Locale.ROOT).contains("interact");
     }

@@ -48,7 +48,7 @@ public abstract class ServerPlayerMerchantMixin {
         MerchantOffers filtered = null;
         for (int i = 0; i < original.size(); i++) {
             MerchantOffer offer = original.get(i);
-            if (TradeEnforcer.isOfferLocked(self, offer)) {
+            if (TradeEnforcer.isOfferLocked(self, offer, "display")) {
                 if (filtered == null) {
                     filtered = new MerchantOffers();
                     for (int j = 0; j < i; j++) filtered.add(original.get(j));

@@ -38,6 +38,32 @@ class LuckPermsProjectionContextsTest {
     }
 
     @Test
+    void ownedSignalsAreScopedToTheCurrentThreadAndExactTarget() {
+        Fixture fixture = new Fixture();
+        Object target = new Object();
+        Object another = new Object();
+        try (var contexts = fixture.contexts) {
+            fixture.onSignal = () -> {
+                assertTrue(contexts.isSignaling(target));
+                assertFalse(contexts.isSignaling(another));
+                assertFalse(CompletableFuture.supplyAsync(() -> contexts.isSignaling(target)).join());
+            };
+            assertTrue(contexts.publish(SUBJECT, contexts.prepare(SUBJECT, target)));
+            assertFalse(contexts.isSignaling(target));
+            fixture.failSignal = true;
+            assertThrows(IllegalStateException.class, () -> contexts.invalidate(SUBJECT));
+            assertFalse(contexts.isSignaling(target));
+            fixture.failSignal = false;
+            contexts.invalidate(SUBJECT);
+            assertFalse(contexts.isSignaling(target));
+        } finally {
+            fixture.onSignal = null;
+            fixture.failSignal = false;
+            fixture.contexts.close();
+        }
+    }
+
+    @Test
     void providerInvalidationsAreImmediateWithoutProviderQueriesOrNotifications() {
         Fixture fixture = new Fixture();
         try (var contexts = fixture.contexts) {

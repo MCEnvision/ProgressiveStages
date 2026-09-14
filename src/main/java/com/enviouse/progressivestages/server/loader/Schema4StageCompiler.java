@@ -160,6 +160,7 @@ public final class Schema4StageCompiler {
                 targets = Map.of(String.valueOf(entry.getOrDefault("category", "items")), List.of(entry.get("selector")));
             }
             int selectorIndex = 0;
+            int firstParent = output.size();
             for (Map.Entry<String, Object> target : targets.entrySet()) {
                 String category = singularCategory(target.getKey());
                 String action = String.valueOf(entry.getOrDefault("action", defaultAction(category)));
@@ -180,6 +181,7 @@ public final class Schema4StageCompiler {
                     selectorIndex++;
                 }
             }
+            List<CompiledRule> parentRules = List.copyOf(output.subList(firstParent, output.size()));
             for (Map<String, Object> exception : maps(entry.get("exceptions"))) {
                 RuleEffect exceptionEffect = effect(exception.get("effect"), RuleEffect.EXCLUDE);
                 Map<String, Object> exceptionTargets = map(exception.get("targets"));
@@ -191,13 +193,19 @@ public final class Schema4StageCompiler {
                         ResolvedPriority priority = PriorityCascade.resolve(selector.explicitPriority(),
                             exceptionPriority != null ? exceptionPriority : rulePriority, null,
                             stage.getPriority(), globalPriority);
-                        ResourceLocation parentRule = exceptionEffect == RuleEffect.EXCLUDE
-                            ? optionalId(exception.get("parent"), baseId) : null;
-                        output.add(new CompiledRule(childId(baseId, "exception/" + selectorIndex++),
-                            stage.getId(), category, String.valueOf(entry.getOrDefault("action", defaultAction(category))),
-                            exceptionEffect, selector, priority.value(), lifetime, condition, parentRule,
-                            viewerPolicy(exception), settings(exception),
-                            provenance(stage, key + ".exceptions", raw)));
+                        List<ResourceLocation> parents = exceptionEffect != RuleEffect.EXCLUDE
+                            ? java.util.Collections.singletonList(null)
+                            : exception.get("parent") != null ? List.of(optionalId(exception.get("parent"), baseId))
+                            : parentRules.stream().filter(rule -> rule.category().equals(category)).map(CompiledRule::id).toList();
+                        Map<String, Object> exceptionSettings = new LinkedHashMap<>(settings(entry));
+                        exceptionSettings.putAll(settings(exception));
+                        for (ResourceLocation parentRule : parents) {
+                            output.add(new CompiledRule(childId(baseId, "exception/" + selectorIndex++),
+                                stage.getId(), category, String.valueOf(entry.getOrDefault("action", defaultAction(category))),
+                                exceptionEffect, selector, priority.value(), lifetime, condition, parentRule,
+                                viewerPolicy(exception), exceptionSettings,
+                                provenance(stage, key + ".exceptions", raw)));
+                        }
                     }
                 }
             }

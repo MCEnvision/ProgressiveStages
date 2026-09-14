@@ -4,6 +4,7 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.event.EventBus;
 import net.luckperms.api.event.EventSubscription;
 import net.luckperms.api.event.LuckPermsEvent;
+import net.luckperms.api.event.context.ContextUpdateEvent;
 import net.luckperms.api.event.group.GroupCreateEvent;
 import net.luckperms.api.event.group.GroupDeleteEvent;
 import net.luckperms.api.event.group.GroupLoadAllEvent;
@@ -35,7 +36,10 @@ class LuckPermsEventSubscriptionsTest {
         try (var listeners = fixture.listeners) {
             listeners.register();
             listeners.register();
-            assertEquals(9, fixture.handlers.size());
+            assertEquals(10, fixture.handlers.size());
+            Object target = new Object();
+            fixture.fire(ContextUpdateEvent.class, Map.of("getSubject", target));
+            assertEquals(List.of(target), fixture.contextSubjects);
             User user = value(User.class, Map.of("getUniqueId", SUBJECT));
             fixture.fire(UserLoadEvent.class, Map.of("getUser", user));
             fixture.fire(UserUnloadEvent.class, Map.of("getUser", user));
@@ -55,7 +59,7 @@ class LuckPermsEventSubscriptionsTest {
         assertEquals(3, fixture.subjects.size());
         assertEquals(7, fixture.rescans);
         fixture.listeners.register();
-        assertEquals(9, fixture.handlers.size());
+        assertEquals(10, fixture.handlers.size());
     }
 
     @Test
@@ -74,7 +78,7 @@ class LuckPermsEventSubscriptionsTest {
             fixture.listeners.close();
         }
         assertEquals(2, fixture.handlers.get(2).closes);
-        assertEquals(10, fixture.handlers.stream().mapToInt(handler -> handler.closes).sum());
+        assertEquals(11, fixture.handlers.stream().mapToInt(handler -> handler.closes).sum());
     }
 
     @Test
@@ -107,6 +111,7 @@ class LuckPermsEventSubscriptionsTest {
     private static final class Fixture {
         final List<Handler> handlers = new ArrayList<>();
         final List<UUID> subjects = new ArrayList<>();
+        final List<Object> contextSubjects = new ArrayList<>();
         final LuckPermsEventSubscriptions listeners;
         int rescans;
         int failRegistrationAt = -1;
@@ -131,7 +136,7 @@ class LuckPermsEventSubscriptionsTest {
                         });
                 });
             listeners = new LuckPermsEventSubscriptions(value(LuckPerms.class, Map.of("getEventBus", bus)),
-                subjects::add, () -> rescans++);
+                subjects::add, subjects::add, subjects::add, () -> rescans++, contextSubjects::add);
         }
 
         void fire(Class<? extends LuckPermsEvent> type, Map<String, ?> properties) {

@@ -90,8 +90,9 @@ public final class InteractionCaptureManager {
         Capture capture;
         synchronized (LOCK) {
             capture = active;
-            if (capture == null || !capture.isActive()) return false;
+            if (capture == null) return false;
             active = null;
+            if (!capture.isActive()) return false;
             capture.stop(reason == null ? StopReason.MANUAL : reason);
         }
         return true;

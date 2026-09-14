@@ -67,3 +67,9 @@ capture control, lifecycle, privacy, browser, provider, and real client acceptan
 The [authenticated capture lifecycle record](../verification/capture-client/README.md) separately
 exercises actual operator input, nonoperator denial, manual stop, reload, timeout, connection
 loss and process restart. It records the scope and limitations of those observations.
+
+The allocation probe warms every capture operation before measured rounds and measures allocations
+separately from CPU and wall time. An empty operation must allocate zero bytes, and an escaping
+allocation control must be detected on every attempt. The disabled capture assertion remains
+exactly zero. Resetting a drained rate limited capture must release its inactive runtime reference
+and return an off status while preserving any writer that is still draining.

@@ -63,7 +63,7 @@ public final class SnapshotRequestGameTests {
         }
     }
 
-    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100)
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft", timeoutTicks = 100, batch = "progressivestages_snapshot_pending")
     public static void pendingSnapshotRecoveryUsesCurrentStateOnServerTicks(GameTestHelper helper) throws Exception {
         var player = player(helper);
         var other = player(helper);

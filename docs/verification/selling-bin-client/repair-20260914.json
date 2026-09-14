@@ -1,7 +1,7 @@
 {
   "date": "2026-09-14",
-  "source_commit": "b8ee00c21ef9e6c3cbdb8748f059288b690050f4",
-  "candidate_sha256": "9ecf19e7ec508d13aec508e0b6daae4acbe608cde44bb79a67fd6de496f8f29d",
+  "source_commit": "a0f9f88ce0e6f89591a4a261e95ef585168413bf",
+  "candidate_sha256": "2b569fdf371b5b50a79714de4d9c49cc17bc49284d1c2d96a4460ff79fb01f9b",
   "minecraft": "1.21.1",
   "neoforge": "21.1.248",
   "java": "21",

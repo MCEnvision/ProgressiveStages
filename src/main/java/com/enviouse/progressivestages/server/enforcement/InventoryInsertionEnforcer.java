@@ -149,7 +149,7 @@ public final class InventoryInsertionEnforcer {
     private static Map<String, SelectorTarget> destinationTargets(ServerPlayer player, AbstractContainerMenu menu, Slot slot) {
         Map<String, SelectorTarget> targets = new LinkedHashMap<>();
         Optional<SelectorTarget> directBlock = blockTarget(slot);
-        (directBlock.isPresent() ? directBlock : menuBlockTarget(menu, slot))
+        (directBlock.isPresent() ? directBlock : menuBlockTarget(player, menu, slot))
             .ifPresent(target -> targets.put("block", target));
         menuTarget(menu).ifPresent(target -> targets.put("menu", target));
         InventoryTargetResolverRegistry.get().resolve(player, menu, slot)
@@ -167,8 +167,9 @@ public final class InventoryInsertionEnforcer {
             tags(BuiltInRegistries.BLOCK.wrapAsHolder(block)), java.util.Map.of()));
     }
 
-    private static Optional<SelectorTarget> menuBlockTarget(AbstractContainerMenu menu, Slot slot) {
-        if (menu == null || slot == null || slot.container == null) return Optional.empty();
+    private static Optional<SelectorTarget> menuBlockTarget(ServerPlayer player, AbstractContainerMenu menu, Slot slot) {
+        if (player == null || menu == null || slot == null || slot.container == null
+                || slot.container == player.getInventory()) return Optional.empty();
         List<Field> fields = MENU_FIELDS.computeIfAbsent(menu.getClass(), InventoryInsertionEnforcer::menuFields);
         for (Field field : fields) {
             if (!Container.class.isAssignableFrom(field.getType())) continue;

@@ -164,6 +164,12 @@ public final class SellingBinGameTests {
             helper.assertTrue(InventoryInsertionEnforcer.denied(fixture.player, fixture.menu, input,
                     new ItemStack(Items.BREAD)).isPresent(),
                 "The real bin input slot must resolve its backing block for selective insertion locks.");
+            Slot playerSlot = fixture.menu.slots.stream()
+                .filter(slot -> slot.container == fixture.player.getInventory() && slot.getContainerSlot() == 0)
+                .findFirst().orElseThrow();
+            helper.assertTrue(InventoryInsertionEnforcer.denied(fixture.player, fixture.menu, playerSlot,
+                    new ItemStack(Items.BREAD)).isEmpty(),
+                "A block scoped lock must not classify the player's inventory slot as the open bin.");
             int hotbar = fixture.menu.slots.stream()
                 .filter(slot -> slot.container == fixture.player.getInventory() && slot.getContainerSlot() == 0)
                 .findFirst().orElseThrow().index;

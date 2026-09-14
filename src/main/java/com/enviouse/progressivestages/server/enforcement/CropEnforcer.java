@@ -26,16 +26,24 @@ public final class CropEnforcer {
     private CropEnforcer() {}
 
     public static boolean canPlace(ServerPlayer player, Block block) {
+        return canAct(player, block, "plant");
+    }
+
+    public static boolean canAct(ServerPlayer player, Block block, String action) {
         LockRegistry reg = LockRegistry.getInstance();
         if (!StageConfig.isBlockCropGrowth() && !reg.hasEnforcementOverrides()) return true;
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) return true;
         // v2.3: per-stage override across ALL missing gating stages (matches shouldCancelGrowth).
-        java.util.Set<StageId> missing = reg.missingGatingStages(player, reg.getRequiredStagesForCrop(block));
+        java.util.Set<StageId> missing = action.equals("harvest")
+            ? reg.compiledRestrictions(player, "crops", action,
+                net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block),
+                net.minecraft.core.registries.BuiltInRegistries.BLOCK.wrapAsHolder(block), java.util.Set.of())
+            : reg.restrictionStagesForCrop(player, block, action);
         return missing.isEmpty() || !reg.isCategoryEnforced(missing, EnforcementCategory.CROP_GROWTH);
     }
 
     public static boolean canBonemeal(ServerPlayer player, Block block) {
-        return canPlace(player, block); // Same gate — if you can't plant it, you can't grow it.
+        return canAct(player, block, "bonemeal");
     }
 
     /**
@@ -46,13 +54,9 @@ public final class CropEnforcer {
     public static boolean shouldCancelGrowth(ServerLevel level, Block block, double x, double y, double z) {
         LockRegistry reg = LockRegistry.getInstance();
         if (!StageConfig.isBlockCropGrowth() && !reg.hasEnforcementOverrides()) return false;
-        java.util.Set<StageId> gating = reg.getRequiredStagesForCrop(block);
-        if (gating.isEmpty()) return false;
-        // v2.3: per-stage override — skip if no gating stage enforces crop growth.
-        if (!reg.isCategoryEnforced(gating, EnforcementCategory.CROP_GROWTH)) return false;
-
         double radius = StageConfig.getMobSpawnCheckRadius();
-        return NearestPlayerCheck.nearestPlayerLacksAll(level, x, y, z, radius, gating);
+        ServerPlayer nearest = NearestPlayerCheck.findNearest(level, x, y, z, radius);
+        return nearest != null && !canAct(nearest, block, "grow");
     }
 
     public static void notifyLocked(ServerPlayer player, Block block) {

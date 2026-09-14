@@ -171,7 +171,8 @@ public class NetworkHandler {
             new DirectionalPayloadHandler<>(NetworkHandler::handleEditorOpen, (p, c) -> {}));
         registrar.playToServer(EditorRequestPayload.TYPE, EditorRequestPayload.STREAM_CODEC,
             NetworkHandler::handleEditorRequest);
-        registrar.playToClient(EditorResponsePayload.TYPE, EditorResponsePayload.STREAM_CODEC,
+        registrar.executesOn(net.neoforged.neoforge.network.registration.HandlerThread.NETWORK)
+            .playToClient(EditorResponsePayload.TYPE, EditorResponsePayload.STREAM_CODEC,
             new DirectionalPayloadHandler<>(NetworkHandler::handleEditorResponse, (p, c) -> {}));
     }
 
@@ -706,8 +707,7 @@ public class NetworkHandler {
     }
 
     private static void handleEditorResponse(EditorResponsePayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> com.enviouse.progressivestages.client.editor.EditorBridgeTransport
-            .complete(payload.requestId(), payload.body()));
+        com.enviouse.progressivestages.client.editor.EditorBridgeTransport.complete(payload.requestId(), payload.body());
     }
 
     private static long purchaseCooldownRemainingMillis(ServerPlayer player,

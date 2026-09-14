@@ -58,6 +58,7 @@ public final class DiagnosticPerformanceGameTests {
         private long disabledAllocation;
         private Path pendingOutput;
         private Throwable failure;
+        private volatile Object allocationControl;
 
         @SuppressWarnings("unchecked")
         Measurement(GameTestHelper helper) throws Exception {
@@ -106,7 +107,24 @@ public final class DiagnosticPerformanceGameTests {
         void start() {
             players.put(player.getUUID(), player);
             InteractionCaptureManager.resetRuntimeState();
-            step();
+            try {
+                Runnable empty = () -> {};
+                Runnable allocating = () -> allocationControl = new byte[64];
+                for (int warmup = 0; warmup < 20; warmup++) {
+                    for (Runnable operation : operations) measureAllocation(operation, ATTEMPTS);
+                    measureAllocation(empty, ATTEMPTS);
+                    measureAllocation(allocating, ATTEMPTS);
+                }
+                helper.assertTrue(measureAllocation(empty, ATTEMPTS) == 0,
+                    "The allocation probe must report zero for an empty operation.");
+                helper.assertTrue(measureAllocation(allocating, ATTEMPTS) >= 64L * ATTEMPTS,
+                    "The allocation probe must detect an escaping allocation on every attempt.");
+                allocationControl = null;
+                step();
+            } catch (Throwable error) {
+                finish();
+                throw error;
+            }
         }
 
         private void step() {
@@ -139,6 +157,8 @@ public final class DiagnosticPerformanceGameTests {
                     Files.delete(pendingOutput);
                     pendingOutput = null;
                     InteractionCaptureManager.resetRuntimeState();
+                    helper.assertTrue(InteractionCaptureManager.status().stopReason().equals("off"),
+                        "A drained capture must release the inactive runtime reference.");
                 }
                 if (accepted == ATTEMPTS) {
                     if (round > 0) {
@@ -162,7 +182,7 @@ public final class DiagnosticPerformanceGameTests {
                 var disabled = measure(operations[category], ATTEMPTS);
                 disabledCpu += disabled[0];
                 disabledWall += disabled[1];
-                disabledAllocation += disabled[2];
+                disabledAllocation += measureAllocation(operations[category], ATTEMPTS);
                 var started = InteractionCaptureManager.start(helper.getLevel().getServer(), player, captureCategory());
                 helper.assertTrue(started.started(), "Every window must start a real active capture.");
                 pendingOutput = started.status().output();
@@ -182,14 +202,18 @@ public final class DiagnosticPerformanceGameTests {
         }
 
         private long[] measure(Runnable operation, int attempts) {
-            long allocation = threads.getThreadAllocatedBytes(threadId);
             long cpu = threads.getCurrentThreadCpuTime();
             long wall = System.nanoTime();
             for (int i = 0; i < attempts; i++) operation.run();
             wall = System.nanoTime() - wall;
             cpu = threads.getCurrentThreadCpuTime() - cpu;
-            allocation = threads.getThreadAllocatedBytes(threadId) - allocation;
-            return new long[] {cpu, wall, allocation};
+            return new long[] {cpu, wall};
+        }
+
+        private long measureAllocation(Runnable operation, int attempts) {
+            long before = threads.getThreadAllocatedBytes(threadId);
+            for (int index = 0; index < attempts; index++) operation.run();
+            return threads.getThreadAllocatedBytes(threadId) - before;
         }
 
         private String captureCategory() {

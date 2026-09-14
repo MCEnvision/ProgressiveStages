@@ -996,6 +996,10 @@ public final class LockRegistry {
 
     /** Lists all gating stages the player is missing for the given item. */
     public Set<StageId> missingStagesForItem(net.minecraft.server.level.ServerPlayer player, Item item) {
+        return missingStagesForItem(player, item, "use");
+    }
+
+    public Set<StageId> missingStagesForItem(net.minecraft.server.level.ServerPlayer player, Item item, String action) {
         if (player == null || item == null) return Set.of();
         Set<StageId> gating = getRequiredStages(item);
         Set<StageId> access = computeAccessStagesForItem(player, item);
@@ -1003,7 +1007,7 @@ public final class LockRegistry {
         for (StageId s : gating) if (!access.contains(s)) missing.add(s);
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
         ConditionalLockEngine.Decision decision = ConditionalLockEngine.resolve(player,
-            ConditionalRule.TargetType.ITEM, id, BuiltInRegistries.ITEM.wrapAsHolder(item), !missing.isEmpty());
+            ConditionalRule.TargetType.ITEM, action, id, BuiltInRegistries.ITEM.wrapAsHolder(item), !missing.isEmpty());
         if (decision == null || decision.effect() == ConditionalRule.Effect.UNLOCK) return Set.of();
         if (decision.ownerStage() != null) return Set.of(decision.ownerStage());
         return Collections.unmodifiableSet(missing);
@@ -1016,6 +1020,20 @@ public final class LockRegistry {
             return effectiveLockStagesForVanillaNamespace(owned);
         }
         return owned;
+    }
+
+    public Set<StageId> compiledRestrictions(net.minecraft.server.level.ServerPlayer player,
+                                             String category, String action, ResourceLocation id,
+                                             Holder<?> holder, Set<StageId> missing) {
+        ConditionalLockEngine.Decision baseline = missing.isEmpty() ? null
+            : new ConditionalLockEngine.Decision(ConditionalRule.Effect.LOCK, 0, null, null);
+        var decision = ConditionalLockEngine.resolveCompiled(player, category, action, id, holder, baseline);
+        if (decision == null || decision.effect() == ConditionalRule.Effect.UNLOCK) return Set.of();
+        return decision.ownerStage() == null ? missing : Set.of(decision.ownerStage());
+    }
+
+    public boolean hasCompiledRules(String category) {
+        return com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get().rules().hasRules(category);
     }
 
     private boolean blockedByMissing(Set<StageId> gating, Set<StageId> access) {
@@ -1032,6 +1050,10 @@ public final class LockRegistry {
     }
 
     public boolean isFluidBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation fluidId) {
+        return isFluidBlockedFor(player, fluidId, "interact");
+    }
+
+    public boolean isFluidBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation fluidId, String action) {
         if (player == null || fluidId == null) return false;
         Set<StageId> gating = getRequiredStagesForFluid(fluidId);
         Set<StageId> access = "minecraft".equals(fluidId.getNamespace())
@@ -1040,8 +1062,9 @@ public final class LockRegistry {
         boolean staticBlocked = blockedByMissing(gating, access);
         Fluid fluid = BuiltInRegistries.FLUID.get(fluidId);
         Holder<Fluid> holder = fluid != null ? BuiltInRegistries.FLUID.wrapAsHolder(fluid) : null;
-        return ConditionalLockEngine.isBlocked(player, ConditionalRule.TargetType.FLUID,
-            fluidId, holder, staticBlocked);
+        var decision = ConditionalLockEngine.resolve(player, ConditionalRule.TargetType.FLUID,
+            action, fluidId, holder, staticBlocked);
+        return decision != null && decision.effect() == ConditionalRule.Effect.LOCK;
     }
 
     public boolean isDimensionBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation dimId) {
@@ -1054,10 +1077,15 @@ public final class LockRegistry {
 
     public Set<StageId> restrictionStagesForDimension(
             net.minecraft.server.level.ServerPlayer player, ResourceLocation dimId) {
+        return restrictionStagesForDimension(player, dimId, "enter");
+    }
+
+    public Set<StageId> restrictionStagesForDimension(
+            net.minecraft.server.level.ServerPlayer player, ResourceLocation dimId, String action) {
         if (player == null || dimId == null) return Set.of();
         Set<StageId> missing = missingGatingStages(player, getRequiredStagesForDimension(dimId));
         ConditionalLockEngine.Decision decision = ConditionalLockEngine.resolve(player,
-            ConditionalRule.TargetType.DIMENSION, dimId, null, !missing.isEmpty());
+            ConditionalRule.TargetType.DIMENSION, action, dimId, null, !missing.isEmpty());
         if (decision == null || decision.effect() == ConditionalRule.Effect.UNLOCK) return Set.of();
         return decision.ownerStage() != null ? Set.of(decision.ownerStage()) : missing;
     }
@@ -1084,11 +1112,15 @@ public final class LockRegistry {
     }
 
     public Set<StageId> missingStagesForBlock(net.minecraft.server.level.ServerPlayer player, Block block) {
+        return missingStagesForBlock(player, block, "interact");
+    }
+
+    public Set<StageId> missingStagesForBlock(net.minecraft.server.level.ServerPlayer player, Block block, String action) {
         if (player == null || block == null) return Set.of();
         Set<StageId> missing = staticMissingStagesForBlock(player, block);
         ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
         ConditionalLockEngine.Decision decision = ConditionalLockEngine.resolve(player,
-            ConditionalRule.TargetType.BLOCK, id, BuiltInRegistries.BLOCK.wrapAsHolder(block), !missing.isEmpty());
+            ConditionalRule.TargetType.BLOCK, action, id, BuiltInRegistries.BLOCK.wrapAsHolder(block), !missing.isEmpty());
         if (decision == null || decision.effect() == ConditionalRule.Effect.UNLOCK) return Set.of();
         if (decision.ownerStage() != null) return Set.of(decision.ownerStage());
         return Collections.unmodifiableSet(missing);
@@ -1134,22 +1166,27 @@ public final class LockRegistry {
         return firstMissing(player, getRequiredStagesForRecipeByOutput(outputItem));
     }
 
-    public Optional<StageId> primaryRestrictingStageForEnchantment(net.minecraft.server.level.ServerPlayer player, ResourceLocation enchantId, Holder<net.minecraft.world.item.enchantment.Enchantment> holder) {
-        if (player == null || enchantId == null) return Optional.empty();
-        for (StageId stage : getRequiredStagesForEnchantment(enchantId, holder)) {
-            if (!com.enviouse.progressivestages.common.stage.StageManager.getInstance().hasStage(player, stage)
-                    && isCategoryEnforced(stage, EnforcementCategory.ENCHANTS)) {
-                return Optional.of(stage);
-            }
-        }
-        return Optional.empty();
+    public Optional<StageId> primaryRestrictingStageForEnchantment(net.minecraft.server.level.ServerPlayer player,
+            ResourceLocation enchantId, Holder<net.minecraft.world.item.enchantment.Enchantment> holder) {
+        return restrictionStagesForEnchantment(player, enchantId, holder, "hold").stream().findFirst();
     }
 
-    public boolean isEnchantmentBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation enchantId, Holder<net.minecraft.world.item.enchantment.Enchantment> holder) {
-        if (player == null || enchantId == null) return false;
-        Set<StageId> gating = getRequiredStagesForEnchantment(enchantId, holder);
-        if (gating.isEmpty()) return false;
-        return isCategoryEnforced(missingGatingStages(player, gating), EnforcementCategory.ENCHANTS);
+    public Set<StageId> restrictionStagesForEnchantment(net.minecraft.server.level.ServerPlayer player,
+            ResourceLocation enchantId, Holder<net.minecraft.world.item.enchantment.Enchantment> holder, String action) {
+        if (player == null || enchantId == null) return Set.of();
+        return compiledRestrictions(player, "enchants", action, enchantId, holder,
+            missingGatingStages(player, getRequiredStagesForEnchantment(enchantId, holder)));
+    }
+
+    public boolean isEnchantmentBlockedFor(net.minecraft.server.level.ServerPlayer player,
+            ResourceLocation enchantId, Holder<net.minecraft.world.item.enchantment.Enchantment> holder) {
+        return isEnchantmentBlockedFor(player, enchantId, holder, "hold");
+    }
+
+    public boolean isEnchantmentBlockedFor(net.minecraft.server.level.ServerPlayer player,
+            ResourceLocation enchantId, Holder<net.minecraft.world.item.enchantment.Enchantment> holder, String action) {
+        var missing = restrictionStagesForEnchantment(player, enchantId, holder, action);
+        return !missing.isEmpty() && isCategoryEnforced(missing, EnforcementCategory.ENCHANTS);
     }
 
     /** v3.0: cheap fast-path — true if any stage declares an enchant level cap. */
@@ -1158,42 +1195,48 @@ public final class LockRegistry {
     public boolean hasEnchantSelectionWeights() { return anyEnchantSelectionWeights; }
 
     public boolean isEnchantmentEnforcementConfigured() {
-        if (!anyEnchantLocks && !anyEnchantCaps && !anyEnchantSelectionWeights) return false;
+        if (!anyEnchantLocks && !anyEnchantCaps && !anyEnchantSelectionWeights && !hasCompiledRules("enchants")) return false;
         return StageConfig.isBlockEnchants() || hasEnforcementOverrides(EnforcementCategory.ENCHANTS);
     }
 
     public boolean isEnchantmentRetentionConfigured() {
-        if (!anyEnchantLocks && !anyEnchantCaps) return false;
+        if (!anyEnchantLocks && !anyEnchantCaps && !hasCompiledRules("enchants")) return false;
         return StageConfig.isBlockEnchants() || hasEnforcementOverrides(EnforcementCategory.ENCHANTS);
     }
 
     public boolean isEnchantmentLockConfigured() {
-        if (!anyEnchantLocks) return false;
+        if (!anyEnchantLocks && !hasCompiledRules("enchants")) return false;
         return StageConfig.isBlockEnchants() || hasEnforcementOverrides(EnforcementCategory.ENCHANTS);
     }
 
     // ---- v3.0 [beacon] (gate individual beacon effects) ----
 
-    public boolean hasBeaconLocks() { return anyBeaconLocks; }
+    public boolean hasBeaconLocks() { return anyBeaconLocks || hasCompiledRules("beacon"); }
 
     /** True if {@code player} can't receive this beacon effect (gated + stage not owned). */
     public boolean isBeaconEffectBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation effectId) {
-        if (!anyBeaconLocks || player == null || effectId == null) return false;
-        Set<StageId> gating = beaconCat.findStagesIdOnly(effectId);
-        if (gating.isEmpty()) return false;
-        return !playerHasAllStages(player, gating);
+        return isBeaconEffectBlockedFor(player, effectId, "apply");
+    }
+
+    public boolean isBeaconEffectBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation effectId, String action) {
+        if (player == null || effectId == null) return false;
+        return !compiledRestrictions(player, "beacon", action, effectId, null,
+            missingGatingStages(player, beaconCat.findStagesIdOnly(effectId))).isEmpty();
     }
 
     // ---- v3.0 [brewing] (gate brewing a specific potion) ----
 
-    public boolean hasBrewingLocks() { return anyBrewingLocks; }
+    public boolean hasBrewingLocks() { return anyBrewingLocks || hasCompiledRules("brewing"); }
 
     /** True if {@code player} can't brew this potion (gated + stage not owned). */
     public boolean isBrewingBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation potionId) {
-        if (!anyBrewingLocks || player == null || potionId == null) return false;
-        Set<StageId> gating = brewingCat.findStagesIdOnly(potionId);
-        if (gating.isEmpty()) return false;
-        return !playerHasAllStages(player, gating);
+        return isBrewingBlockedFor(player, potionId, "take");
+    }
+
+    public boolean isBrewingBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation potionId, String action) {
+        if (player == null || potionId == null) return false;
+        return !compiledRestrictions(player, "brewing", action, potionId, null,
+            "brew".equals(action) ? Set.of() : missingGatingStages(player, brewingCat.findStagesIdOnly(potionId))).isEmpty();
     }
 
     /**
@@ -1289,15 +1332,18 @@ public final class LockRegistry {
     }
 
     public boolean isTradeBlockedFor(net.minecraft.server.level.ServerPlayer player, Item item) {
-        if (player == null || item == null) return false;
-        Set<StageId> gating = getRequiredStagesForTrade(item);
-        if (gating.isEmpty()) return false;
-        return !playerHasAllStages(player, gating);
+        return !restrictionStagesForTrade(player, item, "purchase").isEmpty();
+    }
+
+    public Set<StageId> restrictionStagesForTrade(net.minecraft.server.level.ServerPlayer player,
+                                                   Item item, String action) {
+        if (player == null || item == null) return Set.of();
+        return compiledRestrictions(player, "trades", action, BuiltInRegistries.ITEM.getKey(item), BuiltInRegistries.ITEM.wrapAsHolder(item),
+            missingGatingStages(player, getRequiredStagesForTrade(item)));
     }
 
     public Optional<StageId> primaryRestrictingStageForTrade(net.minecraft.server.level.ServerPlayer player, Item item) {
-        if (player == null || item == null) return Optional.empty();
-        return firstMissing(player, getRequiredStagesForTrade(item));
+        return restrictionStagesForTrade(player, item, "purchase").stream().findFirst();
     }
 
     /** v2.5 [professions] — gating stages for a villager profession id (id-only matching). */
@@ -1307,21 +1353,24 @@ public final class LockRegistry {
     }
 
     public boolean isProfessionBlockedFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation professionId) {
-        if (player == null || professionId == null) return false;
-        Set<StageId> gating = getRequiredStagesForProfession(professionId);
-        if (gating.isEmpty()) return false;
-        return !playerHasAllStages(player, gating);
+        return !restrictionStagesForProfession(player, professionId, "trade").isEmpty();
+    }
+
+    public Set<StageId> restrictionStagesForProfession(net.minecraft.server.level.ServerPlayer player,
+                                                   ResourceLocation professionId, String action) {
+        if (player == null || professionId == null) return Set.of();
+        return compiledRestrictions(player, "professions", action, professionId, null,
+            missingGatingStages(player, getRequiredStagesForProfession(professionId)));
     }
 
     public Optional<StageId> primaryRestrictingStageForProfession(net.minecraft.server.level.ServerPlayer player, ResourceLocation professionId) {
-        if (player == null || professionId == null) return Optional.empty();
-        return firstMissing(player, getRequiredStagesForProfession(professionId));
+        return restrictionStagesForProfession(player, professionId, "trade").stream().findFirst();
     }
 
     // ---- v2.5 [advancements] (hidden from the advancements screen) ----
 
     /** Cheap fast-path: true if any stage gates an advancement. Gates the packet-filter mixin. */
-    public boolean hasAdvancementLocks() { return anyAdvancementLocks; }
+    public boolean hasAdvancementLocks() { return anyAdvancementLocks || hasCompiledRules("advancements"); }
 
     public Set<StageId> getRequiredStagesForAdvancement(ResourceLocation advancementId) {
         if (advancementId == null) return Set.of();
@@ -1330,10 +1379,13 @@ public final class LockRegistry {
 
     /** True if this advancement should be hidden from {@code player} (gated and stage not owned). */
     public boolean isAdvancementHiddenFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation advancementId) {
-        if (!anyAdvancementLocks || player == null || advancementId == null) return false;
-        Set<StageId> gating = getRequiredStagesForAdvancement(advancementId);
-        if (gating.isEmpty()) return false;
-        return !playerHasAllStages(player, gating);
+        if (player == null || advancementId == null) return false;
+        return !compiledRestrictions(player, "advancements", "display", advancementId, null,
+            missingGatingStages(player, getRequiredStagesForAdvancement(advancementId))).isEmpty();
+    }
+
+    public boolean isAdvancementToastHiddenFor(net.minecraft.server.level.ServerPlayer player, ResourceLocation id) {
+        return !compiledRestrictions(player, "advancements", "toast", id, null, Set.of()).isEmpty();
     }
 
     public Set<StageId> getRequiredStagesForPetTaming(EntityType<?> type) {
@@ -1392,39 +1444,48 @@ public final class LockRegistry {
     }
 
     public boolean isCropBlockedFor(net.minecraft.server.level.ServerPlayer player, Block block) {
-        if (player == null || block == null) return false;
-        Set<StageId> gating = getRequiredStagesForCrop(block);
-        if (gating.isEmpty()) return false;
-        return !playerHasAllStages(player, gating);
+        return !restrictionStagesForCrop(player, block, "plant").isEmpty();
+    }
+
+    public Set<StageId> restrictionStagesForCrop(net.minecraft.server.level.ServerPlayer player,
+                                                   Block block, String action) {
+        if (player == null || block == null) return Set.of();
+        return compiledRestrictions(player, "crops", action, BuiltInRegistries.BLOCK.getKey(block), BuiltInRegistries.BLOCK.wrapAsHolder(block),
+            missingGatingStages(player, getRequiredStagesForCrop(block)));
     }
 
     public Optional<StageId> primaryRestrictingStageForCrop(net.minecraft.server.level.ServerPlayer player, Block block) {
-        if (player == null || block == null) return Optional.empty();
-        return firstMissing(player, getRequiredStagesForCrop(block));
+        return restrictionStagesForCrop(player, block, "plant").stream().findFirst();
     }
 
     public boolean isScreenBlockedFor(net.minecraft.server.level.ServerPlayer player, Block block) {
-        if (player == null || block == null) return false;
-        Set<StageId> gating = getRequiredStagesForScreen(block);
-        if (gating.isEmpty()) return false;
-        return !playerHasAllStages(player, gating);
+        return !restrictionStagesForScreen(player, block, "open").isEmpty();
+    }
+
+    public Set<StageId> restrictionStagesForScreen(net.minecraft.server.level.ServerPlayer player,
+                                                   Block block, String action) {
+        if (player == null || block == null) return Set.of();
+        return compiledRestrictions(player, "screens", action, BuiltInRegistries.BLOCK.getKey(block), BuiltInRegistries.BLOCK.wrapAsHolder(block),
+            missingGatingStages(player, getRequiredStagesForScreen(block)));
     }
 
     public Optional<StageId> primaryRestrictingStageForScreen(net.minecraft.server.level.ServerPlayer player, Block block) {
-        if (player == null || block == null) return Optional.empty();
-        return firstMissing(player, getRequiredStagesForScreen(block));
+        return restrictionStagesForScreen(player, block, "open").stream().findFirst();
     }
 
     public boolean isScreenItemBlockedFor(net.minecraft.server.level.ServerPlayer player, Item item) {
-        if (player == null || item == null) return false;
-        Set<StageId> gating = getRequiredStagesForScreenItem(item);
-        if (gating.isEmpty()) return false;
-        return !playerHasAllStages(player, gating);
+        return !restrictionStagesForScreenItem(player, item, "open").isEmpty();
+    }
+
+    public Set<StageId> restrictionStagesForScreenItem(net.minecraft.server.level.ServerPlayer player,
+                                                   Item item, String action) {
+        if (player == null || item == null) return Set.of();
+        return compiledRestrictions(player, "screens", action, BuiltInRegistries.ITEM.getKey(item), BuiltInRegistries.ITEM.wrapAsHolder(item),
+            missingGatingStages(player, getRequiredStagesForScreenItem(item)));
     }
 
     public Optional<StageId> primaryRestrictingStageForScreenItem(net.minecraft.server.level.ServerPlayer player, Item item) {
-        if (player == null || item == null) return Optional.empty();
-        return firstMissing(player, getRequiredStagesForScreenItem(item));
+        return restrictionStagesForScreenItem(player, item, "open").stream().findFirst();
     }
 
     public boolean isPetTamingBlockedFor(net.minecraft.server.level.ServerPlayer player, EntityType<?> type) {

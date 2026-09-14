@@ -22,6 +22,7 @@ public final class MinecraftConditionContextFactory {
         values.put("server_player", player);
         ResourceLocation dimension = player.level().dimension().location();
         values.put("dimension", dimension.toString());
+        values.put("weather", player.level().isThundering() ? "thunder" : player.level().isRaining() ? "rain" : "clear");
         values.put("dimension." + dimension, dimension.toString());
         var biome = player.level().getBiome(player.blockPosition());
         biome.unwrapKey().ifPresent(key -> {

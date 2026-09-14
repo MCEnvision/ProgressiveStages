@@ -37,7 +37,7 @@ public abstract class SlotBrewingPickupMixin {
         if (!(player instanceof ServerPlayer sp)) return;
         ItemStack stack = ((Slot) (Object) this).getItem();
         ResourceLocation potionId = brewedPotionId(stack);
-        if (potionId != null && LockRegistry.getInstance().isBrewingBlockedFor(sp, potionId)) {
+        if (potionId != null && LockRegistry.getInstance().isBrewingBlockedFor(sp, potionId, "take")) {
             cir.setReturnValue(false);
         }
     }

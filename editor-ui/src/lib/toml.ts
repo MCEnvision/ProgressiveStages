@@ -217,7 +217,7 @@ export function inlineObjectValue(raw: string, key: string): string {
 
 export function conditionToml(type: string, target: string, count: number): string {
   const result: Record<string, unknown> = { type };
-  if (target.trim()) result.id = target.trim();
+  if (target.trim()) result[type === "weather" ? "value" : "id"] = target.trim();
   if (count > 1) result.count = count;
   return encodeToml(result);
 }

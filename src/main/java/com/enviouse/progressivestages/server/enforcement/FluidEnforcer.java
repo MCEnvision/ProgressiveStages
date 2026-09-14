@@ -40,18 +40,19 @@ public final class FluidEnforcer {
      */
     public static boolean shouldCancelFluidPlace(net.minecraft.world.level.LevelAccessor level,
                                                  BlockPos pos, BlockState state) {
-        if (level == null) return false;
-        if (!(level instanceof net.minecraft.server.level.ServerLevel sl)) return false;
+        return shouldCancelFlow(level, pos, extractFluid(state));
+    }
 
-        Fluid fluid = extractFluid(state);
+    public static boolean shouldCancelFlow(net.minecraft.world.level.LevelAccessor level, BlockPos pos, Fluid fluid) {
+        if (!(level instanceof net.minecraft.server.level.ServerLevel sl)) return false;
         if (fluid == null) return false;
-        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        ResourceLocation fluidId = fluidId(fluid);
         if (fluidId == null) return false;
         double radius = StageConfig.getMobSpawnCheckRadius();
         ServerPlayer nearest = NearestPlayerCheck.findNearest(sl, pos.getX(), pos.getY(), pos.getZ(), radius);
         if (nearest == null) return false;
         if (StageConfig.isAllowCreativeBypass() && nearest.isCreative()) return false;
-        return LockRegistry.getInstance().isFluidBlockedFor(nearest, fluidId);
+        return LockRegistry.getInstance().isFluidBlockedFor(nearest, fluidId, "flow");
     }
 
     /** @return {@code true} if a bucket-pickup of this fluid is allowed. */
@@ -60,16 +61,16 @@ public final class FluidEnforcer {
         BlockState state = level.getBlockState(pos);
         Fluid fluid = extractFluid(state);
         if (fluid == null) return true;
-        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        ResourceLocation fluidId = fluidId(fluid);
         if (fluidId == null) return true;
         // v2.0 multi-stage: blocked if any gating stage is missing.
-        return !LockRegistry.getInstance().isFluidBlockedFor(player, fluidId);
+        return !LockRegistry.getInstance().isFluidBlockedFor(player, fluidId, "pickup");
     }
 
     public static void notifyPickupLocked(ServerPlayer player, BlockGetter level, BlockPos pos) {
         Fluid fluid = extractFluid(level.getBlockState(pos));
         if (fluid == null) return;
-        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fluid);
+        ResourceLocation fluidId = fluidId(fluid);
         if (fluidId == null) return;
         // v2.0: multi-stage — show the first gating stage the player is missing.
         LockRegistry.getInstance().primaryRestrictingStageForFluid(player, fluidId)
@@ -85,19 +86,25 @@ public final class FluidEnforcer {
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) return;
         FluidState fs = player.level().getFluidState(player.blockPosition());
         if (fs.isEmpty()) return;
-        ResourceLocation fluidId = BuiltInRegistries.FLUID.getKey(fs.getType());
+        ResourceLocation fluidId = fluidId(fs.getType());
         if (fluidId == null) return;
         // v2.0 multi-stage: only when at least one gating stage is missing.
-        if (!LockRegistry.getInstance().isFluidBlockedFor(player, fluidId)) return;
+        if (!LockRegistry.getInstance().isFluidBlockedFor(player, fluidId, "submerge")) return;
 
         // Short, re-applied effects — instant feedback that the player shouldn't be here.
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 2, true, false));
         player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 40, 0, true, false));
     }
 
-    /** @return {@code true} if the held stack is an empty/water/lava bucket item. */
+    /** Returns whether the held item is an empty bucket. */
     public static boolean isBucket(ItemStack stack) {
-        return !stack.isEmpty() && stack.getItem() instanceof BucketItem;
+        return !stack.isEmpty() && stack.getItem() instanceof BucketItem bucket
+            && bucket.content == net.minecraft.world.level.material.Fluids.EMPTY;
+    }
+
+    private static ResourceLocation fluidId(Fluid fluid) {
+        return BuiltInRegistries.FLUID.getKey(fluid instanceof net.minecraft.world.level.material.FlowingFluid flowing
+            ? flowing.getSource() : fluid);
     }
 
     private static Fluid extractFluid(BlockState state) {

@@ -18,7 +18,7 @@ export const CATEGORIES: Record<string, CategoryDefinition> = {
   loot: { label: "Loot", catalog: "loot_tables", actions: ["generate", "open", "drop"], description: "Chests, drops, fishing, and loot tables." },
   mobs: { label: "Mob spawning", catalog: "entities", actions: ["spawn", "replace"], description: "Spawn cancellation and replacement." },
   pets: { label: "Pets", catalog: "entities", actions: ["tame", "breed", "command", "ride"], description: "Taming, breeding, commands, and riding." },
-  screens: { label: "Menus and screens", catalog: "menus", actions: ["open"], description: "Block and held item interfaces." },
+  screens: { label: "Menus and screens", catalog: "blocks", actions: ["open"], description: "Block and held item interfaces." },
   trades: { label: "Villager trades", catalog: "items", actions: ["display", "purchase"], description: "Trade visibility and purchase access." },
   professions: { label: "Villager professions", catalog: "professions", actions: ["trade"], description: "Trading by villager profession." },
   advancements: { label: "Advancements", catalog: "advancements", actions: ["display", "toast"], description: "Advancement visibility and notifications." },

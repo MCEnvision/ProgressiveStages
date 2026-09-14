@@ -485,6 +485,12 @@ public class ServerEventHandler {
         if (event.getPlayer() instanceof ServerPlayer player) {
             net.minecraft.core.BlockPos pos = event.getPos();
 
+            if (!BlockEnforcer.canBreakBlock(player, event.getState())
+                    || !CropEnforcer.canAct(player, event.getState().getBlock(), "harvest")) {
+                event.setCanceled(true);
+                return;
+            }
+
             // Structure chest-locking: containers (chest / barrel / shulker / lootr / any
             // block entity implementing Container) inside a locked structure can't be
             // broken by players lacking the stage — same intent as the right-click gate,
@@ -774,7 +780,7 @@ public class ServerEventHandler {
                 }
             }
             // Pet taming/breeding gate
-            if (!PetEnforcer.canInteract(player, entityType, event.getTarget())) {
+            if (!PetEnforcer.canInteract(player, entityType, event.getTarget(), event.getItemStack())) {
                 event.setCanceled(true);
                 PetEnforcer.notifyLocked(player, entityType, event.getTarget());
             }
@@ -940,8 +946,7 @@ public class ServerEventHandler {
             EntityEnforcer.notifyLocked(player, event.getEntityBeingMounted().getType());
             return;
         }
-        if (!PetEnforcer.canInteract(player, event.getEntityBeingMounted().getType(),
-                event.getEntityBeingMounted())) {
+        if (!PetEnforcer.canRide(player, event.getEntityBeingMounted())) {
             event.setCanceled(true);
             PetEnforcer.notifyLocked(player, event.getEntityBeingMounted().getType(),
                 event.getEntityBeingMounted());

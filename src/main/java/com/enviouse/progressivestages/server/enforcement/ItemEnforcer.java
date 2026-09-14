@@ -53,6 +53,16 @@ public class ItemEnforcer {
         return evaluateItemUse(player, stack).allowed();
     }
 
+    public static boolean canDropItem(ServerPlayer player, ItemStack stack) {
+        if (stack.isEmpty() || player.isSpectator()
+                || StageConfig.isAllowCreativeBypass() && player.isCreative()) return true;
+        var missing = LockRegistry.getInstance().compiledRestrictions(player, "items", "drop",
+            BuiltInRegistries.ITEM.getKey(stack.getItem()), BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()),
+            java.util.Set.of());
+        missing.stream().findFirst().ifPresent(stage -> notifyLockedWithCooldown(player, stage, "This item"));
+        return missing.isEmpty();
+    }
+
     public static ItemUseDecision evaluateItemUse(ServerPlayer player, ItemStack stack) {
         LockRegistry reg = LockRegistry.getInstance();
         if (!StageConfig.isBlockItemUse() && !reg.hasEnforcementOverrides()
@@ -152,7 +162,7 @@ public class ItemEnforcer {
             return true;
         }
 
-        java.util.Set<StageId> missing = reg.missingStagesForItem(player, stack.getItem());
+        java.util.Set<StageId> missing = reg.missingStagesForItem(player, stack.getItem(), "pickup");
         if (missing.isEmpty()) return true;
         if (!reg.isCategoryEnforced(missing, EnforcementCategory.ITEM_PICKUP)) return true;
         return reg.isExemptFromPickup(stack.getItem(), missing);
@@ -183,7 +193,7 @@ public class ItemEnforcer {
             return true;
         }
 
-        java.util.Set<StageId> missing = reg.missingStagesForItem(player, stack.getItem());
+        java.util.Set<StageId> missing = reg.missingStagesForItem(player, stack.getItem(), "inventory");
         if (missing.isEmpty()) return true;
         if (!reg.isCategoryEnforced(missing, EnforcementCategory.ITEM_INVENTORY)) return true;
         return reg.isExemptFromInventory(stack.getItem(), missing);

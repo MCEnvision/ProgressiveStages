@@ -44,7 +44,7 @@ public abstract class ServerGamePacketListenerMerchantMixin {
         // mixin); the clientIndex-th remaining offer is the one actually clicked.
         int visible = -1;
         for (int idx = 0; idx < offers.size(); idx++) {
-            if (TradeEnforcer.isOfferLocked(p, offers.get(idx))) continue;
+            if (TradeEnforcer.isOfferLocked(p, offers.get(idx), "display")) continue;
             visible++;
             if (visible == clientIndex) return idx;
         }

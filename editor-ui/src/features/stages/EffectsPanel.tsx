@@ -75,7 +75,7 @@ function AttributeForm({ stage }: { stage: StagePackage }) {
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     const block = [`[[attribute]]`, `id = ${encodeToml(id.trim())}`, `amount = ${amount}`, `operation = ${encodeToml(operation)}`].join("\n");
-    await mutateFile(stage.stagePath, appendTomlBlock(boot?.draft.files[stage.stagePath] || "", block), "Stage attribute added");
+    await mutateFile(stage.rulesPath, appendTomlBlock(boot?.draft.files[stage.rulesPath] || "", block), "Stage attribute added");
     closeDialog();
   };
   return <form className="dialog-form" onSubmit={save}><div className="form-grid">

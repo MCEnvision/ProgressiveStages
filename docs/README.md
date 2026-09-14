@@ -18,6 +18,8 @@ Use this page to find the maintained project documentation.
 - [Authenticated diagnostic capture lifecycle](verification/capture-client/README.md)
 - [Editor session authorization](test/editor-authorization.md)
 - [Editor package import](test/editor-import.md)
+- [Editor rule actions and source preservation](test/editor-rule-runtime.md)
+- [Editor and permission repair observations](verification/editor-repair/README.md)
 - [Editor external file changes](test/editor-external-changes.md)
 - [Snapshot acknowledgement and recovery handlers](test/snapshot-acknowledgements.md)
 - [GUI response budget, command and script opening, and laptop verification](test/gui-responses.md)

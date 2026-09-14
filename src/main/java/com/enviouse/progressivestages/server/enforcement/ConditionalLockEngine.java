@@ -152,8 +152,14 @@ public final class ConditionalLockEngine {
                 winner = choose(winner, new Decision(rule.effect(), rule.priority(), rule.id(), rule.ownerStage()));
             }
         }
+        return resolveCompiled(player, compiledCategory(type), action, id, holder, winner);
+    }
+
+    public static Decision resolveCompiled(ServerPlayer player, String category, String action,
+                                           ResourceLocation id, Holder<?> holder, Decision winner) {
+        if (player == null || id == null) return winner;
         var compiled = com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get().rules()
-            .resolve(player, compiledCategory(type), action, id, holder).orElse(null);
+            .resolve(player, category, action, id, holder).orElse(null);
         if (compiled != null && compiled.winningEffect() != null && compiled.winningRule() != null) {
             var rule = com.enviouse.progressivestages.server.rehaul.RehaulRuntime.get().rules()
                 .findRule(compiled.winningRule()).orElse(null);

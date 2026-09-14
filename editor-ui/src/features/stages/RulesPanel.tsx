@@ -14,12 +14,14 @@ import {
 } from "../../lib/enchantments";
 import { serializeInventoryCondition, serializeInventoryInsertionRule, updateInventoryInsertionRule } from "../../lib/inventoryInsertion";
 import { ruleModels, selectorMode, title } from "../../lib/model";
+import { moveRuleTable, updateGenericRule } from "../../lib/ruleSource";
 import { appendTomlBlock, conditionToml, encodeToml, extractArrayGroups, parseSimpleArray, readTomlValue, replaceArrayGroups, upsertToml } from "../../lib/toml";
 import { useEditor } from "../../store/EditorContext";
 import type { EnchantmentGenerationRule } from "../../lib/enchantments";
 import type { RuleModel, StagePackage } from "../../types";
 
 interface RuleDraft {
+  stageState: string;
   ruleId: string;
   category: string;
   action: string;
@@ -101,7 +103,7 @@ function removeClassicRule(text: string, rule: RuleModel): string {
     }
     return text;
   }
-  for (const field of ["locked", "allowed", "always_unlocked"]) {
+  for (const field of rule.classicField ? [rule.classicField] : ["locked", "allowed", "always_unlocked"]) {
     const path = `${rule.category}.${field}`;
     const values = parseSimpleArray(readTomlValue(text, path));
     const index = values.findIndex(value => value.replace(/\|priority=-?\d+$/, "") === rule.selector);
@@ -182,6 +184,7 @@ function serializeRule(stage: StagePackage, draft: RuleDraft, table: "rules" | "
     `[[${table}]]`,
     `id = ${encodeToml(id)}`,
     `effect = ${encodeToml(draft.effect)}`,
+    `stage_state = ${encodeToml(draft.stageState)}`,
     `priority = ${draft.priority}`,
     `action = ${encodeToml(draft.action)}`,
     `targets.${draft.category} = ${encodeToml([draft.selector])}`
@@ -206,6 +209,7 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const [saveError, setSaveError] = useState("");
   const initialCategory = rule?.category || "items";
   const [draft, setDraft] = useState<RuleDraft>({
+    stageState: rule?.stageState || (["allow", "unlock", "deny"].includes(rule?.effect || "lock") ? "owned" : "missing"),
     ruleId: rule?.id || "",
     category: initialCategory,
     action: rule?.action || CATEGORIES[initialCategory].actions[0],
@@ -227,7 +231,7 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     conditionSource: rule?.conditionSource || "",
     resetConditionSource: rule?.resetConditionSource || "",
     exception: rule?.exception || "",
-    exceptionPriority: rule?.exceptionPriority || (rule?.priority ?? 100) + 1,
+    exceptionPriority: rule?.exception ? rule.exceptionPriority : (rule?.priority ?? 100) + 1,
     recipeKind: rule?.recipeKind || "output",
     targetKind: rule?.targetKind || "block",
     destination: rule?.destination || "",
@@ -236,12 +240,15 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const update = <K extends keyof RuleDraft>(key: K, value: RuleDraft[K]) => setDraft(current => ({ ...current, [key]: value }));
   const category = CATEGORIES[draft.category];
   const condition = CONDITIONS.find(entry => entry.id === draft.conditionType);
-  const temporary = draft.lifetime !== "permanent" || draft.conditionType !== "none";
+  const temporary = draft.lifetime !== "permanent";
   const selectsEverything = draft.mode === "all";
   const canonicalRecipe = draft.category === "recipes" && draft.action === "craft"
     && draft.effect === "lock" && !temporary;
   const inventoryInsertion = draft.category === "interactions" && draft.action === "item_into_inventory";
   const ambiguousRecipe = Boolean(rule?.ambiguous);
+  const legacyCategory = stage.legacy && !canonicalRecipe && !inventoryInsertion;
+  const effects = legacyCategory ? EFFECTS.filter(effect => ["lock", "exclude"].includes(effect.value)) : ruleEffects(draft.category, draft.action);
+  const actions = draft.category === "interactions" ? Array.from(new Set(["item_into_inventory", ...(rule?.category === "interactions" ? [rule.action] : [])])) : category.actions;
   const targetCatalog = canonicalRecipe
     ? draft.recipeKind === "output" ? "items" : "recipes"
     : category.catalog;
@@ -253,28 +260,46 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     setSaveError("");
     try {
       if (ambiguousRecipe) throw new Error("[recipes].locked is ambiguous. Remove it, then create either a recipe output item or exact recipe identifier lock.");
+      if (draft.category === "recipes" && draft.action === "craft"
+        && (temporary || draft.conditionType !== "none" || draft.resetConditionType !== "none" || draft.effect !== "lock")) {
+        throw new Error("Crafting locks require a permanent stage rule without an activation condition. Use progression conditions to grant or revoke the stage.");
+      }
+      if (draft.category === "interactions" && !inventoryInsertion) throw new Error("Use Access, Direct interactions to edit an item and block or entity pair. This rule requires both selectors.");
       if (!draft.selector || inventoryInsertion && !draft.destination) return;
       let content = boot?.draft.files[stage.rulesPath] || "";
       if (inventoryInsertion) {
+        if (rule?.table === "rules" || rule?.table === "temporary_rules") throw new Error("Changing a generic rule into an inventory insertion rule requires an explicit Source edit to preserve its existing settings.");
         content = saveInventoryInsertionRule(content, draft, rule);
       } else if (canonicalRecipe) {
+        if (rule?.table === "rules" || rule?.table === "temporary_rules") throw new Error("Changing a generic rule into a crafting lock requires an explicit Source edit to preserve its existing settings.");
+        if (draft.viewer !== "inherit" || draft.exception) throw new Error("Crafting lists cannot store these presentation or exception settings. Edit them in Source before saving this lock.");
         content = saveCanonicalRecipeRule(content, draft, rule);
+      } else if (stage.legacy) {
+        if (temporary || draft.conditionType !== "none") throw new Error("Conditional rules need a three file stage package.");
+        if (draft.viewer !== "inherit" || draft.exception) throw new Error("Legacy category lists cannot store per rule presentation or nested exceptions. Add a separate always allowed rule instead.");
+        if (!["lock", "exclude"].includes(draft.effect)) throw new Error("Legacy category lists support locks and always allowed exceptions. Use a three file stage package for other effects.");
+        if (rule && rule.table !== "classic") throw new Error("Edit this legacy rule in Source to preserve its format.");
+        if (rule) content = removeClassicRule(content, rule);
+        const field = rule?.effect === draft.effect && rule.classicField ? rule.classicField
+          : ["allow", "unlock", "exclude"].includes(draft.effect) ? "always_unlocked" : "locked";
+        const path = `${draft.category}.${field}`;
+        content = upsertToml(content, path, [...parseSimpleArray(readTomlValue(content, path)), `${draft.selector}|priority=${draft.priority}`]);
       } else {
-        const table: "rules" | "temporary_rules" = temporary ? "temporary_rules" : "rules";
-        const block = serializeRule(stage, draft, table, rule);
+        const previousGeneric = rule?.table === "rules" || rule?.table === "temporary_rules" ? rule : undefined;
+        if (previousGeneric && ruleGroups(content, previousGeneric.table as "rules" | "temporary_rules")[previousGeneric.tableIndex]?.text !== previousGeneric.sourceText) {
+          throw new Error("The rule changed in another edit. Reopen it and try again.");
+        }
+        const table: "rules" | "temporary_rules" = previousGeneric && draft.lifetime === previousGeneric.lifetime
+          ? previousGeneric.table as "rules" | "temporary_rules" : temporary ? "temporary_rules" : "rules";
+        const block = previousGeneric ? moveRuleTable(updateGenericRule(previousGeneric.sourceText, draft, previousGeneric), table, previousGeneric)
+          : serializeRule(stage, draft, table, rule);
         if (rule?.table === "interactions") content = appendTomlBlock(replaceInteractionGroup(content, rule.tableIndex, null), block);
         else if (rule?.table === "classic" || rule?.table === "recipe_items" || rule?.table === "recipe_ids") content = appendTomlBlock(removeClassicRule(content, rule), block);
         else if (rule && rule.table !== table) {
           content = replaceRuleGroup(content, rule.table as "rules" | "temporary_rules", rule.tableIndex, null);
           content = appendTomlBlock(content, block);
         } else if (rule) content = replaceRuleGroup(content, table, rule.tableIndex, block);
-        else if (stage.legacy) {
-          if (temporary) throw new Error("Temporary rules need a three file stage package.");
-          const field = ["allow", "unlock"].includes(draft.effect) ? "always_unlocked" : "locked";
-          const values = parseSimpleArray(readTomlValue(content, `${draft.category}.${field}`));
-          values.push(`${draft.selector}${draft.priority ? `|priority=${draft.priority}` : ""}`);
-          content = upsertToml(content, `${draft.category}.${field}`, values);
-        } else content = appendTomlBlock(content, block);
+        else content = appendTomlBlock(content, block);
       }
       await mutateFile(stage.rulesPath, content, "Rule saved to the draft");
       closeDialog();
@@ -285,9 +310,9 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     <div className="form-grid">
       <Field label="Rule category"><select value={draft.category} onChange={event => {
         const next = event.target.value;
-        setDraft(current => ({ ...current, category: next, action: CATEGORIES[next].actions[0], effect: ["recipes", "interactions"].includes(next) ? "lock" : current.effect, selector: current.mode === "all" ? "all:*" : "", destination: "" }));
+        setDraft(current => ({ ...current, category: next, action: next === "interactions" ? "item_into_inventory" : CATEGORIES[next].actions[0], effect: ["recipes", "interactions"].includes(next) ? "lock" : current.effect, selector: current.mode === "all" ? "all:*" : "", destination: "" }));
       }}>{Object.entries(CATEGORIES).map(([id, value]) => <option key={id} value={id}>{value.label}</option>)}</select></Field>
-      <Field label="Player action"><select value={draft.action} onChange={event => {
+      <Field label="Player action" help={legacyCategory ? "Legacy category lists apply to every supported action in this category." : undefined}><select disabled={legacyCategory} value={draft.action} onChange={event => {
         const action = event.target.value;
         setDraft(current => ({
           ...current,
@@ -296,8 +321,8 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
             ? "lock"
             : current.effect
         }));
-      }}>{category.actions.map(action => <option key={action} value={action}>{ACTION_LABELS[action] || title(action)}</option>)}</select></Field>
-      <Field label="Result"><select value={draft.effect} onChange={event => update("effect", event.target.value)}>{ruleEffects(draft.category, draft.action).map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
+      }}>{actions.map(action => <option key={action} value={action}>{ACTION_LABELS[action] || title(action)}</option>)}</select></Field>
+      <Field label="Result"><select value={draft.effect} onChange={event => setDraft(current => ({ ...current, effect: event.target.value, stageState: ["lock", "exclude"].includes(event.target.value) ? "missing" : "owned" }))}>{effects.map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
       <Field label="Priority" help="A larger number wins when rules overlap."><input type="number" value={draft.priority} onChange={event => update("priority", Number(event.target.value))}/></Field>
     </div>
     <section className="dialog-section"><header><span className="step-number">1</span><div><h3>{inventoryInsertion ? "Choose what moves where" : "Choose the target"}</h3><p>{inventoryInsertion ? "The server checks the inserted item and destination together before it changes any slot." : `The registry only shows content valid for ${category.label.toLowerCase()}.`}</p></div></header><div className="form-grid">
@@ -326,18 +351,19 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
       </>}
     </div></section>
     <section className="dialog-section"><header><span className="step-number">2</span><div><h3>Choose when it participates</h3><p>Permanent rules follow stage ownership. Conditional rules can follow locations, events, sessions, and scripts.</p></div></header><div className="form-grid">
+      {!inventoryInsertion && !canonicalRecipe && !stage.legacy ? <Field label="Stage ownership" help="Choose whether this rule participates before or after the player obtains this stage."><select value={draft.stageState} onChange={event => update("stageState", event.target.value)}><option value="missing">While the stage is missing</option><option value="owned">While the stage is owned</option><option value="always">Regardless of stage ownership</option>{!["missing", "owned", "always"].includes(draft.stageState) ? <option value={draft.stageState}>{title(draft.stageState)}</option> : null}</select></Field> : null}
       {inventoryInsertion ? <Field label="Rule identity" help="Optional. Set this when a timed rule must keep the same timer through reordering."><input value={draft.ruleId} onChange={event => update("ruleId", event.target.value)} placeholder="yourpack:ore_bin_window"/></Field> : null}
-      <Field label="Activation condition"><select value={draft.conditionType} onChange={event => update("conditionType", event.target.value)}>{CONDITIONS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></Field>
-      <Field label="Condition target" help={condition?.help}><input value={draft.conditionTarget} onChange={event => update("conditionTarget", event.target.value)} placeholder={condition?.catalog ? "Choose a registered identifier" : "Optional value"}/></Field>
+      <Field label="Activation condition"><select value={draft.conditionType} onChange={event => update("conditionType", event.target.value)}>{draft.conditionType === "custom" ? <option value="custom">Keep existing compound condition</option> : null}{CONDITIONS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></Field>
+      <Field label="Condition target" help={condition?.help}><input disabled={draft.conditionType === "custom"} value={draft.conditionTarget} onChange={event => update("conditionTarget", event.target.value)} placeholder={condition?.catalog ? "Choose a registered identifier" : "Optional value"}/></Field>
       {condition?.catalog ? <div className="field-wide"><InlineCatalogSearch catalogId={condition.catalog} mode="id" onPick={value => update("conditionTarget", value.replace(/^id:/, ""))}/></div> : null}
-      <Field label="Required amount"><input type="number" min={1} value={draft.count} onChange={event => update("count", Number(event.target.value))}/></Field>
+      <Field label="Required amount"><input type="number" min={1} disabled={draft.conditionType === "custom"} value={draft.count} onChange={event => update("count", Number(event.target.value))}/></Field>
       <Field label="Lifetime"><select value={draft.lifetime} onChange={event => update("lifetime", event.target.value)}><option value="permanent">Permanent stage rule</option><option value="live">Only while the condition is true</option><option value="duration">Timed after the trigger</option><option value="session">Current session</option><option value="latched">Active until reset</option><option value="schedule">Scheduled lifetime</option></select></Field>
       {draft.lifetime === "duration" || draft.lifetime === "schedule" ? <Field label="Duration or schedule"><input value={draft.duration} onChange={event => update("duration", event.target.value)} placeholder="30s or 5m"/></Field> : null}
-      {draft.lifetime !== "permanent" ? <><Field label="Reset condition"><select value={draft.resetConditionType} onChange={event => update("resetConditionType", event.target.value)}>{CONDITIONS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></Field>
-      {draft.resetConditionType !== "none" ? <><Field label="Reset target"><input value={draft.resetConditionTarget} onChange={event => update("resetConditionTarget", event.target.value)} placeholder="Optional value or identifier"/></Field><Field label="Reset amount"><input type="number" min={1} value={draft.resetCount} onChange={event => update("resetCount", Number(event.target.value))}/></Field></> : null}</> : null}
+      {draft.lifetime !== "permanent" ? <><Field label="Reset condition"><select value={draft.resetConditionType} onChange={event => update("resetConditionType", event.target.value)}>{draft.resetConditionType === "custom" ? <option value="custom">Keep existing compound condition</option> : null}{CONDITIONS.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></Field>
+      {draft.resetConditionType !== "none" ? <><Field label="Reset target"><input disabled={draft.resetConditionType === "custom"} value={draft.resetConditionTarget} onChange={event => update("resetConditionTarget", event.target.value)} placeholder="Optional value or identifier"/></Field><Field label="Reset amount"><input type="number" min={1} disabled={draft.resetConditionType === "custom"} value={draft.resetCount} onChange={event => update("resetCount", Number(event.target.value))}/></Field></> : null}</> : null}
     </div></section>
-    {!inventoryInsertion ? <section className="dialog-section"><header><span className="step-number">3</span><div><h3>Presentation and exception</h3><p>An exception normally needs a larger priority than the broader rule.</p></div></header><div className="form-grid">
-      <Field label="JEI and EMI"><select value={draft.viewer} onChange={event => update("viewer", event.target.value)}><option value="inherit">Follow normal policy</option><option value="show">Always show</option><option value="hide">Hide</option><option value="overlay">Show with a locked overlay</option></select></Field>
+    {!inventoryInsertion && !canonicalRecipe && !stage.legacy ? <section className="dialog-section"><header><span className="step-number">3</span><div><h3>Presentation and exception</h3><p>An exception normally needs a larger priority than the broader rule.</p></div></header><div className="form-grid">
+      <Field label="JEI and EMI"><select value={draft.viewer} onChange={event => update("viewer", event.target.value)}><option value="inherit">Follow normal policy</option>{draft.viewer === "custom" ? <option value="custom">Keep separate viewer settings</option> : null}<option value="show">Always show</option><option value="hide">Hide</option><option value="overlay">Show with a locked overlay</option></select></Field>
       <Field label="Optional exception selector"><input value={draft.exception} onChange={event => update("exception", event.target.value)} placeholder="tag:c:swords"/></Field>
       <Field label="Exception priority"><input type="number" value={draft.exceptionPriority} onChange={event => update("exceptionPriority", Number(event.target.value))}/></Field>
     </div></section> : null}

@@ -3,15 +3,11 @@
 ProgressiveStages can read LuckPerms groups and Boolean permissions for a stage and can project a
 stage's existing group or positive permission contributions back to LuckPerms. The integration is
 optional and remains dormant when LuckPerms is absent. It uses the compile only API 5.4 surface and
-was developed against the selected LuckPerms NeoForge 5.4.140 candidate on Minecraft 1.21.1.
-That exact candidate currently fails actual player login on NeoForge 21.1.248 even with
-ProgressiveStages absent. See the [provider login evidence](../verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure).
-Successful server startup alone does not establish compatibility. The
-[adapter source audit](../verification/luckperms-bridge.md#adapter-source-audit) also identifies
-ProgressiveStages defects in persistence, context isolation, ownership and cleanup. Outbound
-storage, reference handling and contextual queries now have isolated regression coverage. Real
-provider context isolation and full lifecycle acceptance remain open, so the provider integration
-is not ready for live use.
+is verified with LuckPerms NeoForge 5.4.150 for authenticated player login on Minecraft 1.21.1 and
+NeoForge 21.1.248. An earlier 5.4.140 candidate failed login even with ProgressiveStages absent;
+the [historical provider evidence](../verification/luckperms-bridge.md#neoforge-211248-dependency-only-login-failure)
+applies to that older artifact. Current verification covers specific transactions, not the complete
+provider lifecycle or multiplayer matrix. See the [editor and runtime regression guide](../test/editor-rule-runtime.md).
 
 ## Configuration
 
@@ -72,13 +68,18 @@ it no longer queries every player directly inside the reload call. Context calcu
 part of shutdown completion. These controls still require real provider and native permission
 acceptance alongside the core and isolated API checks.
 
-User load, unload and node changes enqueue the affected UUID. Group changes, full synchronization
+User load, unload, node changes and external context update notifications enqueue the affected UUID.
+Native LuckPerms game mode and dimension notifications therefore recheck contextual stage eligibility.
+Notifications caused by publishing or withdrawing the bridge's own marker are ignored only on the
+same thread and for the exact target object. This prevents a reconciliation loop without ignoring
+another player's context change. Custom context calculators must notify LuckPerms when their values change.
+Group changes, full synchronization
 and provider configuration reload request a bounded rescan. Callbacks invalidate calculator state
 without querying stages or loading users; provider cache notifications happen during server
 reconciliation. Cache recalculation alone does not trigger another pass. Shutdown disables event
 delivery before detaching listeners. Failed detachment keeps inactive handles for cleanup retry.
 
-Actual provider behavior is still unverified. Do not treat restarting as proof of cleanup, and do
+The complete provider lifecycle matrix remains open. Do not treat restarting as proof of cleanup, and do
 not remove historical persistent nodes merely because their names match a mapping. Any node left
 by an older development fixture needs its exact ownership established before removal. The new
 transient ledger does not retroactively claim or delete those historical nodes.
@@ -213,9 +214,12 @@ reconciliation. Callback invalidation schedules fresh work before outbound privi
 Outbound updates also reject changes during permission queries, node writes and publication. A
 rejected batch stops further writes and retains its exact ownership records so fresh reconciliation
 or disconnect can remove submitted nodes. Independent earnings survive this retry; a deliberate
-stage revoke remains effective. A context marker is eligible only while its captured stage,
-provider, membership and definition generations remain current. Core regressions cover these guards;
-actual provider caches and joined player permission behavior still require runtime acceptance.
+stage revoke remains effective. Global stage, provider input and membership revisions protect the
+reconciliation transaction. Published markers instead follow their subject's projection ticket and
+the compiled definition snapshot. Another player's personal stage or provider change does not expire
+unrelated output. Affected subject changes invalidate their tickets; global provider changes and
+reload invalidate everyone. Core regressions cover both scopes. Authenticated multiplayer remains a
+separate acceptance requirement.
 
 Offline source updates now evaluate qualification and history in an isolated draft. If the provider,
 stage state, owner context, server lifecycle or attachment changes before commit, the draft is

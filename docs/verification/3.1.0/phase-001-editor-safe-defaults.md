@@ -17,15 +17,17 @@
 - structure controls expose locked entries, entry allowance, signed priority, entry padding, block break, block placement, explosions, and mob spawning. existing source values remain separate from omitted defaults.
 - main settings validate against the loaded NeoForge spec, apply live values through the loaded config cache, report restart pending values, and restore files and effective values when stage reload fails.
 - the packaged editor assets are included in the mod resources.
+- toggle controls expose their plain labels to keyboard and assistive technology, including the
+  structure entry and protection controls.
 
 ## verification
 
 - `npm ci` passed.
 - `npm run check` passed.
-- `npm test -- --run` passed, 16 files and 154 tests.
-- `npm run build` passed. packaged `app.js` sha256 is `076e2cc27826b4fc5dc018fe1b9af726277ca68a2e41d35155715b0675b8d9b7`. packaged `app.css` sha256 is `61fe46e00c1c89c2ccd2c120b8f11fa2771c68c529b0687aef1f59340e64d00c`.
+- `npm test -- --run` passed, 16 files and 155 tests.
+- `npm run build` passed. packaged `app.js` sha256 is `47d9c5bde198f25dc0b152a9d72b45fe4983954eb3632da9b41eb5b9e0e54d85`. packaged `app.css` sha256 is `61fe46e00c1c89c2ccd2c120b8f11fa2771c68c529b0687aef1f59340e64d00c`.
 - `./gradlew test --no-daemon` passed.
-- `./gradlew build --no-daemon` passed. candidate jar sha256 is `f4f822e1fa2ab9f9b8df38af3c3024742ec191a855d6c0b54c22600eb4986bc2`.
+- `./gradlew build --no-daemon` passed. candidate jar sha256 is `fc3b66715162b72c7332086bb056d4de8f899d89f21f4013066566b01a37a728`.
 - `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
 - `git diff --check` passed.
 

@@ -152,6 +152,19 @@ describe("generic rule editing", () => {
     expect(saved).toContain('"id:minecraft:sharpness|priority=175"');
     expect(saved).not.toContain("[[rules]]");
   });
+
+  it("allows structure entry without dropping independent protections", async () => {
+    const structureSource = '[structures]\nlocked_entry=["id:minecraft:ancient_city"]\n[structures.rules]\npriority=-5\nprevent_block_place=true\ncustom="keep"\n';
+    editor.boot.draft.files[rulesPath] = structureSource;
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledOnce());
+    const saved = String(editor.mutateFile.mock.calls[0][1]);
+    expect(saved).toContain("entry_allowed = true");
+    expect(saved).toMatch(/prevent_block_place\s*=\s*true/);
+    expect(saved).toMatch(/priority\s*=\s*-5/);
+    expect(saved).toContain('custom="keep"');
+  });
 });
 
 describe("inventory condition authoring", () => {

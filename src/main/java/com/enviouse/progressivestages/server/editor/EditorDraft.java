@@ -94,6 +94,16 @@ public final class EditorDraft {
     }
 
     public synchronized List<DraftDiffEntry> diff() {
+        return snapshot().diff();
+    }
+
+    synchronized Snapshot snapshot() {
+        Map<String, String> base = Map.copyOf(baseFiles);
+        Map<String, String> current = Map.copyOf(files);
+        return new Snapshot(base, current, computeDiff(base, current), revision);
+    }
+
+    private static List<DraftDiffEntry> computeDiff(Map<String, String> baseFiles, Map<String, String> files) {
         Set<String> paths = new java.util.TreeSet<>();
         paths.addAll(baseFiles.keySet());
         paths.addAll(files.keySet());
@@ -109,6 +119,9 @@ public final class EditorDraft {
         }
         return List.copyOf(output);
     }
+
+    record Snapshot(Map<String, String> baseFiles, Map<String, String> files,
+                    List<DraftDiffEntry> diff, long revision) {}
 
     public synchronized Map<String, String> files() { return Map.copyOf(files); }
     public synchronized Map<String, String> baseFiles() { return Map.copyOf(baseFiles); }

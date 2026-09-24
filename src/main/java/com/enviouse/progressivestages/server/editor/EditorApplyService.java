@@ -37,10 +37,13 @@ final class EditorApplyService {
 
     synchronized EditorApplyResult apply(MinecraftServer server, UUID actor, EditorDraft draft,
                                          long currentRevision, boolean confirmed) {
-        List<DraftDiffEntry> diff = draft.diff();
-        DraftValidation validation = EditorDraftValidator.validate(draft.files(), draft.revision());
+        EditorDraft.Snapshot snapshot = draft.snapshot();
+        List<DraftDiffEntry> diff = snapshot.diff();
+        Map<String, String> files = snapshot.files();
+        Map<String, String> before = snapshot.baseFiles();
+        DraftValidation validation = EditorDraftValidator.validate(files, snapshot.revision());
         if (!validation.valid()) return result(false, "", currentRevision, diff, validation, "validation_failed", "The draft is invalid");
-        if (!liveFilesMatch(draft.baseFiles())) {
+        if (!liveFilesMatch(before)) {
             return result(false, "", currentRevision, diff, validation, "configuration_conflict",
                 "The live configuration files changed after this draft opened");
         }
@@ -50,7 +53,7 @@ final class EditorApplyService {
         EditorDraftValidator.MainConfigValidation mainConfig = null;
         Config previousMainConfig = null;
         if (mainChanged) {
-            mainConfig = EditorDraftValidator.validateMainConfig(draft.files().getOrDefault("progressivestages.toml", ""));
+            mainConfig = EditorDraftValidator.validateMainConfig(files.getOrDefault("progressivestages.toml", ""));
             if (!mainConfig.valid()) {
                 return result(false, "", currentRevision, diff, validation, "validation_failed",
                     String.join(". ", mainConfig.errors()));
@@ -59,7 +62,6 @@ final class EditorApplyService {
         }
         String transaction = IDS.format(Instant.now()) + "_" + actor.toString().substring(0, 8);
         Path backup = backupRoot.resolve(transaction);
-        Map<String, String> before = draft.baseFiles();
         boolean mainConfigApplied = false;
         try {
             Files.createDirectories(backup);
@@ -76,7 +78,7 @@ final class EditorApplyService {
             for (DraftDiffEntry entry : diff) {
                 Path target = root.resolve(entry.path()).normalize();
                 if (!target.startsWith(root)) throw new IOException("Draft path escaped the stages root");
-                String next = draft.files().get(entry.path());
+                String next = files.get(entry.path());
                 if (next == null) {
                     Files.deleteIfExists(target);
                     prune(target.getParent());

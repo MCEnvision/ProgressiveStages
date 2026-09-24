@@ -11,6 +11,8 @@ import com.enviouse.progressivestages.common.rehaul.condition.SubjectScope;
 import com.enviouse.progressivestages.common.rehaul.lifecycle.CompiledLifecycleRule;
 import com.enviouse.progressivestages.common.rehaul.lifecycle.LifecycleDirection;
 import com.enviouse.progressivestages.common.rehaul.lifecycle.RepeatMode;
+import com.enviouse.progressivestages.common.rehaul.decision.PriorityCascade;
+import com.enviouse.progressivestages.common.rehaul.decision.ResolvedPriority;
 import com.enviouse.progressivestages.common.trigger.TriggerCondition;
 import com.enviouse.progressivestages.common.trigger.TriggerMode;
 import net.minecraft.resources.ResourceLocation;
@@ -50,7 +52,10 @@ public final class LegacyStageCompiler {
         addCategory(rules, stage, "mobs", "spawn", locks.mobSpawns(), root);
         addCategory(rules, stage, "recipes.ids", "craft", locks.recipeIds(), root);
         addCategory(rules, stage, "recipes.outputs", "craft", locks.recipeOutputs(), root);
-        addCategory(rules, stage, "structures", "enter", locks.structures().lockedEntry(), root);
+        if (!locks.structures().entryAllowed()) {
+            addCategory(rules, stage, "structures", "enter", locks.structures().lockedEntry(), root,
+                locks.structures().priority(), true);
+        }
 
         CategoryLocks dimensions = CategoryLocks.builder().addLocked(
             locks.lockedDimensions().stream().map(ResourceLocation::toString).toList()).build();
@@ -153,14 +158,29 @@ public final class LegacyStageCompiler {
 
     private static void addCategory(List<CompiledRule> output, StageDefinition stage, String category,
                                     String action, CategoryLocks locks, ConfigProvenance root) {
+        addCategory(output, stage, category, action, locks, root, null, false);
+    }
+
+    private static void addCategory(List<CompiledRule> output, StageDefinition stage, String category,
+                                    String action, CategoryLocks locks, ConfigProvenance root,
+                                    Integer rulePriority, boolean structureConvenience) {
         List<ResourceLocation> parentIds = new ArrayList<>();
         int index = 0;
         for (PrefixEntry prefix : locks.locked()) {
             ResourceLocation id = ruleId(stage.getId(), category, index++, "lock");
             parentIds.add(id);
+            ResolvedPriority priority = structureConvenience
+                ? PriorityCascade.resolve(prefix.explicitPriority(), rulePriority, null,
+                    stage.getPriority(), 0)
+                : new ResolvedPriority(stage.getPriority(),
+                    com.enviouse.progressivestages.common.rehaul.decision.PrioritySource.STAGE);
+            Map<String, Object> settings = structureConvenience
+                ? Map.of("priority_source", priority.source().name().toLowerCase(java.util.Locale.ROOT),
+                    "structure_convenience", true)
+                : Map.of();
             output.add(new CompiledRule(id, stage.getId(), category, action, RuleEffect.LOCK,
-                SelectorSpec.fromPrefix(prefix), stage.getPriority(), RuleLifetime.PERMANENT,
-                new ConditionNode.Constant(true), null, ViewerPolicy.INHERIT, Map.of(),
+                SelectorSpec.fromPrefix(prefix), priority.value(), RuleLifetime.PERMANENT,
+                new ConditionNode.Constant(true), null, ViewerPolicy.INHERIT, settings,
                 root.child(category, "locked")));
         }
 

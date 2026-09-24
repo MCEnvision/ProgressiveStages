@@ -5,6 +5,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import net.minecraft.commands.CommandSourceStack;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -53,5 +54,24 @@ class StageCommandAliasTest {
 
         assertEquals(1, dispatcher.execute("grant wizard:warlock   ", new Object()));
         assertEquals("wizard:warlock", StageId.parse(captured.get()).toString());
+    }
+
+    @Test
+    void diagnosticCategoriesRemainUnderStageDebug() {
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        StageCommand.register(dispatcher);
+        var debug = dispatcher.getRoot().getChild("stage").getChild("debug");
+        for (String category : java.util.List.of("interactions", "progression", "permissions", "editor",
+                "structures", "abilities")) {
+            var command = debug.getChild(category);
+            assertTrue(command != null, category);
+            assertTrue(command.getChild("on") != null, category + " on");
+            if (category.equals("structures")) {
+                assertTrue(command.getChild("actorless") != null,
+                    category + " actorless structure");
+            }
+            assertTrue(command.getChild("status") != null, category + " status");
+            assertTrue(command.getChild("off") != null, category + " off");
+        }
     }
 }

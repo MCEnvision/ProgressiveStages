@@ -105,6 +105,41 @@ class Schema4StageCompilerTest {
         assertEquals(1, compiled.progression().challenges().size());
         assertEquals(2, compiled.progression().challenges().getFirst().budgets().getFirst().maximum());
     }
+
+    @Test
+    void keepsEntryAllowedStructureProtectionOutOfCompiledEntryRules() {
+        var parsed = StagePackageParser.parseContents("test", "stage.toml",
+            "[schema]\nversion=4\n[stage]\nid=\"pack:protection\"\npriority=12\n",
+            "rules.toml", """
+                [structures]
+                locked_entry = ["minecraft:stronghold|priority=20"]
+                [structures.rules]
+                entry_allowed = true
+                priority = -7
+                prevent_block_place = true
+                """, "progression.toml", "");
+        assertTrue(parsed.isSuccess(), parsed.getErrorMessage());
+        var definition = parsed.getStageDefinition();
+        assertTrue(definition.getLocks().structures().entryAllowed());
+        var compiled = Schema4StageCompiler.compile(definition, parsed.getSourceConfig(), "test", 0);
+        assertTrue(compiled.rules().stream().noneMatch(rule -> rule.category().equals("structures")
+            && rule.action().equals("enter")));
+    }
+
+    @Test
+    void usesStructureGlobalPriorityWhenStagePriorityIsOmitted() {
+        var parsed = StagePackageParser.parseContents("test", "stage.toml",
+            "[schema]\nversion=4\n[stage]\nid=\"pack:protection\"\n",
+            "rules.toml", """
+                [structures]
+                global_priority = -2
+                locked_entry = ["minecraft:stronghold"]
+                """, "progression.toml", "");
+        assertTrue(parsed.isSuccess(), parsed.getErrorMessage());
+        var compiled = Schema4StageCompiler.compile(parsed.getStageDefinition(), parsed.getSourceConfig(), "test", 0);
+        assertTrue(compiled.rules().stream().anyMatch(rule -> rule.category().equals("structures")
+            && rule.priority() == -2));
+    }
     @Test
     void exceptionsReferenceEveryExpandedParentAndInheritOwnership() {
         var parsed = StagePackageParser.parseContents("test", "stage.toml",

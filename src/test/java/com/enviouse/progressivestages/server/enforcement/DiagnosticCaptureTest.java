@@ -3,6 +3,8 @@ package com.enviouse.progressivestages.server.enforcement;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.stage.OwnerRef;
 import com.enviouse.progressivestages.common.stage.OwnerKind;
+import com.enviouse.progressivestages.common.lock.LockRegistry;
+import com.enviouse.progressivestages.common.api.structure.StructureAction;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -162,6 +164,45 @@ class DiagnosticCaptureTest {
         for (int i = 1; i < MAX_COLLECTION_LENGTH; i++) first.ownerLabel(new OwnerRef(OwnerKind.PERSONAL, UUID.randomUUID()));
         assertEquals("owner_truncated", first.ownerLabel(new OwnerRef(OwnerKind.PERSONAL, UUID.randomUUID())));
         assertEquals("owner1", first.ownerLabel(owner));
+    }
+
+    @Test
+    void structureCaptureRecordsActorlessScopeAndAttribution() throws Exception {
+        var capture = new Capture("structure", null, "structures",
+            directory.resolve("structure.log"), 100,
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("overworld"),
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold"), null);
+        captures.add(capture);
+        var contribution = new LockRegistry.StructureContribution(
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold"),
+            StageId.parse("test:locked"), StructureAction.ACTORLESS_EXPLOSION, 4,
+            "pack.toml#structures.rules.locked_entry[0]", 0);
+        assertTrue(capture.acceptsStructure("structures",
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("overworld"),
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold")));
+        capture.recordStructure(101,
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold"),
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("overworld"),
+            StructureAction.ACTORLESS_EXPLOSION, "actorless", List.of(contribution), contribution,
+            "not_evaluated", "not_applicable", false);
+        capture.stop(StopReason.MANUAL);
+        capture.startWriter();
+        awaitWriter(capture);
+        String output = Files.readString(capture.status().output());
+        assertTrue(output.contains("\"actor_scope\":\"actorless\""));
+        assertTrue(output.contains("pack.toml#structures.rules.locked_entry[0]"));
+    }
+
+    @Test
+    void actorlessWinnerUsesPriorityAndDeterministicTieBreak() {
+        var low = new LockRegistry.StructureContribution(
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold"),
+            StageId.parse("test:low"), StructureAction.ACTORLESS_EXPLOSION, 2, "low", 0);
+        var high = new LockRegistry.StructureContribution(
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold"),
+            StageId.parse("test:high"), StructureAction.ACTORLESS_EXPLOSION, 9, "high", 0);
+
+        assertEquals(high, InteractionCaptureManager.selectStructureWinner(List.of(low, high)));
     }
 
     private Capture capture() {

@@ -98,15 +98,28 @@ public final class Schema4StageCompiler {
         Config category = category(source, rule.category());
         Integer entry = rule.selector().explicitPriority();
         if (entry == null) entry = lookupPriority(category, rule.selector().raw());
+        Integer rulePriority = null;
+        if (Boolean.TRUE.equals(rule.settings().get("structure_convenience")) && category != null) {
+            rulePriority = integer(category.get("rules"), "priority");
+        }
         Integer categoryPriority = integer(category, "priority");
-        ResolvedPriority priority = PriorityCascade.resolve(entry, null, categoryPriority,
-            stage.getPriority(), globalPriority);
+        int effectiveGlobalPriority = globalPriority;
+        if ("structures".equals(rule.category())) {
+            Integer configuredGlobalPriority = integer(category, "global_priority");
+            if (configuredGlobalPriority != null) effectiveGlobalPriority = configuredGlobalPriority;
+        }
+        ResolvedPriority priority = PriorityCascade.resolve(entry, rulePriority, categoryPriority,
+            stagePriority(stage), effectiveGlobalPriority);
         ViewerPolicy viewer = viewerPolicy(category, rule.selector().raw());
         Map<String, Object> settings = new LinkedHashMap<>(rule.settings());
         settings.put("priority_source", priority.source().name().toLowerCase(Locale.ROOT));
         return new CompiledRule(rule.id(), rule.ownerStage(), rule.category(), rule.action(),
             rule.effect(), rule.selector(), priority.value(), rule.lifetime(), rule.condition(),
             rule.parentRuleId(), viewer, settings, rule.provenance());
+    }
+
+    private static Integer stagePriority(StageDefinition stage) {
+        return stage != null && stage.isPriorityAuthored() ? stage.getPriority() : null;
     }
 
     private static void addUnlocks(List<CompiledRule> rules, Config source, StageDefinition stage,
@@ -122,7 +135,7 @@ public final class Schema4StageCompiler {
                 Integer entry = selector.explicitPriority();
                 if (entry == null) entry = lookupPriority(unlocks, raw);
                 ResolvedPriority priority = PriorityCascade.resolve(entry, integer(unlocks, "priority"),
-                    null, stage.getPriority(), globalPriority);
+                    null, stagePriority(stage), globalPriority);
                 ResourceLocation id = childId(stage.getId(), "unlocks/" + category + "/" + index++);
                 rules.add(new CompiledRule(id, stage.getId(), category, defaultAction(category),
                     RuleEffect.ALLOW, selector, priority.value(), RuleLifetime.PERMANENT,
@@ -171,7 +184,7 @@ public final class Schema4StageCompiler {
                     SelectorSpec selector = SelectorSpec.parse(raw).orElseThrow(() ->
                         new IllegalArgumentException("Invalid rule selector. " + raw));
                     ResolvedPriority priority = PriorityCascade.resolve(selector.explicitPriority(), rulePriority,
-                        null, stage.getPriority(), globalPriority);
+                        null, stagePriority(stage), globalPriority);
                     ResourceLocation id = selectorIndex == 0 && totalTargetCount(targets) == 1
                         ? baseId : childId(baseId, "target/" + selectorIndex);
                     output.add(new CompiledRule(id, stage.getId(), category,
@@ -192,7 +205,7 @@ public final class Schema4StageCompiler {
                         Integer exceptionPriority = integer(exception.get("priority"));
                         ResolvedPriority priority = PriorityCascade.resolve(selector.explicitPriority(),
                             exceptionPriority != null ? exceptionPriority : rulePriority, null,
-                            stage.getPriority(), globalPriority);
+                            stagePriority(stage), globalPriority);
                         List<ResourceLocation> parents = exceptionEffect != RuleEffect.EXCLUDE
                             ? java.util.Collections.singletonList(null)
                             : exception.get("parent") != null ? List.of(optionalId(exception.get("parent"), baseId))

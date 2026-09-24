@@ -10,6 +10,7 @@ Use this page to find the maintained project documentation.
 
 ## Verification
 
+- [3.1.0 Phase 000 structure and diagnostics](verification/3.1.0/phase-000-structure-diagnostics.md)
 - [3.0.5 release and completion](verification/3.0.5-completion.md)
 - [Selling Bin interaction repair](verification/selling-bin-interaction-repair.md)
 - [Selling Bin transaction GameTests](test/selling-bin.md)

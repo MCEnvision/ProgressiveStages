@@ -1586,10 +1586,13 @@ locked_entry = [
     "id:minecraft:ocean_monument",
     "id:minecraft:stronghold",
     "id:minecraft:ancient_city",
-    "tag:minecraft:on_ocean_explorer_maps",
 ]
+priority = 0
+global_priority = 0
 
 [structures.rules]
+entry_allowed = false
+priority = 0
 prevent_block_break = true
 prevent_block_place = true
 prevent_explosions = true
@@ -1597,8 +1600,26 @@ disable_mob_spawning = true
 entry_padding = 3            # New in 2.5 — see below (also accepted directly under [structures])
 ```
 
-Two parts: the list of locked structure IDs (`locked_entry`) and a single
-`[structures.rules]` table whose flags apply **across all listed structures**.
+Two parts: the list of exact structure IDs (`locked_entry`) and a single
+`[structures.rules]` table whose contributions apply to those IDs. The optional
+`[structures].priority` value is the category fallback in the shared priority
+cascade. Structure lists accept exact resource IDs, with an optional
+`|priority=N` suffix. Tag,
+namespace, wildcard, and name selectors are rejected in schema 4 because
+structure rules must remain attributable to one generated structure type.
+Schemas 1 through 3 keep their earlier selector behavior so existing stage
+files continue to load during an upgrade.
+The optional `[structures].global_priority` value supplies the final fallback
+for structure contributions when no selector, rule, category, or stage priority
+is present.
+
+`entry_allowed` defaults to `false`. Set it to `true` on a protection stage to
+remove only that stage's entry denial. The stage can then deny placement,
+breaking, explosions, or spawning while a different stage controls entry.
+Those protection flags never create an allow rule. A protection-only stage can
+therefore permit entry and container access while still denying placement.
+`priority` is optional and accepts every signed 32 bit integer. It participates
+in the normal selector, rule, category, stage, and global priority cascade.
 
 #### `locked_entry`
 
@@ -1628,19 +1649,21 @@ players from clipping the boundary or re-triggering the check immediately.
 
 #### `[structures.rules]`
 
-| Flag | Effect inside locked structures |
+| Flag | Effect inside matching structures |
 |------|------------------------------|
-| `prevent_block_break` | `BlockEvent.BreakEvent` cancelled. Players also get Mining Fatigue V while inside (tactile feedback). |
-| `prevent_block_place` | `BlockEvent.EntityPlaceEvent` cancelled. |
-| `prevent_explosions` | Block positions inside locked structures are removed from the explosion's affected-blocks list. |
-| `disable_mob_spawning` | `FinalizeSpawnEvent` cancelled for spawns inside the structure. |
+| `entry_allowed` | Removes this stage's entry denial only. It never grants access by itself. |
+| `priority` | Sets the optional rule priority for this stage's structure contributions. |
+| `prevent_block_break` | `BlockEvent.BreakEvent` cancelled while the owner stage is missing. |
+| `prevent_block_place` | `BlockEvent.EntityPlaceEvent` cancelled while the owner stage is missing. |
+| `prevent_explosions` | Block positions inside matching structures are removed from the explosion's affected-blocks list. No player is used for this decision. |
+| `disable_mob_spawning` | `FinalizeSpawnEvent` cancelled for spawns inside matching structures. No player is used for this decision. |
 
-#### Chest locking (always on, no flag needed)
+#### Container locking from entry denial
 
-**Right-click on any container inside a locked structure is always refused**
-regardless of `prevent_block_break` / `prevent_block_place`. So is **breaking
-the container**. This is the "you can't spill the loot by mining the chest"
-guarantee — see §2.12 in the v2 update plan and
+Right-click on a container, and breaking that container, is refused while an
+active entry contribution denies the player. Protection-only contributions do
+not create an implicit container lock. This keeps entry and protection stages
+independent. See
 [`StructureEnforcer.isContainerAt`](src/main/java/com/enviouse/progressivestages/server/enforcement/StructureEnforcer.java).
 
 Containers include:
@@ -2600,8 +2623,9 @@ abilities = []
 ```
 
 Every target category accepts `all:*`. Items, blocks, fluids, and entities also accept `id:`,
-implicit exact ids, `mod:`, `tag:` or `#`, and `name:`. Recipes, dimensions, structures, and
-abilities accept exact ids, `id:`, `mod:`, and `name:` but not tags. Ability ids enforced by the built in engine are `jump`, `elytra`, `sprint`,
+implicit exact ids, `mod:`, `tag:` or `#`, and `name:`. Recipes, dimensions, and abilities accept
+their category specific selectors. Structure convenience targets accept exact IDs only, with an
+optional `|priority=N` suffix, so every structure contribution has an unambiguous source. Ability ids enforced by the built in engine are `jump`, `elytra`, `sprint`,
 `swim`, and `climb`.
 
 Conditional item and block decisions continue through the normal global toggles and the containing
@@ -3823,7 +3847,7 @@ that enforcement path for every stage, regardless of stage file content.
 | `block_mob_replacements` | `true` | `[[mobs.replacements]]` |
 | `block_region_entry` | `true` | `[[regions]]` push-back + flags |
 | `region_tick_frequency` | `20` | Ticks between region + structure entry checks. 20 = 1s. |
-| `block_structure_entry` | `true` | `[structures]` entry + chest locking + rule flags |
+| `block_structure_entry` | `true` | `[structures]` entry and structure rule enforcement |
 | `allow_creative_bypass` | `true` | Creative-mode players bypass enforcement |
 | `reveal_stage_names_only_to_operators` | `true` | Non-op players see generic lock messages without stage names (spoiler-free progression) |
 | `mask_locked_item_names` | `true` | Locked items show as `"Unknown Item"` (configurable text). Global default for the per-stage `[display].display_as_unknown_item`. |

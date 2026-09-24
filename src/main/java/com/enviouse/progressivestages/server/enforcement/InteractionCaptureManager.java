@@ -3,11 +3,14 @@ package com.enviouse.progressivestages.server.enforcement;
 import com.enviouse.progressivestages.common.api.InteractionDecision;
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.StageDefinition;
+import com.enviouse.progressivestages.common.lock.LockRegistry;
+import com.enviouse.progressivestages.common.api.structure.StructureAction;
 import com.enviouse.progressivestages.common.stage.OwnerRef;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -64,7 +67,8 @@ public final class InteractionCaptureManager {
                 || server.getPlayerList().getPlayer(target.getUUID()) != target) return StartResult.invalid();
         String normalizedCategory = category == null || category.isBlank() ? "interactions"
             : category.trim().toLowerCase(Locale.ROOT);
-        if (!List.of("interactions", "progression", "permissions", "editor").contains(normalizedCategory))
+        if (!List.of("interactions", "progression", "permissions", "editor", "structures", "abilities")
+                .contains(normalizedCategory))
             return StartResult.invalid();
         synchronized (LOCK) {
             if (lastCapture != null && !lastCapture.canReplace())
@@ -73,7 +77,29 @@ public final class InteractionCaptureManager {
             Path output = server.getServerDirectory().resolve("logs").resolve("progressivestages")
                 .resolve(normalizedCategory).resolve(id + ".log");
             Capture capture = new Capture(id, target.getUUID(), normalizedCategory, output, server.getTickCount(),
-                CaptureIdentity.snapshot());
+                null, null, CaptureIdentity.snapshot());
+            active = capture;
+            lastCapture = capture;
+            capture.startWriter();
+            return StartResult.started(capture.status());
+        }
+    }
+
+    public static StartResult startStructure(MinecraftServer server, ResourceLocation dimension,
+                                              ResourceLocation structure) {
+        if (server == null || dimension == null || structure == null) return StartResult.invalid();
+        var level = server.getLevel(net.minecraft.resources.ResourceKey.create(
+            net.minecraft.core.registries.Registries.DIMENSION, dimension));
+        if (level == null || level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+            .get(structure) == null) return StartResult.invalid();
+        synchronized (LOCK) {
+            if (lastCapture != null && !lastCapture.canReplace())
+                return StartResult.alreadyActive(lastCapture.status());
+            String id = UUID.randomUUID().toString().replace("-", "");
+            Path output = server.getServerDirectory().resolve("logs").resolve("progressivestages")
+                .resolve("structures").resolve(id + ".log");
+            Capture capture = new Capture(id, null, "structures", output, server.getTickCount(),
+                dimension, structure, CaptureIdentity.snapshot());
             active = capture;
             lastCapture = capture;
             capture.startWriter();
@@ -106,7 +132,7 @@ public final class InteractionCaptureManager {
     public static void tick(MinecraftServer server) {
         Capture capture = active;
         if (capture == null || server == null) return;
-        if (server.getPlayerList().getPlayer(capture.target()) == null) {
+        if (capture.target() != null && server.getPlayerList().getPlayer(capture.target()) == null) {
             stop(StopReason.TARGET_REMOVED);
             return;
         }
@@ -177,6 +203,47 @@ public final class InteractionCaptureManager {
         capture.recordPermission(player, stageId, ruleId, desired, reason, providerState);
     }
 
+    public static void recordStructure(ServerPlayer player, ResourceLocation structureId,
+                                       ResourceLocation dimension, StructureAction action,
+                                       List<LockRegistry.StructureContribution> contributors,
+                                       LockRegistry.StructureContribution winner,
+                                       String providerResult, String sessionReason, boolean allowed) {
+        Capture capture = active;
+        if (capture == null || player == null || action == null
+                || !capture.accepts("structures", player.getUUID())) return;
+        capture.recordStructure(player.getServer().getTickCount(), structureId, dimension, action,
+            "player", contributors, winner, providerResult, sessionReason, allowed);
+    }
+
+    public static void recordAbility(ServerPlayer player, String ability, boolean locked,
+                                     String gateSource, java.util.Set<StageId> missing, boolean syncChanged) {
+        Capture capture = active;
+        if (capture == null || player == null || !capture.accepts("abilities", player.getUUID())) return;
+        capture.recordAbility(player.getServer().getTickCount(), ability, locked, gateSource, missing, syncChanged);
+    }
+
+    public static void recordActorlessStructure(MinecraftServer server, ResourceLocation structureId,
+                                                 ResourceLocation dimension, StructureAction action,
+                                                 List<LockRegistry.StructureContribution> contributors,
+                                                 boolean allowed) {
+        Capture capture = active;
+        if (capture == null || action == null || !capture.acceptsStructure("structures", dimension, structureId)) return;
+        LockRegistry.StructureContribution winner = selectStructureWinner(contributors);
+        capture.recordStructure(server == null ? 0L : server.getTickCount(), structureId, dimension, action,
+            "actorless", contributors, winner,
+            "not_evaluated", "not_applicable", allowed);
+    }
+
+    static LockRegistry.StructureContribution selectStructureWinner(
+            List<LockRegistry.StructureContribution> contributors) {
+        if (contributors == null) return null;
+        return contributors.stream()
+            .sorted(java.util.Comparator.comparingInt(LockRegistry.StructureContribution::priority).reversed()
+                .thenComparing(value -> value.ownerStage().toString())
+                .thenComparing(LockRegistry.StructureContribution::sourceKey))
+            .findFirst().orElse(null);
+    }
+
     public static void recordCommandPermission(ServerPlayer player, StageId stageId,
             com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context,
             boolean allowed, boolean nativeAllowed, String reason) {
@@ -223,6 +290,8 @@ public final class InteractionCaptureManager {
         private final String category;
         private final Path output;
         private final long startedTick;
+        private final ResourceLocation scopeDimension;
+        private final ResourceLocation scopeStructure;
         private final ArrayBlockingQueue<QueuedRecord> queue = new ArrayBlockingQueue<>(MAX_QUEUE);
         private volatile boolean active = true;
         private volatile StopReason stopReason;
@@ -239,15 +308,22 @@ public final class InteractionCaptureManager {
         private int reservedHeaderBytes;
 
         Capture(String id, UUID target, String category, Path output, long startedTick) {
-            this(id, target, category, output, startedTick, null);
+            this(id, target, category, output, startedTick, null, null, null);
         }
 
         Capture(String id, UUID target, String category, Path output, long startedTick, CaptureIdentity identity) {
+            this(id, target, category, output, startedTick, null, null, identity);
+        }
+
+        Capture(String id, UUID target, String category, Path output, long startedTick,
+                ResourceLocation scopeDimension, ResourceLocation scopeStructure, CaptureIdentity identity) {
             this.id = id;
             this.target = target;
             this.category = category;
             this.output = output;
             this.startedTick = startedTick;
+            this.scopeDimension = scopeDimension;
+            this.scopeStructure = scopeStructure;
             this.rateWindowStart = startedTick;
             this.currentTick = startedTick;
             this.identity = identity;
@@ -259,7 +335,12 @@ public final class InteractionCaptureManager {
         String category() { return category; }
         boolean isActive() { return active; }
         boolean accepts(String requestedCategory, UUID actor) {
-            return active && category.equals(requestedCategory) && target.equals(actor);
+            return active && category.equals(requestedCategory) && target != null && target.equals(actor);
+        }
+        boolean acceptsStructure(String requestedCategory, ResourceLocation dimension, ResourceLocation structure) {
+            return active && category.equals(requestedCategory) && target == null
+                && scopeDimension != null && scopeDimension.equals(dimension)
+                && scopeStructure != null && scopeStructure.equals(structure);
         }
         boolean canReplace() { return !active && writerFinished; }
 
@@ -294,6 +375,26 @@ public final class InteractionCaptureManager {
                 return progressionLine(stageId, definition, owner, before, after, cause, reason,
                     recipientCount, tick);
             });
+        }
+
+        synchronized void recordStructure(long tick, ResourceLocation structureId, ResourceLocation dimension,
+                                           StructureAction action, String actorScope,
+                                           List<LockRegistry.StructureContribution> contributors,
+                                           LockRegistry.StructureContribution winner,
+                                           String providerResult, String sessionReason, boolean allowed) {
+            recordLine(tick, () -> structureLine(tick, structureId, dimension, action, actorScope,
+                contributors, winner, providerResult, sessionReason, allowed));
+        }
+
+        synchronized void recordAbility(long tick, String ability, boolean locked, String gateSource,
+                                        java.util.Set<StageId> missing, boolean syncChanged) {
+            recordLine(tick, () -> "{\"capture_id\":\"" + id + "\",\"sequence\":" + (records + 1)
+                + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"abilities\""
+                + ",\"definition_revision\":" + StageFileLoader.getInstance().getCompiledSnapshot().revision()
+                + ",\"ability\":\"" + esc(ability) + "\",\"gate_source\":\"" + esc(gateSource)
+                + "\",\"locked\":" + locked + "," + stageFields("missing_stages",
+                    missing == null ? List.of() : missing.stream().sorted(java.util.Comparator.comparing(StageId::toString)).toList())
+                + ",\"sync_changed\":" + syncChanged + "}\n");
         }
 
         synchronized void recordPermission(ServerPlayer player, StageId stageId, String ruleId,
@@ -366,7 +467,10 @@ public final class InteractionCaptureManager {
 
         synchronized CaptureStatus status() {
             StopReason reason = stopReason;
-            return new CaptureStatus(active, id, "selected", output, records, dropped, bytes,
+            String targetLabel = target != null ? "selected"
+                : "structure:" + (scopeDimension == null ? "" : scopeDimension) + "/"
+                    + (scopeStructure == null ? "" : scopeStructure);
+            return new CaptureStatus(active, id, targetLabel, output, records, dropped, bytes,
                 active ? "active" : (reason == null ? "off" : reason.value()), category, queue.size(),
                 writerFinished ? (reason == StopReason.OUTPUT_ERROR ? "failed" : "drained")
                     : (active ? "writing" : "draining"),
@@ -435,6 +539,38 @@ public final class InteractionCaptureManager {
             }
             return output.append("],\"").append(name).append("_total\":").append(total)
                 .append(",\"").append(name).append("_truncated\":").append(total > count).toString();
+        }
+
+        private String structureLine(long tick, ResourceLocation structureId, ResourceLocation dimension,
+                                     StructureAction action, String actorScope,
+                                     List<LockRegistry.StructureContribution> contributors,
+                                     LockRegistry.StructureContribution winner,
+                                     String providerResult, String sessionReason, boolean allowed) {
+            List<LockRegistry.StructureContribution> values = contributors == null ? List.of() : contributors;
+            int count = Math.min(values.size(), MAX_COLLECTION_LENGTH);
+            StringBuilder entries = new StringBuilder("[" );
+            for (int index = 0; index < count; index++) {
+                if (index > 0) entries.append(',');
+                var value = values.get(index);
+                entries.append("{\"owner_stage\":\"").append(esc(value.ownerStage().toString()))
+                    .append("\",\"action\":\"").append(value.action().name().toLowerCase(Locale.ROOT))
+                    .append("\",\"priority\":").append(value.priority())
+                    .append(",\"source_key\":\"").append(esc(value.sourceKey())).append("\"}");
+            }
+            entries.append(']');
+            return "{\"capture_id\":\"" + id + "\",\"sequence\":" + (records + 1)
+                + ",\"server_tick\":" + tick + ",\"side\":\"server\",\"category\":\"structures\""
+                + ",\"definition_revision\":" + StageFileLoader.getInstance().getCompiledSnapshot().revision()
+                + ",\"action\":\"" + action.name().toLowerCase(Locale.ROOT)
+                + "\",\"structure_id\":\"" + InteractionCaptureManager.id(structureId) + "\",\"dimension_id\":\""
+                + InteractionCaptureManager.id(dimension) + "\",\"actor_scope\":\"" + esc(actorScope)
+                + "\",\"contributors\":" + entries + ",\"contributors_total\":" + values.size()
+                + ",\"contributors_truncated\":" + (values.size() > count)
+                + ",\"winner\":\"" + esc(winner == null ? "" : winner.sourceKey())
+                + "\",\"winner_priority\":" + (winner == null ? 0 : winner.priority())
+                + ",\"provider_result\":\"" + esc(providerResult)
+                + "\",\"session_reason\":\"" + esc(sessionReason)
+                + "\",\"final_result\":\"" + (allowed ? "allow" : "deny") + "\"}\n";
         }
 
         private void write() {

@@ -1,6 +1,7 @@
 package com.enviouse.progressivestages.common.lock;
 
 import com.enviouse.progressivestages.common.api.StageId;
+import com.enviouse.progressivestages.common.api.structure.StructureAction;
 import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.rehaul.ConditionNode;
@@ -315,7 +316,10 @@ public final class LockRegistry {
             }
         }
 
-        structures = structures.merge(locks.structures(), id);
+        String structureSource = stage.getProvenance() == null ? "structures.rules"
+            : stage.getProvenance().file() + "#structures.rules";
+        Integer stagePriority = stage.isPriorityAuthored() ? stage.getPriority() : null;
+        structures = structures.merge(locks.structures(), id, structureSource, stagePriority);
 
         for (String slot : locks.curioLockedSlots()) {
             if (slot != null && !slot.isEmpty()) {
@@ -2024,52 +2028,95 @@ public final class LockRegistry {
         }
     }
 
+    /** An immutable, attributed contribution from one stage to one exact structure action. */
+    public record StructureContribution(ResourceLocation structureId, StageId ownerStage,
+                                        StructureAction action, int priority, String sourceKey,
+                                        int entryPadding) {}
+
     /**
-     * Accumulated structure rules across all stages. Merging is union-style: if any
-     * stage sets a boolean, it applies. Entry-lock IDs carry their own stage.
+     * Accumulated structure rules across all stages. Every contribution keeps its
+     * exact structure, owner, action, priority, source key, and padding.
      */
     public static final class StructureRulesAggregate {
         public static final StructureRulesAggregate EMPTY =
-            new StructureRulesAggregate(Map.of(), false, false, false, false, 0);
+            new StructureRulesAggregate(Map.of());
 
-        /** Structure ID → every required stage. Only exact IDs are used for entry locks. */
+        /** Structure ID to every attributed contribution for that structure. */
+        public final Map<ResourceLocation, List<StructureContribution>> contributions;
+        /** Compatibility view containing only active entry contributions. */
         public final Map<ResourceLocation, Set<StageId>> lockedEntry;
         public final boolean preventBlockBreak;
         public final boolean preventBlockPlace;
         public final boolean preventExplosions;
         public final boolean disableMobSpawning;
-        /** v2.5: max entry-padding buffer (blocks) across all locked-structure stages. */
+        /** v2.5 compatibility maximum across active entry contributions. */
         public final int entryPadding;
 
-        public StructureRulesAggregate(Map<ResourceLocation, Set<StageId>> lockedEntry,
-                                       boolean pbb, boolean pbp, boolean pex, boolean dms, int entryPadding) {
-            Map<ResourceLocation, Set<StageId>> copy = new LinkedHashMap<>();
-            lockedEntry.forEach((id, stages) -> copy.put(id, Set.copyOf(stages)));
-            this.lockedEntry = Collections.unmodifiableMap(copy);
+        public StructureRulesAggregate(Map<ResourceLocation, List<StructureContribution>> contributions) {
+            Map<ResourceLocation, List<StructureContribution>> copy = new LinkedHashMap<>();
+            contributions.forEach((id, values) -> copy.put(id, List.copyOf(values)));
+            this.contributions = Collections.unmodifiableMap(copy);
+            Map<ResourceLocation, Set<StageId>> entries = new LinkedHashMap<>();
+            boolean pbb = false, pbp = false, pex = false, dms = false;
+            int padding = 0;
+            for (var entry : copy.entrySet()) {
+                for (StructureContribution contribution : entry.getValue()) {
+                    switch (contribution.action()) {
+                        case ENTRY -> {
+                            entries.computeIfAbsent(entry.getKey(), ignored -> new LinkedHashSet<>())
+                                .add(contribution.ownerStage());
+                            padding = Math.max(padding, contribution.entryPadding());
+                        }
+                        case BLOCK_BREAK -> pbb = true;
+                        case BLOCK_PLACE -> pbp = true;
+                        case ACTORLESS_EXPLOSION -> pex = true;
+                        case ACTORLESS_SPAWN -> dms = true;
+                        default -> { }
+                    }
+                }
+            }
+            Map<ResourceLocation, Set<StageId>> immutableEntries = new LinkedHashMap<>();
+            entries.forEach((id, stages) -> immutableEntries.put(id, Set.copyOf(stages)));
+            this.lockedEntry = Collections.unmodifiableMap(immutableEntries);
             this.preventBlockBreak = pbb;
             this.preventBlockPlace = pbp;
             this.preventExplosions = pex;
             this.disableMobSpawning = dms;
-            this.entryPadding = Math.max(0, entryPadding);
+            this.entryPadding = padding;
         }
 
-        StructureRulesAggregate merge(LockDefinition.StructureRules other, StageId stage) {
-            if (other == null || other.isEmpty()) return this;
-            Map<ResourceLocation, Set<StageId>> merged = new HashMap<>();
-            this.lockedEntry.forEach((id, stages) -> merged.put(id, new LinkedHashSet<>(stages)));
-            for (PrefixEntry e : other.lockedEntry().locked()) {
-                if (e.kind() == PrefixEntry.Kind.ID && e.id() != null) {
-                    merged.computeIfAbsent(e.id(), k -> new LinkedHashSet<>()).add(stage);
-                }
-            }
-            return new StructureRulesAggregate(
-                merged,
-                this.preventBlockBreak || other.preventBlockBreak(),
-                this.preventBlockPlace || other.preventBlockPlace(),
-                this.preventExplosions || other.preventExplosions(),
-                this.disableMobSpawning || other.disableMobSpawning(),
-                Math.max(this.entryPadding, other.entryPadding())
-            );
+        public List<StructureContribution> forAction(ResourceLocation id, StructureAction action) {
+            if (id == null || action == null) return List.of();
+            return contributions.getOrDefault(id, List.of()).stream()
+                .filter(value -> value.action() == action).toList();
         }
+
+        StructureRulesAggregate merge(LockDefinition.StructureRules other, StageId stage, String sourceKey,
+                                      Integer stagePriority) {
+            if (other == null || other.isEmpty()) return this;
+            Map<ResourceLocation, List<StructureContribution>> merged = new LinkedHashMap<>();
+            this.contributions.forEach((id, values) -> merged.put(id, new ArrayList<>(values)));
+            int index = 0;
+            for (PrefixEntry entry : other.lockedEntry().locked()) {
+                String key = sourceKey + ".locked_entry[" + index++ + "]";
+                if (entry.kind() != PrefixEntry.Kind.ID || entry.id() == null) continue;
+                var priority = com.enviouse.progressivestages.common.rehaul.decision.PriorityCascade.resolve(
+                    entry.explicitPriority(), other.priority(), other.categoryPriority(), stagePriority,
+                    other.globalPriority());
+                List<StructureContribution> values = merged.computeIfAbsent(entry.id(), ignored -> new ArrayList<>());
+                if (!other.entryAllowed()) values.add(new StructureContribution(entry.id(), stage,
+                    StructureAction.ENTRY, priority.value(), key, other.entryPadding()));
+                if (other.preventBlockBreak()) values.add(new StructureContribution(entry.id(), stage,
+                    StructureAction.BLOCK_BREAK, priority.value(), key + ".prevent_block_break", 0));
+                if (other.preventBlockPlace()) values.add(new StructureContribution(entry.id(), stage,
+                    StructureAction.BLOCK_PLACE, priority.value(), key + ".prevent_block_place", 0));
+                if (other.preventExplosions()) values.add(new StructureContribution(entry.id(), stage,
+                    StructureAction.ACTORLESS_EXPLOSION, priority.value(), key + ".prevent_explosions", 0));
+                if (other.disableMobSpawning()) values.add(new StructureContribution(entry.id(), stage,
+                    StructureAction.ACTORLESS_SPAWN, priority.value(), key + ".disable_mob_spawning", 0));
+            }
+            return new StructureRulesAggregate(merged);
+        }
+
     }
 }

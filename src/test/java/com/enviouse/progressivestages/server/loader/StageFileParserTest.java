@@ -35,6 +35,7 @@ class StageFileParserTest {
 
         assertTrue(result.isSuccess());
         assertEquals("example:root", result.getStageDefinition().getId().toString());
+        assertFalse(result.getStageDefinition().isPriorityAuthored());
     }
 
     @Test
@@ -48,6 +49,113 @@ class StageFileParserTest {
 
         assertFalse(result.isSuccess());
         assertFalse(result.isSyntaxError());
+    }
+
+    @Test
+    void preservesAnExplicitZeroStagePriority() throws IOException {
+        Path file = write("zero_priority.toml", """
+            [stage]
+            id = "example:zero"
+            priority = 0
+            """);
+
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(file);
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        assertEquals(0, result.getStageDefinition().getPriority());
+        assertTrue(result.getStageDefinition().isPriorityAuthored());
+    }
+
+    @Test
+    void parsesIndependentStructureProtectionAndPriority() throws IOException {
+        Path file = write("structure_rules.toml", """
+            [schema]
+            version = 4
+
+            [stage]
+            id = "example:protection"
+            priority = 12
+
+            [structures]
+            priority = 3
+            global_priority = -2
+            locked_entry = ["minecraft:stronghold|priority=20"]
+
+            [structures.rules]
+            entry_allowed = true
+            priority = -7
+            prevent_block_place = true
+            """);
+
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(file);
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        var rules = result.getStageDefinition().getLocks().structures();
+        assertTrue(rules.entryAllowed());
+        assertEquals(-7, rules.priority());
+        assertEquals(3, rules.categoryPriority());
+        assertEquals(-2, rules.globalPriority());
+        assertTrue(rules.preventBlockPlace());
+        assertTrue(result.getStageDefinition().isPriorityAuthored());
+        assertEquals("minecraft:stronghold|priority=20", rules.lockedEntry().locked().getFirst().raw());
+        assertEquals(20, rules.lockedEntry().locked().getFirst().explicitPriority());
+    }
+
+    @Test
+    void preservesLegacyStructureSelectorsBeforeSchema4() throws IOException {
+        Path file = write("legacy_structure_selector.toml", """
+            [schema]
+            version = 3
+
+            [stage]
+            id = "example:legacy_structure"
+
+            [structures]
+            locked_entry = ["mod:example", "name:stronghold"]
+            """);
+
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(file);
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        assertEquals(List.of("mod:example", "name:stronghold"),
+            result.getStageDefinition().getLocks().structures().lockedEntry().locked().stream()
+                .map(entry -> entry.raw()).toList());
+    }
+
+    @Test
+    void rejectsNonBooleanStructureFlagsAndOutOfRangePriorities() throws IOException {
+        Path wrongType = write("structure_wrong_type.toml", """
+            [stage]
+            id = "example:wrong"
+            [structures]
+            locked_entry = ["minecraft:stronghold"]
+            [structures.rules]
+            entry_allowed = "true"
+            """);
+        assertFalse(StageFileParser.parseWithErrors(wrongType).isSuccess());
+
+        Path overflow = write("structure_overflow.toml", """
+            [stage]
+            id = "example:overflow"
+            [structures]
+            locked_entry = ["minecraft:stronghold"]
+            [structures.rules]
+            priority = 2147483648
+        """);
+        assertFalse(StageFileParser.parseWithErrors(overflow).isSuccess());
+
+        Path inlineOverflow = write("structure_inline_overflow.toml", """
+            [schema]
+            version = 4
+
+            [stage]
+            id = "example:inline_overflow"
+            [structures]
+            locked_entry = ["minecraft:stronghold|priority=2147483648"]
+            """);
+        var inlineResult = StageFileParser.parseWithErrors(inlineOverflow);
+        assertFalse(inlineResult.isSuccess());
+        assertTrue(inlineResult.getErrorMessage().contains("priority"), inlineResult.getErrorMessage());
     }
 
     @Test

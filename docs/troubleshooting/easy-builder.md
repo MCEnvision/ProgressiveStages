@@ -4,6 +4,24 @@ The localhost Easy Builder edits the authenticated server draft. It does not pub
 until `Apply changes` passes validation and the review is confirmed. The browser can keep editing a
 rejected draft while the last valid runtime remains active.
 
+## structure entry and protection
+
+Structure targets use exact resource IDs, for example `minecraft:stronghold`. Tag, namespace,
+wildcard, and name selectors are rejected so the server can show which stage and source key made
+each decision. In the Structures section, `entry_allowed` means that this stage does not block
+entry. It does not grant access and does not remove another stage's entry gate. Use it with
+`prevent_block_place` or `prevent_block_break` when entry should be unlocked by a separate stage.
+
+`prevent_explosions` and `disable_mob_spawning` are actorless protections. They apply to the
+matching structure without looking up a player or inventing an owner. `priority` is optional and
+accepts signed 32 bit values. Higher priority wins, and a denial wins an equal priority tie.
+Container access follows an active entry denial, so a protection-only stage does not create an
+implicit chest lock.
+
+If the editor reports an invalid Boolean, selector, or priority, correct the field and review
+again. The rejected draft and last accepted server snapshot remain available. Do not delete the
+stage file to recover from a validation error.
+
 ## ownership choices
 
 The Setup and Access tabs expose four choices.

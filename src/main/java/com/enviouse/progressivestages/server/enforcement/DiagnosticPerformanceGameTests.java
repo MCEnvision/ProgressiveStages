@@ -2,6 +2,8 @@ package com.enviouse.progressivestages.server.enforcement;
 
 import com.enviouse.progressivestages.common.api.InteractionDecision;
 import com.enviouse.progressivestages.common.api.StageId;
+import com.enviouse.progressivestages.common.api.structure.StructureAction;
+import com.enviouse.progressivestages.common.lock.LockRegistry;
 import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
 import com.mojang.logging.LogUtils;
@@ -40,7 +42,7 @@ public final class DiagnosticPerformanceGameTests {
     private static final class Measurement {
         private static final int ATTEMPTS = 1000;
         private static final int WINDOW = 20;
-        private static final List<String> CATEGORIES = List.of("interactions", "progression", "permissions", "commands", "editor");
+        private static final List<String> CATEGORIES = List.of("interactions", "progression", "permissions", "commands", "editor", "structures", "abilities");
         private final GameTestHelper helper;
         private final ServerPlayer player;
         private final Map<UUID, ServerPlayer> players;
@@ -48,6 +50,8 @@ public final class DiagnosticPerformanceGameTests {
         private final long threadId = Thread.currentThread().threadId();
         private final long startedTick;
         private final Runnable[] operations;
+        private final List<LockRegistry.StructureContribution> structureContributors;
+        private final Set<StageId> abilityMissing;
         private int category;
         private int round;
         private int accepted;
@@ -90,6 +94,12 @@ public final class DiagnosticPerformanceGameTests {
             var context = server.getCommands().getDispatcher().parse("time query gametime", server.createCommandSourceStack())
                 .getContext().build("time query gametime");
             var source = Map.of("stage.toml", "[stage]\nid = \"capture\"\nteam_stage = false\n");
+            var structureId = net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold");
+            var dimensionId = net.minecraft.resources.ResourceLocation.withDefaultNamespace("overworld");
+            var structureContribution = new LockRegistry.StructureContribution(structureId, stage,
+                StructureAction.BLOCK_PLACE, 0, "stage.toml#structures.rules.locked_entry[0]", 0);
+            structureContributors = List.of(structureContribution);
+            abilityMissing = Set.of(stage);
             operations = new Runnable[] {
                 () -> InteractionCaptureManager.record(player, InteractionHand.MAIN_HAND, stack, Blocks.CHEST,
                     decision, true, TriState.FALSE, TriState.FALSE, InteractionResult.FAIL, "denied"),
@@ -100,7 +110,12 @@ public final class DiagnosticPerformanceGameTests {
                     var operation = InteractionCaptureManager.beginEditor(player);
                     if (operation != null) operation.complete(new EditorCaptureRecord("validate", 1, 1, 1, 0, 0,
                         server.getTickCount(), "accepted", "valid", "absent", source, source));
-                }
+                },
+                () -> InteractionCaptureManager.recordStructure(player, structureId, dimensionId,
+                    StructureAction.BLOCK_PLACE, structureContributors, structureContribution,
+                    "pass", "none", false),
+                () -> InteractionCaptureManager.recordAbility(player, "jump", true,
+                    "static_or_conditional", abilityMissing, false)
             };
         }
 

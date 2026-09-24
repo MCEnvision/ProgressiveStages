@@ -87,6 +87,7 @@ public class StageDefinition {
     private final ActiveLockDefinition activeLocks;
     private final int schemaVersion;
     private final int priority;
+    private final boolean priorityAuthored;
     private final ConfigProvenance provenance;
     private final LuckPermsStageOptions luckPerms;
 
@@ -157,6 +158,7 @@ public class StageDefinition {
         this.activeLocks = builder.activeLocks != null ? builder.activeLocks : ActiveLockDefinition.EMPTY;
         this.schemaVersion = Math.max(1, builder.schemaVersion);
         this.priority = builder.priority;
+        this.priorityAuthored = builder.priorityAuthored;
         this.provenance = builder.provenance;
         this.luckPerms = builder.luckPerms != null ? builder.luckPerms : LuckPermsStageOptions.absent();
     }
@@ -402,6 +404,8 @@ public class StageDefinition {
 
     public int getPriority() { return priority; }
 
+    public boolean isPriorityAuthored() { return priorityAuthored; }
+
     public ConfigProvenance getProvenance() { return provenance; }
 
     /** optional luckperms inbound, outbound and command permission mappings. */
@@ -469,6 +473,7 @@ public class StageDefinition {
         private ActiveLockDefinition activeLocks = ActiveLockDefinition.EMPTY;
         private int schemaVersion = 3;
         private int priority = 0;
+        private boolean priorityAuthored;
         private ConfigProvenance provenance;
         private LuckPermsStageOptions luckPerms = LuckPermsStageOptions.absent();
 
@@ -637,7 +642,7 @@ public class StageDefinition {
         public Builder conditionalRules(List<ConditionalRule> v) { this.conditionalRules = v != null ? v : new ArrayList<>(); return this; }
         public Builder activeLocks(ActiveLockDefinition v) { this.activeLocks = v != null ? v : ActiveLockDefinition.EMPTY; return this; }
         public Builder schemaVersion(int v) { this.schemaVersion = v; return this; }
-        public Builder priority(int v) { this.priority = v; return this; }
+        public Builder priority(int v) { this.priority = v; this.priorityAuthored = true; return this; }
         public Builder provenance(ConfigProvenance v) { this.provenance = v; return this; }
         public Builder luckPerms(LuckPermsStageOptions v) {
             this.luckPerms = v != null ? v : LuckPermsStageOptions.absent();

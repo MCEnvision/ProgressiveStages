@@ -966,9 +966,8 @@ public class StageConfig {
         com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
         Map<String, Object> effective = EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES.isEmpty()
             ? captureEffectiveRestartValues() : new LinkedHashMap<>(EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES);
-        restoreEffectiveRestartValues(effective);
         Map<String, Object> pending = new LinkedHashMap<>();
-        applyEditorValues(SPEC.getSpec(), candidate, new ArrayList<>(), pending);
+        applyEditorValues(SPEC.getSpec(), candidate, new ArrayList<>(), pending, effective);
         EDITOR_PENDING_RESTART_VALUES.clear();
         EDITOR_PENDING_RESTART_VALUES.putAll(pending);
         EDITOR_EFFECTIVE_RESTART_VALUES.clear();
@@ -1040,27 +1039,20 @@ public class StageConfig {
         }
     }
 
-    private static void restoreEffectiveRestartValues(Map<String, Object> effective) {
-        for (Map.Entry<String, Object> entry : effective.entrySet()) {
-            Object value = SPEC.getValues().get(List.of(entry.getKey().split("\\.")));
-            if (value instanceof ModConfigSpec.ConfigValue<?> configValue) setEditorValue(configValue, entry.getValue());
-        }
-    }
-
     private static void applyEditorValues(UnmodifiableConfig spec, UnmodifiableConfig candidate, List<String> path,
-                                          Map<String, Object> pending) {
+                                          Map<String, Object> pending, Map<String, Object> effective) {
         for (var entry : spec.entrySet()) {
             path.add(entry.getKey());
             Object value = entry.getValue();
             if (value instanceof UnmodifiableConfig nested) {
-                applyEditorValues(nested, candidate, path, pending);
+                applyEditorValues(nested, candidate, path, pending, effective);
             } else if (value instanceof ModConfigSpec.ValueSpec) {
                 Object configured = candidate.contains(path) ? candidate.getRaw(path) : ((ModConfigSpec.ValueSpec) value).getDefault();
                 Object loaded = SPEC.getValues().get(path);
                 if (loaded instanceof ModConfigSpec.ConfigValue<?> configValue) {
                     if (configValue.getSpec().restartType() == ModConfigSpec.RestartType.NONE) {
                         setEditorValue(configValue, configured);
-                    } else if (!Objects.equals(configured, configValue.get())) {
+                    } else if (!Objects.equals(configured, effective.get(String.join(".", path)))) {
                         pending.put(String.join(".", path), configured);
                     }
                 }
@@ -1105,6 +1097,7 @@ public class StageConfig {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void setEditorValue(ModConfigSpec.ConfigValue<?> configValue, Object value) {
+        // NeoForge updates the loaded config object without saving or firing a reload event.
         ((ModConfigSpec.ConfigValue) configValue).set(value);
     }
 

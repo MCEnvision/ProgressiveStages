@@ -158,10 +158,20 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       if (successMessage) notify("success", successMessage);
     } catch (failure) {
       setBusy("");
+      try {
+        const fresh = await api.bootstrap();
+        setBoot(fresh);
+        rememberValidation(fresh.validation, fresh.draft.id);
+        setSelectedStageKey(current => current && discoverStages(fresh.draft.files).some(stage => stage.key === current)
+          ? current
+          : discoverStages(fresh.draft.files).find(stage => !stage.archived)?.key || "");
+      } catch (_) {
+        // Keep the existing draft visible when the recovery bootstrap also fails.
+      }
       notify("danger", "The draft was not saved", failure instanceof Error ? failure.message : String(failure));
       throw failure;
     }
-  }, [api, boot, notify]);
+  }, [api, boot, notify, rememberValidation]);
 
   const mutateFiles = useCallback(async (changes: Array<{ path: string; content: string | null }>, successMessage?: string) => {
     if (!boot || !changes.length) return;

@@ -63,6 +63,7 @@ final class EditorApplyService {
         String transaction = IDS.format(Instant.now()) + "_" + actor.toString().substring(0, 8);
         Path backup = backupRoot.resolve(transaction);
         boolean mainConfigApplied = false;
+        if (mainChanged) StageConfig.beginEditorConfigTransaction();
         try {
             Files.createDirectories(backup);
             for (DraftDiffEntry entry : diff) {
@@ -114,6 +115,8 @@ final class EditorApplyService {
             }
             catch (RuntimeException ignored) {}
             return result(false, transaction, currentRevision, diff, validation, "apply_failed", error.getMessage());
+        } finally {
+            if (mainChanged) StageConfig.endEditorConfigTransaction();
         }
     }
 
@@ -123,8 +126,12 @@ final class EditorApplyService {
         if (transaction == null || !transaction.matches("[a-zA-Z0-9_]+")) return result(false, transaction, current, List.of(), null, "invalid_transaction", "Invalid transaction id");
         Path backup = backupRoot.resolve(transaction).normalize();
         if (!backup.startsWith(backupRoot) || !Files.isDirectory(backup)) return result(false, transaction, current, List.of(), null, "missing_transaction", "The transaction backup was not found");
+        EditorAuditEntry audit = null;
+        Config currentMainConfig = null;
+        boolean mainChanged = false;
         try {
-            EditorAuditEntry audit = GSON.fromJson(Files.readString(backup.resolve("audit.json")), EditorAuditEntry.class);
+            audit = GSON.fromJson(Files.readString(backup.resolve("audit.json")), EditorAuditEntry.class);
+            mainChanged = audit.changedFiles().contains("progressivestages.toml");
             EditorDraftValidator.MainConfigValidation previousMainConfig = null;
             Path savedMain = backup.resolve("progressivestages.toml");
             if (audit.changedFiles().contains("progressivestages.toml") && Files.isRegularFile(savedMain)) {
@@ -134,6 +141,8 @@ final class EditorApplyService {
                         String.join(". ", previousMainConfig.errors()));
                 }
             }
+            currentMainConfig = mainChanged ? StageConfig.snapshotEditorConfig() : null;
+            if (mainChanged) StageConfig.beginEditorConfigTransaction();
             for (String changed : audit.changedFiles()) {
                 Path saved = backup.resolve(changed).normalize();
                 Path target = root.resolve(EditorPaths.normalize(changed)).normalize();
@@ -146,13 +155,21 @@ final class EditorApplyService {
                 StageConfig.applyEditorConfig(previousMainConfig == null
                     ? EditorDraftValidator.validateMainConfig("").config() : previousMainConfig.config());
             }
-            if (!StageFileLoader.getInstance().reload()) return result(false, transaction, current, List.of(), null,
-                "rollback_reload_failed", String.join(". ", StageFileLoader.getInstance().getLastReloadErrors()));
+            if (!StageFileLoader.getInstance().reload()) {
+                if (currentMainConfig != null) StageConfig.applyEditorConfig(currentMainConfig);
+                return result(false, transaction, current, List.of(), null,
+                    "rollback_reload_failed", String.join(". ", StageFileLoader.getInstance().getLastReloadErrors()));
+            }
             StageFileLoader.getInstance().syncPlayersAfterReload();
             return result(true, transaction, StageFileLoader.getInstance().getCompiledSnapshot().revision(),
                 List.of(), null, "ok", "The editor transaction was rolled back and synchronized");
         } catch (IOException | RuntimeException error) {
+            try {
+                if (currentMainConfig != null) StageConfig.applyEditorConfig(currentMainConfig);
+            } catch (RuntimeException ignored) {}
             return result(false, transaction, current, List.of(), null, "rollback_failed", error.getMessage());
+        } finally {
+            if (mainChanged) StageConfig.endEditorConfigTransaction();
         }
     }
 

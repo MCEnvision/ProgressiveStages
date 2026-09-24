@@ -24,6 +24,7 @@ public class StageConfig {
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
     private static final Map<String, Object> EDITOR_PENDING_RESTART_VALUES = new LinkedHashMap<>();
+    private static boolean EDITOR_CONFIG_TRANSACTION;
 
     // ============ General Settings ============
 
@@ -931,14 +932,23 @@ public class StageConfig {
     private static String msgCmdCreativePopupDisabled;
 
     @SubscribeEvent
-    static void onLoad(final ModConfigEvent event) {
-        if (event.getConfig().getSpec() == SPEC) {
-            EDITOR_PENDING_RESTART_VALUES.clear();
-        }
+    static synchronized void onLoad(final ModConfigEvent event) {
         if (event.getConfig().getSpec() == SPEC) {
             com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
+            if (EDITOR_CONFIG_TRANSACTION || editorPendingValuesMatchRawConfig()) return;
+            EDITOR_PENDING_RESTART_VALUES.clear();
         }
         loadValues();
+    }
+
+    /** Keeps a file watcher reload from applying restart scoped editor values early. */
+    public static synchronized void beginEditorConfigTransaction() {
+        EDITOR_CONFIG_TRANSACTION = true;
+    }
+
+    /** Allows normal config reload events after an editor transaction has completed. */
+    public static synchronized void endEditorConfigTransaction() {
+        EDITOR_CONFIG_TRANSACTION = false;
     }
 
     /** Applies a validated editor candidate to the loaded config and refreshes live values. */
@@ -966,6 +976,16 @@ public class StageConfig {
             return List.of();
         }
         return List.copyOf(pending);
+    }
+
+    private static boolean editorPendingValuesMatchRawConfig() {
+        if (EDITOR_PENDING_RESTART_VALUES.isEmpty()) return false;
+        for (Map.Entry<String, Object> entry : EDITOR_PENDING_RESTART_VALUES.entrySet()) {
+            Object loaded = SPEC.getValues().get(List.of(entry.getKey().split("\\.")));
+            if (!(loaded instanceof ModConfigSpec.ConfigValue<?> configValue)
+                || !Objects.equals(configValue.getRaw(), entry.getValue())) return false;
+        }
+        return true;
     }
 
     private static void applyEditorValues(UnmodifiableConfig spec, UnmodifiableConfig candidate, List<String> path,

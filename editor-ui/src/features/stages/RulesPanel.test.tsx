@@ -182,6 +182,45 @@ describe("generic rule editing", () => {
     expect(second).toContain("entry_allowed = true");
   });
 
+  it("keeps queued structure edits on the accepted content", async () => {
+    const resolvers: Array<() => void> = [];
+    editor.mutateFile.mockImplementation(async () => new Promise<void>(resolve => resolvers.push(resolve)));
+    editor.boot.draft.files[rulesPath] = "[structures]\nlocked_entry=[]\n";
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByLabelText("Prevent block placement"));
+    resolvers[0]();
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledTimes(2));
+    const second = String(editor.mutateFile.mock.calls[1][1]);
+    expect(second).toContain("entry_allowed = true");
+    expect(second).toContain("prevent_block_place = true");
+    resolvers[1]();
+  });
+
+  it("keeps queued structure saves on their own stage path", async () => {
+    const resolvers: Array<() => void> = [];
+    editor.mutateFile.mockImplementation(async () => new Promise<void>(resolve => resolvers.push(resolve)));
+    const stage2Path = "stages/baker/stage.toml";
+    const rules2Path = "stages/baker/rules.toml";
+    editor.boot.draft.files = {
+      [stagePath]: '[stage]\nid="chef"\n',
+      [rulesPath]: "[structures]\nlocked_entry=[]\n",
+      [stage2Path]: '[stage]\nid="baker"\n',
+      [rules2Path]: "[structures]\nlocked_entry=[]\n"
+    };
+    const stages = discoverStages(editor.boot.draft.files);
+    const view = render(<RulesPanel stage={stages.find(stage => stage.rulesPath === rulesPath)!}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledOnce());
+    view.rerender(<RulesPanel stage={stages.find(stage => stage.rulesPath === rules2Path)!}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledTimes(2));
+    expect(editor.mutateFile.mock.calls[0][0]).toBe(rulesPath);
+    expect(editor.mutateFile.mock.calls[1][0]).toBe(rules2Path);
+    resolvers.forEach(resolve => resolve());
+  });
+
   it("rejects structure priorities outside the signed integer range", async () => {
     editor.boot.draft.files[rulesPath] = "[structures]\nlocked_entry=[]\n";
     render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);

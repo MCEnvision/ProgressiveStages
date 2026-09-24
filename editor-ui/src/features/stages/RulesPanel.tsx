@@ -462,8 +462,9 @@ function EnchantmentGenerationCard({ rule, onEdit, onDelete }:
 function StructureControls({ stage }: { stage: StagePackage }) {
   const { boot, mutateFile } = useEditor();
   const content = boot?.draft.files[stage.rulesPath] || "";
-  const latestContent = useRef(content);
-  const mutationQueue = useRef(Promise.resolve());
+  const mutationQueues = useRef(new Map<string, { chain: Promise<void>; content: string; pending: number }>());
+  const mutateFileRef = useRef(mutateFile);
+  mutateFileRef.current = mutateFile;
   const [entries, setEntries] = useState(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
   const [priority, setPriority] = useState(readTomlValue(content, "structures.rules.priority"));
   const [priorityError, setPriorityError] = useState("");
@@ -474,7 +475,9 @@ function StructureControls({ stage }: { stage: StagePackage }) {
   const [preventExplosions, setPreventExplosions] = useState(booleanValue(readTomlValue(content, "structures.rules.prevent_explosions") || "false"));
   const [disableSpawns, setDisableSpawns] = useState(booleanValue(readTomlValue(content, "structures.rules.disable_mob_spawning") || "false"));
   useEffect(() => {
-    latestContent.current = content;
+    const state = mutationQueues.current.get(stage.rulesPath);
+    if (state?.pending) return;
+    if (state) state.content = content;
     setEntries(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
     setPriority(readTomlValue(content, "structures.rules.priority"));
     setPriorityError("");
@@ -484,16 +487,22 @@ function StructureControls({ stage }: { stage: StagePackage }) {
     setPreventPlace(booleanValue(readTomlValue(content, "structures.rules.prevent_block_place") || "false"));
     setPreventExplosions(booleanValue(readTomlValue(content, "structures.rules.prevent_explosions") || "false"));
     setDisableSpawns(booleanValue(readTomlValue(content, "structures.rules.disable_mob_spawning") || "false"));
-  }, [content]);
-  const save = (path: string, value: unknown, message: string) => {
-    const operation = mutationQueue.current.then(async () => {
-      const next = upsertToml(latestContent.current, path, value);
-      latestContent.current = next;
-      await mutateFile(stage.rulesPath, next, message);
+  }, [content, stage.rulesPath]);
+  const enqueue = (path: string, update: (source: string) => string, message: string) => {
+    const state = mutationQueues.current.get(path) || { chain: Promise.resolve(), content: path === stage.rulesPath ? content : "", pending: 0 };
+    mutationQueues.current.set(path, state);
+    state.pending += 1;
+    const operation = state.chain.then(async () => {
+      const next = update(state.content);
+      await mutateFileRef.current(path, next, message);
+      state.content = next;
     });
-    mutationQueue.current = operation.catch(() => undefined);
+    state.chain = operation.then(() => undefined, () => undefined);
+    operation.then(() => { state.pending -= 1; }, () => { state.pending -= 1; });
     return operation;
   };
+  const save = (path: string, value: unknown, message: string) =>
+    enqueue(stage.rulesPath, source => upsertToml(source, path, value), message);
   const savePriority = () => {
     const next = priority.trim();
     if (next && !/^-?\d+$/.test(next)) { setPriorityError("Enter a whole number."); return; }
@@ -504,26 +513,15 @@ function StructureControls({ stage }: { stage: StagePackage }) {
     }
     setPriorityError("");
     const update = (source: string) => next ? upsertToml(source, "structures.rules.priority", Number(next)) : removeTomlValue(source, "structures.rules.priority");
-    const operation = mutationQueue.current.then(async () => {
-      const updated = update(latestContent.current);
-      latestContent.current = updated;
-      await mutateFile(stage.rulesPath, updated, "Structure priority saved");
-    });
-    mutationQueue.current = operation.catch(() => undefined);
-    return operation;
+    return enqueue(stage.rulesPath, update, "Structure priority saved");
   };
   const savePadding = () => {
     const next = padding.trim();
     if (!/^\d+$/.test(next) && next !== "") return;
-    const operation = mutationQueue.current.then(async () => {
-      const updated = next
-        ? upsertToml(latestContent.current, "structures.rules.entry_padding", Number(next))
-        : removeTomlValue(removeTomlValue(latestContent.current, "structures.rules.entry_padding"), "structures.entry_padding");
-      latestContent.current = updated;
-      await mutateFile(stage.rulesPath, updated, "Structure entry padding saved");
-    });
-    mutationQueue.current = operation.catch(() => undefined);
-    return operation;
+    return enqueue(stage.rulesPath, source => next
+      ? upsertToml(source, "structures.rules.entry_padding", Number(next))
+      : removeTomlValue(removeTomlValue(source, "structures.rules.entry_padding"), "structures.entry_padding"),
+      "Structure entry padding saved");
   };
   return <Section title="Structure access" description="Keep entry separate from protections inside the structure. A permanent locked stage can protect blocks after another stage allows entry.">
     <div className="form-grid">

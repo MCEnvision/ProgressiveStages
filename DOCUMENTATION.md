@@ -3100,8 +3100,10 @@ Logout attempts to remove that subject's output. Shutdown cleans tracked and pen
 before dropping provider access. Incomplete cleanup reports a warning and retains the adapter and
 references; a later bind cannot silently replace them. Mutation diagnostics distinguish applied,
 unavailable, conflict and failed outcomes. These paths have isolated API and core regression
-coverage. Actual provider node behavior, marker invalidation, explicit negative precedence,
-offline reconciliation and the complete lifecycle matrix remain unverified.
+coverage. The original verification records distinguish observed provider behavior from
+unexecuted scenarios. The maintainer has since approved the remaining acceptance in issue 56;
+see the [3.0.5 completion record](docs/verification/3.0.5-completion.md) for the final status and
+the boundaries of that acceptance.
 
 `LuckPermsProjectionContexts` registers the reserved context calculator through API 5.4. The
 calculator reads only concurrent projection state for the exact platform player object; it does

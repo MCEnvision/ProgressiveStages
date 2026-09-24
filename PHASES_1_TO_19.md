@@ -3,7 +3,7 @@
 This is the long-form, copy-ready path from an empty installation to a release-ready
 ProgressiveStages pack. It is written for NeoForge 1.21.1 and ProgressiveStages 3.0.1.
 The phases are learning and pack-building phases. They are not Git branches and they do not
-claim that unimplemented roadmap ideas in `plan.md` already exist.
+claim that unimplemented roadmap ideas already exist.
 
 Use this guide in order when building a new pack. Use
 [`DOCUMENTATION.md`](DOCUMENTATION.md) when you need the exhaustive field reference, and use

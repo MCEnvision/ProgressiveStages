@@ -1,5 +1,9 @@
 # Editor and permission repair verification
 
+The remaining acceptance was subsequently approved by the maintainer in issue 56. See the
+[3.0.5 completion record](../3.0.5-completion.md) for the final release identity and closure.
+The observations and unverified items below retain their original scope and results.
+
 Source commit `043fde3b4ca7a35a4ca73b2451da7a684573f251` repairs the eight editor defect groups
 tracked in issue 47, the hidden window response timeout found during acceptance, and two LuckPerms
 publication defects. This record does not close the final multiplayer acceptance tracked in issue 45.

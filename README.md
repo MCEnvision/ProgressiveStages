@@ -4,7 +4,11 @@
 
 A NeoForge mod for Minecraft 1.21.1 that gives modpack developers complete control over stage-based progression. Define stages as TOML files; ProgressiveStages locks items, blocks, entities, fluids, dimensions, recipes, enchantments, crops, mob spawns, pets, regions, structures, screens, and player interactions until the player has earned the right stage(s).
 
-**ProgressiveStages 3.0.5 development build** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
+**ProgressiveStages 3.0.5** turns that foundation into a fully authorable progression platform: declarative per-stage triggers, graph-based stage scope, scripting and command APIs, broad content enforcement, and a vanilla advancement-style in-game map.
+
+Version 3.0.5 is published and its remaining acceptance is approved. See the
+[release and completion record](docs/verification/3.0.5-completion.md) for download links,
+checksums, automated results, and the maintainer's acceptance.
 
 ---
 
@@ -906,8 +910,6 @@ The build updates the editor assets packaged with the mod. See the
 - Native quest rewards and profession recovery: [FTB Quests laptop verification](docs/verification/ftb-quest-client/README.md).
 - Copy-ready tested tutorial stages: [examples/beginner_pack](examples/beginner_pack/README.md).
 - CurseForge 3.0 project description: [CURSEFORGE.md](CURSEFORGE.md).
-- Implemented 3.0 scope and remaining runtime matrix:
-  [ProgressiveStages_3.0_Release_Plan.md](implementation/ProgressiveStages_3.0_Release_Plan.md).
 
 ## License
 

@@ -2,34 +2,68 @@
   "schema_version": 1,
   "project": "ProgressiveStages",
   "release_target": "3.1.0",
-  "observed_at": "2026-09-24T01:38:35.562331+00:00",
+  "observed_at": "2026-09-24T11:04:54.666348+00:00",
   "scope": "Plan validation only. Product implementation, runtime acceptance and publication remain required future work.",
-  "result": "PLAN_VALIDATED",
+  "result": "PLAN_MAINTAINED",
   "structural_validation": "PASS",
   "semantic_review": "ready",
   "shared_contracts": "PASS",
   "handoff_schema": 2,
   "metrics": {
-    "master_words": 11724,
+    "master_words": 13175,
     "plan_files": 5,
     "requirements": 9,
     "phases": 4,
-    "decisions": 6,
+    "decisions": 8,
     "prerequisites": 4,
     "optional_items": 1,
     "non_goals": 2,
     "canonical_assignments": 9,
-    "acceptance_criteria": 20,
-    "evidence_items": 25,
-    "plan_set_sha256": "e521da54f356c5b0894708848003540ef9c0fd0b3651d2a8bcbab92bc5778674"
+    "acceptance_criteria": 22,
+    "evidence_items": 26,
+    "plan_set_sha256": "884568fa2c7e2fbad1a63ea59145aa26c6924a38173dc3e74e158b6d8060101f"
   },
-  "pinned_source_blobs_verified": 52,
+  "pinned_source_blobs_verified": 57,
   "resolved_contract_checks": [
     "IF-004 uses validated concrete snapshot size and the pinned transport maximum.",
-    "The exact production candidate must pass startup and smoke before upload. Downloaded public artifacts retain independent verification."
+    "The exact production candidate must pass startup and smoke before upload. Downloaded public artifacts retain independent verification.",
+    "DEC-007 binds short field explanations and examples to accessible Minecraft style hover help, with errors and saving feedback inline.",
+    "DEC-008 preserves the advancement style map and inspector, adds top tabs and an independent initially unbound guide key, and omits GUI attribution.",
+    "CORE-AC-018 and CORE-AC-019 require actual input, accepted server main config policy, disable while open, reconnect and reenable proof."
   ],
   "known_external_blockers": [],
   "optional_scope": "excluded",
   "product_implementation": "not_started",
-  "publication": "not_started"
+  "publication": "not_started",
+  "amendment": {
+    "requirements": [
+      "CORE-REQ-004",
+      "CORE-REQ-006",
+      "CORE-REQ-008",
+      "CORE-REQ-009"
+    ],
+    "decisions": [
+      "DEC-007",
+      "DEC-008"
+    ],
+    "interfaces": [
+      "IF-003",
+      "IF-004",
+      "IF-005"
+    ],
+    "phases": [
+      "CORE-PHASE-001",
+      "CORE-PHASE-002",
+      "CORE-PHASE-003"
+    ],
+    "unchanged": [
+      "phases/plan-phase-000.md",
+      "plan.index.json"
+    ],
+    "goal": "Absent and unchanged.",
+    "active_phase_cursor": "Absent and unchanged.",
+    "evidence_validation": "EVIDENCE_READY",
+    "implementation": "Not started.",
+    "next_action": "P000-TASK-001 remains the first implementation work package. This maintenance pass does not create or activate a goal."
+  }
 }

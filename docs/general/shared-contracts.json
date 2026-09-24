@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "plan_files": {
-    "plan.md": "67cb7223734ccbf62e98f9252e6ef4006cc8f1eafb29b575b01eb1e15ff8d15b",
+    "plan.md": "3b7be9205ad097701d5eca8de5c479c31c5186ea7bb1ae6370b1531012581f42",
     "phases/plan-phase-000.md": "d16871d80979c8e18b5171cf81f06a33367e2e5bb95019214d41b34a23a1c299",
-    "phases/plan-phase-001.md": "bd2177fb42e2d493133dc958753dfb5f9abc2f584d9d994dcd89054b64495873",
-    "phases/plan-phase-002.md": "a63b7777b250f26f39cbcf1badcbc4784f96b23e7b99e92e53073664d71cf1c0",
-    "phases/plan-phase-003.md": "ce2418e5a896dc3aa2c69e6487364781635119d22e5d9ec667239969a25efa20"
+    "phases/plan-phase-001.md": "66037ae456b915da3bd7b71a1632495fe05272d8c3ae25879a6c069f7006b910",
+    "phases/plan-phase-002.md": "b32c85ace649673ec7454a110e828697bff908a043b2105b2f6e02c3bad77a22",
+    "phases/plan-phase-003.md": "4fd95b70dc294aa00fa963ae69f7dfff7c876c687c6feceec25b041db4527ce4"
   },
   "requirement_ids": [
     "CORE-REQ-001",
@@ -125,7 +125,9 @@
       "acceptance_ids": [
         "CORE-AC-011",
         "CORE-AC-012",
-        "CORE-AC-013"
+        "CORE-AC-013",
+        "CORE-AC-018",
+        "CORE-AC-019"
       ],
       "signature": {
         "version": "optional top-level guide table legacy and schema4",
@@ -170,7 +172,26 @@
         ],
         "compare": "ascending locale independent",
         "render": "inert Unicode multiline; no invented guidance; preserve description; no hidden presentation leak",
-        "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation"
+        "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation",
+        "navigation": {
+          "style": "existing advancement window, connected item-node map and selected-stage inspector",
+          "tabs": [
+            "Stages",
+            "What to do next"
+          ],
+          "guide_key": "independent Controls mapping, initially unbound, direct guide tab; original entry paths open Stages",
+          "state": "preserve valid map position selection search category across tabs; no reopening or reset on refresh",
+          "attribution": "no pack creator attribution in GUI or editor preview"
+        },
+        "availability": {
+          "key": "general.enable_stage_guide",
+          "file": "config/progressivestages/progressivestages.toml",
+          "type": "strict Boolean",
+          "default": true,
+          "authority": "server accepted policy, unknown unavailable; not a stage-form or player-menu toggle",
+          "disabled": "hide guide UI; guide key sends no request; open guide returns to Stages; preserve normal map, authored text and gameplay",
+          "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys"
+        }
       }
     },
     {
@@ -185,7 +206,9 @@
       "acceptance_ids": [
         "CORE-AC-011",
         "CORE-AC-012",
-        "CORE-AC-013"
+        "CORE-AC-013",
+        "CORE-AC-018",
+        "CORE-AC-019"
       ],
       "signature": {
         "protocol": 3,
@@ -212,7 +235,9 @@
         ],
         "limits": "enforce both guide bounds before allocation; preserve existing limits and verify pinned transport maximum before send",
         "chunking": "required if supported snapshot with guide exceeds transport limit; revision,index,total; bounded count/cumulative bytes; timeout200 client ticks; discard superseded/incomplete",
-        "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters"
+        "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters",
+        "guide_policy": "server accepted Boolean travels atomically with definitions to both consumers; config load/reload publishes via same revision owner; invalid reload retains accepted policy; disconnect clears policy; local COMMON config cannot override",
+        "screen_opening": "preserve explicit opening versus refresh; carry tab intent without late reopen or active-tab reset"
       }
     },
     {
@@ -246,7 +271,8 @@
         "structure_controls": "entry allowed, independent protections, optional signed priority and inherited source; no implicit serialized zero",
         "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
         "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
-        "guide_extension": "Phase002 provides guide controls through IF003; not an exit prerequisite for Phase001"
+        "guide_extension": "Phase002 reuses hover/focus help and provides guide controls through IF003 with inert preview and no attribution; not an exit prerequisite for Phase001",
+        "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation"
       }
     },
     {
@@ -543,7 +569,8 @@
             "structure_controls": "entry allowed, independent protections, optional signed priority and inherited source; no implicit serialized zero",
             "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
             "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
-            "guide_extension": "Phase002 provides guide controls through IF003; not an exit prerequisite for Phase001"
+            "guide_extension": "Phase002 reuses hover/focus help and provides guide controls through IF003 with inert preview and no attribution; not an exit prerequisite for Phase001",
+            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation"
           },
           "acceptance_ids": [
             "CORE-AC-004",
@@ -656,12 +683,33 @@
             ],
             "compare": "ascending locale independent",
             "render": "inert Unicode multiline; no invented guidance; preserve description; no hidden presentation leak",
-            "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation"
+            "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation",
+            "navigation": {
+              "style": "existing advancement window, connected item-node map and selected-stage inspector",
+              "tabs": [
+                "Stages",
+                "What to do next"
+              ],
+              "guide_key": "independent Controls mapping, initially unbound, direct guide tab; original entry paths open Stages",
+              "state": "preserve valid map position selection search category across tabs; no reopening or reset on refresh",
+              "attribution": "no pack creator attribution in GUI or editor preview"
+            },
+            "availability": {
+              "key": "general.enable_stage_guide",
+              "file": "config/progressivestages/progressivestages.toml",
+              "type": "strict Boolean",
+              "default": true,
+              "authority": "server accepted policy, unknown unavailable; not a stage-form or player-menu toggle",
+              "disabled": "hide guide UI; guide key sends no request; open guide returns to Stages; preserve normal map, authored text and gameplay",
+              "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys"
+            }
           },
           "acceptance_ids": [
             "CORE-AC-011",
             "CORE-AC-012",
-            "CORE-AC-013"
+            "CORE-AC-013",
+            "CORE-AC-018",
+            "CORE-AC-019"
           ]
         },
         {
@@ -691,12 +739,16 @@
             ],
             "limits": "enforce both guide bounds before allocation; preserve existing limits and verify pinned transport maximum before send",
             "chunking": "required if supported snapshot with guide exceeds transport limit; revision,index,total; bounded count/cumulative bytes; timeout200 client ticks; discard superseded/incomplete",
-            "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters"
+            "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters",
+            "guide_policy": "server accepted Boolean travels atomically with definitions to both consumers; config load/reload publishes via same revision owner; invalid reload retains accepted policy; disconnect clears policy; local COMMON config cannot override",
+            "screen_opening": "preserve explicit opening versus refresh; carry tab intent without late reopen or active-tab reset"
           },
           "acceptance_ids": [
             "CORE-AC-011",
             "CORE-AC-012",
-            "CORE-AC-013"
+            "CORE-AC-013",
+            "CORE-AC-018",
+            "CORE-AC-019"
           ]
         },
         {
@@ -712,7 +764,8 @@
             "structure_controls": "entry allowed, independent protections, optional signed priority and inherited source; no implicit serialized zero",
             "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
             "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
-            "guide_extension": "Phase002 provides guide controls through IF003; not an exit prerequisite for Phase001"
+            "guide_extension": "Phase002 reuses hover/focus help and provides guide controls through IF003 with inert preview and no attribution; not an exit prerequisite for Phase001",
+            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation"
           },
           "acceptance_ids": [
             "CORE-AC-004",
@@ -903,12 +956,33 @@
             ],
             "compare": "ascending locale independent",
             "render": "inert Unicode multiline; no invented guidance; preserve description; no hidden presentation leak",
-            "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation"
+            "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation",
+            "navigation": {
+              "style": "existing advancement window, connected item-node map and selected-stage inspector",
+              "tabs": [
+                "Stages",
+                "What to do next"
+              ],
+              "guide_key": "independent Controls mapping, initially unbound, direct guide tab; original entry paths open Stages",
+              "state": "preserve valid map position selection search category across tabs; no reopening or reset on refresh",
+              "attribution": "no pack creator attribution in GUI or editor preview"
+            },
+            "availability": {
+              "key": "general.enable_stage_guide",
+              "file": "config/progressivestages/progressivestages.toml",
+              "type": "strict Boolean",
+              "default": true,
+              "authority": "server accepted policy, unknown unavailable; not a stage-form or player-menu toggle",
+              "disabled": "hide guide UI; guide key sends no request; open guide returns to Stages; preserve normal map, authored text and gameplay",
+              "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys"
+            }
           },
           "acceptance_ids": [
             "CORE-AC-011",
             "CORE-AC-012",
-            "CORE-AC-013"
+            "CORE-AC-013",
+            "CORE-AC-018",
+            "CORE-AC-019"
           ]
         },
         {
@@ -938,12 +1012,16 @@
             ],
             "limits": "enforce both guide bounds before allocation; preserve existing limits and verify pinned transport maximum before send",
             "chunking": "required if supported snapshot with guide exceeds transport limit; revision,index,total; bounded count/cumulative bytes; timeout200 client ticks; discard superseded/incomplete",
-            "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters"
+            "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters",
+            "guide_policy": "server accepted Boolean travels atomically with definitions to both consumers; config load/reload publishes via same revision owner; invalid reload retains accepted policy; disconnect clears policy; local COMMON config cannot override",
+            "screen_opening": "preserve explicit opening versus refresh; carry tab intent without late reopen or active-tab reset"
           },
           "acceptance_ids": [
             "CORE-AC-011",
             "CORE-AC-012",
-            "CORE-AC-013"
+            "CORE-AC-013",
+            "CORE-AC-018",
+            "CORE-AC-019"
           ]
         },
         {
@@ -959,7 +1037,8 @@
             "structure_controls": "entry allowed, independent protections, optional signed priority and inherited source; no implicit serialized zero",
             "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
             "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
-            "guide_extension": "Phase002 provides guide controls through IF003; not an exit prerequisite for Phase001"
+            "guide_extension": "Phase002 reuses hover/focus help and provides guide controls through IF003 with inert preview and no attribution; not an exit prerequisite for Phase001",
+            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation"
           },
           "acceptance_ids": [
             "CORE-AC-004",

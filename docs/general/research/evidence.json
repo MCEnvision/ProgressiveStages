@@ -4,15 +4,15 @@
   "documents": {
     "brief": {
       "path": "brief.md",
-      "sha256": "584544dc1018455a2065918d332912dbacaa336e909e6fb23d58ab51e4ca90de"
+      "sha256": "6c1ac6ff77e225c521a15d066127bf6a9e831abe94f582f641ba2ad3b1a80a14"
     },
     "repository_map": {
       "path": "repository-map.md",
-      "sha256": "673199e4e7ba846be22410572ed10b4f57c67272b97e081574dbebf9491b74ad"
+      "sha256": "8fb9c87c0a9220d3833dba154deacd8e3fa5dcc9da20a60ef0e7a8606222e238"
     },
     "intake": {
       "path": "intake.json",
-      "sha256": "1f81bccefa03f0fa2bae615a73c0bfe891c8ab05bad60f0794480a7cd077abe9"
+      "sha256": "b74b7af5562f8cb3055ca6ba53475b375250758c3f057b80abd959331c04aa49"
     }
   },
   "sources": [
@@ -388,7 +388,7 @@
         },
         {
           "path": "docs/README.md",
-          "sha256": "703de5279d8bf630940ecccdbcb4aaf359d8b2b7ed14612c90cfca1032da7aaf"
+          "sha256": "620f7e523547e795373723bb99b69a0991c2bddcd4d5658aebd6fe85f877661c"
         }
       ],
       "pinned_repository_blobs": [
@@ -422,7 +422,13 @@
           "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
           "sha256": "d7d3cb5beb9f0def2071e3d5c41a3846a3c0b1fae6edfff7c921cf852e848f8f"
         }
-      ]
+      ],
+      "working_file_recheck": {
+        "observed_at": "2026-09-24T11:01:57.495757+00:00",
+        "path": "docs/README.md",
+        "result": "Navigation additions only. Plan link and completed 3.0.5 reference inspected. Pinned baseline unchanged.",
+        "source": "sources/guide-navigation.md"
+      }
     },
     {
       "id": "SRC-016",
@@ -680,6 +686,125 @@
       },
       "repository_files": [],
       "recheck_after": "2026-09-25T00:49:16.771034+00:00"
+    },
+    {
+      "id": "SRC-020",
+      "role": "owner_request",
+      "locator": "research/sources/guide-navigation.md",
+      "revision": "2026-09-24 guide navigation amendment",
+      "observed_at": "2026-09-24T11:01:57.495757+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/guide-navigation.md",
+        "sha256": "6458c33b16401d46fe58ee05f90e7ab84f0f696990a456ec75a5551069cbae9a"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-021",
+      "role": "repository_evidence",
+      "locator": "research/sources/guide-navigation.md",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T11:01:57.495757+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/guide-navigation.md",
+        "sha256": "6458c33b16401d46fe58ee05f90e7ab84f0f696990a456ec75a5551069cbae9a"
+      },
+      "repository_files": [
+        {
+          "path": "editor-ui/src/components/ui.tsx",
+          "sha256": "2dcd219bf20b7cf7b330c6e8fd259ddf83af73e2ce59dbe2e8d5ebe6c730076c"
+        },
+        {
+          "path": "editor-ui/src/features/stages/EssentialsPanel.tsx",
+          "sha256": "ab197b902bfef28f677e47d2ee12ff5e935e5a400b93e2894540a469f16a7902"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/ClientModBusEvents.java",
+          "sha256": "651a82abbc946b864e1a7beb01442fe6b3b1229a736a907fcce284066e1c28ab"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/ClientEventHandler.java",
+          "sha256": "1f105d6175b4df48c38784a9a96b10f1a534735b22408640f577ec4467f03ac0"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/ClientTriggerProgress.java",
+          "sha256": "4253eb1e94be30fd1eba2cd28dc2a325931ec780b42f07d1a2d37a28e780b7d3"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java",
+          "sha256": "b15cf9c67c73b0bd1382a2ee69688c471e6f60ce501c6f7e7221e1380ac6cd81"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageConfig.java",
+          "sha256": "a8cf0dfcbdad4957e8093c561a61571f8d9dfdbe2b7ab7eae26ff2acc8a6cbfb"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/network/NetworkHandler.java",
+          "sha256": "8aa4113f6cb6296a5eb6f1a752a0227a6f6b0673ea04e1853d9058040ed88f84"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/util/Constants.java",
+          "sha256": "80102bb56b748ce569abe2ba69fc8a63f4ccde2844421a1afafd82c47f1f7fc8"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/Progressivestages.java",
+          "sha256": "2633c93b5ecdc6d5baa3eb9f03478626c095382fc6f47667f30d41174a2a7b2e"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "editor-ui/src/components/ui.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "2dcd219bf20b7cf7b330c6e8fd259ddf83af73e2ce59dbe2e8d5ebe6c730076c"
+        },
+        {
+          "path": "editor-ui/src/features/stages/EssentialsPanel.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "9aeccfc18ee39f587c496cad03468ff13d5148bdee7fcdf1fe11b081408d6329"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/ClientModBusEvents.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "651a82abbc946b864e1a7beb01442fe6b3b1229a736a907fcce284066e1c28ab"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/ClientEventHandler.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "160f10b6440c4949d9a5837b9659076dfe4d7c45843ab126be9023b041efe4f6"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/ClientTriggerProgress.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "d02178ddc3ca415db9dbf0c6926d0b46ebb98f7f84984fecd90f143f0577a24a"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "b432974124f396e802cb0f43c474989182d1e479f9c92bf7ac96e573ce207587"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageConfig.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "065b1f902c76a6fd31b31d3021b80d4f4c539a7b395be3407f27fed81671dd81"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/network/NetworkHandler.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "a585f15a76f10e9522c2370052ee2c59d2387d31db071b9035409cd397001e56"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/util/Constants.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "df6d9867078221fc55e6d001987af45abe5735c1ddb78e62dbf9ee6665eb9771"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/Progressivestages.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "2633c93b5ecdc6d5baa3eb9f03478626c095382fc6f47667f30d41174a2a7b2e"
+        }
+      ]
     }
   ],
   "findings": [
@@ -862,12 +987,14 @@
     },
     {
       "id": "FIND-012",
-      "summary": "Existing description/inspector/dependency availability provide guide integration points but no dedicated next-stage guide. Add optional bounded authored guide fields, synchronized to the actual stages menu, multi-branch recommendations, no spoiler leakage and explicit guide inclusion/exclusion for manual-only permanent lock stages, recommendations labeled prerequisites met rather than immediately unlockable. Positional payload schema requires explicit protocol compatibility handling.",
+      "summary": "Add bounded authored guide fields to the existing advancement style stages map and inspector, with top Stages and What to do next tabs, a separate initially unbound key and server main config enable_stage_guide policy. Preserve multi-branch visibility, include/exclude behavior, inert content and protocol compatibility; omit GUI pack creator attribution.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-019",
         "SRC-014",
-        "SRC-003"
+        "SRC-003",
+        "SRC-020",
+        "SRC-021"
       ],
       "requirement_ids": [
         "CORE-REQ-009",
@@ -892,6 +1019,42 @@
       ],
       "depends_on": [
         "FIND-010"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-014",
+      "summary": "Reuse the shared Field wrapper for Minecraft style hover/focus and click/tap explanations and examples. Keep labels, validation and saving feedback visible and preserve field focus without accidental edits.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-020",
+        "SRC-021"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-004",
+        "CORE-REQ-006",
+        "CORE-REQ-009"
+      ],
+      "depends_on": [
+        "FIND-006"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-015",
+      "summary": "Existing advancement assets, an initially unbound stages key and explicit-open versus refresh separation provide the navigation foundation. COMMON config is not an authoritative remote policy by itself. Add the guide switch to accepted protocol 3 snapshots and prove tab/key/disabled/reconnect behavior without gameplay or source mutations.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-020",
+        "SRC-021"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-009",
+        "CORE-REQ-006",
+        "CORE-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-012"
       ],
       "conflicts_with": []
     }

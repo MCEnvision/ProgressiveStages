@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "e521da54f356c5b0894708848003540ef9c0fd0b3651d2a8bcbab92bc5778674",
+  "planSetSha256": "884568fa2c7e2fbad1a63ea59145aa26c6924a38173dc3e74e158b6d8060101f",
   "planningSubject": {
     "name": "ProgressiveStages 3.1.0 structure independence and guided progression",
     "requestedArtifact": "authoritative_plan",
@@ -104,6 +104,20 @@
         "subject": "Pinned repository observation or issue report",
         "source": "src/main/java/com/enviouse/progressivestages/common/config/StageDefinition.java; src/main/java/com/enviouse/progressivestages/client/ClientStageCache.java; src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java; src/main/java/com/enviouse/progressivestages/common/network/NetworkHandler.java; editor-ui/vite.config.ts; .github/workflows/release-validation.yml; docs/release/3.0.4.md",
         "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-020",
+        "role": "owner_request",
+        "subject": "Hover help and advancement style guide navigation",
+        "source": "research/sources/guide-navigation.md",
+        "use": "Defines tooltip help, top tabs, guide key mapping, main config switch and no GUI attribution."
+      },
+      {
+        "id": "SRC-021",
+        "role": "repository_evidence",
+        "subject": "Existing field help, advancement screen and screen opening boundary",
+        "source": "research/sources/guide-navigation.md",
+        "use": "Pins the field component, key registration, open versus refresh handling and main config integration points."
       }
     ]
   },
@@ -222,8 +236,8 @@
     },
     {
       "id": "CORE-REQ-004",
-      "summary": "Existing editor labels and help use plain language while retaining supported advanced controls and serialized compatibility.",
-      "source": "Current owner request and clarifications, pinned research findings",
+      "summary": "Existing editor uses plain Stage name, Stage icon and Required stages labels with Minecraft style hover/focus help and examples, visible validation and save feedback, supported advanced controls and serialized compatibility.",
+      "source": "SRC-020, SRC-021 and existing guide/editor research",
       "owner": "CORE-PHASE-001",
       "contributors": "Source preservation, documentation.",
       "dependencies": [
@@ -309,8 +323,8 @@
     },
     {
       "id": "CORE-REQ-009",
-      "summary": "Actual in-game stages menu shows authored next-stage unlock, next-step and location guidance edited in GUI, persisted and synced safely with visibility and branching rules.",
-      "source": "Current owner request and clarifications, pinned research findings",
+      "summary": "The existing advancement style stages menu provides top Stages and What to do next tabs and a dedicated guide key, shows authored unlock, next-step and location guidance edited in the GUI without pack creator attribution, and obeys the server main config guide switch through accepted synchronized policy and visibility rules.",
+      "source": "SRC-020, SRC-021 and existing guide/editor research",
       "owner": "CORE-PHASE-002",
       "contributors": "Editor, compilers, diagnostics, documentation.",
       "dependencies": [
@@ -414,6 +428,31 @@
         "CORE-REQ-003",
         "CORE-REQ-005",
         "CORE-REQ-007",
+        "CORE-REQ-008",
+        "CORE-REQ-009"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-007",
+      "question": "Editor help on hover",
+      "selectedChoice": "Keep Stage name, Stage icon and Required stages as plain labels and place short explanations and examples in Minecraft style hover tooltips with equivalent keyboard access.",
+      "rationale": "The owner wants discoverable help without permanently crowding the form. Validation and save feedback remain visible.",
+      "affectedRequirements": [
+        "CORE-REQ-004",
+        "CORE-REQ-006",
+        "CORE-REQ-009"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-008",
+      "question": "Advancement style guide access and configuration",
+      "selectedChoice": "Preserve the existing advancement style stages screen, add top Stages and What to do next tabs and a dedicated guide key mapping, control guide availability from the main config, and omit pack creator attribution from the GUI.",
+      "rationale": "The owner wants familiar navigation and optional guidance. IF-003 fixes the engineering defaults at enabled and an independently rebindable, initially unbound guide key, preserving the existing key convention.",
+      "affectedRequirements": [
+        "CORE-REQ-004",
+        "CORE-REQ-006",
         "CORE-REQ-008",
         "CORE-REQ-009"
       ],
@@ -530,6 +569,8 @@
         "DEC-004",
         "DEC-005",
         "DEC-006",
+        "DEC-007",
+        "DEC-008",
         "EXT-001",
         "EXT-002",
         "EXT-004"
@@ -569,7 +610,7 @@
   "goalCreator": {
     "mandatoryBoundary": "CORE-REQ-001 through CORE-REQ-009 across all four contiguous phases, with the full release endpoint.",
     "optionalFutureDisposition": "excluded.",
-    "lockedOwnerDecisions": "DEC-001 through DEC-006.",
+    "lockedOwnerDecisions": "DEC-001 through DEC-008.",
     "activePhase": "CORE-PHASE-000",
     "nextExecutableAction": "P000-TASK-001, verify latest approved master, existing checkout state, owned resource boundaries, pins and phase prerequisites before implementation.",
     "knownFailingChecks": "No runtime or implementation checks ran during research. Observed coupled structure aggregation, active default movement locks and missing dedicated guide remain unimplemented target behavior.",

@@ -6,6 +6,7 @@ Use this page to find the maintained project documentation.
 
 - [Project overview and installation](../README.md)
 - [Complete configuration and technical documentation](../DOCUMENTATION.md)
+- [3.1.0 implementation plan](general/plan.md)
 - [Project wiki](https://github.com/MCEnvision/ProgressiveStages/wiki)
 
 ## Verification

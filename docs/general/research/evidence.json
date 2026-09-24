@@ -1,0 +1,899 @@
+{
+  "schema_version": 1,
+  "project_id": "progressivestages",
+  "documents": {
+    "brief": {
+      "path": "brief.md",
+      "sha256": "584544dc1018455a2065918d332912dbacaa336e909e6fb23d58ab51e4ca90de"
+    },
+    "repository_map": {
+      "path": "repository-map.md",
+      "sha256": "673199e4e7ba846be22410572ed10b4f57c67272b97e081574dbebf9491b74ad"
+    },
+    "intake": {
+      "path": "intake.json",
+      "sha256": "1f81bccefa03f0fa2bae615a73c0bfe891c8ab05bad60f0794480a7cd077abe9"
+    }
+  },
+  "sources": [
+    {
+      "id": "SRC-010",
+      "role": "repository_evidence",
+      "locator": "gradle.properties; gradle/wrapper/gradle-wrapper.properties; build.gradle; editor-ui/package.json; editor-ui/package-lock.json; .github/workflows/quality.yml",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": [
+        {
+          "path": "gradle.properties",
+          "sha256": "4132e528b0368af7de796dd0215472801467126d74efecf8b9548a5c8a3d5e86"
+        },
+        {
+          "path": "gradle/wrapper/gradle-wrapper.properties",
+          "sha256": "05e7bec397ce5a52628d31dcc4c8b636cbdc55e28f8cef19d097c71b5c5fbb42"
+        },
+        {
+          "path": "build.gradle",
+          "sha256": "f622ef2613b60aa0f01d72d8cce8defc2fb86a1b8f0bb08dd9a31e423453ffd8"
+        },
+        {
+          "path": "editor-ui/package.json",
+          "sha256": "96999bbeebdad7bc939cb656d2dd32054ee0a6903d267addf9ba213da72f1087"
+        },
+        {
+          "path": "editor-ui/package-lock.json",
+          "sha256": "33b5ae690f1c8eda1c8b3e338cb6c16a7695f262ca17cb38a61244adbedad1d6"
+        },
+        {
+          "path": ".github/workflows/quality.yml",
+          "sha256": "25c4f5ab2c4ce6a4422b65ca3cdf064c1c1f0aa89b4f3240ed535951ceba892d"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "gradle.properties",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "06ab39f9a24f46753e54bc3f65a5104fa1e4abf6fcdcbff55c5396152233dd94"
+        },
+        {
+          "path": "gradle/wrapper/gradle-wrapper.properties",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "05e7bec397ce5a52628d31dcc4c8b636cbdc55e28f8cef19d097c71b5c5fbb42"
+        },
+        {
+          "path": "build.gradle",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "69730acdb44fdd24750c9ca1cc00d94fa7b70ad280f220c75f7dfcdc13940ef7"
+        },
+        {
+          "path": "editor-ui/package.json",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "8c81a100f3179e33e587d6e3cf4d988798f460eff31be3246e1488deaea9b2ec"
+        },
+        {
+          "path": "editor-ui/package-lock.json",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "7936d01c100313a64edc7f8d334ae7be8d9e663677d4857e861cbcc3091b85d3"
+        },
+        {
+          "path": ".github/workflows/quality.yml",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "25c4f5ab2c4ce6a4422b65ca3cdf064c1c1f0aa89b4f3240ed535951ceba892d"
+        }
+      ]
+    },
+    {
+      "id": "SRC-011",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/progressivestages/common/lock/LockDefinition.java; src/main/java/com/enviouse/progressivestages/common/lock/LockRegistry.java; src/main/java/com/enviouse/progressivestages/server/loader/StageFileParser.java; src/main/java/com/enviouse/progressivestages/common/rehaul/LegacyStageCompiler.java; src/main/java/com/enviouse/progressivestages/server/loader/Schema4StageCompiler.java",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/lock/LockDefinition.java",
+          "sha256": "d743b4754dbe7eb94874fcf7467b178f9195a6df0dc9d7535c8bc49b5ea78ad8"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/lock/LockRegistry.java",
+          "sha256": "89e91330f58dd7fd989cf9bb459e16925b020c6846650c03c342e6a82b1aa1e6"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/loader/StageFileParser.java",
+          "sha256": "524c617ace525fbe8f897540e2a10c8c4d6a32c052915552c77c69155a836f47"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/rehaul/LegacyStageCompiler.java",
+          "sha256": "1800d8e1085089febd48e161362f4e4bf717956203d6376b30f5eced3a2e6b1c"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/loader/Schema4StageCompiler.java",
+          "sha256": "192eb2fdd5d70dc142c2a9862722a34bbd8c1208f11473f4ff5643fe70f6107d"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/lock/LockDefinition.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "d743b4754dbe7eb94874fcf7467b178f9195a6df0dc9d7535c8bc49b5ea78ad8"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/lock/LockRegistry.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "df3681b0f06303853c25786ea2a54f236fb9b37411cf2cc8570890f34b61152b"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/loader/StageFileParser.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "2dc1ac299eefe105e8751683b63b9b0abb6fbc12b9d13abfc63ccf046a6b1460"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/rehaul/LegacyStageCompiler.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "e4f4195930ab0b661224f1d819b654a3b00e205049150bdea057bfb7ab627aae"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/loader/Schema4StageCompiler.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "831953023c45d5d2b505d02652ca9ba4c974debf9fa5bf3d714b6f494cb1f7e4"
+        }
+      ]
+    },
+    {
+      "id": "SRC-012",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/progressivestages/server/enforcement/StructureEnforcer.java; src/main/java/com/enviouse/progressivestages/server/enforcement/ConditionalLockEngine.java; src/main/java/com/enviouse/progressivestages/common/api/structure/StructureAccessArbitration.java; src/main/java/com/enviouse/progressivestages/server/enforcement/StructureSessionAccessPolicy.java; src/main/java/com/enviouse/progressivestages/server/structure/StructureSessionManager.java",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/enforcement/StructureEnforcer.java",
+          "sha256": "ff9549dcabc5176e3f268d4ad2a1c2fe4a7b95b872a8e621dcc98ac08aa8b925"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/enforcement/ConditionalLockEngine.java",
+          "sha256": "16f5bb6b68d029a31ecb0105f1f759b9c434fd2fc4c108de90b528242de81d11"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/api/structure/StructureAccessArbitration.java",
+          "sha256": "831175e6867d040d13c10ecedb59ee4d0ea04397542d16a1953e026817b0fb0f"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/enforcement/StructureSessionAccessPolicy.java",
+          "sha256": "df8041fbe8ccdfe5079b7262e434400303563ad3940417ee5e66f865ebb64870"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/structure/StructureSessionManager.java",
+          "sha256": "32057cee232ee18185100e37612758ac407ac5712a6a6013b58b6c53d808302f"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/enforcement/StructureEnforcer.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "ff9549dcabc5176e3f268d4ad2a1c2fe4a7b95b872a8e621dcc98ac08aa8b925"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/enforcement/ConditionalLockEngine.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "211e4c42d6f865688091d3180aadada60b9968e2b42b6976c5c011c9fffc5248"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/api/structure/StructureAccessArbitration.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "831175e6867d040d13c10ecedb59ee4d0ea04397542d16a1953e026817b0fb0f"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/enforcement/StructureSessionAccessPolicy.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "df8041fbe8ccdfe5079b7262e434400303563ad3940417ee5e66f865ebb64870"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/structure/StructureSessionManager.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "126b375ec12221048fb81686643f351eabae593f3ef2572d9d8008410c6ae7ce"
+        }
+      ]
+    },
+    {
+      "id": "SRC-013",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/progressivestages/Progressivestages.java; src/main/java/com/enviouse/progressivestages/server/loader/StageFileLoader.java; src/main/java/com/enviouse/progressivestages/server/loader/DefaultShowcaseStages.java; src/main/java/com/enviouse/progressivestages/server/enforcement/AbilityEnforcer.java; src/main/java/com/enviouse/progressivestages/common/config/StageConfig.java",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/Progressivestages.java",
+          "sha256": "2633c93b5ecdc6d5baa3eb9f03478626c095382fc6f47667f30d41174a2a7b2e"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/loader/StageFileLoader.java",
+          "sha256": "42f4ebf5c73e6bab0b002b5f626d1a8f9c425424752cf9e206d041477c6b217d"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/loader/DefaultShowcaseStages.java",
+          "sha256": "551725fcb370bc65e6777fbc2d9a7f8526efc5ae97271521628da9374b5f074f"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/enforcement/AbilityEnforcer.java",
+          "sha256": "9134db5ae414e5467d7ce77be42d3221f14e5eb52652f3447c2f63ef4389ea4d"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageConfig.java",
+          "sha256": "a8cf0dfcbdad4957e8093c561a61571f8d9dfdbe2b7ab7eae26ff2acc8a6cbfb"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/Progressivestages.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "2633c93b5ecdc6d5baa3eb9f03478626c095382fc6f47667f30d41174a2a7b2e"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/loader/StageFileLoader.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "4d5d32dfccb184c2d11ec9c35890c5b74999ead5077b3118de8fa12fb02322e5"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/loader/DefaultShowcaseStages.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "551725fcb370bc65e6777fbc2d9a7f8526efc5ae97271521628da9374b5f074f"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/enforcement/AbilityEnforcer.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "9134db5ae414e5467d7ce77be42d3221f14e5eb52652f3447c2f63ef4389ea4d"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageConfig.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "065b1f902c76a6fd31b31d3021b80d4f4c539a7b395be3407f27fed81671dd81"
+        }
+      ]
+    },
+    {
+      "id": "SRC-014",
+      "role": "repository_evidence",
+      "locator": "editor-ui/src/features/LayoutPage.tsx; editor-ui/src/features/stages/EssentialsPanel.tsx; editor-ui/src/features/stages/StageActions.tsx; editor-ui/src/features/stages/StageDialogs.tsx; editor-ui/src/features/stages/EffectsPanel.tsx; editor-ui/src/features/stages/RulesPanel.tsx; editor-ui/src/store/EditorContext.tsx; editor-ui/src/lib/toml.ts; editor-ui/src/lib/tomlSource.ts",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": [
+        {
+          "path": "editor-ui/src/features/LayoutPage.tsx",
+          "sha256": "b4aaab6cac8f641b9fc959ddfebd2ea7fbde5b9d5e4f2b22356d6dcbc74ccbaa"
+        },
+        {
+          "path": "editor-ui/src/features/stages/EssentialsPanel.tsx",
+          "sha256": "ab197b902bfef28f677e47d2ee12ff5e935e5a400b93e2894540a469f16a7902"
+        },
+        {
+          "path": "editor-ui/src/features/stages/StageActions.tsx",
+          "sha256": "f53c80e45a588feb8362bd455525913d2aef3a1156dba81c13d875f2f7c85197"
+        },
+        {
+          "path": "editor-ui/src/features/stages/StageDialogs.tsx",
+          "sha256": "ef76d9c003d8d13c4c6e468af9f0f18c5062f7c106e52bb559447a33ea913435"
+        },
+        {
+          "path": "editor-ui/src/features/stages/EffectsPanel.tsx",
+          "sha256": "85196f3fb9dc4689bffd1cbcfcfcb102264770b03a5f2e6bb946bf89c8d89390"
+        },
+        {
+          "path": "editor-ui/src/features/stages/RulesPanel.tsx",
+          "sha256": "3b364fc2e02c2b26574bf27d59ea185cdeca845f05a0c390294a9cc34c585f68"
+        },
+        {
+          "path": "editor-ui/src/store/EditorContext.tsx",
+          "sha256": "b101a337ef7f9ab1df9c5011868d3020471b70a7b935941facf75bafe1fc49fa"
+        },
+        {
+          "path": "editor-ui/src/lib/toml.ts",
+          "sha256": "f1a90ea81b51c8de39791cda1762d942a9041f7c85e2276c98d2e98781bbb2c9"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "editor-ui/src/features/LayoutPage.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "b4aaab6cac8f641b9fc959ddfebd2ea7fbde5b9d5e4f2b22356d6dcbc74ccbaa"
+        },
+        {
+          "path": "editor-ui/src/features/stages/EssentialsPanel.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "9aeccfc18ee39f587c496cad03468ff13d5148bdee7fcdf1fe11b081408d6329"
+        },
+        {
+          "path": "editor-ui/src/features/stages/StageActions.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f53c80e45a588feb8362bd455525913d2aef3a1156dba81c13d875f2f7c85197"
+        },
+        {
+          "path": "editor-ui/src/features/stages/StageDialogs.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "ef76d9c003d8d13c4c6e468af9f0f18c5062f7c106e52bb559447a33ea913435"
+        },
+        {
+          "path": "editor-ui/src/features/stages/EffectsPanel.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "c5370209f1a2eefdd5f283b880a14590c2caf63ade25d081e7f0ed674fed5ef9"
+        },
+        {
+          "path": "editor-ui/src/features/stages/RulesPanel.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "dfae5eff7bbe6876b11099140656ca48f92cbd7bc61fabc07815c80bd850f3a7"
+        },
+        {
+          "path": "editor-ui/src/store/EditorContext.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "c0e3d2352f94ac98dfce84449bdfbd641b935c73f10578a0548798bea5a70ca7"
+        },
+        {
+          "path": "editor-ui/src/lib/toml.ts",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "c3164f9cf81a5dd72b583763d57dff9cd99309bc17afa8260331f5e3f9b36f38"
+        },
+        {
+          "path": "editor-ui/src/lib/tomlSource.ts",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "c4e4ae83cbdb42d55e179401b2c5c75a2689b55e7ff56bc0f8675dc8c13426de"
+        }
+      ]
+    },
+    {
+      "id": "SRC-015",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/progressivestages/server/commands/StageCommand.java; docs/test/diagnostics.md; docs/troubleshooting/easy-builder.md; README.md; DOCUMENTATION.md; docs/README.md",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/commands/StageCommand.java",
+          "sha256": "ebe74b757948242ef6ffbd316d748f20140134ce018b43565d7eb0f48098075b"
+        },
+        {
+          "path": "README.md",
+          "sha256": "46edee6142bfae43efb5736e8f49b18ed6ada4ff625c4b74ad3de5302298067e"
+        },
+        {
+          "path": "DOCUMENTATION.md",
+          "sha256": "8caa7ee403b4170657a9024695b1ccaacf97632c56fdc0eeb2e8d923ea1374e7"
+        },
+        {
+          "path": "docs/README.md",
+          "sha256": "703de5279d8bf630940ecccdbcb4aaf359d8b2b7ed14612c90cfca1032da7aaf"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/commands/StageCommand.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "1049bf29e906fe8afa7f9dcb07080c5d3aa11e27d310fd0575766c6bade3e1eb"
+        },
+        {
+          "path": "docs/test/diagnostics.md",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "1072882f5c5ae616eaf2e52a6d0cf4e50d3b2fddbb1401e48bd6550228540c48"
+        },
+        {
+          "path": "docs/troubleshooting/easy-builder.md",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "6b28ececf9bccad7cd7727ed2f04ff86dc7b21d4e8a06cf13955c813982a1da0"
+        },
+        {
+          "path": "README.md",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "ce92f4c8655ac71acb9ec72b1378302ce3b004382ba7d457a94d5a7e6c2219f8"
+        },
+        {
+          "path": "DOCUMENTATION.md",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "54cb7d1c038022520e7b6d426f300a54408eabbf8ad1511ad62dc01e319bc9af"
+        },
+        {
+          "path": "docs/README.md",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "d7d3cb5beb9f0def2071e3d5c41a3846a3c0b1fae6edfff7c921cf852e848f8f"
+        }
+      ]
+    },
+    {
+      "id": "SRC-016",
+      "role": "repository_evidence",
+      "locator": "src/test/java/com/enviouse/progressivestages/server/loader/DefaultShowcaseStagesTest.java; src/test/java/com/enviouse/progressivestages/server/loader/StageFileParserTest.java; src/test/java/com/enviouse/progressivestages/server/loader/Schema4StageCompilerTest.java; src/test/java/com/enviouse/progressivestages/server/loader/LegacyCompatibilityBaselineTest.java; src/test/java/com/enviouse/progressivestages/server/enforcement/AbilityEnforcerTest.java; src/test/java/com/enviouse/progressivestages/server/enforcement/ConditionalLockEngineTest.java; src/test/java/com/enviouse/progressivestages/server/enforcement/StructureSessionAccessPolicyTest.java; src/test/java/com/enviouse/progressivestages/common/api/structure/StructureAccessArbitrationTest.java; src/test/java/com/enviouse/progressivestages/client/editor/PackagedEditorAssetsTest.java",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": [
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/loader/DefaultShowcaseStagesTest.java",
+          "sha256": "0a0a2dcc7d08fb535085e2389afb6afbf07a372ed21d89eb4ba7178025933482"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/loader/StageFileParserTest.java",
+          "sha256": "7f25a6e07d7ddb94bda7a497446f2baf7628dc05ccc32786749abc39a83c8484"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/loader/Schema4StageCompilerTest.java",
+          "sha256": "8b71e65cc29f5c099c73ebbb135cdce41c9e40b492816f3e658ebdfea5badcac"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/loader/LegacyCompatibilityBaselineTest.java",
+          "sha256": "842cd2cd37d0cd4b41161ca2e0497d505171b41df27e055e11874397d8115cc3"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/enforcement/AbilityEnforcerTest.java",
+          "sha256": "3e7eba7ce96a7255321eb5d44b422b706a43466d1f5a3e384ff3136914a6a123"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/enforcement/ConditionalLockEngineTest.java",
+          "sha256": "770fb85810a9d22fb4de2b747f8211b65926fa07acf7bc9e66ca21449620db4f"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/enforcement/StructureSessionAccessPolicyTest.java",
+          "sha256": "f36dc1c9301c82f3e919615853750b67a5ec7af0d892bf472ff688c22acb9ea5"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/common/api/structure/StructureAccessArbitrationTest.java",
+          "sha256": "862ed79457e696d424f5da90efe3e34c1e65fd7c70ec5a0b638a81f9f103adbc"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/client/editor/PackagedEditorAssetsTest.java",
+          "sha256": "d7ab5fa202a3dbaa3bfaec79fa38151fd649cdab587cb2116abefa05bd6a87d5"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/loader/DefaultShowcaseStagesTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "0a0a2dcc7d08fb535085e2389afb6afbf07a372ed21d89eb4ba7178025933482"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/loader/StageFileParserTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "58054cad7cc48d734d5c13f1ac1b25815bdc8c0e21ecc5f527861e25408899bc"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/loader/Schema4StageCompilerTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "0a161b6f2ad0b40a3a723674a3efb6e7ad5e9aa7b1cc25e34109e0621ff38399"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/loader/LegacyCompatibilityBaselineTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "842cd2cd37d0cd4b41161ca2e0497d505171b41df27e055e11874397d8115cc3"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/enforcement/AbilityEnforcerTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "3e7eba7ce96a7255321eb5d44b422b706a43466d1f5a3e384ff3136914a6a123"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/enforcement/ConditionalLockEngineTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "770fb85810a9d22fb4de2b747f8211b65926fa07acf7bc9e66ca21449620db4f"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/enforcement/StructureSessionAccessPolicyTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f36dc1c9301c82f3e919615853750b67a5ec7af0d892bf472ff688c22acb9ea5"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/common/api/structure/StructureAccessArbitrationTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "862ed79457e696d424f5da90efe3e34c1e65fd7c70ec5a0b638a81f9f103adbc"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/client/editor/PackagedEditorAssetsTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "d7ab5fa202a3dbaa3bfaec79fa38151fd649cdab587cb2116abefa05bd6a87d5"
+        }
+      ]
+    },
+    {
+      "id": "SRC-017",
+      "role": "review_feedback",
+      "locator": "https://github.com/MCEnvision/ProgressiveStages/issues/57",
+      "revision": "updated 2026-09-22T22:09:37Z",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T00:41:21.702046+00:00",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-018",
+      "role": "repository_evidence",
+      "locator": "git ls-remote origin refs/heads/master and local envy/issue_57 history/status",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:41:21.702031+00:00",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T00:41:21.702046+00:00",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-019",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/progressivestages/common/config/StageDefinition.java; src/main/java/com/enviouse/progressivestages/client/ClientStageCache.java; src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java; src/main/java/com/enviouse/progressivestages/common/network/NetworkHandler.java; editor-ui/vite.config.ts; .github/workflows/release-validation.yml; docs/release/3.0.4.md",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T00:44:40.080106+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/repository-observations.md",
+        "sha256": "e3277bd4415eabddc32596a8ad87a9476d33837b142aa84ff5192f37f2d1de39"
+      },
+      "repository_files": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageDefinition.java",
+          "sha256": "f4c2689fec75f4ec4e343be43bee21a3b862ea122273576ff10b4e7898d32439"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/ClientStageCache.java",
+          "sha256": "0093a9e9da964efcbf1e8825d4e5b4c7c9b28565727844c308fce228851582a0"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java",
+          "sha256": "b15cf9c67c73b0bd1382a2ee69688c471e6f60ce501c6f7e7221e1380ac6cd81"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/network/NetworkHandler.java",
+          "sha256": "8aa4113f6cb6296a5eb6f1a752a0227a6f6b0673ea04e1853d9058040ed88f84"
+        },
+        {
+          "path": "editor-ui/vite.config.ts",
+          "sha256": "6d42dc9018ed6c4303a0aaa6b5de18170fca5c824b41227f3862288685141179"
+        },
+        {
+          "path": ".github/workflows/release-validation.yml",
+          "sha256": "9b86f9d22d74545876a19c4858b29da05164ab03fd86f2528fb4cd2d39d4a158"
+        },
+        {
+          "path": "docs/release/3.0.4.md",
+          "sha256": "3d42555f8db025d042b4717283080eb48b8a833e33ac26037db023e592791793"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageDefinition.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f3a1be1dba35d7c8f71edf9fd19cc87c70be97f4c176924602b63ee797b63e9d"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/ClientStageCache.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "3ec4aa970ac91ec5d4661424eec67b8adda8a08b7c8ffe92c704946d579031c0"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "b432974124f396e802cb0f43c474989182d1e479f9c92bf7ac96e573ce207587"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/network/NetworkHandler.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "a585f15a76f10e9522c2370052ee2c59d2387d31db071b9035409cd397001e56"
+        },
+        {
+          "path": "editor-ui/vite.config.ts",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "6d42dc9018ed6c4303a0aaa6b5de18170fca5c824b41227f3862288685141179"
+        },
+        {
+          "path": ".github/workflows/release-validation.yml",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "9b86f9d22d74545876a19c4858b29da05164ab03fd86f2528fb4cd2d39d4a158"
+        },
+        {
+          "path": "docs/release/3.0.4.md",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "874c016fad862a82bdd5a35bb1dc10653a2cd7c60f1450b469d36374c507b7ba"
+        }
+      ]
+    },
+    {
+      "id": "SRC-001",
+      "role": "owner_request",
+      "locator": "Current owner request and clarifications",
+      "revision": "2026-09-24 planning scope",
+      "observed_at": "2026-09-24T00:49:16.771034+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/owner-scope.md",
+        "sha256": "122118b565db20f2b40199cd372ed2baaa4e16ef990dbe398441b306c854468d"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-002",
+      "role": "owner_request",
+      "locator": "Current owner request and clarifications",
+      "revision": "2026-09-24 planning scope",
+      "observed_at": "2026-09-24T00:49:16.771034+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/owner-scope.md",
+        "sha256": "122118b565db20f2b40199cd372ed2baaa4e16ef990dbe398441b306c854468d"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-003",
+      "role": "owner_request",
+      "locator": "Current owner request and clarifications",
+      "revision": "2026-09-24 planning scope",
+      "observed_at": "2026-09-24T00:49:16.771034+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/owner-scope.md",
+        "sha256": "122118b565db20f2b40199cd372ed2baaa4e16ef990dbe398441b306c854468d"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-004",
+      "role": "audit_evidence",
+      "locator": "Current project capability checks",
+      "revision": "2026-09-24 planning scope",
+      "observed_at": "2026-09-24T00:49:16.771034+00:00",
+      "freshness": "mutable",
+      "snapshot": {
+        "path": "sources/environment.json",
+        "sha256": "30383d33fa18a035189a8fd578785c5a23f5c47371bf57c50eb2f93a82dee48e"
+      },
+      "repository_files": [],
+      "recheck_after": "2026-09-25T00:49:16.771034+00:00"
+    }
+  ],
+  "findings": [
+    {
+      "id": "FIND-001",
+      "summary": "No entry_allowed field exists. StructureRulesAggregate couples exact entry targets to globally merged protection flags and padding, losing per-stage/per-structure attribution.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-011",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-001",
+        "CORE-REQ-002"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-002",
+      "summary": "Use missing-or-false legacy entry gating and true as a stage-local absence of entry denial. Keep per-structure owner contributions for independent break/place protection and avoid implicit chest/interact denial from protection-only targets.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-011",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-001",
+        "CORE-REQ-002"
+      ],
+      "depends_on": [
+        "FIND-001"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-003",
+      "summary": "LegacyStageCompiler and Schema4StageCompiler both need entry independence. Owner now requires optional priority configuration: structures.rules.priority defaults 0 and affects active deny candidates, existing advanced explicit action ALLOW rules retain numeric override semantics, deny wins ties, entry_allowed=true never creates ALLOW.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-011",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-001",
+        "CORE-REQ-002"
+      ],
+      "depends_on": [
+        "FIND-001"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-004",
+      "summary": "Actorless explosions/spawns currently ignore player stages. Preserve their unconditional semantics scoped to their own structure targets, preserve global block_structure_entry and provider/session arbitration, and document correction of cross-structure leakage.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-012",
+        "SRC-015"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-001",
+        "CORE-REQ-002",
+        "CORE-REQ-006"
+      ],
+      "depends_on": [
+        "FIND-001"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-005",
+      "summary": "Both startup and loader fallback generate active showcase files. showcase:end_protocol explicitly locks jump. Empty configuration has no intrinsic jump lock; existing files skip generation. Defaults changes need two call sites plus non-destructive existing-config recovery.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-013",
+        "SRC-017"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-003",
+        "CORE-REQ-006"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-006",
+      "summary": "The reported labels remain in current EssentialsPanel. EffectsPanel already supports explicit ability restriction edits. Improve plain labels, immediate help and restriction source visibility, retaining serialized keys and advanced functions.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-014",
+        "SRC-017"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-004",
+        "CORE-REQ-006"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-007",
+      "summary": "LayoutPage already provides SVG pan/zoom/drag/connect and keyboard actions, but lacks a node context menu. Reuse StageActions and confirmation dialogs for nearby actions; prove pointer/keyboard/cycle/delete/review behavior without replacing the graph.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-014",
+        "SRC-017"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-005"
+      ],
+      "depends_on": [
+        "FIND-006"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-008",
+      "summary": "Owner requires essential movement unrestricted in generated defaults and new stages. Preserve nonmovement showcase scope and existing files; retain explicit admin ability restrictions and documented old-pack recovery. Removing all ability enforcement or silently rewriting existing named stages is excluded.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-013",
+        "SRC-014"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-003",
+        "CORE-REQ-006"
+      ],
+      "depends_on": [
+        "FIND-005"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-009",
+      "summary": "Current explain target resolves only compiled rules and cannot prove actual legacy ability or structure provider causes. Extend bounded default-off diagnostic infrastructure around actual final evaluators, with provenance, contributors, revision, reason, permission checks and cleanup.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-012",
+        "SRC-013",
+        "SRC-015"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-007"
+      ],
+      "depends_on": [
+        "FIND-001",
+        "FIND-005"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-010",
+      "summary": "Current master pins NeoForge 21.1.248 and mod 3.0.5; root is older. Existing npm check/typecheck/test/build, JUnit tests, Gradle build and configured server/GameTest runs can support proof. No formatter declared in build.gradle. No tests or runtimes were executed during this research.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-010",
+        "SRC-016",
+        "SRC-018"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-008"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-011",
+      "summary": "No issue-specific implementation is present on envy/issue_57 beyond repairs already merged into master, and issue comments explicitly deny verified fix. Runtime claims require new exact-revision server, browser and silent laptop evidence; source reasoning is not reproduction.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-017",
+        "SRC-018"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-008"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-012",
+      "summary": "Existing description/inspector/dependency availability provide guide integration points but no dedicated next-stage guide. Add optional bounded authored guide fields, synchronized to the actual stages menu, multi-branch recommendations, no spoiler leakage and explicit guide inclusion/exclusion for manual-only permanent lock stages, recommendations labeled prerequisites met rather than immediately unlockable. Positional payload schema requires explicit protocol compatibility handling.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-019",
+        "SRC-014",
+        "SRC-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-009",
+        "CORE-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-006"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-013",
+      "summary": "The owner requires 3.1.0 publication and editor delivery. Both existing mod platforms are mapped; the current product hosts its editor from bundled Vite assets. No separate public deployment is specified. Safely select the final approved artifact, then verify platform metadata, hashes and the mod-served editor from the released JAR.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-019",
+        "SRC-002",
+        "SRC-004"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-010"
+      ],
+      "conflicts_with": []
+    }
+  ]
+}

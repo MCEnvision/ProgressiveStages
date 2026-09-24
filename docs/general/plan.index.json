@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "ProgressiveStages",
+    "repository": "https://github.com/MCEnvision/ProgressiveStages.git"
+  },
+  "master": "plan.md",
+  "plans": [
+    {
+      "id": "PLAN-MASTER",
+      "path": "plan.md",
+      "kind": "master",
+      "classification": "mandatory",
+      "requirementPrefix": "CORE",
+      "owner": "ProgressiveStages",
+      "dependsOn": []
+    },
+    {
+      "id": "PLAN-PHASE-000",
+      "path": "phases/plan-phase-000.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE000",
+      "phaseId": "CORE-PHASE-000",
+      "owner": "Structure enforcement",
+      "dependsOn": [
+        "PLAN-MASTER"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-001",
+      "path": "phases/plan-phase-001.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE001",
+      "phaseId": "CORE-PHASE-001",
+      "owner": "Editor",
+      "dependsOn": [
+        "PLAN-MASTER",
+        "PLAN-PHASE-000"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-002",
+      "path": "phases/plan-phase-002.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE002",
+      "phaseId": "CORE-PHASE-002",
+      "owner": "Player guide",
+      "dependsOn": [
+        "PLAN-MASTER",
+        "PLAN-PHASE-001"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-003",
+      "path": "phases/plan-phase-003.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE003",
+      "phaseId": "CORE-PHASE-003",
+      "owner": "Release integration",
+      "dependsOn": [
+        "PLAN-MASTER",
+        "PLAN-PHASE-002"
+      ]
+    }
+  ]
+}

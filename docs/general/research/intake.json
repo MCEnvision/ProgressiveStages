@@ -1,0 +1,384 @@
+{
+  "contract_schema_version": 2,
+  "mode": "EXISTING_PROJECT_BOOTSTRAP",
+  "planning_subject": {
+    "name": "ProgressiveStages 3.1.0 structure independence and guided progression",
+    "requested_artifact": "authoritative_plan",
+    "plan_profile": "software_product",
+    "source_artifacts": [
+      {
+        "id": "SRC-001",
+        "role": "owner_request",
+        "subject": "Independent structure rules and focused issue 57 improvements",
+        "source": "Current owner request and supplied sponsor example",
+        "use": "Defines mandatory behavior and excludes a complete editor rewrite."
+      },
+      {
+        "id": "SRC-002",
+        "role": "owner_request",
+        "subject": "Movement defaults, optional configuration and release endpoint",
+        "source": "Current owner answers in this planning task",
+        "use": "Locks essential movement freedom, configurable priorities and release publication."
+      },
+      {
+        "id": "SRC-003",
+        "role": "owner_request",
+        "subject": "Version 3.1.0 and authored next-stage guide",
+        "source": "Current owner steering in this planning task",
+        "use": "Locks version and player guide edited through custom editor fields."
+      },
+      {
+        "id": "SRC-010",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "gradle.properties; gradle/wrapper/gradle-wrapper.properties; build.gradle; editor-ui/package.json; editor-ui/package-lock.json; .github/workflows/quality.yml",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-011",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "src/main/java/com/enviouse/progressivestages/common/lock/LockDefinition.java; src/main/java/com/enviouse/progressivestages/common/lock/LockRegistry.java; src/main/java/com/enviouse/progressivestages/server/loader/StageFileParser.java; src/main/java/com/enviouse/progressivestages/common/rehaul/LegacyStageCompiler.java; src/main/java/com/enviouse/progressivestages/server/loader/Schema4StageCompiler.java",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-012",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "src/main/java/com/enviouse/progressivestages/server/enforcement/StructureEnforcer.java; src/main/java/com/enviouse/progressivestages/server/enforcement/ConditionalLockEngine.java; src/main/java/com/enviouse/progressivestages/common/api/structure/StructureAccessArbitration.java; src/main/java/com/enviouse/progressivestages/server/enforcement/StructureSessionAccessPolicy.java; src/main/java/com/enviouse/progressivestages/server/structure/StructureSessionManager.java",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-013",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "src/main/java/com/enviouse/progressivestages/Progressivestages.java; src/main/java/com/enviouse/progressivestages/server/loader/StageFileLoader.java; src/main/java/com/enviouse/progressivestages/server/loader/DefaultShowcaseStages.java; src/main/java/com/enviouse/progressivestages/server/enforcement/AbilityEnforcer.java; src/main/java/com/enviouse/progressivestages/common/config/StageConfig.java",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-014",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "editor-ui/src/features/LayoutPage.tsx; editor-ui/src/features/stages/EssentialsPanel.tsx; editor-ui/src/features/stages/StageActions.tsx; editor-ui/src/features/stages/StageDialogs.tsx; editor-ui/src/features/stages/EffectsPanel.tsx; editor-ui/src/features/stages/RulesPanel.tsx; editor-ui/src/store/EditorContext.tsx; editor-ui/src/lib/toml.ts; editor-ui/src/lib/tomlSource.ts",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-015",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "src/main/java/com/enviouse/progressivestages/server/commands/StageCommand.java; docs/test/diagnostics.md; docs/troubleshooting/easy-builder.md; README.md; DOCUMENTATION.md; docs/README.md",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-016",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "src/test/java/com/enviouse/progressivestages/server/loader/DefaultShowcaseStagesTest.java; src/test/java/com/enviouse/progressivestages/server/loader/StageFileParserTest.java; src/test/java/com/enviouse/progressivestages/server/loader/Schema4StageCompilerTest.java; src/test/java/com/enviouse/progressivestages/server/loader/LegacyCompatibilityBaselineTest.java; src/test/java/com/enviouse/progressivestages/server/enforcement/AbilityEnforcerTest.java; src/test/java/com/enviouse/progressivestages/server/enforcement/ConditionalLockEngineTest.java; src/test/java/com/enviouse/progressivestages/server/enforcement/StructureSessionAccessPolicyTest.java; src/test/java/com/enviouse/progressivestages/common/api/structure/StructureAccessArbitrationTest.java; src/test/java/com/enviouse/progressivestages/client/editor/PackagedEditorAssetsTest.java",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-017",
+        "role": "review_feedback",
+        "subject": "Pinned repository observation or issue report",
+        "source": "https://github.com/MCEnvision/ProgressiveStages/issues/57",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-018",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "git ls-remote origin refs/heads/master and local envy/issue_57 history/status",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-019",
+        "role": "repository_evidence",
+        "subject": "Pinned repository observation or issue report",
+        "source": "src/main/java/com/enviouse/progressivestages/common/config/StageDefinition.java; src/main/java/com/enviouse/progressivestages/client/ClientStageCache.java; src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java; src/main/java/com/enviouse/progressivestages/common/network/NetworkHandler.java; editor-ui/vite.config.ts; .github/workflows/release-validation.yml; docs/release/3.0.4.md",
+        "use": "Evidence for behavior, constraints and validation, never runtime proof or authority"
+      },
+      {
+        "id": "SRC-004",
+        "role": "audit_evidence",
+        "subject": "Execution and publication capabilities",
+        "source": "research/sources/environment.json",
+        "use": "Identifies available infrastructure and remaining candidate-specific verification gates."
+      }
+    ]
+  },
+  "profile_contract": [
+    {
+      "area": "Inputs and outputs",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Inputs and outputs",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "Component architecture",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Component architecture",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "State and persistence",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "State and persistence",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "Failure taxonomy",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Failure taxonomy",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "Versioning",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Versioning",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "Security",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Security",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "Test system",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Test system",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "Release lifecycle",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Release lifecycle",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "Generalization",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Generalization",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    },
+    {
+      "area": "Determinism",
+      "status": "covered",
+      "source": "SRC-011, SRC-012, SRC-014, SRC-019",
+      "plan_section": "Determinism",
+      "rationale": "Define the bounded configuration, client/server/editor and release contracts with concrete failure proof in the master and phases."
+    }
+  ],
+  "completion_endpoint": "ProgressiveStages 3.1.0 is tested, integrated through checked master pull requests and signed phase tags, published on CurseForge and Modrinth with matching verified artifacts, and its updated mod-served web editor and in-game guide are verified from the released JAR. Documentation, wiki and issue 57 reflect the verified result.",
+  "optional_future_disposition": "excluded",
+  "project_identity": {
+    "status": "matched",
+    "request_or_plan": "Owner explicitly identifies ProgressiveStages, 3.1.0",
+    "repository": "/mnt/hermes/projects/ProgressiveStages",
+    "package_metadata": "mod_id progressivestages, editor package progressivestages-editor",
+    "remote": "origin https://github.com/MCEnvision/ProgressiveStages.git"
+  },
+  "mandatory_scope": [
+    {
+      "id": "CORE-REQ-001",
+      "summary": "Independent structure entry and player protection rules support the separate unlock and unobtainable protection stage workflow.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-002",
+      "summary": "Compatible per-structure per-stage action composition with optional priority, no global allow from entry_allowed, deterministic diagnostics and existing advanced override semantics.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-003",
+      "summary": "Generated defaults and newly created stages preserve essential movement; explicit admin restrictions remain and existing configs are not silently rewritten.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-004",
+      "summary": "Existing editor labels and help use plain language while retaining supported advanced controls and serialized compatibility.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-005",
+      "summary": "Graph offers nearby edit and delete actions, context and keyboard alternatives, safe gesture handling, confirmation and existing draft review workflow.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-006",
+      "summary": "Structure, movement, configuration and guide examples explain setup, precedence, validation, reload, troubleshooting and recovery in current documentation.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-007",
+      "summary": "Bounded default-off diagnostics explain actual structure/ability/editor/guide decisions using source provenance and final evaluator results.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-008",
+      "summary": "ProgressiveStages 3.1.0 is tested, integrated through checked master pull requests and signed phase tags, published on CurseForge and Modrinth with matching verified artifacts, and its updated mod-served web editor and in-game guide are verified from the released JAR. Documentation, wiki and issue 57 reflect the verified result.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "post_change",
+      "production_verification": "nondestructive"
+    },
+    {
+      "id": "CORE-REQ-009",
+      "summary": "Actual in-game stages menu shows authored next-stage unlock, next-step and location guidance edited in GUI, persisted and synced safely with visibility and branching rules.",
+      "source": "Current owner request and clarifications, pinned research findings",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    }
+  ],
+  "optional_future_scope": [
+    {
+      "id": "FUT-001",
+      "summary": "Full editor rewrite, new graph framework, full localization or unrelated configuration expansion.",
+      "source": "Owner narrowed issue57 request",
+      "disposition": "excluded"
+    }
+  ],
+  "non_goals": [
+    {
+      "id": "NG-001",
+      "summary": "No loader, Minecraft, Gradle or dependency upgrade solely for this feature; preserve current master pins.",
+      "source": "Repository instructions"
+    },
+    {
+      "id": "NG-002",
+      "summary": "No silent rewrite of existing admin configs, no ability capability removal, no automatic quest generation, no new hosting provider selection.",
+      "source": "Owner scope and compatibility requirements"
+    }
+  ],
+  "unresolved_owner_questions": [],
+  "owner_decisions": [
+    {
+      "id": "DEC-001",
+      "question": "Defaults movement policy",
+      "status": "resolved",
+      "selected_choice": "Generated default configurations and new stages leave essential movement unrestricted. Administrators can explicitly configure movement restrictions."
+    },
+    {
+      "id": "DEC-002",
+      "question": "Optional configuration breadth",
+      "status": "resolved",
+      "selected_choice": "Implement optional structure configuration, including numeric priorities, with compatible defaults and clear editor controls."
+    },
+    {
+      "id": "DEC-003",
+      "question": "Publication endpoint",
+      "status": "resolved",
+      "selected_choice": "Publish the new mod release and deliver the updated existing web editor."
+    },
+    {
+      "id": "DEC-004",
+      "question": "Release version and next-stage guide",
+      "status": "resolved",
+      "selected_choice": "Release version 3.1.0 includes author-written unlock instructions, next steps and location guidance configured in the editor and shown in the in-game stages menu."
+    },
+    {
+      "id": "DEC-005",
+      "question": "Editor delivery target identified by the request and repository",
+      "status": "resolved",
+      "selected_choice": "Update the existing mod-served web editor opened with /pstages editor and bundled in the 3.1.0 JAR. No separate public host is specified."
+    },
+    {
+      "id": "DEC-006",
+      "question": "Runtime placement and teardown",
+      "status": "resolved",
+      "selected_choice": "Use node-1 only for headless builds, tests and dedicated servers. Use the verified Linux laptop for actual clients and graphical checks with isolated prelaunch silence, exact per-application mute, private multiplayer and complete owned-resource cleanup. Disposable server eula=true is already authorized."
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "EXT-001",
+      "name": "Existing laptop desktop, discrete GPU hardware, audio tools and private host access",
+      "affected_requirements": [
+        "CORE-REQ-001",
+        "CORE-REQ-003",
+        "CORE-REQ-009",
+        "CORE-REQ-008"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "other",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "SSH access, active Hyprland instance, RTX 5090 Laptop GPU inventory, wpctl and pactl observed. Actual candidate renderer, stream correlation, verified mute and joined-world checks are mandatory execution gates, not already verified."
+      ]
+    },
+    {
+      "id": "EXT-002",
+      "name": "Existing mod-served web editor delivery",
+      "affected_requirements": [
+        "CORE-REQ-005",
+        "CORE-REQ-008",
+        "CORE-REQ-009"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "other",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "The repository serves Vite editor assets bundled in the mod. Build and package the new assets and verify /pstages editor using the published 3.1.0 JAR. No separately identified external deployment is required."
+      ]
+    },
+    {
+      "id": "EXT-003",
+      "name": "Established CurseForge and Modrinth publication capability",
+      "affected_requirements": [
+        "CORE-REQ-008"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "other",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Existing broker inspected mapped CurseForge 1460273 and Modrinth rY4mdP4Q successfully. Resolve stale candidate selection to the approved 3.1.0 artifact before a fresh preview. Use available broker operations and verify both public file metadata and downloaded hashes. Current broker help lacks inspect-file, so inspect accepted metadata through supported public read-only pages or broker returned metadata without inventing a command."
+      ]
+    },
+    {
+      "id": "EXT-004",
+      "name": "Existing Brave extension connection for editor interaction",
+      "affected_requirements": [
+        "CORE-REQ-004",
+        "CORE-REQ-005",
+        "CORE-REQ-009",
+        "CORE-REQ-008"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "other",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "The existing laptop Brave extension connection was selected and inspected. Execution must prove actual editor controls and exact candidate behavior."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "project": "ProgressiveStages",
+  "release_target": "3.1.0",
+  "observed_at": "2026-09-24T01:38:35.562331+00:00",
+  "scope": "Plan validation only. Product implementation, runtime acceptance and publication remain required future work.",
+  "result": "PLAN_VALIDATED",
+  "structural_validation": "PASS",
+  "semantic_review": "ready",
+  "shared_contracts": "PASS",
+  "handoff_schema": 2,
+  "metrics": {
+    "master_words": 11724,
+    "plan_files": 5,
+    "requirements": 9,
+    "phases": 4,
+    "decisions": 6,
+    "prerequisites": 4,
+    "optional_items": 1,
+    "non_goals": 2,
+    "canonical_assignments": 9,
+    "acceptance_criteria": 20,
+    "evidence_items": 25,
+    "plan_set_sha256": "e521da54f356c5b0894708848003540ef9c0fd0b3651d2a8bcbab92bc5778674"
+  },
+  "pinned_source_blobs_verified": 52,
+  "resolved_contract_checks": [
+    "IF-004 uses validated concrete snapshot size and the pinned transport maximum.",
+    "The exact production candidate must pass startup and smoke before upload. Downloaded public artifacts retain independent verification."
+  ],
+  "known_external_blockers": [],
+  "optional_scope": "excluded",
+  "product_implementation": "not_started",
+  "publication": "not_started"
+}

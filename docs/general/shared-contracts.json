@@ -1,0 +1,1024 @@
+{
+  "schema_version": 1,
+  "plan_files": {
+    "plan.md": "67cb7223734ccbf62e98f9252e6ef4006cc8f1eafb29b575b01eb1e15ff8d15b",
+    "phases/plan-phase-000.md": "d16871d80979c8e18b5171cf81f06a33367e2e5bb95019214d41b34a23a1c299",
+    "phases/plan-phase-001.md": "bd2177fb42e2d493133dc958753dfb5f9abc2f584d9d994dcd89054b64495873",
+    "phases/plan-phase-002.md": "a63b7777b250f26f39cbcf1badcbc4784f96b23e7b99e92e53073664d71cf1c0",
+    "phases/plan-phase-003.md": "ce2418e5a896dc3aa2c69e6487364781635119d22e5d9ec667239969a25efa20"
+  },
+  "requirement_ids": [
+    "CORE-REQ-001",
+    "CORE-REQ-002",
+    "CORE-REQ-003",
+    "CORE-REQ-004",
+    "CORE-REQ-005",
+    "CORE-REQ-006",
+    "CORE-REQ-007",
+    "CORE-REQ-008",
+    "CORE-REQ-009"
+  ],
+  "contracts": [
+    {
+      "id": "IF-001",
+      "producer": "CORE-PHASE-000",
+      "consumers": [
+        "CORE-PHASE-001",
+        "CORE-PHASE-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-001",
+        "CORE-REQ-002"
+      ],
+      "acceptance_ids": [
+        "CORE-AC-001",
+        "CORE-AC-002",
+        "CORE-AC-003"
+      ],
+      "signature": {
+        "version": "3.1.0 additive legacy and schema4",
+        "targets": "structures.locked_entry exact resource IDs with existing priority annotations",
+        "entry_allowed": {
+          "type": "strict Boolean",
+          "default": false,
+          "true": "no own entry denial; never ALLOW"
+        },
+        "priority": {
+          "type": "optional signed int32",
+          "min": -2147483648,
+          "max": 2147483647,
+          "omission": "inherit existing cascade",
+          "explicit_zero": "rule level override"
+        },
+        "player_protections": {
+          "fields": [
+            "prevent_block_break",
+            "prevent_block_place"
+          ],
+          "type": "strict Boolean",
+          "default": false,
+          "true": "denial while owner stage missing on matching target"
+        },
+        "actorless_protections": {
+          "fields": [
+            "prevent_explosions",
+            "disable_mob_spawning"
+          ],
+          "type": "strict Boolean",
+          "default": false,
+          "composition": "OR within exact structure independent of player ownership"
+        },
+        "contribution": [
+          "structure",
+          "owner stage",
+          "action",
+          "source file/key",
+          "effective priority",
+          "accepted revision"
+        ],
+        "errors": "source-key rejection retains previous accepted snapshot; compiler parity no duplicates",
+        "padding": "existing locations and normalization only active final entry denying contributions"
+      }
+    },
+    {
+      "id": "IF-002",
+      "producer": "CORE-PHASE-000",
+      "consumers": [
+        "CORE-PHASE-001",
+        "CORE-PHASE-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-002"
+      ],
+      "acceptance_ids": [
+        "CORE-AC-002",
+        "CORE-AC-003",
+        "CORE-AC-014"
+      ],
+      "signature": {
+        "version": "existing action arbitration with attributed convenience candidates",
+        "priority_cascade": [
+          "exact selector",
+          "explicit structures.rules.priority",
+          "category",
+          "stage",
+          "global"
+        ],
+        "priority_default": "unconfigured effective zero; omission and explicit zero differ",
+        "winner": "higher signed priority; DENY wins ALLOW tie; deterministic owner and source key provenance",
+        "allow": "existing matching advanced ALLOW participates in actual static action result; false convenience fields never ALLOW",
+        "overlap": "evaluate each structure; any remaining denial retains gate",
+        "padding": "max padding of equally highest final entry denials within each denied structure",
+        "provider_session": "subsequent arbitration preserved; owner dimension bounds instance access checks",
+        "actorless": "no fictional player or player priority"
+      }
+    },
+    {
+      "id": "IF-003",
+      "producer": "CORE-PHASE-002",
+      "consumers": [
+        "CORE-PHASE-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-009"
+      ],
+      "acceptance_ids": [
+        "CORE-AC-011",
+        "CORE-AC-012",
+        "CORE-AC-013"
+      ],
+      "signature": {
+        "version": "optional top-level guide table legacy and schema4",
+        "fields": {
+          "how_to_unlock": {
+            "type": "string",
+            "default": "",
+            "code_points_max": 2048,
+            "utf8_bytes_max": 8192
+          },
+          "next_steps": {
+            "type": "string",
+            "default": "",
+            "code_points_max": 2048,
+            "utf8_bytes_max": 8192
+          },
+          "where_to_find": {
+            "type": "string",
+            "default": "",
+            "code_points_max": 2048,
+            "utf8_bytes_max": 8192
+          }
+        },
+        "recommendation": {
+          "type": "enum string",
+          "values": [
+            "auto",
+            "include",
+            "exclude"
+          ],
+          "default": "auto"
+        },
+        "candidate": "existing visible/revealed AND unowned AND ANY/ALL/AT_LEAST prerequisites met AND recommendation filter",
+        "auto": "existing hasTriggers bit OR nonblank guide field",
+        "include": "no visibility/ownership bypass",
+        "exclude": "never recommended",
+        "order": [
+          "uiSortOrder",
+          "category",
+          "display name",
+          "stage ID"
+        ],
+        "compare": "ascending locale independent",
+        "render": "inert Unicode multiline; no invented guidance; preserve description; no hidden presentation leak",
+        "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation"
+      }
+    },
+    {
+      "id": "IF-004",
+      "producer": "CORE-PHASE-002",
+      "consumers": [
+        "CORE-PHASE-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-009"
+      ],
+      "acceptance_ids": [
+        "CORE-AC-011",
+        "CORE-AC-012",
+        "CORE-AC-013"
+      ],
+      "signature": {
+        "protocol": 3,
+        "previous_protocol": 2,
+        "mismatch": "clear negotiation rejection",
+        "pipeline": [
+          "StageDefinition",
+          "StageFileParser",
+          "schema4 display metadata",
+          "NetworkHandler.StageDefinitionEntry",
+          "ClientStageCache.StageDefinitionData",
+          "StageTreeScreen"
+        ],
+        "hasTriggers": "existing server supplied Boolean maintained across both consumers; no private triggers",
+        "snapshot": "nonnegative definition revision; complete validated atomic replacement",
+        "updates": [
+          "reload",
+          "apply",
+          "grant",
+          "revoke",
+          "team",
+          "reconnect",
+          "screen refresh"
+        ],
+        "limits": "enforce both guide bounds before allocation; preserve existing limits and verify pinned transport maximum before send",
+        "chunking": "required if supported snapshot with guide exceeds transport limit; revision,index,total; bounded count/cumulative bytes; timeout200 client ticks; discard superseded/incomplete",
+        "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters"
+      }
+    },
+    {
+      "id": "IF-005",
+      "producer": "CORE-PHASE-001",
+      "consumers": [
+        "CORE-PHASE-002",
+        "CORE-PHASE-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-003",
+        "CORE-REQ-004",
+        "CORE-REQ-005"
+      ],
+      "acceptance_ids": [
+        "CORE-AC-004",
+        "CORE-AC-005",
+        "CORE-AC-006",
+        "CORE-AC-007",
+        "CORE-AC-008",
+        "CORE-AC-011"
+      ],
+      "signature": {
+        "version": "existing source preserving draft APIs",
+        "defaults": "both generation paths no jump sprint swim climb elytra locks; new stages empty ability locks; existing files unchanged",
+        "labels": [
+          "Stage name",
+          "Stage icon",
+          "Required stages"
+        ],
+        "structure_controls": "entry allowed, independent protections, optional signed priority and inherited source; no implicit serialized zero",
+        "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
+        "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
+        "guide_extension": "Phase002 provides guide controls through IF003; not an exit prerequisite for Phase001"
+      }
+    },
+    {
+      "id": "IF-006",
+      "producer": "CORE-PHASE-000",
+      "consumers": [
+        "CORE-PHASE-001",
+        "CORE-PHASE-002",
+        "CORE-PHASE-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-007"
+      ],
+      "acceptance_ids": [
+        "CORE-AC-015"
+      ],
+      "signature": {
+        "version": 1,
+        "manager": "existing InteractionCaptureManager",
+        "default": "off",
+        "permission": 3,
+        "commands": [
+          "/stage debug <category> on <player>",
+          "/stage debug <category> status",
+          "/stage debug <category> off",
+          "/stage debug structures on structure <dimension_id> <structure_id>"
+        ],
+        "categories": [
+          "interactions",
+          "progression",
+          "permissions",
+          "editor",
+          "structures",
+          "abilities"
+        ],
+        "ownership": "phase000 shared controls and actual structure ability editor; phase002 guide progression extensions",
+        "limits": {
+          "seconds": 60,
+          "events": 200,
+          "events_per_second": 20,
+          "bytes": 131072,
+          "queue": 256,
+          "string_utf16_units": 256,
+          "collection": 32
+        },
+        "identity": [
+          "capture ID",
+          "sequence",
+          "side",
+          "accepted revision",
+          "artifact hash",
+          "source provenance",
+          "final decision"
+        ],
+        "lifecycle": "one capture globally; busy refusal; idempotent off with drain; reset on timeout/reload/shutdown/target loss, no restart capture",
+        "privacy": "no raw guide content tokens sessionURLs private endpoints unrelated player data",
+        "cost": "lazy recording no tick/render disk blocking; zero disabled allocation; existing 1000warmup +three1000attempt rounds; <=100000ns addedCPU andelapsed perattempt"
+      }
+    }
+  ],
+  "phases": [
+    {
+      "id": "CORE-PHASE-000",
+      "path": "phases/plan-phase-000.md",
+      "requirement_ids": [
+        "CORE-REQ-001",
+        "CORE-REQ-002",
+        "CORE-REQ-007"
+      ],
+      "interfaces": [
+        {
+          "id": "IF-001",
+          "signature": {
+            "version": "3.1.0 additive legacy and schema4",
+            "targets": "structures.locked_entry exact resource IDs with existing priority annotations",
+            "entry_allowed": {
+              "type": "strict Boolean",
+              "default": false,
+              "true": "no own entry denial; never ALLOW"
+            },
+            "priority": {
+              "type": "optional signed int32",
+              "min": -2147483648,
+              "max": 2147483647,
+              "omission": "inherit existing cascade",
+              "explicit_zero": "rule level override"
+            },
+            "player_protections": {
+              "fields": [
+                "prevent_block_break",
+                "prevent_block_place"
+              ],
+              "type": "strict Boolean",
+              "default": false,
+              "true": "denial while owner stage missing on matching target"
+            },
+            "actorless_protections": {
+              "fields": [
+                "prevent_explosions",
+                "disable_mob_spawning"
+              ],
+              "type": "strict Boolean",
+              "default": false,
+              "composition": "OR within exact structure independent of player ownership"
+            },
+            "contribution": [
+              "structure",
+              "owner stage",
+              "action",
+              "source file/key",
+              "effective priority",
+              "accepted revision"
+            ],
+            "errors": "source-key rejection retains previous accepted snapshot; compiler parity no duplicates",
+            "padding": "existing locations and normalization only active final entry denying contributions"
+          },
+          "acceptance_ids": [
+            "CORE-AC-001",
+            "CORE-AC-002",
+            "CORE-AC-003"
+          ]
+        },
+        {
+          "id": "IF-002",
+          "signature": {
+            "version": "existing action arbitration with attributed convenience candidates",
+            "priority_cascade": [
+              "exact selector",
+              "explicit structures.rules.priority",
+              "category",
+              "stage",
+              "global"
+            ],
+            "priority_default": "unconfigured effective zero; omission and explicit zero differ",
+            "winner": "higher signed priority; DENY wins ALLOW tie; deterministic owner and source key provenance",
+            "allow": "existing matching advanced ALLOW participates in actual static action result; false convenience fields never ALLOW",
+            "overlap": "evaluate each structure; any remaining denial retains gate",
+            "padding": "max padding of equally highest final entry denials within each denied structure",
+            "provider_session": "subsequent arbitration preserved; owner dimension bounds instance access checks",
+            "actorless": "no fictional player or player priority"
+          },
+          "acceptance_ids": [
+            "CORE-AC-002",
+            "CORE-AC-003",
+            "CORE-AC-014"
+          ]
+        },
+        {
+          "id": "IF-006",
+          "signature": {
+            "version": 1,
+            "manager": "existing InteractionCaptureManager",
+            "default": "off",
+            "permission": 3,
+            "commands": [
+              "/stage debug <category> on <player>",
+              "/stage debug <category> status",
+              "/stage debug <category> off",
+              "/stage debug structures on structure <dimension_id> <structure_id>"
+            ],
+            "categories": [
+              "interactions",
+              "progression",
+              "permissions",
+              "editor",
+              "structures",
+              "abilities"
+            ],
+            "ownership": "phase000 shared controls and actual structure ability editor; phase002 guide progression extensions",
+            "limits": {
+              "seconds": 60,
+              "events": 200,
+              "events_per_second": 20,
+              "bytes": 131072,
+              "queue": 256,
+              "string_utf16_units": 256,
+              "collection": 32
+            },
+            "identity": [
+              "capture ID",
+              "sequence",
+              "side",
+              "accepted revision",
+              "artifact hash",
+              "source provenance",
+              "final decision"
+            ],
+            "lifecycle": "one capture globally; busy refusal; idempotent off with drain; reset on timeout/reload/shutdown/target loss, no restart capture",
+            "privacy": "no raw guide content tokens sessionURLs private endpoints unrelated player data",
+            "cost": "lazy recording no tick/render disk blocking; zero disabled allocation; existing 1000warmup +three1000attempt rounds; <=100000ns addedCPU andelapsed perattempt"
+          },
+          "acceptance_ids": [
+            "CORE-AC-015"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CORE-PHASE-001",
+      "path": "phases/plan-phase-001.md",
+      "requirement_ids": [
+        "CORE-REQ-003",
+        "CORE-REQ-004",
+        "CORE-REQ-005"
+      ],
+      "interfaces": [
+        {
+          "id": "IF-001",
+          "signature": {
+            "version": "3.1.0 additive legacy and schema4",
+            "targets": "structures.locked_entry exact resource IDs with existing priority annotations",
+            "entry_allowed": {
+              "type": "strict Boolean",
+              "default": false,
+              "true": "no own entry denial; never ALLOW"
+            },
+            "priority": {
+              "type": "optional signed int32",
+              "min": -2147483648,
+              "max": 2147483647,
+              "omission": "inherit existing cascade",
+              "explicit_zero": "rule level override"
+            },
+            "player_protections": {
+              "fields": [
+                "prevent_block_break",
+                "prevent_block_place"
+              ],
+              "type": "strict Boolean",
+              "default": false,
+              "true": "denial while owner stage missing on matching target"
+            },
+            "actorless_protections": {
+              "fields": [
+                "prevent_explosions",
+                "disable_mob_spawning"
+              ],
+              "type": "strict Boolean",
+              "default": false,
+              "composition": "OR within exact structure independent of player ownership"
+            },
+            "contribution": [
+              "structure",
+              "owner stage",
+              "action",
+              "source file/key",
+              "effective priority",
+              "accepted revision"
+            ],
+            "errors": "source-key rejection retains previous accepted snapshot; compiler parity no duplicates",
+            "padding": "existing locations and normalization only active final entry denying contributions"
+          },
+          "acceptance_ids": [
+            "CORE-AC-001",
+            "CORE-AC-002",
+            "CORE-AC-003"
+          ]
+        },
+        {
+          "id": "IF-002",
+          "signature": {
+            "version": "existing action arbitration with attributed convenience candidates",
+            "priority_cascade": [
+              "exact selector",
+              "explicit structures.rules.priority",
+              "category",
+              "stage",
+              "global"
+            ],
+            "priority_default": "unconfigured effective zero; omission and explicit zero differ",
+            "winner": "higher signed priority; DENY wins ALLOW tie; deterministic owner and source key provenance",
+            "allow": "existing matching advanced ALLOW participates in actual static action result; false convenience fields never ALLOW",
+            "overlap": "evaluate each structure; any remaining denial retains gate",
+            "padding": "max padding of equally highest final entry denials within each denied structure",
+            "provider_session": "subsequent arbitration preserved; owner dimension bounds instance access checks",
+            "actorless": "no fictional player or player priority"
+          },
+          "acceptance_ids": [
+            "CORE-AC-002",
+            "CORE-AC-003",
+            "CORE-AC-014"
+          ]
+        },
+        {
+          "id": "IF-005",
+          "signature": {
+            "version": "existing source preserving draft APIs",
+            "defaults": "both generation paths no jump sprint swim climb elytra locks; new stages empty ability locks; existing files unchanged",
+            "labels": [
+              "Stage name",
+              "Stage icon",
+              "Required stages"
+            ],
+            "structure_controls": "entry allowed, independent protections, optional signed priority and inherited source; no implicit serialized zero",
+            "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
+            "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
+            "guide_extension": "Phase002 provides guide controls through IF003; not an exit prerequisite for Phase001"
+          },
+          "acceptance_ids": [
+            "CORE-AC-004",
+            "CORE-AC-005",
+            "CORE-AC-006",
+            "CORE-AC-007",
+            "CORE-AC-008",
+            "CORE-AC-011"
+          ]
+        },
+        {
+          "id": "IF-006",
+          "signature": {
+            "version": 1,
+            "manager": "existing InteractionCaptureManager",
+            "default": "off",
+            "permission": 3,
+            "commands": [
+              "/stage debug <category> on <player>",
+              "/stage debug <category> status",
+              "/stage debug <category> off",
+              "/stage debug structures on structure <dimension_id> <structure_id>"
+            ],
+            "categories": [
+              "interactions",
+              "progression",
+              "permissions",
+              "editor",
+              "structures",
+              "abilities"
+            ],
+            "ownership": "phase000 shared controls and actual structure ability editor; phase002 guide progression extensions",
+            "limits": {
+              "seconds": 60,
+              "events": 200,
+              "events_per_second": 20,
+              "bytes": 131072,
+              "queue": 256,
+              "string_utf16_units": 256,
+              "collection": 32
+            },
+            "identity": [
+              "capture ID",
+              "sequence",
+              "side",
+              "accepted revision",
+              "artifact hash",
+              "source provenance",
+              "final decision"
+            ],
+            "lifecycle": "one capture globally; busy refusal; idempotent off with drain; reset on timeout/reload/shutdown/target loss, no restart capture",
+            "privacy": "no raw guide content tokens sessionURLs private endpoints unrelated player data",
+            "cost": "lazy recording no tick/render disk blocking; zero disabled allocation; existing 1000warmup +three1000attempt rounds; <=100000ns addedCPU andelapsed perattempt"
+          },
+          "acceptance_ids": [
+            "CORE-AC-015"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CORE-PHASE-002",
+      "path": "phases/plan-phase-002.md",
+      "requirement_ids": [
+        "CORE-REQ-009"
+      ],
+      "interfaces": [
+        {
+          "id": "IF-003",
+          "signature": {
+            "version": "optional top-level guide table legacy and schema4",
+            "fields": {
+              "how_to_unlock": {
+                "type": "string",
+                "default": "",
+                "code_points_max": 2048,
+                "utf8_bytes_max": 8192
+              },
+              "next_steps": {
+                "type": "string",
+                "default": "",
+                "code_points_max": 2048,
+                "utf8_bytes_max": 8192
+              },
+              "where_to_find": {
+                "type": "string",
+                "default": "",
+                "code_points_max": 2048,
+                "utf8_bytes_max": 8192
+              }
+            },
+            "recommendation": {
+              "type": "enum string",
+              "values": [
+                "auto",
+                "include",
+                "exclude"
+              ],
+              "default": "auto"
+            },
+            "candidate": "existing visible/revealed AND unowned AND ANY/ALL/AT_LEAST prerequisites met AND recommendation filter",
+            "auto": "existing hasTriggers bit OR nonblank guide field",
+            "include": "no visibility/ownership bypass",
+            "exclude": "never recommended",
+            "order": [
+              "uiSortOrder",
+              "category",
+              "display name",
+              "stage ID"
+            ],
+            "compare": "ascending locale independent",
+            "render": "inert Unicode multiline; no invented guidance; preserve description; no hidden presentation leak",
+            "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation"
+          },
+          "acceptance_ids": [
+            "CORE-AC-011",
+            "CORE-AC-012",
+            "CORE-AC-013"
+          ]
+        },
+        {
+          "id": "IF-004",
+          "signature": {
+            "protocol": 3,
+            "previous_protocol": 2,
+            "mismatch": "clear negotiation rejection",
+            "pipeline": [
+              "StageDefinition",
+              "StageFileParser",
+              "schema4 display metadata",
+              "NetworkHandler.StageDefinitionEntry",
+              "ClientStageCache.StageDefinitionData",
+              "StageTreeScreen"
+            ],
+            "hasTriggers": "existing server supplied Boolean maintained across both consumers; no private triggers",
+            "snapshot": "nonnegative definition revision; complete validated atomic replacement",
+            "updates": [
+              "reload",
+              "apply",
+              "grant",
+              "revoke",
+              "team",
+              "reconnect",
+              "screen refresh"
+            ],
+            "limits": "enforce both guide bounds before allocation; preserve existing limits and verify pinned transport maximum before send",
+            "chunking": "required if supported snapshot with guide exceeds transport limit; revision,index,total; bounded count/cumulative bytes; timeout200 client ticks; discard superseded/incomplete",
+            "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters"
+          },
+          "acceptance_ids": [
+            "CORE-AC-011",
+            "CORE-AC-012",
+            "CORE-AC-013"
+          ]
+        },
+        {
+          "id": "IF-005",
+          "signature": {
+            "version": "existing source preserving draft APIs",
+            "defaults": "both generation paths no jump sprint swim climb elytra locks; new stages empty ability locks; existing files unchanged",
+            "labels": [
+              "Stage name",
+              "Stage icon",
+              "Required stages"
+            ],
+            "structure_controls": "entry allowed, independent protections, optional signed priority and inherited source; no implicit serialized zero",
+            "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
+            "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
+            "guide_extension": "Phase002 provides guide controls through IF003; not an exit prerequisite for Phase001"
+          },
+          "acceptance_ids": [
+            "CORE-AC-004",
+            "CORE-AC-005",
+            "CORE-AC-006",
+            "CORE-AC-007",
+            "CORE-AC-008",
+            "CORE-AC-011"
+          ]
+        },
+        {
+          "id": "IF-006",
+          "signature": {
+            "version": 1,
+            "manager": "existing InteractionCaptureManager",
+            "default": "off",
+            "permission": 3,
+            "commands": [
+              "/stage debug <category> on <player>",
+              "/stage debug <category> status",
+              "/stage debug <category> off",
+              "/stage debug structures on structure <dimension_id> <structure_id>"
+            ],
+            "categories": [
+              "interactions",
+              "progression",
+              "permissions",
+              "editor",
+              "structures",
+              "abilities"
+            ],
+            "ownership": "phase000 shared controls and actual structure ability editor; phase002 guide progression extensions",
+            "limits": {
+              "seconds": 60,
+              "events": 200,
+              "events_per_second": 20,
+              "bytes": 131072,
+              "queue": 256,
+              "string_utf16_units": 256,
+              "collection": 32
+            },
+            "identity": [
+              "capture ID",
+              "sequence",
+              "side",
+              "accepted revision",
+              "artifact hash",
+              "source provenance",
+              "final decision"
+            ],
+            "lifecycle": "one capture globally; busy refusal; idempotent off with drain; reset on timeout/reload/shutdown/target loss, no restart capture",
+            "privacy": "no raw guide content tokens sessionURLs private endpoints unrelated player data",
+            "cost": "lazy recording no tick/render disk blocking; zero disabled allocation; existing 1000warmup +three1000attempt rounds; <=100000ns addedCPU andelapsed perattempt"
+          },
+          "acceptance_ids": [
+            "CORE-AC-015"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CORE-PHASE-003",
+      "path": "phases/plan-phase-003.md",
+      "requirement_ids": [
+        "CORE-REQ-006",
+        "CORE-REQ-008"
+      ],
+      "interfaces": [
+        {
+          "id": "IF-001",
+          "signature": {
+            "version": "3.1.0 additive legacy and schema4",
+            "targets": "structures.locked_entry exact resource IDs with existing priority annotations",
+            "entry_allowed": {
+              "type": "strict Boolean",
+              "default": false,
+              "true": "no own entry denial; never ALLOW"
+            },
+            "priority": {
+              "type": "optional signed int32",
+              "min": -2147483648,
+              "max": 2147483647,
+              "omission": "inherit existing cascade",
+              "explicit_zero": "rule level override"
+            },
+            "player_protections": {
+              "fields": [
+                "prevent_block_break",
+                "prevent_block_place"
+              ],
+              "type": "strict Boolean",
+              "default": false,
+              "true": "denial while owner stage missing on matching target"
+            },
+            "actorless_protections": {
+              "fields": [
+                "prevent_explosions",
+                "disable_mob_spawning"
+              ],
+              "type": "strict Boolean",
+              "default": false,
+              "composition": "OR within exact structure independent of player ownership"
+            },
+            "contribution": [
+              "structure",
+              "owner stage",
+              "action",
+              "source file/key",
+              "effective priority",
+              "accepted revision"
+            ],
+            "errors": "source-key rejection retains previous accepted snapshot; compiler parity no duplicates",
+            "padding": "existing locations and normalization only active final entry denying contributions"
+          },
+          "acceptance_ids": [
+            "CORE-AC-001",
+            "CORE-AC-002",
+            "CORE-AC-003"
+          ]
+        },
+        {
+          "id": "IF-002",
+          "signature": {
+            "version": "existing action arbitration with attributed convenience candidates",
+            "priority_cascade": [
+              "exact selector",
+              "explicit structures.rules.priority",
+              "category",
+              "stage",
+              "global"
+            ],
+            "priority_default": "unconfigured effective zero; omission and explicit zero differ",
+            "winner": "higher signed priority; DENY wins ALLOW tie; deterministic owner and source key provenance",
+            "allow": "existing matching advanced ALLOW participates in actual static action result; false convenience fields never ALLOW",
+            "overlap": "evaluate each structure; any remaining denial retains gate",
+            "padding": "max padding of equally highest final entry denials within each denied structure",
+            "provider_session": "subsequent arbitration preserved; owner dimension bounds instance access checks",
+            "actorless": "no fictional player or player priority"
+          },
+          "acceptance_ids": [
+            "CORE-AC-002",
+            "CORE-AC-003",
+            "CORE-AC-014"
+          ]
+        },
+        {
+          "id": "IF-003",
+          "signature": {
+            "version": "optional top-level guide table legacy and schema4",
+            "fields": {
+              "how_to_unlock": {
+                "type": "string",
+                "default": "",
+                "code_points_max": 2048,
+                "utf8_bytes_max": 8192
+              },
+              "next_steps": {
+                "type": "string",
+                "default": "",
+                "code_points_max": 2048,
+                "utf8_bytes_max": 8192
+              },
+              "where_to_find": {
+                "type": "string",
+                "default": "",
+                "code_points_max": 2048,
+                "utf8_bytes_max": 8192
+              }
+            },
+            "recommendation": {
+              "type": "enum string",
+              "values": [
+                "auto",
+                "include",
+                "exclude"
+              ],
+              "default": "auto"
+            },
+            "candidate": "existing visible/revealed AND unowned AND ANY/ALL/AT_LEAST prerequisites met AND recommendation filter",
+            "auto": "existing hasTriggers bit OR nonblank guide field",
+            "include": "no visibility/ownership bypass",
+            "exclude": "never recommended",
+            "order": [
+              "uiSortOrder",
+              "category",
+              "display name",
+              "stage ID"
+            ],
+            "compare": "ascending locale independent",
+            "render": "inert Unicode multiline; no invented guidance; preserve description; no hidden presentation leak",
+            "errors": "wrong type enum encoding control or either length limit rejects candidate without truncation"
+          },
+          "acceptance_ids": [
+            "CORE-AC-011",
+            "CORE-AC-012",
+            "CORE-AC-013"
+          ]
+        },
+        {
+          "id": "IF-004",
+          "signature": {
+            "protocol": 3,
+            "previous_protocol": 2,
+            "mismatch": "clear negotiation rejection",
+            "pipeline": [
+              "StageDefinition",
+              "StageFileParser",
+              "schema4 display metadata",
+              "NetworkHandler.StageDefinitionEntry",
+              "ClientStageCache.StageDefinitionData",
+              "StageTreeScreen"
+            ],
+            "hasTriggers": "existing server supplied Boolean maintained across both consumers; no private triggers",
+            "snapshot": "nonnegative definition revision; complete validated atomic replacement",
+            "updates": [
+              "reload",
+              "apply",
+              "grant",
+              "revoke",
+              "team",
+              "reconnect",
+              "screen refresh"
+            ],
+            "limits": "enforce both guide bounds before allocation; preserve existing limits and verify pinned transport maximum before send",
+            "chunking": "required if supported snapshot with guide exceeds transport limit; revision,index,total; bounded count/cumulative bytes; timeout200 client ticks; discard superseded/incomplete",
+            "failure": "keep last accepted snapshot; reconnect clears stale state; never compare unrelated counters"
+          },
+          "acceptance_ids": [
+            "CORE-AC-011",
+            "CORE-AC-012",
+            "CORE-AC-013"
+          ]
+        },
+        {
+          "id": "IF-005",
+          "signature": {
+            "version": "existing source preserving draft APIs",
+            "defaults": "both generation paths no jump sprint swim climb elytra locks; new stages empty ability locks; existing files unchanged",
+            "labels": [
+              "Stage name",
+              "Stage icon",
+              "Required stages"
+            ],
+            "structure_controls": "entry allowed, independent protections, optional signed priority and inherited source; no implicit serialized zero",
+            "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
+            "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
+            "guide_extension": "Phase002 provides guide controls through IF003; not an exit prerequisite for Phase001"
+          },
+          "acceptance_ids": [
+            "CORE-AC-004",
+            "CORE-AC-005",
+            "CORE-AC-006",
+            "CORE-AC-007",
+            "CORE-AC-008",
+            "CORE-AC-011"
+          ]
+        },
+        {
+          "id": "IF-006",
+          "signature": {
+            "version": 1,
+            "manager": "existing InteractionCaptureManager",
+            "default": "off",
+            "permission": 3,
+            "commands": [
+              "/stage debug <category> on <player>",
+              "/stage debug <category> status",
+              "/stage debug <category> off",
+              "/stage debug structures on structure <dimension_id> <structure_id>"
+            ],
+            "categories": [
+              "interactions",
+              "progression",
+              "permissions",
+              "editor",
+              "structures",
+              "abilities"
+            ],
+            "ownership": "phase000 shared controls and actual structure ability editor; phase002 guide progression extensions",
+            "limits": {
+              "seconds": 60,
+              "events": 200,
+              "events_per_second": 20,
+              "bytes": 131072,
+              "queue": 256,
+              "string_utf16_units": 256,
+              "collection": 32
+            },
+            "identity": [
+              "capture ID",
+              "sequence",
+              "side",
+              "accepted revision",
+              "artifact hash",
+              "source provenance",
+              "final decision"
+            ],
+            "lifecycle": "one capture globally; busy refusal; idempotent off with drain; reset on timeout/reload/shutdown/target loss, no restart capture",
+            "privacy": "no raw guide content tokens sessionURLs private endpoints unrelated player data",
+            "cost": "lazy recording no tick/render disk blocking; zero disabled allocation; existing 1000warmup +three1000attempt rounds; <=100000ns addedCPU andelapsed perattempt"
+          },
+          "acceptance_ids": [
+            "CORE-AC-015"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "observed_at": "2026-09-24T00:43:49.721818+00:00",
+  "release_inspection": {
+    "command": "Existing release broker inspect ProgressiveStages",
+    "result": "success",
+    "curseforge_id": "1460273",
+    "modrinth_id": "rY4mdP4Q",
+    "missing_platforms": [],
+    "configured_checkout": "/mnt/hermes/projects/ProgressiveStages",
+    "configured_version": "3.0.4-fix",
+    "configured_artifact": "build/libs/progressivestages-3.0.4.jar",
+    "warning": "Candidate selection is stale relative to current master and must not be used for 3.1.0 publication."
+  },
+  "host": {
+    "node": "node-1",
+    "laptop": "envision",
+    "ssh": "BatchMode succeeds over existing configured private connection",
+    "desktop": "active Hyprland instance",
+    "gpu_inventory": "NVIDIA GeForce RTX 5090 Laptop GPU, driver 610.57.04",
+    "audio_tools": [
+      "wpctl",
+      "pactl"
+    ],
+    "browser": "Existing Brave extension selected successfully through the installed browser control capability",
+    "proof_limits": "No Minecraft client launched. Actual renderer, stream identity, mute state, endpoint join and visual behavior remain execution gates. No browser tabs opened."
+  },
+  "git": {
+    "identity": "EnVisione",
+    "author": "EnVy <contact.enviouse@gmail.com>",
+    "signing": "configured public key fingerprint matches EnVisione registered node1 SSH signing key",
+    "merge_method": "merge",
+    "default_branch": "master",
+    "required_checks": [
+      "quality / gradle",
+      "quality / node",
+      "quality / secret scan"
+    ],
+    "current_master": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+    "release_objects": "gh release list empty; version tags alone are not GitHub Releases"
+  }
+}

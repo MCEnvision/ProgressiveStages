@@ -132,13 +132,20 @@ public final class ConditionalLockEngine {
 
     public static Decision resolve(ServerPlayer player, ConditionalRule.TargetType type,
                                    ResourceLocation id, Holder<?> holder, boolean staticBlocked) {
-        return resolve(player, type, compiledAction(type), id, holder, staticBlocked);
+        return resolve(player, type, compiledAction(type), id, holder,
+            staticBlocked ? new Decision(ConditionalRule.Effect.LOCK, 0, null, null) : null);
     }
 
     public static Decision resolve(ServerPlayer player, ConditionalRule.TargetType type, String action,
                                    ResourceLocation id, Holder<?> holder, boolean staticBlocked) {
-        Decision winner = staticBlocked
-            ? new Decision(ConditionalRule.Effect.LOCK, 0, null, null) : null;
+        return resolve(player, type, action, id, holder,
+            staticBlocked ? new Decision(ConditionalRule.Effect.LOCK, 0, null, null) : null);
+    }
+
+    /** Resolve dynamic rules against an attributed static contribution. */
+    public static Decision resolve(ServerPlayer player, ConditionalRule.TargetType type, String action,
+                                   ResourceLocation id, Holder<?> holder, Decision staticDecision) {
+        Decision winner = staticDecision;
         List<ConditionalRule> rules = rulesByTarget.get(type);
         if (player == null || type == null || id == null) return winner;
 

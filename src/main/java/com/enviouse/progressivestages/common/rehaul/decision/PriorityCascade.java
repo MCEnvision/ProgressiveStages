@@ -2,8 +2,8 @@ package com.enviouse.progressivestages.common.rehaul.decision;
 
 public final class PriorityCascade {
 
-    public static final int ABSOLUTE_MINIMUM = -1_000_000;
-    public static final int ABSOLUTE_MAXIMUM = 1_000_000;
+    public static final int ABSOLUTE_MINIMUM = Integer.MIN_VALUE;
+    public static final int ABSOLUTE_MAXIMUM = Integer.MAX_VALUE;
 
     private PriorityCascade() {}
 

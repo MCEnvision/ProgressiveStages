@@ -33,6 +33,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -432,7 +433,27 @@ public class StageCommand {
                     .then(Commands.literal("status").requires(source -> source.hasPermission(3))
                         .executes(context -> captureStatus(context, "editor")))
                     .then(Commands.literal("off").requires(source -> source.hasPermission(3))
-                        .executes(context -> stopCapture(context, "editor")))))
+                        .executes(context -> stopCapture(context, "editor"))))
+                .then(Commands.literal("structures").requires(source -> source.hasPermission(3))
+                    .then(Commands.literal("on").requires(source -> source.hasPermission(3))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(StageCommand::startStructureCapture)))
+                    .then(Commands.literal("structure").requires(source -> source.hasPermission(3))
+                        .then(Commands.argument("dimension", StringArgumentType.word())
+                            .then(Commands.argument("structure", StringArgumentType.word())
+                                .executes(StageCommand::startActorlessStructureCapture))))
+                    .then(Commands.literal("status").requires(source -> source.hasPermission(3))
+                        .executes(context -> captureStatus(context, "structures")))
+                    .then(Commands.literal("off").requires(source -> source.hasPermission(3))
+                        .executes(context -> stopCapture(context, "structures"))))
+                .then(Commands.literal("abilities").requires(source -> source.hasPermission(3))
+                    .then(Commands.literal("on").requires(source -> source.hasPermission(3))
+                        .then(Commands.argument("player", EntityArgument.player())
+                            .executes(StageCommand::startAbilityCapture)))
+                    .then(Commands.literal("status").requires(source -> source.hasPermission(3))
+                        .executes(context -> captureStatus(context, "abilities")))
+                .then(Commands.literal("off").requires(source -> source.hasPermission(3))
+                        .executes(context -> stopCapture(context, "abilities")))))
         );
 
         // Friendly public command aliases.
@@ -1836,6 +1857,35 @@ public class StageCommand {
     private static int startPermissionsCapture(CommandContext<CommandSourceStack> context)
         throws CommandSyntaxException {
         return startCapture(context, EntityArgument.getPlayer(context, "player"), "permissions");
+    }
+
+    private static int startStructureCapture(CommandContext<CommandSourceStack> context)
+        throws CommandSyntaxException {
+        return startCapture(context, EntityArgument.getPlayer(context, "player"), "structures");
+    }
+
+    private static int startAbilityCapture(CommandContext<CommandSourceStack> context)
+        throws CommandSyntaxException {
+        return startCapture(context, EntityArgument.getPlayer(context, "player"), "abilities");
+    }
+
+    private static int startActorlessStructureCapture(CommandContext<CommandSourceStack> context) {
+        ResourceLocation dimension = ResourceLocation.tryParse(StringArgumentType.getString(context, "dimension"));
+        ResourceLocation structure = ResourceLocation.tryParse(StringArgumentType.getString(context, "structure"));
+        InteractionCaptureManager.StartResult result = InteractionCaptureManager.startStructure(
+            context.getSource().getServer(), dimension, structure);
+        if (result.invalidTarget()) {
+            context.getSource().sendFailure(Component.literal("A loaded dimension and registered structure are required"));
+            return 0;
+        }
+        if (result.alreadyActive()) {
+            context.getSource().sendFailure(Component.literal("A diagnostic capture is active or its output is still draining."));
+            return 0;
+        }
+        InteractionCaptureManager.CaptureStatus status = result.status();
+        context.getSource().sendSuccess(() -> Component.literal("structures capture started for "
+            + status.target() + ". Output. " + status.output()), false);
+        return 1;
     }
 
     private static int startCapture(CommandContext<CommandSourceStack> context, ServerPlayer target,

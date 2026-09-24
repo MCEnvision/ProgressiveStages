@@ -1,0 +1,16 @@
+{
+  "phase": "core-phase-000",
+  "workspace": "/mnt/hermes/projects/ProgressiveStages/.phase-worktrees/phase-000-3.1.0",
+  "owned_paths": [
+    "build/",
+    "/tmp/progressivestages-phase000-*.txt",
+    "/tmp/progressivestages-phase000-*.log"
+  ],
+  "shared_resources": [
+    "/home/envy/.gradle/caches",
+    "/home/envy/.gradle/caches/neoformruntime/assets"
+  ],
+  "owned_processes": [],
+  "owned_audio_streams": [],
+  "teardown": "remove build and phase temporary reports after the final phase consumer; preserve shared Gradle caches and source evidence"
+}

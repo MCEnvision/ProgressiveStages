@@ -90,7 +90,9 @@ public final class StructureEnforcer {
             StructureBounds bounds = result.bounds() != null ? result.bounds()
                 : new StructureBounds(player.getBlockX(), player.getBlockY(), player.getBlockZ(),
                     player.getBlockX(), player.getBlockY(), player.getBlockZ());
-            repel(player, bounds.toBoundingBox(), aggregate.entryPadding);
+            int padding = result.instance() == null ? aggregate.entryPadding
+                : activeEntryPadding(player, result.instance().structureId(), aggregate);
+            repel(player, bounds.toBoundingBox(), padding);
             if (result.displayStage() != null) {
                 ItemEnforcer.notifyLockedWithCooldown(player, result.displayStage(), "This structure");
             }
@@ -109,6 +111,7 @@ public final class StructureEnforcer {
         EvaluationResult staticDenial = null;
         StructureInstanceKey candidate = null;
         StructureBounds candidateBounds = null;
+        Map<ResourceLocation, ConditionalLockEngine.Decision> decisions = new java.util.LinkedHashMap<>();
 
         if (StageConfig.isBlockStructureEntry()) {
             for (ResourceLocation structureId : candidateStructures(registry, aggregate)) {
@@ -117,21 +120,28 @@ public final class StructureEnforcer {
                 Optional<LocatedStructure> found = cachedStructure(level, pos, structureId, structure);
                 if (found.isEmpty()) continue;
                 StructureBounds bounds = found.get().bounds();
-                candidate = found.get().instance();
-                candidateBounds = bounds;
-                Optional<StageId> missing = firstMissing(player,
-                    aggregate.lockedEntry.getOrDefault(structureId, Set.of()));
+                if (candidate == null) {
+                    candidate = found.get().instance();
+                    candidateBounds = bounds;
+                }
+                LockRegistry.StructureContribution staticContribution = staticContribution(player, structureId, action,
+                    aggregate);
+                ConditionalLockEngine.Decision staticDecision = staticContribution == null ? null
+                    : new ConditionalLockEngine.Decision(ConditionalRule.Effect.LOCK,
+                        staticContribution.priority(), null, staticContribution.ownerStage());
                 ConditionalLockEngine.Decision conditional = ConditionalLockEngine.resolve(player,
                     ConditionalRule.TargetType.STRUCTURE, compiledAction(action), structureId, null,
-                    missing.isPresent());
+                    staticDecision);
+                decisions.put(structureId, conditional);
                 boolean locked = conditional != null && conditional.effect() == ConditionalRule.Effect.LOCK;
-                if (!locked || !staticProtects(action, aggregate)) continue;
+                if (!locked || staticContribution == null && conditional.ruleId() == null) continue;
                 StageId display = conditional.ownerStage() != null
-                    ? conditional.ownerStage() : missing.orElse(null);
-                staticDenial = new EvaluationResult(false,
-                    StructureAccessDecision.Reason.STATIC_STAGE_REQUIRED, display, bounds,
-                    null, null, candidate);
-                break;
+                    ? conditional.ownerStage() : staticContribution == null ? null : staticContribution.ownerStage();
+                if (staticDenial == null) {
+                    staticDenial = new EvaluationResult(false,
+                        StructureAccessDecision.Reason.STATIC_STAGE_REQUIRED, display, bounds,
+                        null, null, found.get().instance());
+                }
             }
         }
 
@@ -153,7 +163,8 @@ public final class StructureEnforcer {
                 StructureAccessDecision decision = StructureAccessDecision.deny(staticDenial.reason(),
                     staticDenial.displayStage(), null, staticDenial.bounds());
                 postDenied(request, decision, null);
-                return staticDenial;
+                return recordDecision(player, level, action, staticDenial, aggregate,
+                    "pass", "none", decisions);
             }
             StructureAccessDecision supplied = provider.decision();
             StructureAccessDecision decision = StructureAccessDecision.deny(supplied.reason(),
@@ -164,7 +175,8 @@ public final class StructureEnforcer {
                 decision.displayStage().orElse(null), decision.bounds().orElse(null),
                 decision.sessionId().orElse(null), provider.providerId(), candidate);
             postDenied(request, decision, provider.providerId());
-            return denied;
+            return recordDecision(player, level, action, denied, aggregate,
+                provider.decision().reason().name().toLowerCase(java.util.Locale.ROOT), "none", decisions);
         }
         if (finalResult == StructureAccessDecision.Result.PERMIT) {
             var known = provider.decision().sessionId().flatMap(sessionId ->
@@ -177,10 +189,11 @@ public final class StructureEnforcer {
                     provider.decision().sessionId().orElse(null),
                     provider.decision().bounds().orElse(candidateBounds));
                 postDenied(request, deniedDecision, provider.providerId());
-                return new EvaluationResult(false, StructureAccessDecision.Reason.SESSION_CLOSED,
+                return recordDecision(player, level, action, new EvaluationResult(false, StructureAccessDecision.Reason.SESSION_CLOSED,
                     provider.decision().displayStage().orElse(null),
                     provider.decision().bounds().orElse(candidateBounds),
-                    provider.decision().sessionId().orElse(null), provider.providerId(), candidate);
+                    provider.decision().sessionId().orElse(null), provider.providerId(), candidate),
+                    aggregate, "permit", StructureAccessDecision.Reason.SESSION_CLOSED.name().toLowerCase(java.util.Locale.ROOT), decisions);
             }
             if (known.isPresent()) {
                 var spec = known.get();
@@ -203,16 +216,45 @@ public final class StructureEnforcer {
                     StructureAccessDecision deniedDecision = StructureAccessDecision.deny(coreReason.get(),
                         spec.accessStage(), spec.sessionId(), spec.bounds());
                     postDenied(request, deniedDecision, provider.providerId());
-                    return new EvaluationResult(false, coreReason.get(), spec.accessStage(), spec.bounds(),
-                        spec.sessionId(), provider.providerId(), spec.instance());
+                    return recordDecision(player, level, action, new EvaluationResult(false, coreReason.get(), spec.accessStage(), spec.bounds(),
+                        spec.sessionId(), provider.providerId(), spec.instance()), aggregate, "permit",
+                        coreReason.get().name().toLowerCase(java.util.Locale.ROOT), decisions);
                 }
-                return new EvaluationResult(true, StructureAccessDecision.Reason.NONE,
+                return recordDecision(player, level, action, new EvaluationResult(true, StructureAccessDecision.Reason.NONE,
                     provider.decision().displayStage().orElse(null), spec.bounds(),
-                    spec.sessionId(), provider.providerId(), spec.instance());
+                    spec.sessionId(), provider.providerId(), spec.instance()), aggregate, "permit", "none", decisions);
             }
         }
-        return new EvaluationResult(true, StructureAccessDecision.Reason.NONE,
-            null, null, null, null, candidate);
+        return recordDecision(player, level, action, new EvaluationResult(true, StructureAccessDecision.Reason.NONE,
+            null, null, null, null, candidate), aggregate,
+            provider.decision().result().name().toLowerCase(java.util.Locale.ROOT), "none", decisions);
+    }
+
+    private static EvaluationResult recordDecision(ServerPlayer player, ServerLevel level, StructureAction action,
+                                                   EvaluationResult result,
+                                                   LockRegistry.StructureRulesAggregate aggregate,
+                                                   String providerResult, String sessionReason,
+                                                   Map<ResourceLocation, ConditionalLockEngine.Decision> decisions) {
+        if (result.instance() != null) {
+            ResourceLocation structureId = result.instance().structureId();
+            LockRegistry.StructureContribution staticWinner = staticContribution(player, structureId, action, aggregate);
+            LockRegistry.StructureContribution winner = decisionContribution(structureId, action,
+                decisions == null ? null : decisions.get(structureId), staticWinner);
+            InteractionCaptureManager.recordStructure(player, structureId, level.dimension().location(), action,
+                aggregate.contributions.getOrDefault(structureId, List.of()),
+                winner, providerResult, sessionReason,
+                result.allowed());
+        }
+        return result;
+    }
+
+    private static LockRegistry.StructureContribution decisionContribution(ResourceLocation structureId,
+                                                                            StructureAction action,
+                                                                            ConditionalLockEngine.Decision decision,
+                                                                            LockRegistry.StructureContribution fallback) {
+        if (decision == null || decision.ruleId() == null) return fallback;
+        return new LockRegistry.StructureContribution(structureId, decision.ownerStage(), action,
+            decision.priority(), "conditional:" + decision.ruleId(), 0);
     }
 
     private static String compiledAction(StructureAction action) {
@@ -224,18 +266,37 @@ public final class StructureEnforcer {
             case ITEM_USE -> "item_use";
             case BLOCK_INTERACT -> "interact_block";
             case ENTITY_INTERACT -> "interact_entity";
+            case ACTORLESS_EXPLOSION -> "explode";
+            case ACTORLESS_SPAWN -> "spawn";
         };
     }
 
-    private static boolean staticProtects(StructureAction action,
-                                          LockRegistry.StructureRulesAggregate aggregate) {
-        return switch (action) {
-            case ENTRY -> true;
-            case BLOCK_BREAK -> aggregate.preventBlockBreak;
-            case BLOCK_PLACE -> aggregate.preventBlockPlace;
-            case CONTAINER_OPEN, BLOCK_INTERACT, ENTITY_INTERACT -> true;
-            case ITEM_USE -> false;
+    private static LockRegistry.StructureContribution staticContribution(ServerPlayer player,
+                                                                          ResourceLocation structureId,
+                                                                          StructureAction action,
+                                                                          LockRegistry.StructureRulesAggregate aggregate) {
+        StructureAction contributionAction = switch (action) {
+            case CONTAINER_OPEN, BLOCK_INTERACT, ENTITY_INTERACT -> StructureAction.ENTRY;
+            case ITEM_USE -> null;
+            default -> action;
         };
+        if (contributionAction == null) return null;
+        return aggregate.forAction(structureId, contributionAction).stream()
+            .filter(value -> !StageManager.getInstance().hasStage(player, value.ownerStage()))
+            .sorted(java.util.Comparator.comparingInt(LockRegistry.StructureContribution::priority).reversed()
+                .thenComparing(value -> value.ownerStage().toString())
+                .thenComparing(LockRegistry.StructureContribution::sourceKey))
+            .findFirst().orElse(null);
+    }
+
+    private static int activeEntryPadding(ServerPlayer player, ResourceLocation structureId,
+                                           LockRegistry.StructureRulesAggregate aggregate) {
+        List<LockRegistry.StructureContribution> active = aggregate.forAction(structureId, StructureAction.ENTRY).stream()
+            .filter(value -> !StageManager.getInstance().hasStage(player, value.ownerStage()))
+            .toList();
+        int highest = active.stream().mapToInt(LockRegistry.StructureContribution::priority).max().orElse(0);
+        return active.stream().filter(value -> value.priority() == highest)
+            .mapToInt(LockRegistry.StructureContribution::entryPadding).max().orElse(0);
     }
 
     private static EvaluationResult allowedResult() {
@@ -286,17 +347,21 @@ public final class StructureEnforcer {
     public static void filterExplosionBlocks(ServerLevel level, List<BlockPos> affected) {
         if (!StageConfig.isBlockStructureEntry()) return;
         LockRegistry.StructureRulesAggregate agg = LockRegistry.getInstance().getStructures();
-        if (!agg.preventExplosions || agg.lockedEntry.isEmpty()) return;
+        if (!agg.preventExplosions || agg.contributions.isEmpty()) return;
 
         Registry<Structure> structureRegistry =
             level.registryAccess().registryOrThrow(Registries.STRUCTURE);
 
         affected.removeIf(pos -> {
-            for (ResourceLocation id : agg.lockedEntry.keySet()) {
+            for (ResourceLocation id : agg.contributions.keySet()) {
+                if (agg.forAction(id, StructureAction.ACTORLESS_EXPLOSION).isEmpty()) continue;
                 Structure structure = structureRegistry.get(id);
                 if (structure == null) continue;
                 StructureStart start = level.structureManager().getStructureAt(pos, structure);
                 if (start != StructureStart.INVALID_START && start.getBoundingBox().isInside(pos)) {
+                    InteractionCaptureManager.recordActorlessStructure(level.getServer(), id,
+                        level.dimension().location(), StructureAction.ACTORLESS_EXPLOSION,
+                        agg.forAction(id, StructureAction.ACTORLESS_EXPLOSION), false);
                     return true;
                 }
             }
@@ -307,15 +372,19 @@ public final class StructureEnforcer {
     public static boolean blocksMobSpawn(ServerLevel level, BlockPos pos) {
         if (!StageConfig.isBlockStructureEntry()) return false;
         LockRegistry.StructureRulesAggregate agg = LockRegistry.getInstance().getStructures();
-        if (!agg.disableMobSpawning || agg.lockedEntry.isEmpty()) return false;
+        if (!agg.disableMobSpawning || agg.contributions.isEmpty()) return false;
 
         Registry<Structure> structureRegistry =
             level.registryAccess().registryOrThrow(Registries.STRUCTURE);
-        for (ResourceLocation id : agg.lockedEntry.keySet()) {
+        for (ResourceLocation id : agg.contributions.keySet()) {
+            if (agg.forAction(id, StructureAction.ACTORLESS_SPAWN).isEmpty()) continue;
             Structure structure = structureRegistry.get(id);
             if (structure == null) continue;
             StructureStart start = level.structureManager().getStructureAt(pos, structure);
             if (start != StructureStart.INVALID_START && start.getBoundingBox().isInside(pos)) {
+                InteractionCaptureManager.recordActorlessStructure(level.getServer(), id,
+                    level.dimension().location(), StructureAction.ACTORLESS_SPAWN,
+                    agg.forAction(id, StructureAction.ACTORLESS_SPAWN), false);
                 return true;
             }
         }
@@ -328,7 +397,7 @@ public final class StructureEnforcer {
 
     private static java.util.Set<ResourceLocation> candidateStructures(
             Registry<Structure> registry, LockRegistry.StructureRulesAggregate aggregate) {
-        java.util.Set<ResourceLocation> ids = new java.util.LinkedHashSet<>(aggregate.lockedEntry.keySet());
+        java.util.Set<ResourceLocation> ids = new java.util.LinkedHashSet<>(aggregate.contributions.keySet());
         ids.addAll(ConditionalLockEngine.structureTargetIds(registry));
         return ids;
     }

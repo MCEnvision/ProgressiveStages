@@ -73,3 +73,33 @@ separately from CPU and wall time. An empty operation must allocate zero bytes, 
 allocation control must be detected on every attempt. The disabled capture assertion remains
 exactly zero. Resetting a drained rate limited capture must release its inactive runtime reference
 and return an off status while preserving any writer that is still draining.
+
+## structure and ability capture
+
+The same permission level three capture manager records actual structure decisions and ability
+state changes. It is off by default and keeps the existing 60 second, 200 record, 20 record per
+second, 128 KiB, queue 256, string 256, and collection 32 limits.
+
+Use these commands from the server console or an operator with permission level three:
+
+```text
+/stage debug structures on <player>
+/stage debug structures on structure <dimension_id> <structure_id>
+/stage debug structures status
+/stage debug structures off
+/stage debug abilities on <player>
+/stage debug abilities status
+/stage debug abilities off
+```
+
+The player form records entry, break, place, container, and interaction decisions for that player.
+The structure form records actorless explosion and spawn decisions for one loaded dimension and
+exact structure type. Captures include the accepted definition revision, action, structure and
+dimension IDs, actor scope, attributed owners and source keys, effective priorities, provider or
+session result, final result, and bounded recorder counters. Actorless records have no player
+identity. Output contains no source contents, credentials, URLs, or private session data.
+
+For a support packet, save the status output and only the lines needed to show the decisive
+contributor and final result. Run `off`, then `status`, wait for the writer to report `drained`,
+and remove the exact capture file after the last consumer has copied its sanitized excerpt. A
+failed reload stops capture and leaves the last accepted configuration active.

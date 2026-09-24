@@ -51,6 +51,56 @@ class StageFileParserTest {
     }
 
     @Test
+    void parsesIndependentStructureProtectionAndPriority() throws IOException {
+        Path file = write("structure_rules.toml", """
+            [stage]
+            id = "example:protection"
+            priority = 12
+
+            [structures]
+            locked_entry = ["minecraft:stronghold|priority=20"]
+
+            [structures.rules]
+            entry_allowed = true
+            priority = -7
+            prevent_block_place = true
+            """);
+
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(file);
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        var rules = result.getStageDefinition().getLocks().structures();
+        assertTrue(rules.entryAllowed());
+        assertEquals(-7, rules.priority());
+        assertTrue(rules.preventBlockPlace());
+        assertEquals("minecraft:stronghold|priority=20", rules.lockedEntry().locked().getFirst().raw());
+        assertEquals(20, rules.lockedEntry().locked().getFirst().explicitPriority());
+    }
+
+    @Test
+    void rejectsNonBooleanStructureFlagsAndOutOfRangePriorities() throws IOException {
+        Path wrongType = write("structure_wrong_type.toml", """
+            [stage]
+            id = "example:wrong"
+            [structures]
+            locked_entry = ["minecraft:stronghold"]
+            [structures.rules]
+            entry_allowed = "true"
+            """);
+        assertFalse(StageFileParser.parseWithErrors(wrongType).isSuccess());
+
+        Path overflow = write("structure_overflow.toml", """
+            [stage]
+            id = "example:overflow"
+            [structures]
+            locked_entry = ["minecraft:stronghold"]
+            [structures.rules]
+            priority = 2147483648
+            """);
+        assertFalse(StageFileParser.parseWithErrors(overflow).isSuccess());
+    }
+
+    @Test
     void invalidTriggerTypesRejectTheDefinition() throws IOException {
         Path file = write("trigger.toml", """
             [stage]

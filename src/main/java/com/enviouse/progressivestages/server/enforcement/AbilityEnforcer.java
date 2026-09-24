@@ -91,7 +91,13 @@ public final class AbilityEnforcer {
     private static void syncClientState(ServerPlayer player) {
         Set<String> current = lockedAbilities(player);
         Set<String> previous = LAST_CLIENT_STATE.put(player.getUUID(), current);
-        if (!current.equals(previous)) NetworkHandler.sendAbilityState(player, current);
+        if (!current.equals(previous)) {
+            NetworkHandler.sendAbilityState(player, current);
+            for (String ability : ENFORCED_ABILITIES) {
+                InteractionCaptureManager.recordAbility(player, ability, current.contains(ability),
+                    current.contains(ability) ? "static_or_conditional" : "none", Set.of(), true);
+            }
+        }
     }
 
     static Set<String> lockedAbilities(ServerPlayer player) {
@@ -111,6 +117,7 @@ public final class AbilityEnforcer {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) return;
         if (!lacks("jump", player)) return;
+        InteractionCaptureManager.recordAbility(player, "jump", true, "static_or_conditional", Set.of(), false);
         Vec3 movement = player.getDeltaMovement();
         if (movement.y > 0.0D) player.setDeltaMovement(movement.x, 0.0D, movement.z);
     }

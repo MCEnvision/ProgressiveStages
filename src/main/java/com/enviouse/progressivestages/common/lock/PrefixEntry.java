@@ -140,6 +140,17 @@ public final class PrefixEntry {
     /** The ResourceLocation payload for {@link Kind#ID} and {@link Kind#TAG}; {@code null} for MOD / NAME. */
     public ResourceLocation id() { return id; }
 
+    /** Return the optional inline priority from this entry, or null when omitted. */
+    public Integer explicitPriority() {
+        int marker = raw.lastIndexOf("|priority=");
+        if (marker <= 0) return null;
+        try {
+            return Integer.valueOf(raw.substring(marker + 10).trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     /**
      * Check whether this entry matches a registry element identified by {@code elementId},
      * using the given registry-keyed {@code holder} for tag membership checks.

@@ -70,7 +70,7 @@ import java.util.Objects;
  * [[interactions]] type = "item_into_inventory", held_item, target_kind, target, effect, priority
  * [[regions]]     dimension, pos1, pos2, prevent_entry, ...
  * [structures]    locked_entry
- *   [structures.rules]      prevent_block_break, ... disable_mob_spawning
+ *   [structures.rules]      entry_allowed, priority, prevent_block_break, ... disable_mob_spawning
  * [[ores.overrides]]        target, display_as, drop_as
  *
  * [enforcement]   allowed_use, allowed_pickup, allowed_hotbar,
@@ -1584,17 +1584,68 @@ public final class StageFileParser {
     private static LockDefinition.StructureRules parseStructures(Config config) {
         Config section = config.get("structures");
         if (section == null) return LockDefinition.StructureRules.EMPTY;
-        CategoryLocks lockedEntry = parseCategoryLists(section, "locked_entry", null);
+        CategoryLocks lockedEntry = parseStructureEntries(section);
         Config rules = section.get("rules");
-        boolean pbb = rules != null && rules.getOrElse("prevent_block_break", false);
-        boolean pbp = rules != null && rules.getOrElse("prevent_block_place", false);
-        boolean pex = rules != null && rules.getOrElse("prevent_explosions", false);
-        boolean dms = rules != null && rules.getOrElse("disable_mob_spawning", false);
+        boolean entryAllowed = strictBoolean(rules, "entry_allowed", false, "structures.rules.entry_allowed");
+        Integer priority = strictInt32(rules, "priority", "structures.rules.priority");
+        boolean pbb = strictBoolean(rules, "prevent_block_break", false,
+            "structures.rules.prevent_block_break");
+        boolean pbp = strictBoolean(rules, "prevent_block_place", false,
+            "structures.rules.prevent_block_place");
+        boolean pex = strictBoolean(rules, "prevent_explosions", false,
+            "structures.rules.prevent_explosions");
+        boolean dms = strictBoolean(rules, "disable_mob_spawning", false,
+            "structures.rules.disable_mob_spawning");
         // v2.5: extra buffer (blocks) before the structure boundary repels the player. May be set
         // on [structures].rules.entry_padding or directly on [structures].entry_padding.
         int pad = (int) readLong(section, "entry_padding", 0L);
         if (rules != null) pad = Math.max(pad, (int) readLong(rules, "entry_padding", 0L));
-        return new LockDefinition.StructureRules(lockedEntry, pbb, pbp, pex, dms, Math.max(0, pad));
+        return new LockDefinition.StructureRules(lockedEntry, pbb, pbp, pex, dms, Math.max(0, pad),
+            entryAllowed, priority);
+    }
+
+    private static CategoryLocks parseStructureEntries(Config section) {
+        Object raw = section.get("locked_entry");
+        if (raw == null) return CategoryLocks.EMPTY;
+        if (!(raw instanceof List<?> values)) {
+            throw new IllegalArgumentException("structures.locked_entry must be an array of exact resource IDs");
+        }
+        List<String> ids = new ArrayList<>();
+        for (int index = 0; index < values.size(); index++) {
+            Object value = values.get(index);
+            if (!(value instanceof String text)) {
+                throw new IllegalArgumentException("structures.locked_entry[" + index + "] must be a resource ID");
+            }
+            PrefixEntry entry = PrefixEntry.parse(text);
+            if (entry == null || entry.kind() != PrefixEntry.Kind.ID || entry.id() == null) {
+                throw new IllegalArgumentException("structures.locked_entry[" + index
+                    + "] must be an exact resource ID. Unsupported tag, namespace, wildcard, or name selector. " + text);
+            }
+            ids.add(text);
+        }
+        return CategoryLocks.builder().addLocked(ids).build();
+    }
+
+    private static boolean strictBoolean(Config section, String key, boolean fallback, String field) {
+        if (section == null) return fallback;
+        Object value = section.get(key);
+        if (value == null) return fallback;
+        if (value instanceof Boolean flag) return flag;
+        throw new IllegalArgumentException(field + " must be a boolean");
+    }
+
+    private static Integer strictInt32(Config section, String key, String field) {
+        if (section == null) return null;
+        Object value = section.get(key);
+        if (value == null) return null;
+        if (!(value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long)) {
+            throw new IllegalArgumentException(field + " must be a signed 32 bit integer");
+        }
+        long parsed = ((Number) value).longValue();
+        if (parsed < Integer.MIN_VALUE || parsed > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(field + " must be between " + Integer.MIN_VALUE + " and " + Integer.MAX_VALUE);
+        }
+        return (int) parsed;
     }
 
     private static List<LockDefinition.OreOverride> parseOreOverrides(Config config) {

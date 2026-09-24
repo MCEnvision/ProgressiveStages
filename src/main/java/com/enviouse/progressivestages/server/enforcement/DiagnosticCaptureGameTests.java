@@ -21,11 +21,13 @@ public final class DiagnosticCaptureGameTests {
         var level = helper.getLevel();
         var server = level.getServer();
         var debug = server.getCommands().getDispatcher().getRoot().getChild("stage").getChild("debug");
-        for (String category : java.util.List.of("interactions", "progression", "permissions", "editor")) {
+        for (String category : java.util.List.of("interactions", "progression", "permissions", "editor", "structures", "abilities")) {
             var command = debug.getChild(category);
             helper.assertTrue(command != null && command.getChild("status") != null
                     && command.getChild("on") != null && command.getChild("off") != null,
-                "Every capture category must register beneath stage debug.");
+                "Capture category must register beneath stage debug. " + category + ". children="
+                    + (command == null ? "missing" : command.getChildren().stream()
+                        .map(node -> node.getName()).sorted().toList()));
             helper.assertTrue(!command.canUse(server.createCommandSourceStack().withPermission(0)),
                 "Capture commands must reject sources without operator permission.");
         }

@@ -514,6 +514,16 @@ or `Delete` in the selected stage toolbar, or right click a node to open the sam
 works from the keyboard context key or `Shift+F10`, closes with `Escape` or an outside click, and
 returns focus to the node after it closes. The editor clamps the menu to the visible browser area.
 
+### translating the editor
+
+The editor keeps labels and help text as ordinary browser text so pack authors can use the page
+translation control supplied by Brave or a browser Google Translate action. Translate a disposable
+label or help example when checking the workflow, then undo the edit before applying a draft. Keep
+stage IDs, file paths, registry IDs, commands, TOML, and selector values in their original form.
+The editor does not send source text, credentials, or session data to a translation service. If the
+browser has no translation control, the English labels, examples, and hover help remain usable and
+the exact source tab is still available.
+
 The Settings page edits the main `progressivestages.toml` file through the same draft and review
 transaction as stage files. Controls come from `StageConfig.SPEC`, so their types, ranges, lists,
 defaults, and restart requirements stay synchronized with the server. A bad value or unknown key is

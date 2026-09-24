@@ -29,13 +29,35 @@
 - the latest packaged `app.js` sha256 is `067ba25c1455075b026558063525cec8003f8501b1a72b8aa5fcdef2926d7039`.
 - `./gradlew test --no-daemon` passed.
 - `./gradlew build --no-daemon` passed. candidate jar sha256 is `3ac5d28394b0b45b205ff2d52fbd9250be4e06b149840ecd2339ee968ab6540b`.
-- the latest phase candidate jar sha256 is `61de78a9fe9af3664118bf14667bf43961547aabaf0a001dcfac20680f4b8d18`.
+- the latest phase candidate jar sha256 is `196056fc75ae3eab5875e12c840fb031ded24f33b3cdf00431be344a678b08bf`.
 - `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
 - github checks for phase commit `3f27d96` passed for gradle, node, dependency review, secret scan, java codeql, javascript codeql, and the repository codeql gate. documentation and dependency submission jobs were skipped by workflow conditions.
 - `git diff --check` passed.
 - the editor apply transaction now validates and writes one synchronized draft snapshot, preventing concurrent edits from changing the files between validation and write.
 - restart scoped settings stay pending only when their candidate differs from the effective loaded value, numeric settings expose and enforce schema ranges, invalid local settings block validation and review, graph right click opens the context menu without moving a node, and structure edits serialize against the latest draft content.
 - editor initiated config watcher reloads preserve restart scoped effective values while applying later live changes, failed draft saves refresh the authoritative draft, failed rollback reloads restore memory and files, and queued structure edits stay isolated by stage path and accepted content.
+
+## brave editor acceptance
+
+The authenticated editor was opened from the disposable operator world in the laptop Brave
+browser through the installed browser control connection. The Stages page showed 50 loaded stages,
+the plain Stage name, Stage icon, and Required stages labels, and the hover and focus help text.
+The Settings page rejected an inventory button height of `1` with an inline minimum value error and
+disabled validation. Restoring `18` cleared the error and allowed validation.
+
+The End Resolve Rules page rendered Structure access with separate Allow entry, block breaking,
+block placement, explosion, mob spawning, signed priority, and entry padding controls. Its help
+text explains that entry can be allowed while a permanent protection stage keeps block restrictions.
+The Player UI page rendered the advancement style graph with category filtering, search, zoom, fit,
+automatic layout, and direct connection controls. Right clicking a graph node opened Edit stage,
+Connect stage, Duplicate, and Delete. Escape closed the menu without changing the draft.
+
+A disposable Browser Acceptance stage was created with an empty ability list, edited with a
+description and map category, reviewed as 51 compiled stages, applied to the live test server, and
+reported as synchronized. The transaction rollback control then reported a synchronized rollback.
+A malformed `[stage` source draft was retained for correction, blocked at review with one validation
+problem, and returned to the valid source through Undo. These browser checks used only disposable
+stage text and did not send secrets or private session data to a translation service.
 
 ## laptop gameplay acceptance
 
@@ -66,11 +88,13 @@ same candidate jar as the server and had master volume set to zero before launch
 
 ## open acceptance gates
 
-The Brave editor interaction capture remains unverified because the required Brave control was not
-available in this execution environment. Headless checks above do not replace that gate. The
-configured block placement path remains intentional and is separate from the safe movement
-default change.
+The configured block placement path remains intentional and is separate from the safe movement
+default change. Full guide fields and the in game guide remain assigned to Phase 002.
 
 ## cleanup
 
-The game test server exited. The exact test-owned `build`, `run`, and `editor-ui/node_modules` paths were removed after artifact inspection. `.codegraph` was absent in the worktree. No owned test processes remain. The shared codegraph service outside the worktree was pre-existing and was left untouched.
+The game test server and laptop client remain running until the final phase evidence consumer closes.
+The exact test-owned `build`, `run`, and `editor-ui/node_modules` paths, the disposable laptop
+instance, the authenticated editor tab, and temporary screenshots will be removed after the final
+phase evidence is captured. `.codegraph` was absent in the worktree. The shared codegraph service
+outside the worktree remains untouched.

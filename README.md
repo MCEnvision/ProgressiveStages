@@ -157,6 +157,9 @@ schema 4 showcase now demonstrates the editor and class tree directly.
   `Required stages`. Hover or focus the question mark beside a field for a short explanation and
   example. The layout graph also offers Edit, Connect, Duplicate, and Delete beside a selected node
   or from its right-click menu.
+- **Translation friendly editor.** Browser page translation can translate labels and help text while
+  stage identifiers, registry IDs, commands, TOML, and selector values remain unchanged. The editor
+  does not send source text or session data to a translation service.
 - **Structure entry and protection controls.** The Rules tab can edit the protected structure list,
   entry policy, signed priority, entry padding, block breaking, block placement, explosions, and mob
   spawning independently. `entry_allowed = true` keeps a protection stage active after another stage

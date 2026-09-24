@@ -117,6 +117,14 @@ the Rules tab. Use the same activation on both rules when they should apply toge
 
 ## browser and draft recovery
 
+### translating labels safely
+
+Use the browser's page translation control, including Brave or a Google Translate browser action,
+on visible labels and help text only. Keep stage identifiers, registry IDs, commands, file paths,
+TOML, and selector values unchanged. The editor does not submit source text or session data to a
+translation service. If translation is unavailable, the English labels and hover help remain the
+source of truth.
+
 Editor responses complete independently of Minecraft's render thread. A hidden or minimized game
 window must not prevent the browser from receiving a completed server operation. Server draft
 mutations still run on the server thread. A timeout does not prove that a mutation was rejected;

@@ -128,6 +128,7 @@ final class EditorApplyService {
         if (!backup.startsWith(backupRoot) || !Files.isDirectory(backup)) return result(false, transaction, current, List.of(), null, "missing_transaction", "The transaction backup was not found");
         EditorAuditEntry audit = null;
         Config currentMainConfig = null;
+        Map<String, String> currentFiles = new LinkedHashMap<>();
         boolean mainChanged = false;
         try {
             audit = GSON.fromJson(Files.readString(backup.resolve("audit.json")), EditorAuditEntry.class);
@@ -142,6 +143,10 @@ final class EditorApplyService {
                 }
             }
             currentMainConfig = mainChanged ? StageConfig.snapshotEditorConfig() : null;
+            for (String changed : audit.changedFiles()) {
+                Path target = root.resolve(EditorPaths.normalize(changed)).normalize();
+                currentFiles.put(changed, Files.isRegularFile(target) ? Files.readString(target, StandardCharsets.UTF_8) : null);
+            }
             if (mainChanged) StageConfig.beginEditorConfigTransaction();
             for (String changed : audit.changedFiles()) {
                 Path saved = backup.resolve(changed).normalize();
@@ -157,6 +162,7 @@ final class EditorApplyService {
             }
             if (!StageFileLoader.getInstance().reload()) {
                 if (currentMainConfig != null) StageConfig.applyEditorConfig(currentMainConfig);
+                restoreFiles(currentFiles);
                 return result(false, transaction, current, List.of(), null,
                     "rollback_reload_failed", String.join(". ", StageFileLoader.getInstance().getLastReloadErrors()));
             }
@@ -166,6 +172,7 @@ final class EditorApplyService {
         } catch (IOException | RuntimeException error) {
             try {
                 if (currentMainConfig != null) StageConfig.applyEditorConfig(currentMainConfig);
+                restoreFiles(currentFiles);
             } catch (RuntimeException ignored) {}
             return result(false, transaction, current, List.of(), null, "rollback_failed", error.getMessage());
         } finally {
@@ -181,6 +188,24 @@ final class EditorApplyService {
                 if (old == null) Files.deleteIfExists(target);
                 else { Files.createDirectories(target.getParent()); Files.writeString(target, old); }
             } catch (IOException error) { throw new IllegalStateException("Could not restore " + entry.path(), error); }
+        }
+    }
+
+    private void restoreFiles(Map<String, String> files) {
+        for (Map.Entry<String, String> entry : files.entrySet()) {
+            Path target = root.resolve(EditorPaths.normalize(entry.getKey())).normalize();
+            String content = entry.getValue();
+            try {
+                if (content == null) {
+                    Files.deleteIfExists(target);
+                    prune(target.getParent());
+                } else {
+                    Files.createDirectories(target.getParent());
+                    Files.writeString(target, content, StandardCharsets.UTF_8);
+                }
+            } catch (IOException error) {
+                throw new IllegalStateException("Could not restore " + entry.getKey(), error);
+            }
         }
     }
 

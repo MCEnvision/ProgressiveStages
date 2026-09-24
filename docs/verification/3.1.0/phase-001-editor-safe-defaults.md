@@ -29,13 +29,13 @@
 - the latest packaged `app.js` sha256 is `067ba25c1455075b026558063525cec8003f8501b1a72b8aa5fcdef2926d7039`.
 - `./gradlew test --no-daemon` passed.
 - `./gradlew build --no-daemon` passed. candidate jar sha256 is `3ac5d28394b0b45b205ff2d52fbd9250be4e06b149840ecd2339ee968ab6540b`.
-- the latest phase candidate jar sha256 is `c36750bf97f5a97ac5e46061f7fd3481562cf30572cc329dc4459edcb7750ec5`.
+- the latest phase candidate jar sha256 is `61de78a9fe9af3664118bf14667bf43961547aabaf0a001dcfac20680f4b8d18`.
 - `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
 - github checks for phase commit `3f27d96` passed for gradle, node, dependency review, secret scan, java codeql, javascript codeql, and the repository codeql gate. documentation and dependency submission jobs were skipped by workflow conditions.
 - `git diff --check` passed.
 - the editor apply transaction now validates and writes one synchronized draft snapshot, preventing concurrent edits from changing the files between validation and write.
 - restart scoped settings stay pending only when their candidate differs from the effective loaded value, numeric settings expose and enforce schema ranges, invalid local settings block validation and review, graph right click opens the context menu without moving a node, and structure edits serialize against the latest draft content.
-- editor initiated config watcher reloads preserve restart scoped effective values and pending paths, failed draft saves refresh the authoritative draft, and queued structure edits stay isolated by stage path and accepted content.
+- editor initiated config watcher reloads preserve restart scoped effective values while applying later live changes, failed draft saves refresh the authoritative draft, failed rollback reloads restore memory and files, and queued structure edits stay isolated by stage path and accepted content.
 
 ## laptop gameplay acceptance
 

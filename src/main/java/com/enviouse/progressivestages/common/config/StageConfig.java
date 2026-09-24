@@ -935,8 +935,9 @@ public class StageConfig {
     static synchronized void onLoad(final ModConfigEvent event) {
         if (event.getConfig().getSpec() == SPEC) {
             com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
-            if (EDITOR_CONFIG_TRANSACTION || editorPendingValuesMatchRawConfig()) return;
-            EDITOR_PENDING_RESTART_VALUES.clear();
+            if (EDITOR_CONFIG_TRANSACTION) return;
+            loadValuesPreservingPendingRestartValues();
+            return;
         }
         loadValues();
     }
@@ -957,6 +958,7 @@ public class StageConfig {
         applyEditorValues(SPEC.getSpec(), candidate, new ArrayList<>(), pending);
         EDITOR_PENDING_RESTART_VALUES.clear();
         EDITOR_PENDING_RESTART_VALUES.putAll(pending);
+        com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
         loadValues();
     }
 
@@ -978,14 +980,24 @@ public class StageConfig {
         return List.copyOf(pending);
     }
 
-    private static boolean editorPendingValuesMatchRawConfig() {
-        if (EDITOR_PENDING_RESTART_VALUES.isEmpty()) return false;
-        for (Map.Entry<String, Object> entry : EDITOR_PENDING_RESTART_VALUES.entrySet()) {
-            Object loaded = SPEC.getValues().get(List.of(entry.getKey().split("\\.")));
-            if (!(loaded instanceof ModConfigSpec.ConfigValue<?> configValue)
-                || !Objects.equals(configValue.getRaw(), entry.getValue())) return false;
+    private static void loadValuesPreservingPendingRestartValues() {
+        Map<String, Object> rawPending = new LinkedHashMap<>();
+        for (var iterator = EDITOR_PENDING_RESTART_VALUES.entrySet().iterator(); iterator.hasNext();) {
+            Map.Entry<String, Object> entry = iterator.next();
+            Object value = SPEC.getValues().get(List.of(entry.getKey().split("\\.")));
+            if (!(value instanceof ModConfigSpec.ConfigValue<?> configValue)
+                || !Objects.equals(configValue.getRaw(), entry.getValue())) {
+                iterator.remove();
+                continue;
+            }
+            rawPending.put(entry.getKey(), configValue.getRaw());
+            setEditorValue(configValue, configValue.get());
         }
-        return true;
+        loadValues();
+        for (Map.Entry<String, Object> entry : rawPending.entrySet()) {
+            Object value = SPEC.getValues().get(List.of(entry.getKey().split("\\.")));
+            if (value instanceof ModConfigSpec.ConfigValue<?> configValue) setEditorValue(configValue, entry.getValue());
+        }
     }
 
     private static void applyEditorValues(UnmodifiableConfig spec, UnmodifiableConfig candidate, List<String> path,

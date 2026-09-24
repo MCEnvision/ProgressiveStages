@@ -28,6 +28,7 @@
 - `npm run build` passed. packaged `app.js` sha256 is `08fd07f0ef1f24d28ed14c5a361b59e417c8e0e10c53228fa254d9196f5ec46a`. packaged `app.css` sha256 is `61fe46e00c1c89c2ccd2c120b8f11fa2771c68c529b0687aef1f59340e64d00c`.
 - `./gradlew test --no-daemon` passed.
 - `./gradlew build --no-daemon` passed. candidate jar sha256 is `3ac5d28394b0b45b205ff2d52fbd9250be4e06b149840ecd2339ee968ab6540b`.
+- the latest phase candidate jar sha256 is `1f4a99a7fa1da19891070d63cd0e0a356da13d86422d2842b01f0d691d21c566`.
 - `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
 - github checks for phase commit `3f27d96` passed for gradle, node, dependency review, secret scan, java codeql, javascript codeql, and the repository codeql gate. documentation and dependency submission jobs were skipped by workflow conditions.
 - `git diff --check` passed.
@@ -50,6 +51,16 @@ muted before the test. The first disposable launch included an unrelated Selling
 discarded after the client correctly rejected its missing registry data. The accepted run used a
 matching client and server mod set. The client and server were stopped after the owner
 disconnected, and the disposable instance and runtime were removed.
+
+### explicit ability lock and recovery
+
+The latest candidate was also tested with a disposable stage definition that locked only `jump`.
+The server registered `test:jump_lock` with `locked = ["jump"]`, and the owner confirmed that
+jumping was blocked before the stage grant. The corrected operator fixture used the owner's exact
+uuid with level 4. After reconnecting to `100.76.164.109:25590`, the server recorded the owner
+joining and successfully running `/stage grant EnVyOnMyMind test:jump_lock`. The client received
+the stage change, and the owner confirmed that jumping worked after the grant. The client used the
+same candidate jar as the server and had master volume set to zero before launch.
 
 ## open acceptance gates
 

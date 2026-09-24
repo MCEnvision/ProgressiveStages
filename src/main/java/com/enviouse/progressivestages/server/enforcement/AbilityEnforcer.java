@@ -45,6 +45,8 @@ public final class AbilityEnforcer {
     private static final Map<java.util.UUID, Set<String>> LAST_CLIENT_STATE = new ConcurrentHashMap<>();
     static final Set<String> ENFORCED_ABILITIES = Set.of("jump", "elytra", "sprint", "swim", "climb");
 
+    record AbilityGate(boolean locked, String source, Set<StageId> missingStages) {}
+
     private AbilityEnforcer() {}
 
     public static void rebuild(Collection<StageDefinition> stages) {
@@ -94,8 +96,9 @@ public final class AbilityEnforcer {
         if (!current.equals(previous)) {
             NetworkHandler.sendAbilityState(player, current);
             for (String ability : changedAbilities(current, previous)) {
-                InteractionCaptureManager.recordAbility(player, ability, current.contains(ability),
-                    current.contains(ability) ? "static_or_conditional" : "none", Set.of(), true);
+                AbilityGate gate = evaluate(ability, player);
+                InteractionCaptureManager.recordAbility(player, ability, gate.locked(), gate.source(),
+                    gate.missingStages(), true);
             }
         }
     }
@@ -111,7 +114,7 @@ public final class AbilityEnforcer {
     static Set<String> lockedAbilities(ServerPlayer player) {
         if (StageConfig.isAllowCreativeBypass() && player.isCreative()) return Set.of();
         LinkedHashSet<String> locked = new LinkedHashSet<>();
-        for (String ability : ENFORCED_ABILITIES) if (lacks(ability, player)) locked.add(ability);
+        for (String ability : ENFORCED_ABILITIES) if (evaluate(ability, player).locked()) locked.add(ability);
         return Set.copyOf(locked);
     }
 
@@ -136,19 +139,28 @@ public final class AbilityEnforcer {
 
     /** True if the player is missing at least one stage that gates {@code ability}. */
     private static boolean lacks(String ability, ServerPlayer player) {
+        return evaluate(ability, player).locked();
+    }
+
+    private static AbilityGate evaluate(String ability, ServerPlayer player) {
         Set<StageId> set = GATERS.get(ability);
-        boolean staticBlocked = false;
+        LinkedHashSet<StageId> missing = new LinkedHashSet<>();
         if (set != null) {
             for (StageId stage : set) {
-                if (!StageManager.getInstance().hasStage(player, stage)) {
-                    staticBlocked = true;
-                    break;
-                }
+                if (!StageManager.getInstance().hasStage(player, stage)) missing.add(stage);
             }
         }
+        boolean staticBlocked = !missing.isEmpty();
         ResourceLocation id = ResourceLocation.tryParse(ability);
         if (id == null) id = ResourceLocation.withDefaultNamespace(ability);
-        return ConditionalLockEngine.isBlocked(player, ConditionalRule.TargetType.ABILITY,
-            id, null, staticBlocked);
+        ConditionalLockEngine.Decision decision = ConditionalLockEngine.resolve(player,
+            ConditionalRule.TargetType.ABILITY, "perform", id, null,
+            staticBlocked ? new ConditionalLockEngine.Decision(ConditionalRule.Effect.LOCK, 0, null, null) : null);
+        boolean locked = decision != null && decision.effect() == ConditionalRule.Effect.LOCK;
+        String source = "none";
+        if (decision != null && decision.ruleId() != null) source = "conditional:" + decision.ruleId();
+        else if (!missing.isEmpty()) source = "stage:" + missing.stream()
+            .map(StageId::toString).sorted().findFirst().orElse("unknown");
+        return new AbilityGate(locked, source, Set.copyOf(missing));
     }
 }

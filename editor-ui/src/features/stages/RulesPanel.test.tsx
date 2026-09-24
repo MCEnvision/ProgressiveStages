@@ -181,6 +181,16 @@ describe("generic rule editing", () => {
     expect(second).not.toContain("entry_padding");
     expect(second).toContain("entry_allowed = true");
   });
+
+  it("rejects structure priorities outside the signed integer range", async () => {
+    editor.boot.draft.files[rulesPath] = "[structures]\nlocked_entry=[]\n";
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    const priority = screen.getByPlaceholderText("Inherited");
+    fireEvent.change(priority, { target: { value: "2147483648" } });
+    fireEvent.blur(priority);
+    expect((await screen.findByRole("alert")).textContent).toContain("2147483647");
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+  });
 });
 
 describe("inventory condition authoring", () => {

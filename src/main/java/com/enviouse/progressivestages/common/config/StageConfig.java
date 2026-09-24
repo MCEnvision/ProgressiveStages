@@ -981,7 +981,7 @@ public class StageConfig {
                 if (loaded instanceof ModConfigSpec.ConfigValue<?> configValue) {
                     if (configValue.getSpec().restartType() == ModConfigSpec.RestartType.NONE) {
                         setEditorValue(configValue, configured);
-                    } else {
+                    } else if (!Objects.equals(configured, configValue.get())) {
                         pending.put(String.join(".", path), configured);
                     }
                 }

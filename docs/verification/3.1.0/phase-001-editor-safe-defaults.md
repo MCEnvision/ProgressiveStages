@@ -24,14 +24,14 @@
 
 - `npm ci` passed.
 - `npm run check` passed.
-- `npm test -- --run` passed, 17 files and 157 tests.
-- `npm run build` passed. packaged `app.js` sha256 is `46bb5ea9af3bc4cd72d4fb0c7c48151d145dae137dfa75068aa44cc5aeed3e80`. packaged `app.css` sha256 is `61fe46e00c1c89c2ccd2c120b8f11fa2771c68c529b0687aef1f59340e64d00c`.
+- `npm test -- --run` passed, 17 files and 158 tests.
+- `npm run build` passed. packaged `app.js` sha256 is `08fd07f0ef1f24d28ed14c5a361b59e417c8e0e10c53228fa254d9196f5ec46a`. packaged `app.css` sha256 is `61fe46e00c1c89c2ccd2c120b8f11fa2771c68c529b0687aef1f59340e64d00c`.
 - `./gradlew test --no-daemon` passed.
-- `./gradlew build --no-daemon` passed. candidate jar sha256 is `19f91b2e78101a6c788958e5bb3a44279485e4256c821237d8fa143fcebae4e3`.
+- `./gradlew build --no-daemon` passed. candidate jar sha256 is `a0cab80bbb0f216086efb8babc0816871f6aa15a1c79b02b3baa039ed09c1c68`.
 - `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
 - `git diff --check` passed.
 - the editor apply transaction now validates and writes one synchronized draft snapshot, preventing concurrent edits from changing the files between validation and write.
-- restart scoped settings stay pending until their declared restart boundary, numeric settings expose and enforce schema ranges, graph right click opens the context menu without moving a node, and structure edits serialize against the latest draft content.
+- restart scoped settings stay pending only when their candidate differs from the effective loaded value, numeric settings expose and enforce schema ranges, invalid local settings block validation and review, graph right click opens the context menu without moving a node, and structure edits serialize against the latest draft content.
 
 ## open acceptance gates
 

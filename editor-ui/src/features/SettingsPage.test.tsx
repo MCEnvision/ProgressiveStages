@@ -22,6 +22,8 @@ const editor = vi.hoisted(() => ({
       controlHints: { min: 1, max: 100, generated: true }
     }]
   },
+  hasLocalErrors: false,
+  setLocalError: vi.fn(),
   validate: vi.fn(),
   mutateFile: vi.fn(async (..._args: unknown[]) => {})
 }));

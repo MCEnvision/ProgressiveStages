@@ -26,6 +26,7 @@ interface EditorContextValue {
   busy: string;
   error: string;
   notices: Notice[];
+  hasLocalErrors: boolean;
   dialog: DialogState | null;
   review: ReviewResult | null;
   validationResult: ValidationResult | null;
@@ -34,6 +35,7 @@ interface EditorContextValue {
   setStageTab: (tab: StageTab) => void;
   selectStage: (key: string) => void;
   notify: (tone: Notice["tone"], title: string, message?: string) => void;
+  setLocalError: (field: string, message: string | null) => void;
   dismissNotice: (id: number) => void;
   openDialog: (dialog: DialogState) => void;
   closeDialog: () => void;
@@ -72,6 +74,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState("Connecting to Minecraft");
   const [error, setError] = useState("");
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [review, setReview] = useState<ReviewResult | null>(null);
   const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
@@ -99,6 +102,18 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
 
   const dismissNotice = useCallback((id: number) => {
     setNotices(current => current.filter(entry => entry.id !== id));
+  }, []);
+
+  const setLocalError = useCallback((field: string, message: string | null) => {
+    setLocalErrors(current => {
+      if (!message) {
+        if (!(field in current)) return current;
+        const next = { ...current };
+        delete next[field];
+        return next;
+      }
+      return current[field] === message ? current : { ...current, [field]: message };
+    });
   }, []);
 
   const refresh = useCallback(async () => {
@@ -216,6 +231,10 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
 
   const validate = useCallback(async () => {
     if (!boot) return null;
+    if (Object.keys(localErrors).length) {
+      notify("danger", "Fix editor fields first", "Resolve the highlighted setting errors before validating the draft.");
+      return null;
+    }
     setBusy("Validating every stage");
     try {
       const result = await api.request<ValidationResult>({ action: "validate" });
@@ -232,9 +251,13 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       notify("danger", "Validation failed", failure instanceof Error ? failure.message : String(failure));
       return null;
     }
-  }, [api, boot, notify, rememberValidation]);
+  }, [api, boot, localErrors, notify, rememberValidation]);
 
   const openReview = useCallback(async () => {
+    if (Object.keys(localErrors).length) {
+      notify("danger", "Fix editor fields first", "Resolve the highlighted setting errors before opening review.");
+      return;
+    }
     setBusy("Preparing the complete change review");
     try {
       const result = await api.request<ReviewResult>({ action: "review" });
@@ -246,7 +269,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setBusy("");
       notify("danger", "Review could not be prepared", failure instanceof Error ? failure.message : String(failure));
     }
-  }, [api, boot?.draft.id, notify, rememberValidation]);
+  }, [api, boot?.draft.id, localErrors, notify, rememberValidation]);
 
   const closeReview = useCallback(() => {
     setReview(null);
@@ -254,7 +277,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const apply = useCallback(async () => {
-    if (!review?.validation.valid) return;
+    if (!review?.validation.valid || Object.keys(localErrors).length) return;
     setBusy("Applying and synchronizing the server");
     try {
       const result = await api.request<ApplyResult>({ action: "apply", revision: review.revision, confirmed: true });
@@ -279,7 +302,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setBusy("");
       notify("danger", "Apply failed", failure instanceof Error ? failure.message : String(failure));
     }
-  }, [api, boot?.draft.id, notify, refresh, rememberValidation, review]);
+  }, [api, boot?.draft.id, localErrors, notify, refresh, rememberValidation, review]);
 
   const rollback = useCallback(async (transaction: string) => {
     setBusy("Rolling back the transaction");
@@ -313,12 +336,13 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<EditorContextValue>(() => ({
-    api, boot, stages, selectedStage, selectedStageKey, page, stageTab, busy, error, notices, dialog,
-    review, validationResult, applyResult, setPage, setStageTab, selectStage, notify, dismissNotice,
+    api, boot, stages, selectedStage, selectedStageKey, page, stageTab, busy, error, notices,
+    hasLocalErrors: Object.keys(localErrors).length > 0, dialog,
+    review, validationResult, applyResult, setPage, setStageTab, selectStage, notify, dismissNotice, setLocalError,
     openDialog: setDialog, closeDialog: () => setDialog(null), refresh, mutateFile, mutateFiles,
     runDraftAction, undo, redo, validate, openReview, closeReview, apply, rollback, catalog
   }), [api, boot, stages, selectedStage, selectedStageKey, page, stageTab, busy, error, notices, dialog,
-    review, validationResult, applyResult, setPage, selectStage, notify, dismissNotice, refresh, mutateFile, mutateFiles,
+    localErrors, review, validationResult, applyResult, setPage, selectStage, notify, dismissNotice, setLocalError, refresh, mutateFile, mutateFiles,
     runDraftAction, undo, redo, validate, openReview, closeReview, apply, rollback, catalog]);
 
   return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;

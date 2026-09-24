@@ -20,6 +20,9 @@ import { useEditor } from "../../store/EditorContext";
 import type { EnchantmentGenerationRule } from "../../lib/enchantments";
 import type { RuleModel, StagePackage } from "../../types";
 
+const MIN_STRUCTURE_PRIORITY = -2147483648;
+const MAX_STRUCTURE_PRIORITY = 2147483647;
+
 interface RuleDraft {
   stageState: string;
   ruleId: string;
@@ -463,6 +466,7 @@ function StructureControls({ stage }: { stage: StagePackage }) {
   const mutationQueue = useRef(Promise.resolve());
   const [entries, setEntries] = useState(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
   const [priority, setPriority] = useState(readTomlValue(content, "structures.rules.priority"));
+  const [priorityError, setPriorityError] = useState("");
   const [padding, setPadding] = useState(readTomlValue(content, "structures.rules.entry_padding") || readTomlValue(content, "structures.entry_padding"));
   const [entryAllowed, setEntryAllowed] = useState(booleanValue(readTomlValue(content, "structures.rules.entry_allowed") || "false"));
   const [preventBreak, setPreventBreak] = useState(booleanValue(readTomlValue(content, "structures.rules.prevent_block_break") || "false"));
@@ -473,6 +477,7 @@ function StructureControls({ stage }: { stage: StagePackage }) {
     latestContent.current = content;
     setEntries(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
     setPriority(readTomlValue(content, "structures.rules.priority"));
+    setPriorityError("");
     setPadding(readTomlValue(content, "structures.rules.entry_padding") || readTomlValue(content, "structures.entry_padding"));
     setEntryAllowed(booleanValue(readTomlValue(content, "structures.rules.entry_allowed") || "false"));
     setPreventBreak(booleanValue(readTomlValue(content, "structures.rules.prevent_block_break") || "false"));
@@ -491,7 +496,13 @@ function StructureControls({ stage }: { stage: StagePackage }) {
   };
   const savePriority = () => {
     const next = priority.trim();
-    if (next && !/^-?\d+$/.test(next)) return;
+    if (next && !/^-?\d+$/.test(next)) { setPriorityError("Enter a whole number."); return; }
+    const number = Number(next);
+    if (next && (!Number.isSafeInteger(number) || number < MIN_STRUCTURE_PRIORITY || number > MAX_STRUCTURE_PRIORITY)) {
+      setPriorityError(`Use a value from ${MIN_STRUCTURE_PRIORITY} to ${MAX_STRUCTURE_PRIORITY}.`);
+      return;
+    }
+    setPriorityError("");
     const update = (source: string) => next ? upsertToml(source, "structures.rules.priority", Number(next)) : removeTomlValue(source, "structures.rules.priority");
     const operation = mutationQueue.current.then(async () => {
       const updated = update(latestContent.current);
@@ -517,7 +528,7 @@ function StructureControls({ stage }: { stage: StagePackage }) {
   return <Section title="Structure access" description="Keep entry separate from protections inside the structure. A permanent locked stage can protect blocks after another stage allows entry.">
     <div className="form-grid">
       <Field label="Structures to protect" help="One exact structure id per line. Use the id:minecraft:ancient_city form. These entries are checked by the server structure session." wide><textarea rows={4} value={entries} onChange={event => setEntries(event.target.value)} onBlur={() => void save("structures.locked_entry", lineValues(entries), "Structure list saved")} placeholder="id:minecraft:ancient_city" /></Field>
-      <Field label="Rule priority" help="Higher signed values win when structure rules overlap. Leave blank to inherit the normal priority cascade."><input type="number" step={1} value={priority} onChange={event => setPriority(event.target.value)} onBlur={() => void savePriority()} placeholder="Inherited" /></Field>
+      <Field label="Rule priority" help="Higher signed values win when structure rules overlap. Leave blank to inherit the normal priority cascade."><input type="number" min={MIN_STRUCTURE_PRIORITY} max={MAX_STRUCTURE_PRIORITY} step={1} value={priority} onChange={event => setPriority(event.target.value)} onBlur={() => void savePriority()} placeholder="Inherited" aria-invalid={Boolean(priorityError)} />{priorityError ? <span className="setting-error" role="alert">{priorityError}</span> : null}</Field>
       <Field label="Entry padding" help="Extra blocks around the structure boundary that still count as inside. Leave blank for the default."><input type="number" min={0} step={1} value={padding} onChange={event => setPadding(event.target.value)} onBlur={() => void savePadding()} placeholder="0" /></Field>
       <Toggle label="Allow entry" help="Lets players enter while the other structure protections remain active. Use this for a permanent locked protection stage." checked={entryAllowed} onChange={value => { setEntryAllowed(value); void save("structures.rules.entry_allowed", value, "Structure entry policy saved"); }} />
       <Toggle label="Prevent block breaking" help="Cancel block breaks inside the protected structure." checked={preventBreak} onChange={value => { setPreventBreak(value); void save("structures.rules.prevent_block_break", value, "Structure break policy saved"); }} />

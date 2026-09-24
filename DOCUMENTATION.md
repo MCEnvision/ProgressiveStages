@@ -1587,6 +1587,7 @@ locked_entry = [
     "id:minecraft:stronghold",
     "id:minecraft:ancient_city",
 ]
+priority = 0
 
 [structures.rules]
 entry_allowed = false
@@ -1599,8 +1600,10 @@ entry_padding = 3            # New in 2.5 — see below (also accepted directly 
 ```
 
 Two parts: the list of exact structure IDs (`locked_entry`) and a single
-`[structures.rules]` table whose contributions apply to those IDs. Structure
-lists accept exact resource IDs, with an optional `|priority=N` suffix. Tag,
+`[structures.rules]` table whose contributions apply to those IDs. The optional
+`[structures].priority` value is the category fallback in the shared priority
+cascade. Structure lists accept exact resource IDs, with an optional
+`|priority=N` suffix. Tag,
 namespace, wildcard, and name selectors are rejected because structure rules
 must remain attributable to one generated structure type.
 

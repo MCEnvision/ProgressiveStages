@@ -1585,6 +1585,7 @@ public final class StageFileParser {
         Config section = config.get("structures");
         if (section == null) return LockDefinition.StructureRules.EMPTY;
         CategoryLocks lockedEntry = parseStructureEntries(section);
+        Integer categoryPriority = strictInt32(section, "priority", "structures.priority");
         Config rules = section.get("rules");
         boolean entryAllowed = strictBoolean(rules, "entry_allowed", false, "structures.rules.entry_allowed");
         Integer priority = strictInt32(rules, "priority", "structures.rules.priority");
@@ -1601,7 +1602,7 @@ public final class StageFileParser {
         int pad = (int) readLong(section, "entry_padding", 0L);
         if (rules != null) pad = Math.max(pad, (int) readLong(rules, "entry_padding", 0L));
         return new LockDefinition.StructureRules(lockedEntry, pbb, pbp, pex, dms, Math.max(0, pad),
-            entryAllowed, priority);
+            entryAllowed, priority, categoryPriority, 0);
     }
 
     private static CategoryLocks parseStructureEntries(Config section) {
@@ -1616,6 +1617,7 @@ public final class StageFileParser {
             if (!(value instanceof String text)) {
                 throw new IllegalArgumentException("structures.locked_entry[" + index + "] must be a resource ID");
             }
+            validateInlinePriority(text, index);
             PrefixEntry entry = PrefixEntry.parse(text);
             if (entry == null || entry.kind() != PrefixEntry.Kind.ID || entry.id() == null) {
                 throw new IllegalArgumentException("structures.locked_entry[" + index
@@ -1624,6 +1626,18 @@ public final class StageFileParser {
             ids.add(text);
         }
         return CategoryLocks.builder().addLocked(ids).build();
+    }
+
+    private static void validateInlinePriority(String value, int index) {
+        int marker = value.lastIndexOf("|priority=");
+        if (marker <= 0) return;
+        String suffix = value.substring(marker + 10).trim();
+        try {
+            Integer.parseInt(suffix);
+        } catch (NumberFormatException error) {
+            throw new IllegalArgumentException("structures.locked_entry[" + index
+                + "] has an invalid signed 32 bit priority. " + value);
+        }
     }
 
     private static boolean strictBoolean(Config section, String key, boolean fallback, String field) {

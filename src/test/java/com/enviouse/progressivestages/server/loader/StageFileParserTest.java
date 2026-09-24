@@ -58,6 +58,7 @@ class StageFileParserTest {
             priority = 12
 
             [structures]
+            priority = 3
             locked_entry = ["minecraft:stronghold|priority=20"]
 
             [structures.rules]
@@ -72,6 +73,7 @@ class StageFileParserTest {
         var rules = result.getStageDefinition().getLocks().structures();
         assertTrue(rules.entryAllowed());
         assertEquals(-7, rules.priority());
+        assertEquals(3, rules.categoryPriority());
         assertTrue(rules.preventBlockPlace());
         assertEquals("minecraft:stronghold|priority=20", rules.lockedEntry().locked().getFirst().raw());
         assertEquals(20, rules.lockedEntry().locked().getFirst().explicitPriority());
@@ -96,8 +98,18 @@ class StageFileParserTest {
             locked_entry = ["minecraft:stronghold"]
             [structures.rules]
             priority = 2147483648
-            """);
+        """);
         assertFalse(StageFileParser.parseWithErrors(overflow).isSuccess());
+
+        Path inlineOverflow = write("structure_inline_overflow.toml", """
+            [stage]
+            id = "example:inline_overflow"
+            [structures]
+            locked_entry = ["minecraft:stronghold|priority=2147483648"]
+            """);
+        var inlineResult = StageFileParser.parseWithErrors(inlineOverflow);
+        assertFalse(inlineResult.isSuccess());
+        assertTrue(inlineResult.getErrorMessage().contains("priority"), inlineResult.getErrorMessage());
     }
 
     @Test

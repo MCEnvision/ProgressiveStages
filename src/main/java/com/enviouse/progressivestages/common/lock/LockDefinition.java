@@ -387,7 +387,7 @@ public final class LockDefinition {
      */
     public static final class StructureRules {
         public static final StructureRules EMPTY = new StructureRules(
-            CategoryLocks.EMPTY, false, false, false, false, 0, false, null);
+            CategoryLocks.EMPTY, false, false, false, false, 0, false, null, null, 0);
 
         private final CategoryLocks lockedEntry;
         private final boolean preventBlockBreak;
@@ -400,18 +400,31 @@ public final class LockDefinition {
         private final boolean entryAllowed;
         /** 3.1: optional rule priority, retained as null when it was not authored. */
         private final Integer priority;
+        /** Existing category priority inherited by structure convenience rules. */
+        private final Integer categoryPriority;
+        /** Global fallback used by the shared priority cascade. */
+        private final int globalPriority;
 
         public StructureRules(CategoryLocks lockedEntry, boolean preventBlockBreak,
                               boolean preventBlockPlace, boolean preventExplosions,
                               boolean disableMobSpawning, int entryPadding) {
             this(lockedEntry, preventBlockBreak, preventBlockPlace, preventExplosions,
-                disableMobSpawning, entryPadding, false, null);
+                disableMobSpawning, entryPadding, false, null, null, 0);
         }
 
         public StructureRules(CategoryLocks lockedEntry, boolean preventBlockBreak,
                               boolean preventBlockPlace, boolean preventExplosions,
                               boolean disableMobSpawning, int entryPadding,
                               boolean entryAllowed, Integer priority) {
+            this(lockedEntry, preventBlockBreak, preventBlockPlace, preventExplosions,
+                disableMobSpawning, entryPadding, entryAllowed, priority, null, 0);
+        }
+
+        public StructureRules(CategoryLocks lockedEntry, boolean preventBlockBreak,
+                              boolean preventBlockPlace, boolean preventExplosions,
+                              boolean disableMobSpawning, int entryPadding,
+                              boolean entryAllowed, Integer priority,
+                              Integer categoryPriority, int globalPriority) {
             this.lockedEntry = lockedEntry;
             this.preventBlockBreak = preventBlockBreak;
             this.preventBlockPlace = preventBlockPlace;
@@ -420,6 +433,8 @@ public final class LockDefinition {
             this.entryPadding = Math.max(0, entryPadding);
             this.entryAllowed = entryAllowed;
             this.priority = priority;
+            this.categoryPriority = categoryPriority;
+            this.globalPriority = globalPriority;
         }
 
         public CategoryLocks lockedEntry()  { return lockedEntry; }
@@ -430,6 +445,8 @@ public final class LockDefinition {
         public int entryPadding()           { return entryPadding; }
         public boolean entryAllowed()       { return entryAllowed; }
         public Integer priority()           { return priority; }
+        public Integer categoryPriority()   { return categoryPriority; }
+        public int globalPriority()         { return globalPriority; }
 
         public boolean isEmpty() {
             return lockedEntry.isEmpty() && !preventBlockBreak && !preventBlockPlace

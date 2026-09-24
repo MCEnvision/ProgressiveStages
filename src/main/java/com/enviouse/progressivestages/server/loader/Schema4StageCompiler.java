@@ -95,12 +95,15 @@ public final class Schema4StageCompiler {
 
     private static CompiledRule applySimpleMetadata(CompiledRule rule, Config source,
                                                     StageDefinition stage, int globalPriority) {
-        if (Boolean.TRUE.equals(rule.settings().get("structure_convenience"))) return rule;
         Config category = category(source, rule.category());
         Integer entry = rule.selector().explicitPriority();
         if (entry == null) entry = lookupPriority(category, rule.selector().raw());
+        Integer rulePriority = null;
+        if (Boolean.TRUE.equals(rule.settings().get("structure_convenience")) && category != null) {
+            rulePriority = integer(category.get("rules"), "priority");
+        }
         Integer categoryPriority = integer(category, "priority");
-        ResolvedPriority priority = PriorityCascade.resolve(entry, null, categoryPriority,
+        ResolvedPriority priority = PriorityCascade.resolve(entry, rulePriority, categoryPriority,
             stage.getPriority(), globalPriority);
         ViewerPolicy viewer = viewerPolicy(category, rule.selector().raw());
         Map<String, Object> settings = new LinkedHashMap<>(rule.settings());

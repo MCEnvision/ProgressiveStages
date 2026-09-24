@@ -2100,7 +2100,8 @@ public final class LockRegistry {
                 if (entry.kind() != PrefixEntry.Kind.ID || entry.id() == null) continue;
                 String key = sourceKey + ".locked_entry[" + index++ + "]";
                 var priority = com.enviouse.progressivestages.common.rehaul.decision.PriorityCascade.resolve(
-                    entry.explicitPriority(), other.priority(), null, stagePriority, 0);
+                    entry.explicitPriority(), other.priority(), other.categoryPriority(), stagePriority,
+                    other.globalPriority());
                 List<StructureContribution> values = merged.computeIfAbsent(entry.id(), ignored -> new ArrayList<>());
                 if (!other.entryAllowed()) values.add(new StructureContribution(entry.id(), stage,
                     StructureAction.ENTRY, priority.value(), key, other.entryPadding()));

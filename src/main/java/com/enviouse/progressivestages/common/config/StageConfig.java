@@ -941,7 +941,6 @@ public class StageConfig {
             loadValuesPreservingPendingRestartValues();
             return;
         }
-        loadValues();
     }
 
     /** Keeps a file watcher reload from applying restart scoped editor values early. */
@@ -949,6 +948,11 @@ public class StageConfig {
         EDITOR_CONFIG_TRANSACTION = true;
         EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES.clear();
         snapshotEffectiveRestartValues(SPEC.getValues(), new ArrayList<>(), EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES);
+        for (String path : EDITOR_PENDING_RESTART_VALUES.keySet()) {
+            if (EDITOR_EFFECTIVE_RESTART_VALUES.containsKey(path)) {
+                EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES.put(path, EDITOR_EFFECTIVE_RESTART_VALUES.get(path));
+            }
+        }
     }
 
     /** Allows normal config reload events after an editor transaction has completed. */

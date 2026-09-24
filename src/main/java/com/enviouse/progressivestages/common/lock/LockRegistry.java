@@ -2097,8 +2097,8 @@ public final class LockRegistry {
             this.contributions.forEach((id, values) -> merged.put(id, new ArrayList<>(values)));
             int index = 0;
             for (PrefixEntry entry : other.lockedEntry().locked()) {
-                if (entry.kind() != PrefixEntry.Kind.ID || entry.id() == null) continue;
                 String key = sourceKey + ".locked_entry[" + index++ + "]";
+                if (entry.kind() != PrefixEntry.Kind.ID || entry.id() == null) continue;
                 var priority = com.enviouse.progressivestages.common.rehaul.decision.PriorityCascade.resolve(
                     entry.explicitPriority(), other.priority(), other.categoryPriority(), stagePriority,
                     other.globalPriority());

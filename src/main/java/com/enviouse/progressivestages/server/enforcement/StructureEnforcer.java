@@ -138,6 +138,8 @@ public final class StructureEnforcer {
                 StageId display = conditional.ownerStage() != null
                     ? conditional.ownerStage() : staticContribution == null ? null : staticContribution.ownerStage();
                 if (staticDenial == null) {
+                    candidate = found.get().instance();
+                    candidateBounds = bounds;
                     staticDenial = new EvaluationResult(false,
                         StructureAccessDecision.Reason.STATIC_STAGE_REQUIRED, display, bounds,
                         null, null, found.get().instance());

@@ -42,4 +42,18 @@ class StructureRulesAggregateTest {
         assertTrue(aggregate.disableMobSpawning);
         assertEquals(2, aggregate.entryPadding);
     }
+
+    @Test
+    void preservesSourceIndexesWhenLegacySelectorsAreSkipped() {
+        var structure = net.minecraft.resources.ResourceLocation.parse("minecraft:stronghold");
+        var rules = new LockDefinition.StructureRules(
+            CategoryLocks.builder().addLocked(List.of("mod:example", "minecraft:stronghold")).build(),
+            false, true, false, false, 0, false, null);
+
+        var aggregate = LockRegistry.StructureRulesAggregate.EMPTY
+            .merge(rules, StageId.parse("test:legacy"), "legacy.toml#structures.rules", 0);
+
+        assertEquals("legacy.toml#structures.rules.locked_entry[1].prevent_block_place",
+            aggregate.forAction(structure, StructureAction.BLOCK_PLACE).getFirst().sourceKey());
+    }
 }

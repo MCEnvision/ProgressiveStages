@@ -7,10 +7,10 @@ Use this page to find the maintained project documentation.
 - [Project overview and installation](../README.md)
 - [Complete configuration and technical documentation](../DOCUMENTATION.md)
 - [Project wiki](https://github.com/MCEnvision/ProgressiveStages/wiki)
-- [Active implementation plan](../plan.md)
 
 ## Verification
 
+- [3.0.5 release and completion](verification/3.0.5-completion.md)
 - [Selling Bin interaction repair](verification/selling-bin-interaction-repair.md)
 - [Selling Bin transaction GameTests](test/selling-bin.md)
 - [KubeJS ownership regression](test/kubejs.md)

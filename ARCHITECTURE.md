@@ -518,8 +518,6 @@ The repository root contains the maintained release surfaces:
 | `ARCHITECTURE.md` | Maintainers and integration authors. |
 | `TESTING.md` | Testers and release approvers. |
 | `CURSEFORGE.md` | Copy-ready public project description. |
-| `plan.md` | Fifteen-feature product plan and implementation status. |
-| `implementation/ProgressiveStages_3.0_Release_Plan.md` | Release gates and implemented 3.0 scope. |
 
 The release logo lives at `src/main/resources/progressivestages.png`. `neoforge.mods.toml` names that root resource with `logoFile`, so it appears in compatible mod-list screens and can be uploaded as the CurseForge project image.
 

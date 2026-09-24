@@ -460,15 +460,19 @@ function EnchantmentGenerationCard({ rule, onEdit, onDelete }:
 }
 
 function StructureControls({ stage }: { stage: StagePackage }) {
-  const { boot, mutateFile } = useEditor();
+  const { boot, mutateFile, setLocalError } = useEditor();
   const content = boot?.draft.files[stage.rulesPath] || "";
   const mutationQueues = useRef(new Map<string, { chain: Promise<void>; content: string; pending: number }>());
   const mutateFileRef = useRef(mutateFile);
   mutateFileRef.current = mutateFile;
+  const stagePathRef = useRef(stage.rulesPath);
+  const priorityErrorKey = `structure:${stage.rulesPath}:priority`;
+  const paddingErrorKey = `structure:${stage.rulesPath}:padding`;
   const [entries, setEntries] = useState(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
   const [priority, setPriority] = useState(readTomlValue(content, "structures.rules.priority"));
   const [priorityError, setPriorityError] = useState("");
   const [padding, setPadding] = useState(readTomlValue(content, "structures.rules.entry_padding") || readTomlValue(content, "structures.entry_padding"));
+  const [paddingError, setPaddingError] = useState("");
   const [entryAllowed, setEntryAllowed] = useState(booleanValue(readTomlValue(content, "structures.rules.entry_allowed") || "false"));
   const [preventBreak, setPreventBreak] = useState(booleanValue(readTomlValue(content, "structures.rules.prevent_block_break") || "false"));
   const [preventPlace, setPreventPlace] = useState(booleanValue(readTomlValue(content, "structures.rules.prevent_block_place") || "false"));
@@ -476,26 +480,60 @@ function StructureControls({ stage }: { stage: StagePackage }) {
   const [disableSpawns, setDisableSpawns] = useState(booleanValue(readTomlValue(content, "structures.rules.disable_mob_spawning") || "false"));
   useEffect(() => {
     const state = mutationQueues.current.get(stage.rulesPath);
-    if (state?.pending) return;
-    if (state) state.content = content;
-    setEntries(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
-    setPriority(readTomlValue(content, "structures.rules.priority"));
+    const previousPath = stagePathRef.current;
+    const pathChanged = previousPath !== stage.rulesPath;
+    stagePathRef.current = stage.rulesPath;
+    if (pathChanged) {
+      setLocalError(`structure:${previousPath}:priority`, null);
+      setLocalError(`structure:${previousPath}:padding`, null);
+    }
+    const source = state?.pending ? state.content : content;
+    if (state && !state.pending) state.content = content;
+    setEntries(parseSimpleArray(readTomlValue(source, "structures.locked_entry")).join("\n"));
+    setPriority(readTomlValue(source, "structures.rules.priority"));
     setPriorityError("");
-    setPadding(readTomlValue(content, "structures.rules.entry_padding") || readTomlValue(content, "structures.entry_padding"));
-    setEntryAllowed(booleanValue(readTomlValue(content, "structures.rules.entry_allowed") || "false"));
-    setPreventBreak(booleanValue(readTomlValue(content, "structures.rules.prevent_block_break") || "false"));
-    setPreventPlace(booleanValue(readTomlValue(content, "structures.rules.prevent_block_place") || "false"));
-    setPreventExplosions(booleanValue(readTomlValue(content, "structures.rules.prevent_explosions") || "false"));
-    setDisableSpawns(booleanValue(readTomlValue(content, "structures.rules.disable_mob_spawning") || "false"));
+    setPadding(readTomlValue(source, "structures.rules.entry_padding") || readTomlValue(source, "structures.entry_padding"));
+    setPaddingError("");
+    setEntryAllowed(booleanValue(readTomlValue(source, "structures.rules.entry_allowed") || "false"));
+    setPreventBreak(booleanValue(readTomlValue(source, "structures.rules.prevent_block_break") || "false"));
+    setPreventPlace(booleanValue(readTomlValue(source, "structures.rules.prevent_block_place") || "false"));
+    setPreventExplosions(booleanValue(readTomlValue(source, "structures.rules.prevent_explosions") || "false"));
+    setDisableSpawns(booleanValue(readTomlValue(source, "structures.rules.disable_mob_spawning") || "false"));
+    if (pathChanged || !state?.pending) {
+      setLocalError(priorityErrorKey, null);
+      setLocalError(paddingErrorKey, null);
+    }
   }, [content, stage.rulesPath]);
+  useEffect(() => () => {
+    setLocalError(priorityErrorKey, null);
+    setLocalError(paddingErrorKey, null);
+  }, [paddingErrorKey, priorityErrorKey, setLocalError]);
   const enqueue = (path: string, update: (source: string) => string, message: string) => {
     const state = mutationQueues.current.get(path) || { chain: Promise.resolve(), content: path === stage.rulesPath ? content : "", pending: 0 };
     mutationQueues.current.set(path, state);
     state.pending += 1;
     const operation = state.chain.then(async () => {
+      const previous = state.content;
       const next = update(state.content);
-      await mutateFileRef.current(path, next, message);
       state.content = next;
+      try {
+        await mutateFileRef.current(path, next, message);
+      } catch {
+        state.content = previous;
+        if (stagePathRef.current === path) {
+          setEntries(parseSimpleArray(readTomlValue(previous, "structures.locked_entry")).join("\n"));
+          setPriority(readTomlValue(previous, "structures.rules.priority"));
+          setPriorityError("");
+          setPadding(readTomlValue(previous, "structures.rules.entry_padding") || readTomlValue(previous, "structures.entry_padding"));
+          setPaddingError("");
+          setEntryAllowed(booleanValue(readTomlValue(previous, "structures.rules.entry_allowed") || "false"));
+          setPreventBreak(booleanValue(readTomlValue(previous, "structures.rules.prevent_block_break") || "false"));
+          setPreventPlace(booleanValue(readTomlValue(previous, "structures.rules.prevent_block_place") || "false"));
+          setPreventExplosions(booleanValue(readTomlValue(previous, "structures.rules.prevent_explosions") || "false"));
+          setDisableSpawns(booleanValue(readTomlValue(previous, "structures.rules.disable_mob_spawning") || "false"));
+        }
+        return;
+      }
     });
     state.chain = operation.then(() => undefined, () => undefined);
     operation.then(() => { state.pending -= 1; }, () => { state.pending -= 1; });
@@ -505,19 +543,34 @@ function StructureControls({ stage }: { stage: StagePackage }) {
     enqueue(stage.rulesPath, source => upsertToml(source, path, value), message);
   const savePriority = () => {
     const next = priority.trim();
-    if (next && !/^-?\d+$/.test(next)) { setPriorityError("Enter a whole number."); return; }
+    if (next && !/^-?\d+$/.test(next)) {
+      const message = "Enter a whole number.";
+      setPriorityError(message);
+      setLocalError(priorityErrorKey, message);
+      return;
+    }
     const number = Number(next);
     if (next && (!Number.isSafeInteger(number) || number < MIN_STRUCTURE_PRIORITY || number > MAX_STRUCTURE_PRIORITY)) {
-      setPriorityError(`Use a value from ${MIN_STRUCTURE_PRIORITY} to ${MAX_STRUCTURE_PRIORITY}.`);
+      const message = `Use a value from ${MIN_STRUCTURE_PRIORITY} to ${MAX_STRUCTURE_PRIORITY}.`;
+      setPriorityError(message);
+      setLocalError(priorityErrorKey, message);
       return;
     }
     setPriorityError("");
+    setLocalError(priorityErrorKey, null);
     const update = (source: string) => next ? upsertToml(source, "structures.rules.priority", Number(next)) : removeTomlValue(source, "structures.rules.priority");
     return enqueue(stage.rulesPath, update, "Structure priority saved");
   };
   const savePadding = () => {
     const next = padding.trim();
-    if (!/^\d+$/.test(next) && next !== "") return;
+    if (!/^\d+$/.test(next) && next !== "") {
+      const message = "Use a whole number of 0 or more.";
+      setPaddingError(message);
+      setLocalError(paddingErrorKey, message);
+      return;
+    }
+    setPaddingError("");
+    setLocalError(paddingErrorKey, null);
     return enqueue(stage.rulesPath, source => next
       ? upsertToml(source, "structures.rules.entry_padding", Number(next))
       : removeTomlValue(removeTomlValue(source, "structures.rules.entry_padding"), "structures.entry_padding"),
@@ -527,7 +580,7 @@ function StructureControls({ stage }: { stage: StagePackage }) {
     <div className="form-grid">
       <Field label="Structures to protect" help="One exact structure id per line. Use the id:minecraft:ancient_city form. These entries are checked by the server structure session." wide><textarea rows={4} value={entries} onChange={event => setEntries(event.target.value)} onBlur={() => void save("structures.locked_entry", lineValues(entries), "Structure list saved")} placeholder="id:minecraft:ancient_city" /></Field>
       <Field label="Rule priority" help="Higher signed values win when structure rules overlap. Leave blank to inherit the normal priority cascade."><input type="number" min={MIN_STRUCTURE_PRIORITY} max={MAX_STRUCTURE_PRIORITY} step={1} value={priority} onChange={event => setPriority(event.target.value)} onBlur={() => void savePriority()} placeholder="Inherited" aria-invalid={Boolean(priorityError)} />{priorityError ? <span className="setting-error" role="alert">{priorityError}</span> : null}</Field>
-      <Field label="Entry padding" help="Extra blocks around the structure boundary that still count as inside. Leave blank for the default."><input type="number" min={0} step={1} value={padding} onChange={event => setPadding(event.target.value)} onBlur={() => void savePadding()} placeholder="0" /></Field>
+      <Field label="Entry padding" help="Extra blocks around the structure boundary that still count as inside. Leave blank for the default."><input type="number" min={0} step={1} value={padding} onChange={event => setPadding(event.target.value)} onBlur={() => void savePadding()} placeholder="0" aria-invalid={Boolean(paddingError)} />{paddingError ? <span className="setting-error" role="alert">{paddingError}</span> : null}</Field>
       <Toggle label="Allow entry" help="Lets players enter while the other structure protections remain active. Use this for a permanent locked protection stage." checked={entryAllowed} onChange={value => { setEntryAllowed(value); void save("structures.rules.entry_allowed", value, "Structure entry policy saved"); }} />
       <Toggle label="Prevent block breaking" help="Cancel block breaks inside the protected structure." checked={preventBreak} onChange={value => { setPreventBreak(value); void save("structures.rules.prevent_block_break", value, "Structure break policy saved"); }} />
       <Toggle label="Prevent block placement" help="Cancel block placement inside the protected structure." checked={preventPlace} onChange={value => { setPreventPlace(value); void save("structures.rules.prevent_block_place", value, "Structure placement policy saved"); }} />

@@ -161,8 +161,9 @@ final class EditorApplyService {
                     ? EditorDraftValidator.validateMainConfig("").config() : previousMainConfig.config());
             }
             if (!StageFileLoader.getInstance().reload()) {
-                if (currentMainConfig != null) StageConfig.applyEditorConfig(currentMainConfig);
                 restoreFiles(currentFiles);
+                if (currentMainConfig != null) StageConfig.applyEditorConfig(currentMainConfig);
+                StageFileLoader.getInstance().reload();
                 return result(false, transaction, current, List.of(), null,
                     "rollback_reload_failed", String.join(". ", StageFileLoader.getInstance().getLastReloadErrors()));
             }
@@ -171,8 +172,9 @@ final class EditorApplyService {
                 List.of(), null, "ok", "The editor transaction was rolled back and synchronized");
         } catch (IOException | RuntimeException error) {
             try {
-                if (currentMainConfig != null) StageConfig.applyEditorConfig(currentMainConfig);
                 restoreFiles(currentFiles);
+                if (currentMainConfig != null) StageConfig.applyEditorConfig(currentMainConfig);
+                StageFileLoader.getInstance().reload();
             } catch (RuntimeException ignored) {}
             return result(false, transaction, current, List.of(), null, "rollback_failed", error.getMessage());
         } finally {

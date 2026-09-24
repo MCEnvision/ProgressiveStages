@@ -24,18 +24,16 @@
 
 - `npm ci` passed.
 - `npm run check` passed.
-- `npm test -- --run` passed, 17 files and 160 tests.
-- `npm run build` passed. packaged `app.js` sha256 is `08fd07f0ef1f24d28ed14c5a361b59e417c8e0e10c53228fa254d9196f5ec46a`. packaged `app.css` sha256 is `61fe46e00c1c89c2ccd2c120b8f11fa2771c68c529b0687aef1f59340e64d00c`.
-- the latest packaged `app.js` sha256 is `067ba25c1455075b026558063525cec8003f8501b1a72b8aa5fcdef2926d7039`.
+- `npm test -- --run` passed, 17 files and 163 tests.
+- `npm run build` passed. packaged `app.js` sha256 is `2522c52f5844433656c725e5e8ac31fc16c7d9a9806502673c41c3489015457f`. packaged `app.css` sha256 is `ba1027c5bed62c3268f9e5701a1a1a4def3d6938f4686e355904e82dc102247e`.
 - `./gradlew test --no-daemon` passed.
-- `./gradlew build --no-daemon` passed. candidate jar sha256 is `3ac5d28394b0b45b205ff2d52fbd9250be4e06b149840ecd2339ee968ab6540b`.
-- the latest phase candidate jar sha256 is `196056fc75ae3eab5875e12c840fb031ded24f33b3cdf00431be344a678b08bf`.
-- `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
+- `./gradlew build --no-daemon` passed. phase candidate jar sha256 is `01c182225c4779c2517823bcd6ea58021d656f128488cc6ca7da891ac7909145`.
+- `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because the same 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
 - github checks for phase commit `3f27d96` passed for gradle, node, dependency review, secret scan, java codeql, javascript codeql, and the repository codeql gate. documentation and dependency submission jobs were skipped by workflow conditions.
 - `git diff --check` passed.
 - the editor apply transaction now validates and writes one synchronized draft snapshot, preventing concurrent edits from changing the files between validation and write.
 - restart scoped settings stay pending only when their candidate differs from the effective loaded value, numeric settings expose and enforce schema ranges, invalid local settings block validation and review, graph right click opens the context menu without moving a node, and structure edits serialize against the latest draft content.
-- editor initiated config watcher reloads preserve restart scoped effective values while applying later live changes, failed draft saves refresh the authoritative draft, failed rollback reloads restore memory and files, and queued structure edits stay isolated by stage path and accepted content.
+- editor initiated config watcher reloads preserve restart scoped effective values while applying later live changes, failed draft saves refresh the authoritative draft, failed rollback reloads restore memory and files, and queued structure edits stay isolated by stage path and accepted content. Failed structure saves restore the prior accepted source before later edits run.
 
 ## brave editor acceptance
 
@@ -48,6 +46,10 @@ disabled validation. Restoring `18` cleared the error and allowed validation.
 The End Resolve Rules page rendered Structure access with separate Allow entry, block breaking,
 block placement, explosion, mob spawning, signed priority, and entry padding controls. Its help
 text explains that entry can be allowed while a permanent protection stage keeps block restrictions.
+The rebuilt bundle kept help hidden while a field itself was focused and showed it when the question
+mark trigger received focus. Switching from Aquatic Blessing to End Resolve replaced the queued
+structure draft with the selected stage content. An invalid entry padding of `-1` produced the
+inline whole number error and clearing it restored the accepted draft without applying a change.
 The Player UI page rendered the advancement style graph with category filtering, search, zoom, fit,
 automatic layout, and direct connection controls. Right clicking a graph node opened Edit stage,
 Connect stage, Duplicate, and Delete. Escape closed the menu without changing the draft.

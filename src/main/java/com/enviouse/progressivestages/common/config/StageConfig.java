@@ -954,11 +954,11 @@ public class StageConfig {
 
     /** Applies a validated editor candidate to the loaded config and refreshes live values. */
     public static synchronized void applyEditorConfig(UnmodifiableConfig candidate) {
+        com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
         Map<String, Object> pending = new LinkedHashMap<>();
         applyEditorValues(SPEC.getSpec(), candidate, new ArrayList<>(), pending);
         EDITOR_PENDING_RESTART_VALUES.clear();
         EDITOR_PENDING_RESTART_VALUES.putAll(pending);
-        com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
         loadValues();
     }
 

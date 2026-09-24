@@ -34,7 +34,7 @@ export function IdentityForm({ mode, stage }:
   };
   return <form className="dialog-form" onSubmit={submit}>
     <div className="form-grid">
-      <Field label="Player facing name" help="Use words and spaces. The editor creates the safe identifier.">
+      <Field label="Stage name" help="Use words and spaces. Players see this name, and the editor creates the safe identifier.">
         <input value={name} onChange={event => setName(event.target.value)} autoFocus required placeholder="Wizard"/>
       </Field>
       <Field label="Namespace" help="Keep related paths together, such as wizard:wizard and wizard:warlock.">

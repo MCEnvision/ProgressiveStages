@@ -35,6 +35,10 @@ class DefaultShowcaseStagesTest {
         assertTrue(wizardRules.contains("[recipes]"));
         assertTrue(wizardRules.contains("locked_items = [\"minecraft:enchanting_table\"]"));
         assertFalse(wizardRules.contains("targets.recipes"));
+        assertTrue(DefaultShowcaseStages.files().values().stream()
+            .filter(content -> content.contains("[abilities]"))
+            .noneMatch(content -> content.contains("locked")),
+            "showcase defaults must leave essential movement unrestricted");
         assertFalse(DefaultShowcaseStages.stageIds().contains("stone_age"));
         assertFalse(DefaultShowcaseStages.stageIds().contains("iron_age"));
         assertFalse(DefaultShowcaseStages.stageIds().contains("diamond_age"));

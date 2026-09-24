@@ -14,17 +14,18 @@ export function Badge({ children, tone = "neutral" }: { children: React.ReactNod
 }
 
 export function Field({ label, help, wide, children }: { label: string; help?: string; wide?: boolean; children: React.ReactNode }) {
+  const helpId = useId();
   return <label className={`field ${wide ? "field-wide" : ""}`}>
-    <span className="field-label">{label}</span>
+    <span className="field-label">{label}{help ? <span className="field-help-trigger" tabIndex={0} aria-describedby={helpId} title={help}>?</span> : null}</span>
     {children}
-    {help ? <span className="field-help">{help}</span> : null}
+    {help ? <span id={helpId} role="tooltip" className="field-help">{help}</span> : null}
   </label>;
 }
 
 export function Toggle({ label, help, checked, onChange, disabled }:
   { label: string; help?: string; checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) {
   return <label className="toggle-row">
-    <input type="checkbox" checked={checked} onChange={event => onChange(event.target.checked)} disabled={disabled}/>
+    <input type="checkbox" aria-label={label} checked={checked} onChange={event => onChange(event.target.checked)} disabled={disabled}/>
     <span className="toggle-control" aria-hidden="true"><span/></span>
     <span><strong>{label}</strong>{help ? <small>{help}</small> : null}</span>
   </label>;

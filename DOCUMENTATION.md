@@ -509,6 +509,39 @@ To create a stage without knowing TOML:
     these editor reports. If no file changed, nobody receives a chat message. The browser keeps the
     same applied file list visible so the operator can compare both reports.
 
+The layout graph keeps common actions beside the selected stage. Use `Edit`, `Connect`, `Duplicate`,
+or `Delete` in the selected stage toolbar, or right click a node to open the same menu. The menu also
+works from the keyboard context key or `Shift+F10`, closes with `Escape` or an outside click, and
+returns focus to the node after it closes. The editor clamps the menu to the visible browser area.
+
+### translating the editor
+
+The editor keeps labels and help text as ordinary browser text so pack authors can use the page
+translation control supplied by Brave or a browser Google Translate action. Translate a disposable
+label or help example when checking the workflow, then undo the edit before applying a draft. Keep
+stage IDs, file paths, registry IDs, commands, TOML, and selector values in their original form.
+The editor does not send source text, credentials, or session data to a translation service itself.
+Browser translation is provided by the browser and may send the rendered page text to the selected
+translation provider. Do not use browser translation on sensitive stage text or credentials. If the
+browser has no translation control, the English labels, examples, and hover help remain usable and
+the exact source tab is still available.
+
+The Settings page edits the main `progressivestages.toml` file through the same draft and review
+transaction as stage files. Controls come from `StageConfig.SPEC`, so their types, ranges, lists,
+defaults, and restart requirements stay synchronized with the server. A bad value or unknown key is
+reported beside the setting and cannot be applied. Live settings update the loaded server cache after
+the review. World and client restart settings are stored but remain marked as pending until the
+required restart. A file watcher reload keeps those pending values out of the live cache while
+applying later live changes. A failed stage reload restores both the file snapshot and the loaded
+settings.
+
+For structures, open the Rules tab and use Structure access. Enter one exact structure ID per line,
+then choose whether entry is allowed and which independent protections remain active. Rule priority
+accepts signed 32 bit values. Leave it blank to use the normal priority cascade. The editor writes
+`[structures.rules]` while preserving unrelated source text, so a permanent protection stage can use
+`entry_allowed = true` and keep block placement or other protections active after a separate entry
+stage is earned.
+
 If the browser reports `403 Forbidden`, close that editor tab and open the editor from Minecraft
 again. Each tab belongs to one private editor session, so a tab from an older world or an earlier
 editor launch cannot be reused. Current versions accept the normal loopback header variations used

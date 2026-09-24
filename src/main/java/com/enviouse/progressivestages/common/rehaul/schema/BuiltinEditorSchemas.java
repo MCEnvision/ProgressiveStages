@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -20,13 +21,13 @@ final class BuiltinEditorSchemas {
     static void populate(BiConsumer<ResourceLocation, EditorFieldSchema> sink) {
         add(sink, "stage.id", "stage.toml", "stage.id", "Stage ID", "The permanent namespaced identity.",
             SchemaValueType.RESOURCE_ID, null, true, null, Set.of(), List.of());
-        add(sink, "stage.name", "stage.toml", "stage.display_name", "Name", "The player facing stage name.",
+        add(sink, "stage.name", "stage.toml", "stage.display_name", "Stage name", "The name players see in the stage menu. Example: Miner.",
             SchemaValueType.STRING, "", true, null, Set.of(), List.of());
         add(sink, "stage.description", "stage.toml", "stage.description", "Description", "The stage explanation.",
             SchemaValueType.STRING, "", false, null, Set.of(), List.of());
-        add(sink, "stage.icon", "stage.toml", "stage.icon", "Icon", "The item shown for this stage.",
+        add(sink, "stage.icon", "stage.toml", "stage.icon", "Stage icon", "The item shown beside this stage. Example: minecraft:iron_pickaxe.",
             SchemaValueType.RESOURCE_ID, "minecraft:stone", false, catalog("items"), Set.of(), List.of());
-        add(sink, "stage.dependencies", "stage.toml", "stage.dependencies", "Dependencies", "Stages required before this stage.",
+        add(sink, "stage.dependencies", "stage.toml", "stage.dependencies", "Required stages", "Stages that must be complete before this stage can be earned.",
             SchemaValueType.LIST, List.of(), false, catalog("stages"), Set.of(), List.of());
         add(sink, "stage.dependency_mode", "stage.toml", "stage.dependency_mode", "Dependency rule", "Require every selected stage, any selected stage, or a chosen minimum.",
             SchemaValueType.ENUM, "all", false, null, Set.of(), List.of("all", "any", "at_least"));
@@ -237,9 +238,18 @@ final class BuiltinEditorSchemas {
                 case WORLD -> RestartRequirement.SERVER_RESTART;
                 case GAME -> RestartRequirement.CLIENT_RESTART;
             };
+            Map<String, Object> hints = new LinkedHashMap<>();
+            hints.put("generated", true);
+            if (type == SchemaValueType.INTEGER || type == SchemaValueType.DECIMAL) {
+                ModConfigSpec.Range<?> range = spec.getRange();
+                if (range != null) {
+                    hints.put("min", range.getMin());
+                    hints.put("max", range.getMax());
+                }
+            }
             sink.accept(id, new EditorFieldSchema(id, "progressivestages.toml", path,
                 title(entry.getKey()), help, type, defaultValue, false, null, Set.of(), List.of(),
-                Set.of(), restart, Map.of("generated", true)));
+                Set.of(), restart, hints));
         }
     }
 

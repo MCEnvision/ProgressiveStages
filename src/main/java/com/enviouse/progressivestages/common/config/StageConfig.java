@@ -5,10 +5,15 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
+import com.electronwill.nightconfig.core.Config;
+import com.electronwill.nightconfig.core.UnmodifiableConfig;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Main configuration for ProgressiveStages
@@ -18,6 +23,10 @@ import java.util.List;
 public class StageConfig {
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+    private static final Map<String, Object> EDITOR_PENDING_RESTART_VALUES = new LinkedHashMap<>();
+    private static final Map<String, Object> EDITOR_EFFECTIVE_RESTART_VALUES = new LinkedHashMap<>();
+    private static final Map<String, Object> EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES = new LinkedHashMap<>();
+    private static boolean EDITOR_CONFIG_TRANSACTION;
 
     // ============ General Settings ============
 
@@ -925,10 +934,174 @@ public class StageConfig {
     private static String msgCmdCreativePopupDisabled;
 
     @SubscribeEvent
-    static void onLoad(final ModConfigEvent event) {
+    static synchronized void onLoad(final ModConfigEvent event) {
         if (event.getConfig().getSpec() == SPEC) {
             com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
+            if (EDITOR_CONFIG_TRANSACTION) return;
+            loadValuesPreservingPendingRestartValues();
+            return;
         }
+    }
+
+    /** Keeps a file watcher reload from applying restart scoped editor values early. */
+    public static synchronized void beginEditorConfigTransaction() {
+        EDITOR_CONFIG_TRANSACTION = true;
+        EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES.clear();
+        snapshotEffectiveRestartValues(SPEC.getValues(), new ArrayList<>(), EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES);
+        for (String path : EDITOR_PENDING_RESTART_VALUES.keySet()) {
+            if (EDITOR_EFFECTIVE_RESTART_VALUES.containsKey(path)) {
+                EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES.put(path, EDITOR_EFFECTIVE_RESTART_VALUES.get(path));
+            }
+        }
+    }
+
+    /** Allows normal config reload events after an editor transaction has completed. */
+    public static synchronized void endEditorConfigTransaction() {
+        EDITOR_CONFIG_TRANSACTION = false;
+        EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES.clear();
+    }
+
+    /** Applies a validated editor candidate to the loaded config and refreshes live values. */
+    public static synchronized void applyEditorConfig(UnmodifiableConfig candidate) {
+        com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
+        Map<String, Object> effective = EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES.isEmpty()
+            ? captureEffectiveRestartValues() : new LinkedHashMap<>(EDITOR_TRANSACTION_EFFECTIVE_RESTART_VALUES);
+        Map<String, Object> pending = new LinkedHashMap<>();
+        applyEditorValues(SPEC.getSpec(), candidate, new ArrayList<>(), pending, effective);
+        EDITOR_PENDING_RESTART_VALUES.clear();
+        EDITOR_PENDING_RESTART_VALUES.putAll(pending);
+        EDITOR_EFFECTIVE_RESTART_VALUES.clear();
+        for (String path : pending.keySet()) {
+            if (effective.containsKey(path)) EDITOR_EFFECTIVE_RESTART_VALUES.put(path, effective.get(path));
+        }
+        loadValues();
+    }
+
+    /** Captures the loaded raw values so an editor transaction can restore them on failure. */
+    public static synchronized Config snapshotEditorConfig() {
+        Config snapshot = Config.inMemory();
+        snapshotEditorValues(SPEC.getValues(), snapshot, new ArrayList<>(), EDITOR_PENDING_RESTART_VALUES);
+        return snapshot;
+    }
+
+    /** Returns settings that were stored but are waiting for their declared restart boundary. */
+    public static synchronized List<String> editorPendingRestartPaths() {
+        List<String> pending = new ArrayList<>();
+        try {
+            pendingEditorValues(SPEC.getValues(), new ArrayList<>(), pending, EDITOR_PENDING_RESTART_VALUES);
+        } catch (IllegalStateException ignored) {
+            return List.of();
+        }
+        return List.copyOf(pending);
+    }
+
+    private static void loadValuesPreservingPendingRestartValues() {
+        Map<String, Object> rawPending = new LinkedHashMap<>();
+        for (var iterator = EDITOR_PENDING_RESTART_VALUES.entrySet().iterator(); iterator.hasNext();) {
+            Map.Entry<String, Object> entry = iterator.next();
+            Object value = SPEC.getValues().get(List.of(entry.getKey().split("\\.")));
+            Object effective = EDITOR_EFFECTIVE_RESTART_VALUES.get(entry.getKey());
+            if (!(value instanceof ModConfigSpec.ConfigValue<?> configValue)
+                || !EDITOR_EFFECTIVE_RESTART_VALUES.containsKey(entry.getKey())
+                || !Objects.equals(configValue.getRaw(), entry.getValue())) {
+                iterator.remove();
+                EDITOR_EFFECTIVE_RESTART_VALUES.remove(entry.getKey());
+                continue;
+            }
+            rawPending.put(entry.getKey(), configValue.getRaw());
+            setEditorValue(configValue, effective);
+        }
+        loadValues();
+        for (Map.Entry<String, Object> entry : rawPending.entrySet()) {
+            Object value = SPEC.getValues().get(List.of(entry.getKey().split("\\.")));
+            if (value instanceof ModConfigSpec.ConfigValue<?> configValue) setEditorValue(configValue, entry.getValue());
+        }
+    }
+
+    private static Map<String, Object> captureEffectiveRestartValues() {
+        Map<String, Object> effective = new LinkedHashMap<>();
+        snapshotEffectiveRestartValues(SPEC.getValues(), new ArrayList<>(), effective);
+        return effective;
+    }
+
+    private static void snapshotEffectiveRestartValues(UnmodifiableConfig values, List<String> path,
+                                                       Map<String, Object> effective) {
+        for (var entry : values.entrySet()) {
+            path.add(entry.getKey());
+            Object value = entry.getValue();
+            if (value instanceof UnmodifiableConfig nested) {
+                snapshotEffectiveRestartValues(nested, path, effective);
+            } else if (value instanceof ModConfigSpec.ConfigValue<?> configValue
+                && configValue.getSpec().restartType() != ModConfigSpec.RestartType.NONE) {
+                effective.put(String.join(".", path), configValue.get());
+            }
+            path.remove(path.size() - 1);
+        }
+    }
+
+    private static void applyEditorValues(UnmodifiableConfig spec, UnmodifiableConfig candidate, List<String> path,
+                                          Map<String, Object> pending, Map<String, Object> effective) {
+        for (var entry : spec.entrySet()) {
+            path.add(entry.getKey());
+            Object value = entry.getValue();
+            if (value instanceof UnmodifiableConfig nested) {
+                applyEditorValues(nested, candidate, path, pending, effective);
+            } else if (value instanceof ModConfigSpec.ValueSpec) {
+                Object configured = candidate.contains(path) ? candidate.getRaw(path) : ((ModConfigSpec.ValueSpec) value).getDefault();
+                Object loaded = SPEC.getValues().get(path);
+                if (loaded instanceof ModConfigSpec.ConfigValue<?> configValue) {
+                    if (configValue.getSpec().restartType() == ModConfigSpec.RestartType.NONE) {
+                        setEditorValue(configValue, configured);
+                    } else if (!Objects.equals(configured, effective.get(String.join(".", path)))) {
+                        pending.put(String.join(".", path), configured);
+                    }
+                }
+            }
+            path.remove(path.size() - 1);
+        }
+    }
+
+    private static void snapshotEditorValues(UnmodifiableConfig values, Config snapshot, List<String> path,
+                                             Map<String, Object> pending) {
+        for (var entry : values.entrySet()) {
+            path.add(entry.getKey());
+            Object value = entry.getValue();
+            if (value instanceof UnmodifiableConfig nested) {
+                snapshotEditorValues(nested, snapshot, path, pending);
+            } else if (value instanceof ModConfigSpec.ConfigValue<?> configValue) {
+                String dotted = String.join(".", path);
+                snapshot.set(path, pending.containsKey(dotted) ? pending.get(dotted) : configValue.getRaw());
+            }
+            path.remove(path.size() - 1);
+        }
+    }
+
+    private static void pendingEditorValues(UnmodifiableConfig values, List<String> path, List<String> pending,
+                                            Map<String, Object> pendingValues) {
+        for (var entry : values.entrySet()) {
+            path.add(entry.getKey());
+            Object value = entry.getValue();
+            if (value instanceof UnmodifiableConfig nested) {
+                pendingEditorValues(nested, path, pending, pendingValues);
+            } else if (value instanceof ModConfigSpec.ConfigValue<?> configValue
+                && configValue.getSpec().restartType() != ModConfigSpec.RestartType.NONE) {
+                String dotted = String.join(".", path);
+                if (pendingValues.containsKey(dotted)
+                    || !Objects.equals(configValue.getRaw(), configValue.get())) {
+                    pending.add(dotted);
+                }
+            }
+            path.remove(path.size() - 1);
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void setEditorValue(ModConfigSpec.ConfigValue<?> configValue, Object value) {
+        // NeoForge updates the loaded config object without saving or firing a reload event.
+        ((ModConfigSpec.ConfigValue) configValue).set(value);
+    }
+
+    private static void loadValues() {
         // Starting stages (v1.3 - supports list)
         List<? extends String> stagesList = STARTING_STAGES.get();
         startingStages = new ArrayList<>();

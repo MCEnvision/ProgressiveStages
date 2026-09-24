@@ -154,6 +154,8 @@ export interface ApplyResult {
   validation: ValidationResult;
   explanation: string;
   code: string;
+  restartRequired?: boolean;
+  pendingRestartSettings?: string[];
 }
 
 export interface StagePackage {

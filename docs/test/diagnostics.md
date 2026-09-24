@@ -103,3 +103,9 @@ For a support packet, save the status output and only the lines needed to show t
 contributor and final result. Run `off`, then `status`, wait for the writer to report `drained`,
 and remove the exact capture file after the last consumer has copied its sanitized excerpt. A
 failed reload stops capture and leaves the last accepted configuration active.
+
+Editor captures also distinguish a rejected setting path from an accepted revision. A main
+configuration edit records the validation result, changed file path, effective live update, and any
+restart pending paths without recording raw TOML. A failed write or stage reload must leave the prior
+file and effective cache active. Use the editor review response and the sanitized capture excerpt
+together when checking a settings transaction.

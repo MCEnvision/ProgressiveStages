@@ -6,7 +6,7 @@ import { RulesPanel } from "./RulesPanel";
 
 const editor = vi.hoisted(() => ({
   boot: { draft: { files: {} as Record<string, string> } },
-  mutateFile: vi.fn(async (..._args: unknown[]) => {}), openDialog: vi.fn(), closeDialog: vi.fn(), runDraftAction: vi.fn()
+  mutateFile: vi.fn(async (..._args: unknown[]) => {}), openDialog: vi.fn(), closeDialog: vi.fn(), runDraftAction: vi.fn(), setLocalError: vi.fn()
 }));
 vi.mock("../../store/EditorContext", () => ({ useEditor: () => editor }));
 vi.mock("../../components/CatalogPicker", () => ({ InlineCatalogSearch: () => null }));
@@ -20,6 +20,7 @@ const sources = [
 beforeEach(() => {
   vi.clearAllMocks();
   editor.mutateFile.mockReset().mockResolvedValue(undefined);
+  editor.setLocalError.mockReset();
   editor.boot.draft.files = { [stagePath]: '[stage]\nid="chef"\n', [rulesPath]: "" };
 });
 afterEach(cleanup);
@@ -151,6 +152,130 @@ describe("generic rule editing", () => {
     const saved = editor.mutateFile.mock.calls[0][1];
     expect(saved).toContain('"id:minecraft:sharpness|priority=175"');
     expect(saved).not.toContain("[[rules]]");
+  });
+
+  it("allows structure entry without dropping independent protections", async () => {
+    const structureSource = '[structures]\nlocked_entry=["id:minecraft:ancient_city"]\n[structures.rules]\npriority=-5\nprevent_block_place=true\ncustom="keep"\n';
+    editor.boot.draft.files[rulesPath] = structureSource;
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledOnce());
+    const saved = String(editor.mutateFile.mock.calls[0][1]);
+    expect(saved).toContain("entry_allowed = true");
+    expect(saved).toMatch(/prevent_block_place\s*=\s*true/);
+    expect(saved).toMatch(/priority\s*=\s*-5/);
+    expect(saved).toContain('custom="keep"');
+  });
+
+  it("serializes structure changes from the latest draft and clears the legacy padding fallback", async () => {
+    const structureSource = '[structures]\nlocked_entry=["id:minecraft:ancient_city"]\nentry_padding=12\n[structures.rules]\nprevent_block_place=true\n';
+    editor.boot.draft.files[rulesPath] = structureSource;
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    const padding = screen.getByDisplayValue("12");
+    fireEvent.change(padding, { target: { value: "" } });
+    fireEvent.blur(padding);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledTimes(2));
+    const first = String(editor.mutateFile.mock.calls[0][1]);
+    expect(first).not.toContain("entry_padding");
+    const second = String(editor.mutateFile.mock.calls[1][1]);
+    expect(second).not.toContain("entry_padding");
+    expect(second).toContain("entry_allowed = true");
+  });
+
+  it("keeps queued structure edits on the accepted content", async () => {
+    const resolvers: Array<() => void> = [];
+    editor.mutateFile.mockImplementation(async () => new Promise<void>(resolve => resolvers.push(resolve)));
+    editor.boot.draft.files[rulesPath] = "[structures]\nlocked_entry=[]\n";
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByLabelText("Prevent block placement"));
+    resolvers[0]();
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledTimes(2));
+    const second = String(editor.mutateFile.mock.calls[1][1]);
+    expect(second).toContain("entry_allowed = true");
+    expect(second).toContain("prevent_block_place = true");
+    resolvers[1]();
+  });
+
+  it("keeps queued structure saves on their own stage path", async () => {
+    const resolvers: Array<() => void> = [];
+    editor.mutateFile.mockImplementation(async () => new Promise<void>(resolve => resolvers.push(resolve)));
+    const stage2Path = "stages/baker/stage.toml";
+    const rules2Path = "stages/baker/rules.toml";
+    editor.boot.draft.files = {
+      [stagePath]: '[stage]\nid="chef"\n',
+      [rulesPath]: "[structures]\nlocked_entry=[]\n",
+      [stage2Path]: '[stage]\nid="baker"\n',
+      [rules2Path]: "[structures]\nlocked_entry=[]\n"
+    };
+    const stages = discoverStages(editor.boot.draft.files);
+    const view = render(<RulesPanel stage={stages.find(stage => stage.rulesPath === rulesPath)!}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledOnce());
+    view.rerender(<RulesPanel stage={stages.find(stage => stage.rulesPath === rules2Path)!}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledTimes(2));
+    expect(editor.mutateFile.mock.calls[0][0]).toBe(rulesPath);
+    expect(editor.mutateFile.mock.calls[1][0]).toBe(rules2Path);
+    resolvers.forEach(resolve => resolve());
+  });
+
+  it("reloads structure controls for the selected stage while another save is pending", async () => {
+    const resolvers: Array<() => void> = [];
+    editor.mutateFile.mockImplementation(async () => new Promise<void>(resolve => resolvers.push(resolve)));
+    const stage2Path = "stages/baker/stage.toml";
+    const rules2Path = "stages/baker/rules.toml";
+    editor.boot.draft.files = {
+      [stagePath]: '[stage]\nid="chef"\n',
+      [rulesPath]: "[structures]\nlocked_entry=[]\n",
+      [stage2Path]: '[stage]\nid="baker"\n',
+      [rules2Path]: "[structures]\nlocked_entry=[]\n"
+    };
+    const stages = discoverStages(editor.boot.draft.files);
+    const view = render(<RulesPanel stage={stages.find(stage => stage.rulesPath === rulesPath)!}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledOnce());
+    view.rerender(<RulesPanel stage={stages.find(stage => stage.rulesPath === rules2Path)!}/>);
+    await waitFor(() => expect((screen.getByLabelText("Allow entry") as HTMLInputElement).checked).toBe(false));
+    view.rerender(<RulesPanel stage={stages.find(stage => stage.rulesPath === rulesPath)!}/>);
+    await waitFor(() => expect((screen.getByLabelText("Allow entry") as HTMLInputElement).checked).toBe(true));
+    resolvers[0]();
+  });
+
+  it("rejects structure priorities outside the signed integer range", async () => {
+    editor.boot.draft.files[rulesPath] = "[structures]\nlocked_entry=[]\n";
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    const priority = screen.getByPlaceholderText("Inherited");
+    fireEvent.change(priority, { target: { value: "2147483648" } });
+    fireEvent.blur(priority);
+    expect((await screen.findByRole("alert")).textContent).toContain("2147483647");
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+  });
+
+  it("blocks validation when entry padding is not a whole number", async () => {
+    editor.boot.draft.files[rulesPath] = "[structures]\nlocked_entry=[]\n";
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    const padding = screen.getByPlaceholderText("0");
+    fireEvent.change(padding, { target: { value: "1.5" } });
+    fireEvent.blur(padding);
+    expect((await screen.findByRole("alert")).textContent).toContain("whole number");
+    expect(editor.setLocalError).toHaveBeenCalledWith("structure:stages/chef/rules.toml:padding", "Use a whole number of 0 or more.");
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+  });
+
+  it("does not reuse a rejected structure edit for the next save", async () => {
+    editor.mutateFile.mockRejectedValueOnce(new Error("Draft storage unavailable.")).mockResolvedValue(undefined);
+    editor.boot.draft.files[rulesPath] = "[structures]\nlocked_entry=[]\n";
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByLabelText("Prevent block placement"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledTimes(2));
+    const second = String(editor.mutateFile.mock.calls[1][1]);
+    expect(second).not.toContain("entry_allowed = true");
+    expect(second).toContain("prevent_block_place = true");
   });
 });
 

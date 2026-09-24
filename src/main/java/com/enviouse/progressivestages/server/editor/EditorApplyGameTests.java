@@ -1,6 +1,7 @@
 package com.enviouse.progressivestages.server.editor;
 
 import com.enviouse.progressivestages.common.api.StageId;
+import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.config.ConfigPaths;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
 import net.minecraft.gametest.framework.GameTest;
@@ -65,6 +66,49 @@ public final class EditorApplyGameTests {
                     deleteTree(root.resolve(".editor-backups").resolve(result.transactionId()));
                 }
                 loader.reload();
+            } catch (IOException ignored) {}
+        }
+    }
+
+    @GameTest(template = "igloo/top", templateNamespace = "minecraft")
+    public static void mainSettingsApplyLiveAndRollback(GameTestHelper helper) throws IOException {
+        Path root = ConfigPaths.rootDirectory();
+        Path main = root.resolve("progressivestages.toml");
+        UUID operator = UUID.randomUUID();
+        String beforeText = Files.readString(main);
+        boolean beforeValue = StageConfig.isDebugLogging();
+        String marker = "debug_logging = " + beforeValue;
+        String afterText = beforeText.contains(marker)
+            ? beforeText.replace(marker, "debug_logging = " + !beforeValue)
+            : beforeText + "\n[general]\ndebug_logging = " + !beforeValue + "\n";
+        EditorApplyResult applied = null;
+        try {
+            long baselineRevision = StageFileLoader.getInstance().getCompiledSnapshot().revision();
+            EditorDraft draft = new EditorDraft(UUID.randomUUID(), operator, baselineRevision, 0, snapshotFiles(root));
+            draft.mutate(operator, 0, "progressivestages.toml", afterText);
+            applied = new EditorApplyService(root).apply(helper.getLevel().getServer(), operator, draft,
+                baselineRevision, true);
+            helper.assertTrue(applied.success(), "a valid main setting must apply through the editor transaction");
+            helper.assertTrue(StageConfig.isDebugLogging() == !beforeValue,
+                "a live setting must update the loaded server cache");
+
+            EditorApplyResult rolledBack = new EditorApplyService(root).rollback(helper.getLevel().getServer(), operator,
+                applied.transactionId(), true);
+            helper.assertTrue(rolledBack.success(), "a main setting transaction must roll back");
+            helper.assertTrue(StageConfig.isDebugLogging() == beforeValue,
+                "rollback must restore the loaded server cache");
+            helper.succeed();
+        } catch (Throwable failure) {
+            helper.fail("Main setting transaction failed: " + failure.getMessage());
+        } finally {
+            try {
+                Files.writeString(main, beforeText);
+                var restored = EditorDraftValidator.validateMainConfig(beforeText);
+                if (restored.valid()) StageConfig.applyEditorConfig(restored.config());
+                StageFileLoader.getInstance().reload();
+                if (applied != null && !applied.transactionId().isBlank()) {
+                    deleteTree(root.resolve(".editor-backups").resolve(applied.transactionId()));
+                }
             } catch (IOException ignored) {}
         }
     }

@@ -22,6 +22,19 @@ If the editor reports an invalid Boolean, selector, or priority, correct the fie
 again. The rejected draft and last accepted server snapshot remain available. Do not delete the
 stage file to recover from a validation error.
 
+## main settings
+
+The Settings page is generated from the connected `StageConfig.SPEC`. It edits the main
+`progressivestages.toml` file in the same draft as stage files. Whole numbers, decimals, booleans,
+lists, and enum values are checked before they reach review. Unknown keys and values outside the
+server's configured range are rejected with the exact setting path. A blank numeric field is kept as
+an error instead of being silently changed to zero.
+
+After review, live settings update the running server. Settings marked for a world or client restart
+are saved but appear as pending in the apply result. No restart is started automatically. If a stage
+reload or write fails, the editor restores the previous file and loaded setting snapshot, then keeps
+the draft available for correction.
+
 ## ownership choices
 
 The Setup and Access tabs expose four choices.
@@ -103,6 +116,14 @@ selector, and select **Deny until stage is owned**. Conditional activation remai
 the Rules tab. Use the same activation on both rules when they should apply together.
 
 ## browser and draft recovery
+
+### translating labels safely
+
+Use the browser's page translation control, including Brave or a Google Translate browser action,
+on visible labels and help text only. Keep stage identifiers, registry IDs, commands, file paths,
+TOML, and selector values unchanged. The editor does not submit source text or session data to a
+translation service. If translation is unavailable, the English labels and hover help remain the
+source of truth.
 
 Editor responses complete independently of Minecraft's render thread. A hidden or minimized game
 window must not prevent the browser from receiving a completed server operation. Server draft

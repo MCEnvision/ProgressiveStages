@@ -32,9 +32,9 @@ The approved default policy leaves essential movement unrestricted. Retain the e
 
 ## Targeted editor contract
 
-Use plain labels such as Stage name, Stage icon and Required stages, with brief Minecraft style hover tooltips explaining what a player sees and one relevant example. Keyboard focus and click or tap expose the same help; validation errors and save state remain inline. Retain serialized keys, identifiers, advanced controls, source editing and supported existing terminology where needed. This is not translation infrastructure or a rewrite.
+Use plain labels such as Stage name, Stage icon and Required stages, with brief Minecraft style hover tooltips explaining what a player sees and one relevant example. Keyboard focus and click or tap expose the same help; validation errors and save state remain inline. Retain serialized keys, identifiers, advanced controls, source editing and supported existing terminology where needed. Translation-friendly presentation and a local browser-help button are now included; maintained language packs and external translation services remain excluded.
 
-Add visible actions next to selected graph nodes and a right-click menu with Edit, Connect, Duplicate and Delete from draft where supported. Reuse StageActions/StageDialogs and server draft validation. Provide keyboard context invocation and focus return, Escape/outside dismissal, a visible pointer alternative, viewport clamping and no accidental drag writes from right click. Connect through existing cycle prevention. Keep deletion confirmation and review/apply semantics. Do not silently enable destructive actions for legacy/archived stages when existing APIs reject them. Hidden stage visibility, full localization and new graph libraries are optional future proposals, not required expansion.
+Add visible actions next to selected graph nodes and a right-click menu with Edit, Connect, Duplicate and Delete from draft where supported. Reuse StageActions/StageDialogs and server draft validation. Provide keyboard context invocation and focus return, Escape/outside dismissal, a visible pointer alternative, viewport clamping and no accidental drag writes from right click. Connect through existing cycle prevention. Keep deletion confirmation and review/apply semantics. Do not silently enable destructive actions for legacy/archived stages when existing APIs reject them. Existing hidden/reveal controls and an editable player preview are included under CORE-REQ-011 without changing their engine semantics. Full language packs and new graph libraries remain excluded.
 
 ## Failure mechanisms and proof
 
@@ -92,3 +92,15 @@ The existing mod served editor is the identified delivery target. Laptop Brave, 
 ## Final contract resolution
 
 The master IF-002 is authoritative for priority presence and inheritance. Omission preserves the existing selector, category, stage and global cascade. The effective default is zero only when the cascade is otherwise unconfigured; explicit zero is a rule-level choice. The master freezes the four-phase catalog and exact IF-003 guide fields. Earlier research alternatives do not alter those final declarations.
+
+
+## Complete editor workflows
+
+| Question | Requirement and decision | Evidence | Conclusion |
+| --- | --- | --- | --- |
+| Does main config GUI editing need a new page? | CORE-REQ-010, DEC-009 | FIND-016 | Extend existing SettingsPage and spec schemas. Prove complete semantic validation and actual effective state apply, including main only and combined drafts, failure rollback and restart state. |
+| Can users inspect a stage without activating it? | CORE-REQ-004, CORE-REQ-011, DEC-010 | FIND-017 | Existing hidden/reveal and missing/owned/always rules are separate. Preview uses those controls and simulated ownership, with no new claim mechanism or gameplay side effects. |
+| How can translation be simpler without a new service? | CORE-REQ-004, DEC-011 | FIND-018 | Local Translate editor guidance and translation friendly DOM text support browser tools. Direct Google text links remain FUT-002; browser translation is user operated and provider dependent. |
+| Which extra ideas are worth considering? | FUT-003, FUT-004, FUT-005 | SRC-022, FIND-017 | Presets and selective copying reduce repetition but need explicit diff and preservation safeguards. A new claim or activation mechanism needs a separate decision. These proposals do not expand the release gates. |
+
+The existing four-phase catalog stays fixed. Phase 001 owns complete help, nearby workflows and main settings. Phase 002 owns the editable preview with the guide and verifies the new guide switch through the main GUI. Phase 003 verifies all of these from the released JAR. No product implementation or runtime proof occurred during this amendment.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "884568fa2c7e2fbad1a63ea59145aa26c6924a38173dc3e74e158b6d8060101f",
+  "planSetSha256": "0e50570c5caeebc42f4ae534a27b2041a74232ef3de38afc61a0543fc8c2561a",
   "planningSubject": {
     "name": "ProgressiveStages 3.1.0 structure independence and guided progression",
     "requestedArtifact": "authoritative_plan",
@@ -118,6 +118,27 @@
         "subject": "Existing field help, advancement screen and screen opening boundary",
         "source": "research/sources/guide-navigation.md",
         "use": "Pins the field component, key registration, open versus refresh handling and main config integration points."
+      },
+      {
+        "id": "SRC-022",
+        "role": "owner_request",
+        "subject": "Complete editor help, main settings and editable player preview",
+        "source": "research/sources/editor-workflows.md",
+        "use": "Defines the bounded usability amendment and records optional proposals separately."
+      },
+      {
+        "id": "SRC-023",
+        "role": "repository_evidence",
+        "subject": "Existing main settings, rule activation and visibility paths",
+        "source": "research/sources/editor-workflows.md",
+        "use": "Pins schema generation, validation gaps and reusable draft and presentation controls."
+      },
+      {
+        "id": "SRC-024",
+        "role": "reference",
+        "subject": "Browser translation capabilities and limits",
+        "source": "research/sources/editor-workflows.md",
+        "use": "Primary Google, Brave and HTML documentation supports user-operated translation help without an embedded service promise."
       }
     ]
   },
@@ -236,8 +257,8 @@
     },
     {
       "id": "CORE-REQ-004",
-      "summary": "Existing editor uses plain Stage name, Stage icon and Required stages labels with Minecraft style hover/focus help and examples, visible validation and save feedback, supported advanced controls and serialized compatibility.",
-      "source": "SRC-020, SRC-021 and existing guide/editor research",
+      "summary": "Complete contextual editor help, translation-friendly browser presentation and local translation instructions, existing rule activation explanations and source-preserving advanced controls.",
+      "source": "SRC-022, SRC-023, SRC-024",
       "owner": "CORE-PHASE-001",
       "contributors": "Source preservation, documentation.",
       "dependencies": [
@@ -252,8 +273,8 @@
     },
     {
       "id": "CORE-REQ-005",
-      "summary": "Graph offers nearby edit and delete actions, context and keyboard alternatives, safe gesture handling, confirmation and existing draft review workflow.",
-      "source": "Current owner request and clarifications, pinned research findings",
+      "summary": "Nearby graph actions and full selected-stage editing, local error correction and stable draft controls preserve pointer, keyboard, undo, validation and review/apply workflows.",
+      "source": "SRC-022, SRC-023, SRC-024",
       "owner": "CORE-PHASE-001",
       "contributors": "EditorContext, permission validation, browser verification.",
       "dependencies": [
@@ -277,7 +298,9 @@
         "CORE-REQ-004",
         "CORE-REQ-005",
         "CORE-REQ-007",
-        "CORE-REQ-009"
+        "CORE-REQ-009",
+        "CORE-REQ-010",
+        "CORE-REQ-011"
       ],
       "lifecycleStage": "change",
       "productionVerification": "none",
@@ -311,6 +334,8 @@
         "CORE-REQ-006",
         "CORE-REQ-007",
         "CORE-REQ-009",
+        "CORE-REQ-010",
+        "CORE-REQ-011",
         "EXT-001",
         "EXT-002",
         "EXT-003",
@@ -336,13 +361,69 @@
       "productionVerification": "none",
       "releaseImpact": "stable release",
       "canonicalPhase": "CORE-PHASE-002"
+    },
+    {
+      "id": "CORE-REQ-010",
+      "summary": "Complete typed main configuration editing through the existing GUI with spec validation, truthful live or restart status and transactional effective-state application.",
+      "source": "SRC-022, SRC-023",
+      "owner": "CORE-PHASE-001",
+      "contributors": "Config spec, draft transaction, CORE-PHASE-002 guide option, documentation.",
+      "dependencies": [
+        "CORE-REQ-004",
+        "CORE-REQ-007"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-001"
+    },
+    {
+      "id": "CORE-REQ-011",
+      "summary": "Editable advancement-style player preview with supported display fields, visible requirements, independent reveal and ownership state, shared draft edits and no gameplay side effects.",
+      "source": "SRC-022, SRC-023",
+      "owner": "CORE-PHASE-002",
+      "contributors": "Existing layout and stage forms, configuration projection, client presentation, documentation.",
+      "dependencies": [
+        "CORE-REQ-004",
+        "CORE-REQ-005",
+        "CORE-REQ-009",
+        "CORE-REQ-010"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "CORE-PHASE-002"
     }
   ],
   "optionalFutureScope": [
     {
       "id": "FUT-001",
-      "summary": "Full editor rewrite, new graph framework, full localization or unrelated configuration expansion.",
-      "source": "Owner narrowed issue57 request",
+      "summary": "Full editor rewrite, new graph framework, maintained full language packs and unrelated engine expansion.",
+      "source": "SRC-022, SRC-024",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-002",
+      "summary": "Direct selected-text Google translation, embedded translator or paid translation service pending explicit external-content and cost choice.",
+      "source": "SRC-022, SRC-024",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-003",
+      "summary": "Reusable reviewable stage and rule presets with collision and preservation safeguards.",
+      "source": "SRC-022, SRC-024",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-004",
+      "summary": "Selective bulk or copy settings across stages with per-target preview and undo.",
+      "source": "SRC-022, SRC-024",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-005",
+      "summary": "A new manual claim step or additional per-effect activation mechanism pending a separate owner decision.",
+      "source": "SRC-022, SRC-024",
       "disposition": "excluded"
     }
   ],
@@ -457,6 +538,47 @@
         "CORE-REQ-009"
       ],
       "supersedes": []
+    },
+    {
+      "id": "DEC-009",
+      "question": "Complete main settings in the editor",
+      "selectedChoice": "Expose the main configuration through the existing Settings page, including the guide switch, with complete typed controls, contextual help and verified application.",
+      "rationale": "The owner explicitly requests main config editing in the GUI. This clarifies DEC-008 to allow an administrator Main settings control while keeping guide availability out of individual stage forms and player menus.",
+      "affectedRequirements": [
+        "CORE-REQ-004",
+        "CORE-REQ-006",
+        "CORE-REQ-008",
+        "CORE-REQ-009",
+        "CORE-REQ-010"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-010",
+      "question": "Editable player menu preview and existing activation controls",
+      "selectedChoice": "Provide an editable advancement style preview of supported stage display and guidance settings, with nearby editing and separate simulated visibility and ownership states. Reuse existing rule activation controls.",
+      "rationale": "The owner proposes direct preview editing, hide and show settings, conditions and visibility before acquisition. This bounded design preserves existing acquisition and reward behavior. A new claim or activation mechanism remains FUT-005.",
+      "affectedRequirements": [
+        "CORE-REQ-004",
+        "CORE-REQ-005",
+        "CORE-REQ-006",
+        "CORE-REQ-008",
+        "CORE-REQ-009",
+        "CORE-REQ-011"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-011",
+      "question": "Translation-friendly help without a service dependency",
+      "selectedChoice": "Provide a Translate editor help button with browser instructions and translation friendly labels and help. Leave direct external text translation optional.",
+      "rationale": "The owner asks for easier translation. Native browser translation is user operated, browser dependent and requires no new mod service or paid API. The unresolved direct Google option remains FUT-002 rather than an assumed permission to send editor data.",
+      "affectedRequirements": [
+        "CORE-REQ-004",
+        "CORE-REQ-006",
+        "CORE-REQ-008"
+      ],
+      "supersedes": []
     }
   ],
   "externalPrerequisites": [
@@ -555,7 +677,8 @@
       "canonicalRequirements": [
         "CORE-REQ-003",
         "CORE-REQ-004",
-        "CORE-REQ-005"
+        "CORE-REQ-005",
+        "CORE-REQ-010"
       ]
     },
     {
@@ -566,17 +689,21 @@
         "CORE-REQ-004",
         "CORE-REQ-005",
         "CORE-REQ-007",
+        "CORE-REQ-010",
         "DEC-004",
         "DEC-005",
         "DEC-006",
         "DEC-007",
         "DEC-008",
+        "DEC-009",
+        "DEC-010",
         "EXT-001",
         "EXT-002",
         "EXT-004"
       ],
       "canonicalRequirements": [
-        "CORE-REQ-009"
+        "CORE-REQ-009",
+        "CORE-REQ-011"
       ]
     },
     {
@@ -591,6 +718,8 @@
         "CORE-REQ-005",
         "CORE-REQ-007",
         "CORE-REQ-009",
+        "CORE-REQ-010",
+        "CORE-REQ-011",
         "DEC-003",
         "DEC-004",
         "DEC-005",
@@ -608,13 +737,13 @@
   ],
   "completionEndpoint": "ProgressiveStages 3.1.0 is tested, integrated through checked master pull requests and signed phase tags, published on CurseForge and Modrinth with matching verified artifacts, and its updated mod-served web editor and in-game guide are verified from the released JAR. Documentation, wiki and issue 57 reflect the verified result.",
   "goalCreator": {
-    "mandatoryBoundary": "CORE-REQ-001 through CORE-REQ-009 across all four contiguous phases, with the full release endpoint.",
+    "mandatoryBoundary": "CORE-REQ-001 through CORE-REQ-011 across all four contiguous phases, with the full release endpoint.",
     "optionalFutureDisposition": "excluded.",
-    "lockedOwnerDecisions": "DEC-001 through DEC-008.",
+    "lockedOwnerDecisions": "DEC-001 through DEC-011.",
     "activePhase": "CORE-PHASE-000",
     "nextExecutableAction": "P000-TASK-001, verify latest approved master, existing checkout state, owned resource boundaries, pins and phase prerequisites before implementation.",
     "knownFailingChecks": "No runtime or implementation checks ran during research. Observed coupled structure aggregation, active default movement locks and missing dedicated guide remain unimplemented target behavior.",
     "knownExternalBlockers": "none",
-    "requiredEvidenceGates": "Parser/compiler/arbitration/default/editor/guide tests, real server events, actual Brave workflows, silent laptop multiplayer and guide evidence, bounded diagnostics and overhead, complete cleanup, checked PR integration, resulting master verification, signed tags, both accepted platform artifacts, hashes, released editor and guide, documentation and wiki convergence."
+    "requiredEvidenceGates": "Parser/compiler/arbitration/default/editor/guide tests, complete help and translated edit preservation, main config coverage and transactional effective state proof, preview parity and zero side effect proof, real server events, actual Brave workflows, silent laptop multiplayer and guide evidence, bounded diagnostics and overhead, complete cleanup, checked PR integration, resulting master verification, signed tags, both accepted platform artifacts, hashes, released editor and guide, documentation and wiki convergence."
   }
 }

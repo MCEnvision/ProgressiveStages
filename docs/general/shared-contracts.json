@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "plan_files": {
-    "plan.md": "3b7be9205ad097701d5eca8de5c479c31c5186ea7bb1ae6370b1531012581f42",
+    "plan.md": "66219974c8a5ebc22e6ea2d9db56f3583e93a42c68c4020a9d25ac045a90274a",
     "phases/plan-phase-000.md": "d16871d80979c8e18b5171cf81f06a33367e2e5bb95019214d41b34a23a1c299",
-    "phases/plan-phase-001.md": "66037ae456b915da3bd7b71a1632495fe05272d8c3ae25879a6c069f7006b910",
-    "phases/plan-phase-002.md": "b32c85ace649673ec7454a110e828697bff908a043b2105b2f6e02c3bad77a22",
-    "phases/plan-phase-003.md": "4fd95b70dc294aa00fa963ae69f7dfff7c876c687c6feceec25b041db4527ce4"
+    "phases/plan-phase-001.md": "b06d318503c3e3f0d896322106d17ee72256bcb916cccb875628016acc16b5cf",
+    "phases/plan-phase-002.md": "6d3a70074103072e95a316a4854f58ea5f345226303ccf9e04ccc1b5f7bd3157",
+    "phases/plan-phase-003.md": "bb96a33757a0caaa1bd02813417c0169b8c993bc3599b2710efda33c5e3d531c"
   },
   "requirement_ids": [
     "CORE-REQ-001",
@@ -16,7 +16,9 @@
     "CORE-REQ-006",
     "CORE-REQ-007",
     "CORE-REQ-008",
-    "CORE-REQ-009"
+    "CORE-REQ-009",
+    "CORE-REQ-010",
+    "CORE-REQ-011"
   ],
   "contracts": [
     {
@@ -190,7 +192,8 @@
           "default": true,
           "authority": "server accepted policy, unknown unavailable; not a stage-form or player-menu toggle",
           "disabled": "hide guide UI; guide key sends no request; open guide returns to Stages; preserve normal map, authored text and gameplay",
-          "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys"
+          "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys",
+          "editing": "main file or administrator Main settings GUI under IF-007; same server authority"
         }
       }
     },
@@ -258,7 +261,10 @@
         "CORE-AC-006",
         "CORE-AC-007",
         "CORE-AC-008",
-        "CORE-AC-011"
+        "CORE-AC-011",
+        "CORE-AC-009",
+        "CORE-AC-024",
+        "CORE-AC-025"
       ],
       "signature": {
         "version": "existing source preserving draft APIs",
@@ -272,7 +278,10 @@
         "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
         "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
         "guide_extension": "Phase002 reuses hover/focus help and provides guide controls through IF003 with inert preview and no attribution; not an exit prerequisite for Phase001",
-        "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation"
+        "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation",
+        "help_coverage": "every existing editable field and action, plain purpose/example/default/units/when-active; preserve compound rules and advanced source",
+        "nearby": "full selected-stage inspector, local field errors, stable draft save/status, narrow drawer and existing undo/review safeguards",
+        "translation": "local Translate editor instructions and user-operated browser translation; selectable text and language metadata, translate=no hints preserve IDs/code/values; no automatic external content submission; direct Google service remains optional"
       }
     },
     {
@@ -330,6 +339,54 @@
         "lifecycle": "one capture globally; busy refusal; idempotent off with drain; reset on timeout/reload/shutdown/target loss, no restart capture",
         "privacy": "no raw guide content tokens sessionURLs private endpoints unrelated player data",
         "cost": "lazy recording no tick/render disk blocking; zero disabled allocation; existing 1000warmup +three1000attempt rounds; <=100000ns addedCPU andelapsed perattempt"
+      }
+    },
+    {
+      "id": "IF-007",
+      "producer": "CORE-PHASE-001",
+      "consumers": [
+        "CORE-PHASE-002",
+        "CORE-PHASE-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-010"
+      ],
+      "acceptance_ids": [
+        "CORE-AC-020",
+        "CORE-AC-021"
+      ],
+      "signature": {
+        "schema": "every supported StageConfig.SPEC leaf in existing main TOML and SettingsPage; types bounds defaults scope reload/restart help",
+        "editing": "search plain name/key, deliberate per-field reset, preserve explicit zero/false/empty and source",
+        "validation": "actual full spec and candidate-dependent stage checks; no syntax-only success or coercion",
+        "apply": "authorized revisioned review/backup transaction, explicit server live/cache lifecycle, coherent main/stage publication, main-only revision, idempotent watcher",
+        "failure": "restore files effective settings and accepted stages; retain draft; exact field error",
+        "restart": "persist pending values separately from effective runtime; no automatic restart",
+        "guide_extension": "Phase002 general.enable_stage_guide uses same main GUI transaction and IF003/IF004 server policy"
+      }
+    },
+    {
+      "id": "IF-008",
+      "producer": "CORE-PHASE-002",
+      "consumers": [
+        "CORE-PHASE-003"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-011"
+      ],
+      "acceptance_ids": [
+        "CORE-AC-022",
+        "CORE-AC-023"
+      ],
+      "signature": {
+        "view": "advancement-style Player preview in existing layout workspace plus distinct authorized Author view",
+        "editing": "click visual target to adjacent shared field; complete nearby stage form and source fallback; targeted draft undo/review only",
+        "visibility": "existing hidden excludes map; reveal always/dependencies/unlocked on otherwise visible nodes; player preview hides names searches categories counts",
+        "state": "explicit simulated owned-stage set, Locked/Requirements met/Unlocked scenarios; existing prerequisites and guide policy; unknown world/script conditions unevaluated",
+        "projection": "authenticated bounded immutable draft revision, no publish, reject stale responses and mark invalid preview stale",
+        "side_effects": "never grant purchase command reward apply or write player state; simulation never writes TOML",
+        "parity": "shared side-safe model or deterministic Java/editor fixtures and actual silent client comparison",
+        "assets": "reuse available assets and explicit missing placeholders; no automatic resource-pack downloads or arbitrary renderer promise"
       }
     }
   ],
@@ -476,7 +533,8 @@
       "requirement_ids": [
         "CORE-REQ-003",
         "CORE-REQ-004",
-        "CORE-REQ-005"
+        "CORE-REQ-005",
+        "CORE-REQ-010"
       ],
       "interfaces": [
         {
@@ -570,7 +628,10 @@
             "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
             "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
             "guide_extension": "Phase002 reuses hover/focus help and provides guide controls through IF003 with inert preview and no attribution; not an exit prerequisite for Phase001",
-            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation"
+            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation",
+            "help_coverage": "every existing editable field and action, plain purpose/example/default/units/when-active; preserve compound rules and advanced source",
+            "nearby": "full selected-stage inspector, local field errors, stable draft save/status, narrow drawer and existing undo/review safeguards",
+            "translation": "local Translate editor instructions and user-operated browser translation; selectable text and language metadata, translate=no hints preserve IDs/code/values; no automatic external content submission; direct Google service remains optional"
           },
           "acceptance_ids": [
             "CORE-AC-004",
@@ -578,7 +639,10 @@
             "CORE-AC-006",
             "CORE-AC-007",
             "CORE-AC-008",
-            "CORE-AC-011"
+            "CORE-AC-011",
+            "CORE-AC-009",
+            "CORE-AC-024",
+            "CORE-AC-025"
           ]
         },
         {
@@ -628,6 +692,22 @@
           "acceptance_ids": [
             "CORE-AC-015"
           ]
+        },
+        {
+          "id": "IF-007",
+          "signature": {
+            "schema": "every supported StageConfig.SPEC leaf in existing main TOML and SettingsPage; types bounds defaults scope reload/restart help",
+            "editing": "search plain name/key, deliberate per-field reset, preserve explicit zero/false/empty and source",
+            "validation": "actual full spec and candidate-dependent stage checks; no syntax-only success or coercion",
+            "apply": "authorized revisioned review/backup transaction, explicit server live/cache lifecycle, coherent main/stage publication, main-only revision, idempotent watcher",
+            "failure": "restore files effective settings and accepted stages; retain draft; exact field error",
+            "restart": "persist pending values separately from effective runtime; no automatic restart",
+            "guide_extension": "Phase002 general.enable_stage_guide uses same main GUI transaction and IF003/IF004 server policy"
+          },
+          "acceptance_ids": [
+            "CORE-AC-020",
+            "CORE-AC-021"
+          ]
         }
       ]
     },
@@ -635,7 +715,8 @@
       "id": "CORE-PHASE-002",
       "path": "phases/plan-phase-002.md",
       "requirement_ids": [
-        "CORE-REQ-009"
+        "CORE-REQ-009",
+        "CORE-REQ-011"
       ],
       "interfaces": [
         {
@@ -701,7 +782,8 @@
               "default": true,
               "authority": "server accepted policy, unknown unavailable; not a stage-form or player-menu toggle",
               "disabled": "hide guide UI; guide key sends no request; open guide returns to Stages; preserve normal map, authored text and gameplay",
-              "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys"
+              "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys",
+              "editing": "main file or administrator Main settings GUI under IF-007; same server authority"
             }
           },
           "acceptance_ids": [
@@ -765,7 +847,10 @@
             "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
             "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
             "guide_extension": "Phase002 reuses hover/focus help and provides guide controls through IF003 with inert preview and no attribution; not an exit prerequisite for Phase001",
-            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation"
+            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation",
+            "help_coverage": "every existing editable field and action, plain purpose/example/default/units/when-active; preserve compound rules and advanced source",
+            "nearby": "full selected-stage inspector, local field errors, stable draft save/status, narrow drawer and existing undo/review safeguards",
+            "translation": "local Translate editor instructions and user-operated browser translation; selectable text and language metadata, translate=no hints preserve IDs/code/values; no automatic external content submission; direct Google service remains optional"
           },
           "acceptance_ids": [
             "CORE-AC-004",
@@ -773,7 +858,10 @@
             "CORE-AC-006",
             "CORE-AC-007",
             "CORE-AC-008",
-            "CORE-AC-011"
+            "CORE-AC-011",
+            "CORE-AC-009",
+            "CORE-AC-024",
+            "CORE-AC-025"
           ]
         },
         {
@@ -822,6 +910,39 @@
           },
           "acceptance_ids": [
             "CORE-AC-015"
+          ]
+        },
+        {
+          "id": "IF-007",
+          "signature": {
+            "schema": "every supported StageConfig.SPEC leaf in existing main TOML and SettingsPage; types bounds defaults scope reload/restart help",
+            "editing": "search plain name/key, deliberate per-field reset, preserve explicit zero/false/empty and source",
+            "validation": "actual full spec and candidate-dependent stage checks; no syntax-only success or coercion",
+            "apply": "authorized revisioned review/backup transaction, explicit server live/cache lifecycle, coherent main/stage publication, main-only revision, idempotent watcher",
+            "failure": "restore files effective settings and accepted stages; retain draft; exact field error",
+            "restart": "persist pending values separately from effective runtime; no automatic restart",
+            "guide_extension": "Phase002 general.enable_stage_guide uses same main GUI transaction and IF003/IF004 server policy"
+          },
+          "acceptance_ids": [
+            "CORE-AC-020",
+            "CORE-AC-021"
+          ]
+        },
+        {
+          "id": "IF-008",
+          "signature": {
+            "view": "advancement-style Player preview in existing layout workspace plus distinct authorized Author view",
+            "editing": "click visual target to adjacent shared field; complete nearby stage form and source fallback; targeted draft undo/review only",
+            "visibility": "existing hidden excludes map; reveal always/dependencies/unlocked on otherwise visible nodes; player preview hides names searches categories counts",
+            "state": "explicit simulated owned-stage set, Locked/Requirements met/Unlocked scenarios; existing prerequisites and guide policy; unknown world/script conditions unevaluated",
+            "projection": "authenticated bounded immutable draft revision, no publish, reject stale responses and mark invalid preview stale",
+            "side_effects": "never grant purchase command reward apply or write player state; simulation never writes TOML",
+            "parity": "shared side-safe model or deterministic Java/editor fixtures and actual silent client comparison",
+            "assets": "reuse available assets and explicit missing placeholders; no automatic resource-pack downloads or arbitrary renderer promise"
+          },
+          "acceptance_ids": [
+            "CORE-AC-022",
+            "CORE-AC-023"
           ]
         }
       ]
@@ -974,7 +1095,8 @@
               "default": true,
               "authority": "server accepted policy, unknown unavailable; not a stage-form or player-menu toggle",
               "disabled": "hide guide UI; guide key sends no request; open guide returns to Stages; preserve normal map, authored text and gameplay",
-              "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys"
+              "input": "one request per tick, ignore absent player or typing, Stages wins conflicting keys",
+              "editing": "main file or administrator Main settings GUI under IF-007; same server authority"
             }
           },
           "acceptance_ids": [
@@ -1038,7 +1160,10 @@
             "graph": "near-node toolbar and context Edit Connect Duplicate Delete from draft where server API supports; keyboard focus dismissal clamp safe gestures",
             "draft": "confirm/review/apply and conflict recovery; preserve comments unknown keys advanced TOML",
             "guide_extension": "Phase002 reuses hover/focus help and provides guide controls through IF003 with inert preview and no attribution; not an exit prerequisite for Phase001",
-            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation"
+            "help": "Minecraft style dark bordered hover tooltip with short explanation and example; equivalent focus and click/tap target; accessible description, Escape, wrapping and viewport clamp; validation required indicators and saving remain inline; no field mutation",
+            "help_coverage": "every existing editable field and action, plain purpose/example/default/units/when-active; preserve compound rules and advanced source",
+            "nearby": "full selected-stage inspector, local field errors, stable draft save/status, narrow drawer and existing undo/review safeguards",
+            "translation": "local Translate editor instructions and user-operated browser translation; selectable text and language metadata, translate=no hints preserve IDs/code/values; no automatic external content submission; direct Google service remains optional"
           },
           "acceptance_ids": [
             "CORE-AC-004",
@@ -1046,7 +1171,10 @@
             "CORE-AC-006",
             "CORE-AC-007",
             "CORE-AC-008",
-            "CORE-AC-011"
+            "CORE-AC-011",
+            "CORE-AC-009",
+            "CORE-AC-024",
+            "CORE-AC-025"
           ]
         },
         {
@@ -1095,6 +1223,39 @@
           },
           "acceptance_ids": [
             "CORE-AC-015"
+          ]
+        },
+        {
+          "id": "IF-007",
+          "signature": {
+            "schema": "every supported StageConfig.SPEC leaf in existing main TOML and SettingsPage; types bounds defaults scope reload/restart help",
+            "editing": "search plain name/key, deliberate per-field reset, preserve explicit zero/false/empty and source",
+            "validation": "actual full spec and candidate-dependent stage checks; no syntax-only success or coercion",
+            "apply": "authorized revisioned review/backup transaction, explicit server live/cache lifecycle, coherent main/stage publication, main-only revision, idempotent watcher",
+            "failure": "restore files effective settings and accepted stages; retain draft; exact field error",
+            "restart": "persist pending values separately from effective runtime; no automatic restart",
+            "guide_extension": "Phase002 general.enable_stage_guide uses same main GUI transaction and IF003/IF004 server policy"
+          },
+          "acceptance_ids": [
+            "CORE-AC-020",
+            "CORE-AC-021"
+          ]
+        },
+        {
+          "id": "IF-008",
+          "signature": {
+            "view": "advancement-style Player preview in existing layout workspace plus distinct authorized Author view",
+            "editing": "click visual target to adjacent shared field; complete nearby stage form and source fallback; targeted draft undo/review only",
+            "visibility": "existing hidden excludes map; reveal always/dependencies/unlocked on otherwise visible nodes; player preview hides names searches categories counts",
+            "state": "explicit simulated owned-stage set, Locked/Requirements met/Unlocked scenarios; existing prerequisites and guide policy; unknown world/script conditions unevaluated",
+            "projection": "authenticated bounded immutable draft revision, no publish, reject stale responses and mark invalid preview stale",
+            "side_effects": "never grant purchase command reward apply or write player state; simulation never writes TOML",
+            "parity": "shared side-safe model or deterministic Java/editor fixtures and actual silent client comparison",
+            "assets": "reuse available assets and explicit missing placeholders; no automatic resource-pack downloads or arbitrary renderer promise"
+          },
+          "acceptance_ids": [
+            "CORE-AC-022",
+            "CORE-AC-023"
           ]
         }
       ]

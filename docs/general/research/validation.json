@@ -2,7 +2,7 @@
   "schema_version": 1,
   "project": "ProgressiveStages",
   "release_target": "3.1.0",
-  "observed_at": "2026-09-24T11:04:54.666348+00:00",
+  "observed_at": "2026-09-24T12:36:37.173312+00:00",
   "scope": "Plan validation only. Product implementation, runtime acceptance and publication remain required future work.",
   "result": "PLAN_MAINTAINED",
   "structural_validation": "PASS",
@@ -10,26 +10,30 @@
   "shared_contracts": "PASS",
   "handoff_schema": 2,
   "metrics": {
-    "master_words": 13175,
+    "master_words": 16346,
     "plan_files": 5,
-    "requirements": 9,
+    "requirements": 11,
     "phases": 4,
-    "decisions": 8,
+    "decisions": 11,
     "prerequisites": 4,
-    "optional_items": 1,
+    "optional_items": 5,
     "non_goals": 2,
-    "canonical_assignments": 9,
-    "acceptance_criteria": 22,
-    "evidence_items": 26,
-    "plan_set_sha256": "884568fa2c7e2fbad1a63ea59145aa26c6924a38173dc3e74e158b6d8060101f"
+    "canonical_assignments": 11,
+    "acceptance_criteria": 28,
+    "evidence_items": 30,
+    "plan_set_sha256": "0e50570c5caeebc42f4ae534a27b2041a74232ef3de38afc61a0543fc8c2561a"
   },
-  "pinned_source_blobs_verified": 57,
+  "pinned_source_blobs_verified": 82,
   "resolved_contract_checks": [
     "IF-004 uses validated concrete snapshot size and the pinned transport maximum.",
     "The exact production candidate must pass startup and smoke before upload. Downloaded public artifacts retain independent verification.",
     "DEC-007 binds short field explanations and examples to accessible Minecraft style hover help, with errors and saving feedback inline.",
     "DEC-008 preserves the advancement style map and inspector, adds top tabs and an independent initially unbound guide key, and omits GUI attribution.",
-    "CORE-AC-018 and CORE-AC-019 require actual input, accepted server main config policy, disable while open, reconnect and reenable proof."
+    "CORE-AC-018 and CORE-AC-019 require actual input, accepted server main config policy, disable while open, reconnect and reenable proof.",
+    "CORE-REQ-010 and IF-007 complete existing main settings and require actual effective-state validation, coherent main/stage application and restart or rollback proof.",
+    "CORE-REQ-011 and IF-008 use existing hidden/reveal and activation semantics in an editable preview with no gameplay side effects and mandatory actual-client comparison.",
+    "CORE-AC-024 and CORE-AC-025 require complete contextual help, translated editing integrity and understandable existing rule controls. Direct external translation and a new claim mechanism remain optional.",
+    "The same four phases and unique requirement ownership remain intact. Phase 000, the manifest and all earlier source records remain unchanged."
   ],
   "known_external_blockers": [],
   "optional_scope": "excluded",
@@ -38,23 +42,46 @@
   "amendment": {
     "requirements": [
       "CORE-REQ-004",
+      "CORE-REQ-005",
       "CORE-REQ-006",
       "CORE-REQ-008",
-      "CORE-REQ-009"
+      "CORE-REQ-009",
+      "CORE-REQ-010",
+      "CORE-REQ-011"
     ],
     "decisions": [
-      "DEC-007",
-      "DEC-008"
+      "DEC-009",
+      "DEC-010",
+      "DEC-011"
     ],
     "interfaces": [
       "IF-003",
-      "IF-004",
-      "IF-005"
+      "IF-005",
+      "IF-007",
+      "IF-008"
+    ],
+    "acceptance": [
+      "CORE-AC-006",
+      "CORE-AC-008",
+      "CORE-AC-009",
+      "CORE-AC-019",
+      "CORE-AC-020",
+      "CORE-AC-021",
+      "CORE-AC-022",
+      "CORE-AC-023",
+      "CORE-AC-024",
+      "CORE-AC-025"
     ],
     "phases": [
       "CORE-PHASE-001",
       "CORE-PHASE-002",
       "CORE-PHASE-003"
+    ],
+    "proposals": [
+      "FUT-002",
+      "FUT-003",
+      "FUT-004",
+      "FUT-005"
     ],
     "unchanged": [
       "phases/plan-phase-000.md",
@@ -65,5 +92,8 @@
     "evidence_validation": "EVIDENCE_READY",
     "implementation": "Not started.",
     "next_action": "P000-TASK-001 remains the first implementation work package. This maintenance pass does not create or activate a goal."
-  }
+  },
+  "validation_warnings": [
+    "The master remains large. This amendment preserves the existing phase topology and unrelated text rather than performing an unrequested whole-plan rewrite."
+  ]
 }

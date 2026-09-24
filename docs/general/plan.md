@@ -45,6 +45,9 @@ The authoritative installed master is `docs/general/plan.md`. Its mandatory comp
 | SRC-019 | repository_evidence | Pinned repository observation or issue report | src/main/java/com/enviouse/progressivestages/common/config/StageDefinition.java; src/main/java/com/enviouse/progressivestages/client/ClientStageCache.java; src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java; src/main/java/com/enviouse/progressivestages/common/network/NetworkHandler.java; editor-ui/vite.config.ts; .github/workflows/release-validation.yml; docs/release/3.0.4.md | Evidence for behavior, constraints and validation, never runtime proof or authority |
 | SRC-020 | owner_request | Hover help and advancement style guide navigation | research/sources/guide-navigation.md | Defines tooltip help, top tabs, guide key mapping, main config switch and no GUI attribution. |
 | SRC-021 | repository_evidence | Existing field help, advancement screen and screen opening boundary | research/sources/guide-navigation.md | Pins the field component, key registration, open versus refresh handling and main config integration points. |
+| SRC-022 | owner_request | Complete editor help, main settings and editable player preview | research/sources/editor-workflows.md | Defines the bounded usability amendment and records optional proposals separately. |
+| SRC-023 | repository_evidence | Existing main settings, rule activation and visibility paths | research/sources/editor-workflows.md | Pins schema generation, validation gaps and reusable draft and presentation controls. |
+| SRC-024 | reference | Browser translation capabilities and limits | research/sources/editor-workflows.md | Primary Google, Brave and HTML documentation supports user operated translation help without an embedded service promise. |
 | SRC-004 | audit_evidence | Execution and publication capabilities | research/sources/environment.json | Identifies available infrastructure and remaining candidate-specific verification gates. |
 
 This plan covers a product change and its release. Research, issue comments and source examples explain the change; they are not substitutes for the product or its acceptance evidence. `research/brief.md`, `research/repository-map.md`, `research/intake.json` and `research/evidence.json` retain the bounded evidence package and exact fingerprints. The resolved decisions and this contract define the mandatory scope; repository observations establish the starting state and never override the required outcome.
@@ -64,7 +67,9 @@ Necessary engineering includes attributed structure contributions, strict config
 | Structure rules | OBSERVED | Global merged flags lose stage and structure attribution; compiled entry rules can survive an aggregate only fix | FIND-001, FIND-003; SRC-011, SRC-012 |
 | Entry independence | PROPOSED | `entry_allowed=true` suppresses only its own entry denial and keeps independent protections | FIND-002, FIND-004 |
 | Movement | OBSERVED | Both initialization paths generate active showcase restrictions; empty ability configuration itself has no jump lock | FIND-005, FIND-008; SRC-013 |
-| Editor | OBSERVED | Existing SVG graph and draft operations provide reuse points; current labels and distant controls explain reported friction | FIND-006, FIND-007; SRC-014 |
+| Editor | OBSERVED | Existing SVG graph, main settings and draft operations provide reuse points; contextual help and nearby workflows need broader coverage | FIND-006, FIND-007, FIND-016; SRC-014, SRC-023 |
+| Settings and preview | OBSERVED | Main schemas derive from StageConfig; main draft validation currently parses syntax only. Existing reveal and rule ownership controls are separate from acquisition | FIND-016, FIND-017; SRC-023 |
+| Translation | PROPOSED | Offer local browser translation instructions and translation friendly text; direct Google text sending remains optional | FIND-018; SRC-022, SRC-024 |
 | Support | OBSERVED | Existing bounded `/stage debug` capture and compiled explain omit some actual legacy and provider decisions | FIND-009; SRC-015 |
 | Guide | OBSERVED | Description, dependency availability and inspector exist; dedicated guide fields do not; the positional network protocol is `2` | FIND-012; SRC-019 |
 | Publication | OBSERVED | Broker maps both platforms but currently selects an older 3.0.4 artifact; editor assets are bundled | FIND-013; SRC-004, SRC-019 |
@@ -94,7 +99,7 @@ Runtime hypotheses become early regression fixtures. A hidden compiled denial, a
 
 ### Inputs and outputs
 
-IF-001 through IF-005 bind authored configuration, validated drafts, accepted state, runtime decisions and rendered player text. Published artifacts are covered by Section 16.
+IF-001 through IF-008 bind authored configuration, validated drafts, accepted state, runtime decisions and rendered player text. Published artifacts are covered by Section 16.
 
 ### Component architecture
 
@@ -145,12 +150,24 @@ IF-002 freezes priority and denial ties; IF-003 freezes recommendation ordering;
 | CORE-REQ-007 | Actual decision diagnostics and bounded support collection | CORE-PHASE-000 |
 | CORE-REQ-008 | Verified integration and publication of 3.1.0 and its editor | CORE-PHASE-003 |
 | CORE-REQ-009 | Authored guidance in the actual in game stages menu | CORE-PHASE-002 |
+| CORE-REQ-010 | Complete main configuration editing and verified application | CORE-PHASE-001 |
+| CORE-REQ-011 | Editable player menu preview with accurate visibility and state | CORE-PHASE-002 |
 
 Documentation and diagnostics are incremental obligations of each contributing phase. Canonical ownership is unique; it does not postpone documentation until release or make early diagnostics depend on a future guide implementation.
 
 ## 7. Optional / Future Scope
 
-**FUT-001:** A complete editor rewrite, a new graph framework, full localization and unrelated configuration expansion are excluded from this plan. They are not completion gates. Adding configurable fields for the requested structure and guide behavior is mandatory, not promotion of this optional scope.
+**FUT-001:** A complete editor rewrite, a new graph framework, maintained full language packs and unrelated configuration expansion remain excluded. Translation-friendly browser presentation, complete existing main settings controls and the bounded editable preview are mandatory under CORE-REQ-004, CORE-REQ-010 and CORE-REQ-011.
+
+**FUT-002:** Direct Google Translate links carrying selected text, an embedded translator or a translation API remain optional and excluded from completion. They require a separate choice about transmitted content and any service cost. The mandatory local translation help button sends no editor text or session URL.
+
+**FUT-003:** Reusable starter presets, such as the paired entry gate and permanent placement protection stages, could reduce repetitive setup. They would populate a reviewable draft, require name and target selection, preserve existing rules and never apply automatically. Template collision and source preservation tests would be required before promotion.
+
+**FUT-004:** Selective copy or bulk editing of settings across stages could reduce repeated work. It would need an explicit field and target selection, per-stage preview, conflict reporting and a single undoable draft operation. It remains a proposal because a broad copy can overwrite deliberate exceptions.
+
+**FUT-005:** A new manual claim step or additional per effect activation mechanism remains a proposal pending a separate owner decision. Existing acquisition, rule ownership, conditions and lifetimes provide the mandatory workflow. Viewing or revealing a stage never grants it, reruns rewards or changes its activation semantics.
+
+FUT-002 through FUT-005 are concrete proposals, not silently approved release gates. Optional disposition remains excluded until an owner amendment promotes one.
 
 ## 8. Non-Goals
 
@@ -224,6 +241,30 @@ Documentation and diagnostics are incremental obligations of each contributing p
 **Affected requirements:** CORE-REQ-004, CORE-REQ-006, CORE-REQ-008, CORE-REQ-009  
 **Supersedes:** none
 
+### DEC-009 — Complete main settings in the editor
+
+**Status:** RESOLVED  
+**Selected choice:** Expose the main configuration through the existing Settings page, including the guide switch, with complete typed controls, contextual help and verified application.  
+**Rationale:** The owner explicitly requests main config editing in the GUI. This clarifies DEC-008 to allow an administrator Main settings control while keeping guide availability out of individual stage forms and player menus.  
+**Affected requirements:** CORE-REQ-004, CORE-REQ-006, CORE-REQ-008, CORE-REQ-009, CORE-REQ-010  
+**Supersedes:** none
+
+### DEC-010 — Editable player menu preview and existing activation controls
+
+**Status:** RESOLVED  
+**Selected choice:** Provide an editable advancement style preview of supported stage display and guidance settings, with nearby editing and separate simulated visibility and ownership states. Reuse existing rule activation controls.  
+**Rationale:** The owner proposes direct preview editing, hide and show settings, conditions and visibility before acquisition. This bounded design preserves existing acquisition and reward behavior. A new claim or activation mechanism remains FUT-005.  
+**Affected requirements:** CORE-REQ-004, CORE-REQ-005, CORE-REQ-006, CORE-REQ-008, CORE-REQ-009, CORE-REQ-011  
+**Supersedes:** none
+
+### DEC-011 — Translation-friendly help without a service dependency
+
+**Status:** RESOLVED  
+**Selected choice:** Provide a Translate editor help button with browser instructions and translation friendly labels and help. Leave direct external text translation optional.  
+**Rationale:** The owner asks for easier translation. Native browser translation is user operated, browser dependent and requires no new mod service or paid API. The unresolved direct Google option remains FUT-002 rather than an assumed permission to send editor data.  
+**Affected requirements:** CORE-REQ-004, CORE-REQ-006, CORE-REQ-008  
+**Supersedes:** none
+
 ## 10. External Prerequisites
 
 | ID | Prerequisite | Affected requirements | Availability | Authorization | Required external action |
@@ -235,7 +276,7 @@ Documentation and diagnostics are incremental obligations of each contributing p
 
 Each prerequisite has kind `other`. EXT-001 evidence is the discovered host and runtime identity, desktop, discrete renderer, exact window and process correlation, per application mute readback, private endpoint readiness and both sides of joined world proof. Inventory alone is insufficient. EXT-002 evidence is the built asset digest, JAR entries, response identity and successful real editor workflow. EXT-003 evidence is broker inspection of CurseForge `1460273` and Modrinth `rY4mdP4Q`, candidate version and commit, SHA-256 and SHA-512, fresh preview binding, accepted metadata and matching downloaded hashes. The current configured 3.0.4 artifact is invalid for this release. EXT-004 evidence is actual browser interaction, focus behavior, console and request results from the existing extension connection.
 
-No unresolved owner choice remains. A lost capability blocks only its dependent gates, never authorizes weaker evidence, new public networking, credential copying, a different host or a fictional publication operation. Headless independent work continues. Recheck authenticated merge access, signing and the required checks before phase integration as repository execution prerequisites.
+No unresolved choice blocks the mandatory contract. Direct external translation and a new activation or claim mechanism remain excluded proposals under FUT-002 and FUT-005 until selected. A lost capability blocks only its dependent gates, never authorizes weaker evidence, new public networking, credential copying, a different host or a fictional publication operation. Headless independent work continues. Recheck authenticated merge access, signing and the required checks before phase integration as repository execution prerequisites.
 
 ## 11. Architecture and Ownership Boundaries
 
@@ -297,7 +338,7 @@ Preserve the existing advancement style in `StageTreeScreen`: Minecraft window t
 
 Register a separate client key mapping named What to do next in the existing ProgressiveStages Controls category. It opens this screen directly on the guide tab using the existing authorized open/request flow. Keep the original stages key, inventory button and commands opening Stages. Both key mappings remain independently rebindable, with the new mapping unbound by default, matching the existing key convention. Drain queued presses and issue at most one open request per tick, ignore it without a joined player or while typing in another screen, and do not create multiple screen instances. A refresh response never opens a closed screen or resets its selected tab. If both mappings receive the same input, prefer the normal Stages action once.
 
-Add strict Boolean `general.enable_stage_guide`, default `true`, to the existing main `config/progressivestages/progressivestages.toml` specification. This is a server controlled presentation option, separate from stage guide metadata and the existing client inventory-button preference. It is configured in the main file, not as a stage-form or player-menu toggle. `false` hides the guide tab, guide sections and recommendations; the dedicated guide key performs no open request, while ordinary Stages access remains unchanged. If disabled while the guide is open, return to Stages without losing its valid map state. Preserve authored guide fields, ordinary descriptions, unlock mechanics and ownership. Reenabling restores current guidance without rewriting stage files. Do not display a pack creator attribution or a disabled-feature banner.
+Add strict Boolean `general.enable_stage_guide`, default `true`, to the existing main `config/progressivestages/progressivestages.toml` specification. This is a server controlled presentation option, separate from stage guide metadata and the existing client inventory-button preference. It is editable in the main file and the administrator Main settings page under IF-007, not as a stage-form or player-menu toggle. `false` hides the guide tab, guide sections and recommendations; the dedicated guide key performs no open request, while ordinary Stages access remains unchanged. If disabled while the guide is open, return to Stages without losing its valid map state. Preserve authored guide fields, ordinary descriptions, unlock mechanics and ownership. Reenabling restores current guidance without rewriting stage files. Do not display a pack creator attribution or a disabled-feature banner.
 
 The server setting governs all supported client entry paths; a local client file cannot override it. Until a current policy snapshot arrives, treat the guide as unavailable. Wrong-type main configuration follows the existing spec validation and reports the exact key without publishing a partial policy. Main config load or supported reload publishes the accepted policy through IF-004; invalid reload retains the last accepted policy. Documentation gives the actual file location, key, default, supported reload action and separate Controls binding procedure.
 
@@ -326,6 +367,55 @@ Preserve existing payload and definition limits; add explicit validation of the 
 Use Stage name, Stage icon and Required stages as plain labels. Put their short explanations and examples in Minecraft style hover tooltips beside the labels, using a dark panel, clear border and readable text. Show the same help on keyboard focus through a focusable help target associated with the field, and allow click or tap access without editing the field. Support Escape dismissal, readable wrapping, viewport clamping and screen reader descriptions. Keep validation errors, required indicators and save status visible inline; they must not disappear into optional help. Suggested help is "The name players see. Example: Iron Age.", "The item shown for this stage. Example: minecraft:iron_pickaxe.", and "Stages needed before this one. Example: Finish Stone Age first." Required stages help must also explain the selected Any, All or At least rule accurately. Expose entry allowed, independent protections and signed priority with help explaining absence of denial versus explicit ALLOW. Retain source editing and generic advanced rules. Add guide fields with How to unlock, Next steps, Where to find and recommendation controls in the existing stage form, with an inert preview, visible counters and hover/focus help explaining actual player visibility. Reuse the same help component and omit pack creator attribution from previews and in-game presentation.
 
 Add a selected node toolbar beside the node and a right click menu with Edit, Connect, Duplicate and Delete from draft where supported by the existing APIs. Reuse `StageActions`, `StageDialogs`, `EditorContext` and cycle validation. Provide keyboard context invocation, visible pointer controls, focus return, Escape and outside dismissal, viewport clamping and safe pan/zoom. Right click must not drag, save a position, connect an edge or delete anything. Preserve confirmation, review/apply, failed save and stale draft recovery. Do not offer destructive legacy or archived operations that the existing server rejects. Rename and duplicate preserve guide fields, comments and unrelated advanced TOML.
+
+### Complete help and nearby workflows
+
+Apply the shared help component to the complete existing editor, including main settings, stage identity and prerequisites, rules, effects and rewards, structures, conditions and lifetimes, layout, guides, import/export and review/apply. Build a field/action coverage inventory from current schemas and rendered controls. Each configurable option needs a plain purpose, applicable default or inherited value, units or accepted format, when it takes effect and a short relevant example; simple actions need an action description. Help must describe actual semantics, including disabled or unsupported controls. Keep advanced capabilities available and retain exact source keys for search and support. Do not turn schema names or generic text such as Configure this option into the only explanation.
+
+Use the existing rule controls to explain When this rule applies, with Before unlocking, After unlocking and Always mapped to the existing missing, owned and always values. Keep condition, lifetime, duration, cooldown, reset and priority controls where supported by that rule and representation. Describe ownership and condition checks together, preserve compound expressions that the visual form cannot edit, and offer a nearby source link instead of replacing them with a simple condition. Never expose an unsupported toggle or silently change effect specific defaults. Show visibility separately from rule activation and one time rewards.
+
+Selecting a graph node keeps the map available and opens a nearby inspector with the same stage form sections, including rules and guide extension points. Common editing, validation errors and draft save status remain beside the selected work. Keep local Add, Edit, Duplicate, Delete and connection actions accessible without a round trip to a distant page. Long forms have a stable save/status area; distinguish Save to draft from Review and apply to server. A validation result links to and focuses its exact field while preserving selection, scroll and unsaved work. At narrow widths use a reachable drawer with a clear return to the map. Preserve existing undo/redo and keyboard paths. Test complete create/connect/edit, structure protection, condition correction and main setting workflows, not only menu appearance.
+
+### Browser translation help
+
+Provide a visible Translate editor action that opens a local help panel with concise browser instructions and links to official translation help. Explain that Chrome offers Google Translate in its toolbar or context menu, while Brave uses its own browser translator. Do not promise that a page button can invoke native browser UI, that translation is offline, or that providers translate private pages identically. Browser translation is explicitly user operated and may process page text through the selected provider. Never automatically submit the authenticated editor URL, credentials, configuration or authored text to an external translation service. The editor remains usable when translation is unavailable or offline.
+
+Keep labels, help, errors and control descriptions as selectable DOM text with correct language metadata. Mark resource IDs, source keys, commands, code examples and authored input values with appropriate translate=no boundaries; this is a rendering hint, not a security boundary. Translation changes presentation only, never serialized enums, identifiers, numbers, conditions or draft content. Preserve accessible names, focus and translated long text layout. Verify a translated editor can edit, validate, undo and navigate without React DOM errors or source corruption. Direct selected-text Google links or embedded services remain FUT-002.
+
+### IF-007: Main settings schema, validation and application
+
+**Owner:** CORE-PHASE-001, CORE-REQ-010; CORE-PHASE-002 registers the guide option.  
+**Version:** Existing main TOML file and authenticated editor draft APIs.  
+**Acceptance:** CORE-AC-020, CORE-AC-021.
+
+Extend the existing SettingsPage and BuiltinEditorSchemas.addSettings path rather than adding a second configuration store. Cover every editable StageConfig.SPEC leaf in config/progressivestages/progressivestages.toml, including settings added by later phases. Keep one schema source for types, accepted values, bounds, list element constraints, defaults, help and reload/restart requirements. Add a coverage assertion so new spec entries cannot silently disappear. Settings belonging only to the local client must clearly say which process and file they affect; editing the server file does not change every player's local preference. Runtime status, credentials and unrelated files are not settings.
+
+Use a Main settings label, searchable groups by plain name and exact key, typed controls, visible default/current/draft values and a deliberate per field Reset to default draft action. Boolean settings need the same help and restart badges as other types. Preserve numeric zero, negative values, empty strings, empty lists and explicit false; incomplete numbers are input errors, not silently converted zero. Advanced source editing remains available, and unrelated comments and unknown keys survive targeted edits. Main settings and per-stage overrides are identified separately with links to the relevant stage control where an override exists.
+
+Validate the complete candidate against the actual spec before review or writing, including type, range, enums, list elements and relevant cross setting constraints. Syntax-only TOML parsing is insufficient. Validate stages against candidate main values when those values affect stage compilation, not against stale live values. Invalid or stale drafts report exact file/key and retain previous accepted main values, stage snapshot and files. Review lists old/new values, target file and actual live or restart effect. Never correct an invalid submitted value to a default and report success.
+
+Use the existing authorized review, conflict detection, backup and apply transaction. Prepare validated main and stage snapshots before publication. On the server thread, publish effective live settings and dependent stage/cache state as one accepted change; a supported apply or reload explicitly invalidates config value caches and runs the existing config lifecycle. Do not rely on an eventual file watcher as proof of application. A main only change still gets a verifiable accepted revision and needed client sync. Unsupported hot changes are saved as pending restart and remain distinct from currently effective values; never report them as live. Failure restores affected files, effective settings and stage state, with the draft retained for correction. Duplicate watcher notification must be idempotent and must not rerun rewards or discard a newer edit. No GUI action silently restarts the server.
+
+Phase 002 adds general.enable_stage_guide to this same schema and transaction, retaining IF-003/IF-004 server authority. Verify both file based reload and editor apply, including disable while the guide is open. Preserve the editor permission boundary even when a draft changes editor-related settings; a successful response must distinguish a setting saved for future sessions from a session invalidated by accepted policy.
+
+### IF-008: Editable advancement style preview
+
+**Owner:** CORE-PHASE-002, CORE-REQ-011.  
+**Version:** Existing draft revision and supported stage/display/rule schema.  
+**Acceptance:** CORE-AC-022, CORE-AC-023.
+
+Add a Player preview mode within the existing layout workspace, alongside its authoring map. Reproduce the in-game advancement window structure, connected stage nodes, categories, search, Stages and What to do next tabs, selected-stage inspector and guide availability. Clicking a node or its displayed name, icon, description, guide, frame or background selects the matching field in the adjacent editor. Layout dragging edits existing coordinates only in the explicit editing mode. The complete selected-stage form remains reachable beside the preview for requirements, costs, rewards, rules and conditions that have no direct visual target. Supported structured controls and source fallback remain available; arbitrary game rendering or unrelated new engine settings are not promised.
+
+Separate Author view, which lets an authorized administrator find and edit hidden stages, from Player preview, which applies actual hidden/reveal policy and must not leak hidden names through search, categories, counts or dependency labels. Expose existing stage.hidden and display.reveal semantics accurately: hidden stages are excluded from the map; reveal always, dependencies and unlocked act on otherwise visible nodes. Show why a stage is absent in the author inspector, never inside the simulated player's hidden-content view. Visibility does not grant ownership or change rule activation. Do not replace hidden with a competing new Boolean or make always visible override hidden implicitly.
+
+Preview uses an explicit simulated set of owned stages plus selected scope and accepted display policy. Provide quick Locked, Requirements met and Unlocked scenarios while evaluating the existing ANY/ALL/AT_LEAST dependencies from the simulated set. Show existing acquisition requirements and authored guidance before acquisition when visibility permits. Ownership-dependent effects and rewards are described with their actual activation conditions. One-time rewards are never executed in preview. Rule conditions depending on unavailable world, integration or script state say Not evaluated rather than inventing a pass. No new manual claim action or general activation engine is added; existing triggers and server-validated purchases still acquire stages.
+
+Use one immutable projection of the current draft revision for the preview, clearly distinguish draft from applied state, and reject stale asynchronous preview results. Derive supported layout, visibility, prerequisites and guide policy from the same side safe model or deterministic shared fixtures as StageTreeScreen, not an unrelated approximation of its logic. Preview requests are authenticated, bounded and read only; they must never call grant, purchase, reward, command or apply paths, write player data, or execute arbitrary conditions. Reuse the accepted compiler validation without publishing a candidate. Invalid drafts retain editable source and show errors with any previous preview explicitly marked stale. Disconnect or expired sessions retain existing recovery behavior.
+
+Reuse existing assets and supported icons where available, with an explicit placeholder for unavailable item or mod assets. Do not download resource packs automatically or promise fidelity for arbitrary client resource packs, animated models or shaders. Verify the default visual layout and state semantics against the actual silent laptop client at compact and normal scales. Player preview is an authoring aid, never a substitute for real client acceptance.
+
+All edits use the same source preserving draft, undo/redo, validation, conflict and review/apply flow. Toggling simulated ownership, tabs, search or view mode never changes TOML, grants a real stage or applies a draft. Focus and selection survive form/preview switches and validation recovery. Unsupported complex source remains preserved and visibly editable through the nearby source path.
+
 
 ### Security and failure taxonomy
 
@@ -394,7 +484,7 @@ Configuration rejection retains the previous snapshot. A stale editor revision r
 
 ### CORE-REQ-004 — Plain editor labels and configuration help
 
-**Behavior:** Authors understand stage identity, prerequisites, entry/protection controls and ability restrictions without losing advanced editing.  
+**Behavior:** Authors receive plain, accessible help throughout the editor, can use browser translation, and understand existing settings and rule activation without losing advanced editing.  
 **Owner:** CORE-PHASE-001  
 **Contributors:** Source preservation, documentation.  
 **Dependencies:** CORE-REQ-001, CORE-REQ-002, CORE-REQ-003  
@@ -406,6 +496,8 @@ Configuration rejection retains the previous snapshot. A stale editor revision r
 
 1. CORE-AC-006: Stage name, Stage icon and Required stages are visible labels. Their explanations and examples appear in Minecraft style hover tooltips and equivalent keyboard focus or click/tap help. Escape, edge wrapping, screen reader association and no accidental field mutation pass. Validation and save feedback remain inline. The new structure settings describe actual effects without changing serialized identity.
 2. CORE-AC-007: Targeted edits preserve unrelated comments, advanced rules and unknown future fields through review, apply, export and reload. Invalid priority or type displays the exact field error and does not publish.
+3. CORE-AC-024: Every current editable field and action has useful contextual help under the coverage inventory. Translate editor opens local browser guidance without transmitting editor content; translated long text labels/help remain usable and IDs, values and draft source remain unchanged during translated edit/validate/undo/navigation.
+4. CORE-AC-025: Existing rule ownership, conditions, lifetimes and priority can be found and understood from the selected stage. Missing, owned and always behavior, preserved compound conditions, units, inheritance and unsupported controls agree with the actual engine and source representation.
 
 **Required evidence**
 
@@ -423,8 +515,8 @@ Configuration rejection retains the previous snapshot. A stale editor revision r
 
 **Acceptance criteria**
 
-1. CORE-AC-008: Toolbar and context actions satisfy IF-005 at different zoom levels and viewport edges. Delete requires confirmation and changes only the draft. Cancel, close, right click and failed save produce no unintended mutation.
-2. CORE-AC-009: Connect retains cycle prevention; drag, pan, edge selection, keyboard focus and review/apply still work. Unsupported legacy/archived actions remain unavailable with useful feedback.
+1. CORE-AC-008: Toolbar, nearby stage inspector, field error navigation and stable draft controls satisfy IF-005 at different zoom levels and viewport edges. Delete requires confirmation and changes only the draft. Cancel, close, right click and failed save produce no unintended mutation.
+2. CORE-AC-009: Complete create/connect/edit, paired structure setup, condition correction and main setting workflows keep controls near the selected work. Connect retains cycle prevention; drag, pan, edge selection, keyboard focus and review/apply still work. Unsupported legacy/archived actions remain unavailable with useful feedback.
 
 **Required evidence**
 
@@ -435,7 +527,7 @@ Configuration rejection retains the previous snapshot. A stale editor revision r
 **Behavior:** Current documentation explains structures, movement, priority, guides, validation, reload and recovery using working examples.  
 **Owner:** CORE-PHASE-003  
 **Contributors:** CORE-PHASE-000, CORE-PHASE-001, CORE-PHASE-002.  
-**Dependencies:** CORE-REQ-001, CORE-REQ-002, CORE-REQ-003, CORE-REQ-004, CORE-REQ-005, CORE-REQ-007, CORE-REQ-009  
+**Dependencies:** CORE-REQ-001, CORE-REQ-002, CORE-REQ-003, CORE-REQ-004, CORE-REQ-005, CORE-REQ-007, CORE-REQ-009, CORE-REQ-010, CORE-REQ-011  
 **Lifecycle stage:** change  
 **Production verification:** none  
 **Release impact:** stable release
@@ -473,7 +565,7 @@ Configuration rejection retains the previous snapshot. A stale editor revision r
 **Behavior:** ProgressiveStages 3.1.0 is integrated, published to both established platforms and verified from the released JAR with its updated editor and guide.  
 **Owner:** CORE-PHASE-003  
 **Contributors:** Every phase, documentation and platform broker.  
-**Dependencies:** CORE-REQ-001, CORE-REQ-002, CORE-REQ-003, CORE-REQ-004, CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-009, EXT-001, EXT-002, EXT-003, EXT-004  
+**Dependencies:** CORE-REQ-001, CORE-REQ-002, CORE-REQ-003, CORE-REQ-004, CORE-REQ-005, CORE-REQ-006, CORE-REQ-007, CORE-REQ-009, EXT-001, EXT-002, EXT-003, EXT-004, CORE-REQ-010, CORE-REQ-011  
 **Lifecycle stage:** post-change  
 **Production verification:** nondestructive  
 **Release impact:** stable release
@@ -510,13 +602,51 @@ Configuration rejection retains the previous snapshot. A stale editor revision r
 
 - Parser/editor preservation and boundary tests, packet codec and mismatch/size tests, visibility/order policy tests, dedicated state transition fixtures, and silent laptop actual stages menu captures showing multiple branches, authored locations, hidden absence, long text and changed ownership. Brave proof must edit and apply the text later observed in the player UI. Real client proof must cover both top tabs, direct and rebound guide key access, retained advancement controls, no attribution, server policy disagreement with a client file, disable while open, reconnect and reenable.
 
+### CORE-REQ-010 — Complete main configuration editing
+
+**Behavior:** Administrators edit the full supported main config through the existing GUI and can distinguish saved, effective and restart pending values.  
+**Owner:** CORE-PHASE-001  
+**Contributors:** Config spec, draft transaction, CORE-PHASE-002 guide option, documentation.  
+**Dependencies:** CORE-REQ-004, CORE-REQ-007  
+**Lifecycle stage:** change  
+**Production verification:** none  
+**Release impact:** stable release
+
+**Acceptance criteria**
+
+1. CORE-AC-020: Every supported spec leaf has a typed Main settings control, useful help, default and effect information; search, deliberate reset and targeted source preservation pass. Scope and restart labels reflect the actual process and lifecycle. Invalid values from GUI or source produce exact errors before writing.
+2. CORE-AC-021: Main-only and combined main/stage drafts follow IF-007. Actual effective server values, dependent behavior, accepted revision and persisted file agree after successful live apply and reload; restart required changes remain visibly pending until verified restart. Invalid, stale, concurrent, write failed and reload failed changes retain the previous accepted state and recoverable draft.
+
+**Required evidence**
+
+- Spec-to-schema coverage, typed boundary and semantic validation, candidate dependent stage validation, conflict/failure rollback and restart tests. Actual dedicated-server apply assertions and authenticated Brave edits prove runtime effects rather than file contents alone. Phase 002 additionally proves the guide switch end to end.
+
+### CORE-REQ-011 — Editable player menu preview
+
+**Behavior:** Authors edit supported stage settings beside an advancement style player preview and inspect visibility, guidance and activation before applying a draft.  
+**Owner:** CORE-PHASE-002  
+**Contributors:** Existing layout and stage forms, configuration projection, client presentation, documentation.  
+**Dependencies:** CORE-REQ-004, CORE-REQ-005, CORE-REQ-009, CORE-REQ-010  
+**Lifecycle stage:** change  
+**Production verification:** none  
+**Release impact:** stable release
+
+**Acceptance criteria**
+
+1. CORE-AC-022: Preview follows IF-008 for hidden/reveal policy, dependencies, simulated ownership, both tabs, guide policy and state ordering. Default layout and inspector agree with the actual client. Locked visible stages show permitted information without granting ownership, activating missing conditions or running rewards. Unknown conditions and unavailable assets are identified honestly.
+2. CORE-AC-023: Clicking preview elements opens the correct nearby field, edits round-trip through the shared draft and real client, and undo/redo/conflict recovery preserve unrelated source. Simulated state changes are read only and cause no grant, purchase, command, reward, player-data write or apply request. Invalid/stale previews and narrow screen keyboard workflows remain recoverable.
+
+**Required evidence**
+
+- Shared state fixtures, draft revision and source preservation tests, forbidden-side-effect assertions, Brave edit/preview/review/apply and actual silent laptop comparison using the same configuration and ownership fixture. Recheck hidden search, categories and counts, guide-disabled state, long translated labels and unsupported-condition feedback.
+
 ## 13. Phased Roadmap
 
 | Phase ID | Objective | Owner | Dependencies | Canonical requirements | Entry summary | Exit summary | Next transition | Execution blueprint |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | CORE-PHASE-000 | Deliver independent structure contributions and actual decision diagnostics | Structure enforcement | EXT-001 | CORE-REQ-001, CORE-REQ-002, CORE-REQ-007 | Validate approved master, capabilities and exact fixtures; create matching milestone and branch | Structure contracts, shared diagnostics, real server and residual client proof, documentation, checked merge, resulting master and signed tag pass | CORE-PHASE-001 | [Phase 000](phases/plan-phase-000.md) |
-| CORE-PHASE-001 | Repair defaults and targeted editor usability | Editor | CORE-PHASE-000, EXT-001, EXT-002, EXT-004 | CORE-REQ-003, CORE-REQ-004, CORE-REQ-005 | Phase 000 merged, verified and tagged; IF-001, IF-002 and shared capture available | Movement and graph/form proofs, preserved explicit restrictions, documentation, checked merge, resulting master and signed tag pass | CORE-PHASE-002 | [Phase 001](phases/plan-phase-001.md) |
-| CORE-PHASE-002 | Deliver the authored player guide across configuration, GUI and sync | Player guide | CORE-PHASE-001, EXT-001, EXT-002, EXT-004 | CORE-REQ-009 | Phase 001 merged, verified and tagged; existing editor and shared capture stable | Guide data, protocol, visibility, branch and real menu proofs, documentation, checked merge, resulting master and signed tag pass | CORE-PHASE-003 | [Phase 002](phases/plan-phase-002.md) |
+| CORE-PHASE-001 | Repair defaults and complete existing editor workflows and main settings | Editor | CORE-PHASE-000, EXT-001, EXT-002, EXT-004 | CORE-REQ-003, CORE-REQ-004, CORE-REQ-005, CORE-REQ-010 | Phase 000 merged, verified and tagged; IF-001, IF-002 and shared capture available | Movement, complete help, translated editing, main settings and nearby workflow proofs, preserved explicit restrictions, documentation, checked merge, resulting master and signed tag pass | CORE-PHASE-002 | [Phase 001](phases/plan-phase-001.md) |
+| CORE-PHASE-002 | Deliver the authored player guide and editable player preview | Player guide | CORE-PHASE-001, EXT-001, EXT-002, EXT-004 | CORE-REQ-009, CORE-REQ-011 | Phase 001 merged, verified and tagged; existing editor and shared capture stable | Guide data, protocol, visibility, branch, editable preview and real menu proofs, documentation, checked merge, resulting master and signed tag pass | CORE-PHASE-003 | [Phase 002](phases/plan-phase-002.md) |
 | CORE-PHASE-003 | Publish and verify the complete 3.1.0 release | Release integration | CORE-PHASE-002, EXT-001, EXT-002, EXT-003, EXT-004 | CORE-REQ-006, CORE-REQ-008 | Phase 002 merged, verified and tagged; full feature evidence and broker mappings available | Complete regression and documentation, checked merge and tag, exact approved artifact publication, live editor/guide proof and plan wide closure pass | Final completion under Section 18 | [Phase 003](phases/plan-phase-003.md) |
 
 The catalog is contiguous and frozen at four phases. No readiness only phase or future design phase is reserved. Every phase has one mandatory registered blueprint and a unique plan ID `PLAN-PHASE-000` through `PLAN-PHASE-003`. Each phase plan depends on `PLAN-MASTER`; subsequent phase plans also depend on the preceding phase plan. The phase files contain the sole full phase declarations. No phase starts while a preceding PR is merely open, approved or queued.
@@ -528,8 +658,8 @@ These identities freeze ownership for diagnostics, risks and evidence. The phase
 | Phase | Ordered work packages | Required completion packet |
 | --- | --- | --- |
 | 000 | P000-TASK-001 verifies baseline, owned workspace, pins, capabilities and failing fixtures. P000-TASK-002 extends existing shared diagnostic controls and real structure/ability/editor observations. P000-TASK-003 implements attributed parse/model/compiler snapshots and validation. P000-TASK-004 implements actual priority, entry, protection, actorless and provider/session composition. P000-TASK-005 proves unit, headless event and residual silent client workflows. P000-TASK-006 updates structure/support documentation and completes integration gates. | Candidate and configuration identities, CORE-AC-001 through CORE-AC-003, CORE-AC-014 and shared CORE-AC-015 results, diagnostic examples, cleanup receipt, PR checks, resulting master and signed tag |
-| 001 | P001-TASK-001 verifies prior integration and identifies both default paths and existing draft components. P001-TASK-002 changes generated movement defaults and new stage behavior while preserving existing files. P001-TASK-003 adds plain labels, hover/focus tooltip help and structure controls. P001-TASK-004 adds nearby graph and keyboard actions using existing APIs. P001-TASK-005 extends shared observations and proves movement, source preservation and browser workflows. P001-TASK-006 updates affected guidance and completes integration gates. | CORE-AC-004 through CORE-AC-009 results, exact editor asset identity, browser and movement evidence, explicit restriction negative case, cleanup receipt and integration proof |
-| 002 | P002-TASK-001 verifies prior integration and guide pipeline/transport bounds. P002-TASK-002 implements canonical guide parsing, validation, source preservation and editor fields. P002-TASK-003 implements protocol 3 and coherent accepted guide and main config policy snapshots. P002-TASK-004 implements visible branching recommendations, advancement style top tabs, dedicated key access and accessible inspector guidance. P002-TASK-005 extends shared progression observations and proves boundary, reveal, reconnect, browser and silent menu workflows. P002-TASK-006 updates guide/protocol documentation and completes integration gates. | CORE-AC-011 through CORE-AC-013 and CORE-AC-018 through CORE-AC-019 results, matching server/client hashes, guide text round trip and hidden absence proof, protocol mismatch proof, cleanup receipt and integration proof |
+| 001 | P001-TASK-001 verifies prior integration and identifies both default paths and existing draft components. P001-TASK-002 changes generated movement defaults and new stage behavior while preserving existing files. P001-TASK-003 completes field help, translation help, existing rule controls, typed main settings and transactional main config application. P001-TASK-004 adds nearby graph and keyboard actions, an adjacent inspector and local error/save workflows using existing APIs. P001-TASK-005 extends shared observations and proves movement, source preservation and browser workflows. P001-TASK-006 updates affected guidance and completes integration gates. | CORE-AC-004 through CORE-AC-009, CORE-AC-020, CORE-AC-021, CORE-AC-024 and CORE-AC-025 results, exact editor asset identity, browser and movement evidence, explicit restriction negative case, cleanup receipt and integration proof |
+| 002 | P002-TASK-001 verifies prior integration and guide pipeline/transport bounds. P002-TASK-002 implements canonical guide parsing, validation, source preservation and editor fields. P002-TASK-003 implements protocol 3 and coherent accepted guide and main config policy snapshots. P002-TASK-004 implements visible branching recommendations, advancement style top tabs, dedicated key access, accessible inspector guidance and the editable player preview. P002-TASK-005 extends shared progression observations and proves boundary, reveal, reconnect, browser and silent menu workflows. P002-TASK-006 updates guide/protocol documentation and completes integration gates. | CORE-AC-011 through CORE-AC-013, CORE-AC-018 through CORE-AC-019, CORE-AC-022 and CORE-AC-023 results, matching server/client hashes, guide text round trip and hidden absence proof, protocol mismatch proof, cleanup receipt and integration proof |
 | 003 | P003-TASK-001 converges documentation and examples against implemented features. P003-TASK-002 prepares version 3.1.0, asset packaging and complete regression/security/compatibility evidence. P003-TASK-003 completes checked release phase integration, resulting master verification and signed tag. P003-TASK-004 selects exact approved candidate, obtains fresh broker preview and publishes both platform files. P003-TASK-005 verifies accepted metadata, downloads, production startup and released editor/guide workflows. P003-TASK-006 publishes merged wiki, reconciles issue 57 and tracking, closes evidence and cleanup, and checks plan wide Definition of Done. | CORE-AC-010, CORE-AC-016 and CORE-AC-017 results, both public file identities and hashes, live artifact acceptance, documentation/wiki/tracking receipts and zero unexplained owned leftovers |
 
 For each phase, update the matching milestone before implementation and keep its issues and PR assigned. Use a focused `envy/` phase branch from verified approved `origin/master`. Commit and push completed changes with the sole configured owner identity and registered SSH signature, no coauthors. Require `quality / gradle`, `quality / node` and `quality / secret scan`, together with any newly observed required check. After local verification and deterministic checks pass, obtain one private independent review under the existing phase review workflow; resolve actionable findings. Do not use public review mentions. Replacing that review is necessary only after material changes invalidate it.
@@ -571,6 +701,8 @@ Use pinned launcher supported direct connect or quick play to the verified endpo
 | CORE-REQ-007 | Bounds, reset and permission tests | Actual recorders and console targets | Real evaluator decisions | Default off, privacy and permission denial | Bounded support packet and overhead results |
 | CORE-REQ-008 | Full existing affected suites | Checked merged candidate and production start | Released editor and guide smoke | Final diff and dependency/source review | Both public file metadata and hashes |
 | CORE-REQ-009 | Text, policy and codec boundaries | Draft to accepted synced revision | Actual branching guide and state refresh | Hidden absence, inert content, protocol mismatch | Published JAR and client menu evidence |
+| CORE-REQ-010 | Spec coverage, typed boundaries and restart semantics | Main/stage transaction and effective config reload | Brave main setting edit and actual server effect | Invalid/stale/write/reload failure and rollback | Candidate and released main only apply proof |
+| CORE-REQ-011 | Shared visibility/layout/state fixtures | Read-only draft projection and same source edits | Brave preview and actual client comparison | Hidden leakage, stale projection and zero gameplay side effects | Candidate and released editor-to-menu proof |
 
 Run `npm ci`, `npm run check`, `npm test` and `npm run build` in `editor-ui` for relevant editor changes and final candidate packaging. Run applicable formatting checks actually present, `./gradlew test`, `./gradlew build`, and relevant verified server GameTests after Java changes. Inspect dedicated server classloading. Run the existing data generation path and inspect generated drift when providers or generated resources change. Do not claim an undeclared formatter ran. Retain decisive results, test counts, candidate/host identity and required screenshots under `docs/verification/3.1.0/`; this is an evidence destination, not a runtime or raw log archive.
 
@@ -633,7 +765,7 @@ For candidate rollback use the last approved artifact with matching clients and 
 
 ## 16. Documentation, Operations, and Release Gates
 
-Each implementation phase updates `README.md`, `DOCUMENTATION.md` and affected existing topics when its behavior changes. Update `docs/README.md` and cross links for changed or added topic paths. Keep normal documentation grammar and accurate public behavior. The final convergence proves the two stage example, action/priority truth table, actorless scope, movement defaults and explicit recovery, nearby graph actions, guide schema/recommendation/reveal behavior, advancement style tabs and dedicated key, main config guide switch, hover help, protocol compatibility and bounded support collection. Add focused 3.1.0 release notes in `docs/release/3.1.0.md` and evidence in `docs/verification/3.1.0/` using current repository conventions.
+Each implementation phase updates `README.md`, `DOCUMENTATION.md` and affected existing topics when its behavior changes. Update `docs/README.md` and cross links for changed or added topic paths. Keep normal documentation grammar and accurate public behavior. The final convergence also covers complete contextual help, translation instructions and limitations, main setting scope and live/restart application, nearby editing, preview visibility and existing activation controls. It proves the two stage example, action/priority truth table, actorless scope, movement defaults and explicit recovery, nearby graph actions, guide schema/recommendation/reveal behavior, advancement style tabs and dedicated key, main config guide switch, hover help, protocol compatibility and bounded support collection. Add focused 3.1.0 release notes in `docs/release/3.1.0.md` and evidence in `docs/verification/3.1.0/` using current repository conventions.
 
 The release phase changes only the mod release version to 3.1.0 and corresponding actual release metadata; preserve pinned platform/toolchain dependencies. Rebuild Vite assets through the repository path, run `PackagedEditorAssetsTest` and inspect exact JAR entries so a stale `app.js` or `app.css` cannot ship. Compare the packaged candidate and tested classes where development GameTests differ from production launch. Inspect the complete diff for accidental generated files, caches, credentials, private paths, debug probes and unrelated changes.
 
@@ -641,7 +773,7 @@ Complete the phase PR and required checks before public release. Verify the resu
 
 Bind the fresh concrete preview to exact project IDs, candidate commit, version, release channel, filename, hashes, Minecraft 1.21.1, NeoForge, existing dependency relations and both sides required on Modrinth. Existing publication authorization covers this requested release; do not invent a new approval boundary. Use only a current returned preview identifier or required confirmation value, never stale or guessed values. A material change to destinations, costs, licensing or operations requires a specific owner decision before that changed action.
 
-After upload, inspect accepted public file metadata using supported broker responses and read only platform pages, download the accepted artifacts for hash comparison, and record both platform file/version IDs and links. Prove the downloaded JAR starts in production and serves `/pstages editor` with the correct assets. Perform one bounded released artifact workflow using hover/focus editor help, editing guide content and observing it through both advancement style tabs and the rebound guide key in the silent laptop menu. Prove disabling and reenabling the guide from the main config, no GUI attribution and preserved normal stages access, while rerunning a representative independent structure and explicit ability policy smoke. Retain required acceptance proof and remove download/runtime scratch after the last consumer.
+After upload, inspect accepted public file metadata using supported broker responses and read only platform pages, download the accepted artifacts for hash comparison, and record both platform file/version IDs and links. Prove the downloaded JAR starts in production and serves `/pstages editor` with the correct assets. Perform one bounded released artifact workflow using hover/focus editor help, editing guide content and observing it through both advancement style tabs and the rebound guide key in the silent laptop menu. Exercise the Translate editor helper, translated UI preservation and the editable preview with a locked visible stage. Edit the main guide switch in the GUI, review/apply it and prove its actual server and client effect; also test documented file reload. Prove disabling and reenabling the guide from the main config, no GUI attribution and preserved normal stages access, while rerunning a representative independent structure and explicit ability policy smoke. Retain required acceptance proof and remove download/runtime scratch after the last consumer.
 
 Publish wiki changes from merged tracked documentation, synchronize Project and milestone state, and reconcile issue 57 using precise verified results. Public text follows the repository's maintainer voice and identity rules. No Discord announcement is authorized. Do not claim a GitHub Release exists from a signed version tag alone. Completion requires the actual selected platform endpoint, not an extra hosting service.
 
@@ -662,6 +794,9 @@ Publish wiki changes from merged tracked documentation, synchronize Project and 
 | RISK-011: Runtime evidence uses wrong host, audible client or retained disposable state | CORE-REQ-008, DEC-006 | Hardware availability does not prove renderer/audio identity; failures can interrupt teardown | Exact runtime registry, prelaunch silence, stream watcher and registered cleanup | Host/renderer/stream mismatch or surviving owned resources | Stop owned client, preserve gate as unverified and reconcile exact leftovers | Every phase verification task, P003-TASK-006 | Both host identity, mute readback/recreation, joined world and process/path cleanup receipts |
 | RISK-012: Hover help becomes inaccessible or hides essential feedback | CORE-REQ-004, IF-005 | A shared field wrapper has inline help and save state; moving both could hide errors or interfere with field focus | Separate optional help from validation/save status; focusable described help target with click/tap access | Missing help on focus, clipped panel, lost error or unintended input change | Repair the shared wrapper and rerun affected field workflows | CORE-PHASE-001, P001-TASK-003, P001-TASK-005 | Hover, focus, click/tap, Escape, narrow viewport and inline error/status assertions |
 | RISK-013: Guide key or stale policy bypasses disabled state or reopens the screen | CORE-REQ-009, IF-003, IF-004 | Explicit opening and asynchronous refresh are separate; COMMON config is local unless synchronized | One server policy snapshot, unavailable until received, explicit tab target, no open on refresh | Wrong tab, guide visible when disabled, repeated open or stale policy after reconnect | Clear stale policy and pending open intent; retain normal map and resync | CORE-PHASE-002, P002-TASK-003, P002-TASK-004, P002-TASK-005 | Conflicting/held/typing keys, delayed response, disable while open, opposite server policies and reenable in actual menu |
+| RISK-014: A main setting is saved but never applied, or partial reload splits main and stage state | CORE-REQ-010, IF-007 | Syntax-only validation and independent reload caches make file success insufficient; wrong effective restrictions can affect gameplay | Full spec validation, candidate main values, explicit server transaction and truthful restart state | File, effective value, accepted revision and actual action disagree | Restore files and prior accepted state, retain draft and correct lifecycle | CORE-PHASE-001, P001-TASK-003, P001-TASK-005; CORE-PHASE-002 guide policy proof | Main-only, combined, invalid, concurrent, write/reload failure, duplicate event and restart cases with actual runtime assertions |
+| RISK-015: Translation mutates identifiers or breaks dynamic editor controls | CORE-REQ-004, IF-005 | Browser translators alter rendered DOM and may expand text; form/source integrity must survive | DOM text, language metadata, translate=no hints, stable field identity and no automatic external submission | Changed source without user edit, React error, clipped help or wrong serialized enum | Keep draft, restore original presentation and repair affected wrapper | CORE-PHASE-001, P001-TASK-003, P001-TASK-005 | Translated edit, validate, undo, navigation, narrow layout and unchanged identifier/source tests |
+| RISK-016: Preview leaks hidden content, uses stale state or triggers gameplay | CORE-REQ-011, IF-008 | Draft and simulated ownership differ from runtime; duplicated projection logic can mislead authors | Isolated read only revisioned projection, shared fixtures, explicit author/player views and unknown-state labels | Hidden result/count, wrong node state, stale revision or forbidden side-effect call | Reject stale result, preserve draft, fix projection and repeat client comparison | CORE-PHASE-002, P002-TASK-002, P002-TASK-004, P002-TASK-005 | Hidden/reveal/dependency fixtures, invalid/stale preview, no grant/purchase/reward/write and actual client parity |
 
 The unknown reporter configuration does not justify claiming its historical cause was reproduced. The release can prove the new defaults, source diagnosis and requested workflows with controlled real fixtures and describe that limit accurately. An unavailable external prerequisite remains visible under its EXT ID. A newly found material scope conflict requires an authorized plan amendment, not silent requirement removal.
 
@@ -669,10 +804,10 @@ The unknown reporter configuration does not justify claiming its historical caus
 
 ProgressiveStages 3.1.0 is tested, integrated through checked master pull requests and signed phase tags, published on CurseForge and Modrinth with matching verified artifacts, and its updated mod-served web editor and in-game guide are verified from the released JAR. Documentation, wiki and issue 57 reflect the verified result.
 
-1. All nine mandatory requirements satisfy their acceptance criteria with evidence at the required fidelity, and all four phase exits pass. Optional scope remains excluded.
+1. All eleven mandatory requirements satisfy their acceptance criteria with evidence at the required fidelity, and all four phase exits pass. Optional scope remains excluded.
 2. Each phase is merged through the checked PR workflow into actual `master`, its resulting commit is verified and its annotated phase tag is signed and published before any next phase begins. No known mandatory owned defect remains.
 3. Independent structure entry/protection, real priority arbitration, preserved provider/session/global behavior, safe movement defaults and intentional ability restrictions work in the documented fixtures and actual required client workflows.
-4. The editor retains source and draft safeguards while providing plain controls, accessible hover help and nearby graph actions. The advancement style in-game menu has top tabs and a dedicated guide key; the main config controls guidance, disabling preserves the normal map, and no pack creator attribution appears. Enabled guidance shows authored branches, locations and correct state refresh without hidden information leakage.
+4. The editor retains source and draft safeguards while providing complete contextual help, browser translation guidance, nearby editing and error navigation, full main settings with truthful effective/restart state, and an editable player preview proven against the actual menu. The advancement style in-game menu has top tabs and a dedicated guide key; the main config controls guidance, disabling preserves the normal map, and no pack creator attribution appears. Enabled guidance shows authored branches, locations and correct state refresh without hidden information leakage.
 5. Diagnostics are reusable and default off, their permission/privacy/budget/lifecycle/overhead checks pass, and the delivered artifact's support collection procedure works. Every client stayed inaudible with verified exact application stream mute and replacement handling.
 6. ProgressiveStages 3.1.0 is published on CurseForge and Modrinth with accepted metadata and downloaded hashes matching the tested approved artifact. Its bundled editor and guide are verified from that released JAR, with production dedicated startup proven separately from development tests.
 7. README, detailed documentation, topic links, release notes, wiki, issue 57 and relevant tracking reflect the verified merged result. There is no claim of an unnamed separately hosted website or uncreated GitHub Release.
@@ -682,15 +817,15 @@ ProgressiveStages 3.1.0 is tested, integrated through checked master pull reques
 ## 19. Goal Creator Handoff
 
 ```text
-Mandatory boundary: CORE-REQ-001 through CORE-REQ-009 across all four contiguous phases, with the full release endpoint.
+Mandatory boundary: CORE-REQ-001 through CORE-REQ-011 across all four contiguous phases, with the full release endpoint.
 Optional/future disposition: excluded.
-Locked owner decisions: DEC-001 through DEC-008.
+Locked owner decisions: DEC-001 through DEC-011.
 Active phase: CORE-PHASE-000
 Next executable action: P000-TASK-001, verify latest approved master, existing checkout state, owned resource boundaries, pins and phase prerequisites before implementation.
 Known failing checks: No runtime or implementation checks ran during research. Observed coupled structure aggregation, active default movement locks and missing dedicated guide remain unimplemented target behavior.
 Known external blockers: none
 Completion endpoint: ProgressiveStages 3.1.0 is tested, integrated through checked master pull requests and signed phase tags, published on CurseForge and Modrinth with matching verified artifacts, and its updated mod-served web editor and in-game guide are verified from the released JAR. Documentation, wiki and issue 57 reflect the verified result.
-Required evidence gates: Parser/compiler/arbitration/default/editor/guide tests, real server events, actual Brave workflows, silent laptop multiplayer and guide evidence, bounded diagnostics and overhead, complete cleanup, checked PR integration, resulting master verification, signed tags, both accepted platform artifacts, hashes, released editor and guide, documentation and wiki convergence.
+Required evidence gates: Parser/compiler/arbitration/default/editor/guide tests, complete help and translated edit preservation, main config coverage and transactional effective state proof, preview parity and zero side effect proof, real server events, actual Brave workflows, silent laptop multiplayer and guide evidence, bounded diagnostics and overhead, complete cleanup, checked PR integration, resulting master verification, signed tags, both accepted platform artifacts, hashes, released editor and guide, documentation and wiki convergence.
 ```
 
 EXT-001 through EXT-004 require candidate specific revalidation and retain their mandatory gates if availability changes.

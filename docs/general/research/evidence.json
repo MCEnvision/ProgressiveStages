@@ -4,15 +4,15 @@
   "documents": {
     "brief": {
       "path": "brief.md",
-      "sha256": "6c1ac6ff77e225c521a15d066127bf6a9e831abe94f582f641ba2ad3b1a80a14"
+      "sha256": "7239be8929e129f1c340a6a2adcc27b9ced1024a0b4b61934e02edcb8ea0da6e"
     },
     "repository_map": {
       "path": "repository-map.md",
-      "sha256": "8fb9c87c0a9220d3833dba154deacd8e3fa5dcc9da20a60ef0e7a8606222e238"
+      "sha256": "293c262a4a64196a3b80cfe3854f9caba77518dec5e7e8d5c3b894b2f2b0ab9d"
     },
     "intake": {
       "path": "intake.json",
-      "sha256": "b74b7af5562f8cb3055ca6ba53475b375250758c3f057b80abd959331c04aa49"
+      "sha256": "e4993d4810b37ebca5f1c73d40ec98a013bb5c5d286f937433c12b7bc3938c22"
     }
   },
   "sources": [
@@ -805,6 +805,225 @@
           "sha256": "2633c93b5ecdc6d5baa3eb9f03478626c095382fc6f47667f30d41174a2a7b2e"
         }
       ]
+    },
+    {
+      "id": "SRC-022",
+      "role": "owner_request",
+      "locator": "research/sources/editor-workflows.md",
+      "revision": "2026-09-24 editor workflow amendment",
+      "observed_at": "2026-09-24T12:31:28.008850+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/editor-workflows.md",
+        "sha256": "57704b488f2753470cbb488e7213bb774298eff98c3a3ef49c3491001413b26c"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-023",
+      "role": "repository_evidence",
+      "locator": "research/sources/editor-workflows.md",
+      "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+      "observed_at": "2026-09-24T12:31:28.008850+00:00",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/editor-workflows.md",
+        "sha256": "57704b488f2753470cbb488e7213bb774298eff98c3a3ef49c3491001413b26c"
+      },
+      "repository_files": [
+        {
+          "path": "editor-ui/src/features/SettingsPage.tsx",
+          "sha256": "f6268789031caf98d7fa2881b13d64b6c157cc15a5023aa1972bbdcc7f0b7b12"
+        },
+        {
+          "path": "editor-ui/src/features/LayoutPage.tsx",
+          "sha256": "b4aaab6cac8f641b9fc959ddfebd2ea7fbde5b9d5e4f2b22356d6dcbc74ccbaa"
+        },
+        {
+          "path": "editor-ui/src/features/stages/EssentialsPanel.tsx",
+          "sha256": "ab197b902bfef28f677e47d2ee12ff5e935e5a400b93e2894540a469f16a7902"
+        },
+        {
+          "path": "editor-ui/src/features/stages/RulesPanel.tsx",
+          "sha256": "3b364fc2e02c2b26574bf27d59ea185cdeca845f05a0c390294a9cc34c585f68"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/rehaul/schema/BuiltinEditorSchemas.java",
+          "sha256": "2f75c02cbdf6f2e323fa06cdd606386b2cc0ff6257c271c8b040014bc01df181"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/rehaul/schema/EditorFieldSchema.java",
+          "sha256": "8e62790d42ea0e2d434f45579922d98d97904fcab6479efd34998bad3996536d"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/rehaul/schema/EditorSchemaRegistry.java",
+          "sha256": "00ac9b69e9e77d7b71d81eb1785895cef0c42df0fe796994b01af13fa745d36f"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageConfig.java",
+          "sha256": "a8cf0dfcbdad4957e8093c561a61571f8d9dfdbe2b7ab7eae26ff2acc8a6cbfb"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageDefinition.java",
+          "sha256": "f4c2689fec75f4ec4e343be43bee21a3b862ea122273576ff10b4e7898d32439"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/lock/ConditionalRule.java",
+          "sha256": "f6c03b7a51976d3d0f2d3810ea9e77ebbf3071cc14eea532bf70fbe479ffb6cd"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/rehaul/CompiledRuleEngine.java",
+          "sha256": "f170f8004f426adc390df6558faa776efcf30c94dbcea3dc6aa1f0d2d322f878"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/editor/EditorDraftValidator.java",
+          "sha256": "83c9a75bbc5a4a835a27814547c81966a1a22128ed76afcb0accee84f1b37d1a"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/editor/EditorApplyService.java",
+          "sha256": "c071b761dd7189e19de544da606e4d81ee28b95e2cafcf11188139da32a7c8bf"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/editor/EditorApplyGameTests.java",
+          "sha256": "d50c86a9de345d4a63f08c91b3c97005bccbce5e0726f24d6d0bac9300fbc0ed"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java",
+          "sha256": "b15cf9c67c73b0bd1382a2ee69688c471e6f60ce501c6f7e7221e1380ac6cd81"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/editor/EditorApplyServiceTest.java",
+          "sha256": "06e4a084ef487c07d8b57d59a0b81060759d205875d0d0faf49924e5d7708ee0"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/rehaul/CompiledRuleEngineTest.java",
+          "sha256": "e3af3628cc2641cc9440e040b7b1bfc129edd7e17782f9964f4abcb64cd9a5a0"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/common/rehaul/EditorSchemaRegistryTest.java",
+          "sha256": "bc8cc4fa71041366697ca3f94cd22524ee48a0473c6c72f81b77d3539c04b7cb"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/client/StageTreeScreenRenderOrderTest.java",
+          "sha256": "849adb2cbdb23e23f4e0fb5e99e1f3d8a5252993f21b5f6f1103033766bbc272"
+        }
+      ],
+      "pinned_repository_blobs": [
+        {
+          "path": "editor-ui/src/features/SettingsPage.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f6268789031caf98d7fa2881b13d64b6c157cc15a5023aa1972bbdcc7f0b7b12"
+        },
+        {
+          "path": "editor-ui/src/features/LayoutPage.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "b4aaab6cac8f641b9fc959ddfebd2ea7fbde5b9d5e4f2b22356d6dcbc74ccbaa"
+        },
+        {
+          "path": "editor-ui/src/features/stages/EssentialsPanel.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "9aeccfc18ee39f587c496cad03468ff13d5148bdee7fcdf1fe11b081408d6329"
+        },
+        {
+          "path": "editor-ui/src/features/stages/RulesPanel.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "dfae5eff7bbe6876b11099140656ca48f92cbd7bc61fabc07815c80bd850f3a7"
+        },
+        {
+          "path": "editor-ui/src/features/stages/RulesPanel.test.tsx",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "3282682bc998c1d99bcaf41450e74074bc783275704cb883e14de3b9d59159c5"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/rehaul/schema/BuiltinEditorSchemas.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "5678b3808664954091ee729eb567f0d296444eb5a0fdd6442ab2acc914713540"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/rehaul/schema/EditorFieldSchema.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "8e62790d42ea0e2d434f45579922d98d97904fcab6479efd34998bad3996536d"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/rehaul/schema/EditorSchemaRegistry.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "00ac9b69e9e77d7b71d81eb1785895cef0c42df0fe796994b01af13fa745d36f"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageConfig.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "065b1f902c76a6fd31b31d3021b80d4f4c539a7b395be3407f27fed81671dd81"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/config/StageDefinition.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f3a1be1dba35d7c8f71edf9fd19cc87c70be97f4c176924602b63ee797b63e9d"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/common/lock/ConditionalRule.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f6c03b7a51976d3d0f2d3810ea9e77ebbf3071cc14eea532bf70fbe479ffb6cd"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/rehaul/CompiledRuleEngine.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "61bef70ecdb4cef9af86e0cbfe68ea11bf7a0a6632f4c544dd0339e41041ea57"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/editor/EditorDraftValidator.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f061a7f8a08e6131cd5723cdad5cad27e2bfbe42038965e9a79a4e7140e8d439"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/editor/EditorApplyService.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f99ce73e75cca6ce4b1d98d96e619e2c1962ae92fbcbe79ef542fdf838069d70"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/server/editor/EditorApplyGameTests.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "f2a3b9ca5b03254864d5ad58d6a89821fa2b27b044b66b3227d7d84120f98329"
+        },
+        {
+          "path": "src/main/java/com/enviouse/progressivestages/client/gui/StageTreeScreen.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "b432974124f396e802cb0f43c474989182d1e479f9c92bf7ac96e573ce207587"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/editor/EditorApplyServiceTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "06e4a084ef487c07d8b57d59a0b81060759d205875d0d0faf49924e5d7708ee0"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/server/rehaul/CompiledRuleEngineTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "e3af3628cc2641cc9440e040b7b1bfc129edd7e17782f9964f4abcb64cd9a5a0"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/common/rehaul/EditorSchemaRegistryTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "bb2d51c59063ff1f083266aa8ca01bb4ed91228eea66ad662fc394a8b14518fb"
+        },
+        {
+          "path": "src/test/java/com/enviouse/progressivestages/client/StageTreeScreenRenderOrderTest.java",
+          "revision": "c0a3ef2c32a5406a0bf12e43d2c475aa576fe9d6",
+          "sha256": "849adb2cbdb23e23f4e0fb5e99e1f3d8a5252993f21b5f6f1103033766bbc272"
+        }
+      ]
+    },
+    {
+      "id": "SRC-024",
+      "role": "reference",
+      "locator": "research/sources/editor-workflows.md",
+      "revision": "primary documentation observed 2026-09-24",
+      "observed_at": "2026-09-24T12:31:28.008850+00:00",
+      "freshness": "mutable",
+      "snapshot": {
+        "path": "sources/editor-workflows.md",
+        "sha256": "57704b488f2753470cbb488e7213bb774298eff98c3a3ef49c3491001413b26c"
+      },
+      "repository_files": [],
+      "recheck_after": "2026-10-01T12:31:28.008850+00:00"
     }
   ],
   "findings": [
@@ -1055,6 +1274,65 @@
       ],
       "depends_on": [
         "FIND-012"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-016",
+      "summary": "Existing main SettingsPage and spec-generated schema provide reuse, while main draft validation currently checks syntax only. Complete typed validation, candidate-dependent compilation, explicit effective application and rollback require runtime proof.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-023"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-004",
+        "CORE-REQ-005",
+        "CORE-REQ-010",
+        "CORE-REQ-006",
+        "CORE-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-006"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-017",
+      "summary": "Existing hidden/reveal display and missing/owned/always rule activation controls support inspect-before-acquisition. Add an isolated editable player preview using those semantics and shared fixtures; no new claim mechanism or actual gameplay is part of preview.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-022",
+        "SRC-023"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-004",
+        "CORE-REQ-005",
+        "CORE-REQ-009",
+        "CORE-REQ-011",
+        "CORE-REQ-006",
+        "CORE-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-012",
+        "FIND-016"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-018",
+      "summary": "Primary Chrome, Google Translate, Brave and HTML documentation supports local browser translation instructions and presentation hints, not an unrestricted embedded-widget or automatic native-UI claim. Direct outbound Google text remains optional.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-022",
+        "SRC-024"
+      ],
+      "requirement_ids": [
+        "CORE-REQ-004",
+        "CORE-REQ-006",
+        "CORE-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-014"
       ],
       "conflicts_with": []
     }

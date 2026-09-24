@@ -117,6 +117,27 @@
         "subject": "Existing field help, advancement screen and screen opening boundary",
         "source": "research/sources/guide-navigation.md",
         "use": "Pins the field component, key registration, open versus refresh handling and main config integration points."
+      },
+      {
+        "id": "SRC-022",
+        "role": "owner_request",
+        "subject": "Complete editor help, main settings and editable player preview",
+        "source": "research/sources/editor-workflows.md",
+        "use": "Defines the bounded usability amendment and records optional proposals separately."
+      },
+      {
+        "id": "SRC-023",
+        "role": "repository_evidence",
+        "subject": "Existing main settings, rule activation and visibility paths",
+        "source": "research/sources/editor-workflows.md",
+        "use": "Pins schema generation, validation gaps and reusable draft and presentation controls."
+      },
+      {
+        "id": "SRC-024",
+        "role": "reference",
+        "subject": "Browser translation capabilities and limits",
+        "source": "research/sources/editor-workflows.md",
+        "use": "Primary Google, Brave and HTML documentation supports user-operated translation help without an embedded service promise."
       }
     ]
   },
@@ -225,15 +246,15 @@
     },
     {
       "id": "CORE-REQ-004",
-      "summary": "Existing editor uses plain Stage name, Stage icon and Required stages labels with Minecraft style hover/focus help and examples, visible validation and save feedback, supported advanced controls and serialized compatibility.",
-      "source": "SRC-020, SRC-021 and existing guide/editor research",
+      "summary": "Complete contextual editor help, translation-friendly browser presentation and local translation instructions, existing rule activation explanations and source-preserving advanced controls.",
+      "source": "SRC-022, SRC-023, SRC-024",
       "lifecycle_stage": "change",
       "production_verification": "none"
     },
     {
       "id": "CORE-REQ-005",
-      "summary": "Graph offers nearby edit and delete actions, context and keyboard alternatives, safe gesture handling, confirmation and existing draft review workflow.",
-      "source": "Current owner request and clarifications, pinned research findings",
+      "summary": "Nearby graph actions and full selected-stage editing, local error correction and stable draft controls preserve pointer, keyboard, undo, validation and review/apply workflows.",
+      "source": "SRC-022, SRC-023, SRC-024",
       "lifecycle_stage": "change",
       "production_verification": "none"
     },
@@ -264,13 +285,51 @@
       "source": "SRC-020, SRC-021 and existing guide/editor research",
       "lifecycle_stage": "change",
       "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-010",
+      "summary": "Complete typed main configuration editing through the existing GUI with spec validation, truthful live or restart status and transactional effective-state application.",
+      "source": "SRC-022, SRC-023",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "CORE-REQ-011",
+      "summary": "Editable advancement-style player preview with supported display fields, visible requirements, independent reveal and ownership state, shared draft edits and no gameplay side effects.",
+      "source": "SRC-022, SRC-023",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
     }
   ],
   "optional_future_scope": [
     {
       "id": "FUT-001",
-      "summary": "Full editor rewrite, new graph framework, full localization or unrelated configuration expansion.",
-      "source": "Owner narrowed issue57 request",
+      "summary": "Full editor rewrite, new graph framework, maintained full language packs and unrelated engine expansion.",
+      "source": "SRC-022, SRC-024",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-002",
+      "summary": "Direct selected-text Google translation, embedded translator or paid translation service pending explicit external-content and cost choice.",
+      "source": "SRC-022, SRC-024",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-003",
+      "summary": "Reusable reviewable stage and rule presets with collision and preservation safeguards.",
+      "source": "SRC-022, SRC-024",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-004",
+      "summary": "Selective bulk or copy settings across stages with per-target preview and undo.",
+      "source": "SRC-022, SRC-024",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-005",
+      "summary": "A new manual claim step or additional per-effect activation mechanism pending a separate owner decision.",
+      "source": "SRC-022, SRC-024",
       "disposition": "excluded"
     }
   ],
@@ -335,6 +394,24 @@
       "question": "Advancement style guide access and configuration",
       "status": "resolved",
       "selected_choice": "Preserve the existing advancement style stages screen, add top Stages and What to do next tabs and a dedicated guide key mapping, control guide availability from the main config, and omit pack creator attribution from the GUI."
+    },
+    {
+      "id": "DEC-009",
+      "question": "Complete main settings in the editor",
+      "status": "resolved",
+      "selected_choice": "Expose the main configuration through the existing Settings page, including the guide switch, with complete typed controls, contextual help and verified application."
+    },
+    {
+      "id": "DEC-010",
+      "question": "Editable player menu preview and existing activation controls",
+      "status": "resolved",
+      "selected_choice": "Provide an editable advancement style preview of supported stage display and guidance settings, with nearby editing and separate simulated visibility and ownership states. Reuse existing rule activation controls."
+    },
+    {
+      "id": "DEC-011",
+      "question": "Translation-friendly help without a service dependency",
+      "status": "resolved",
+      "selected_choice": "Provide a Translate editor help button with browser instructions and translation friendly labels and help. Leave direct external text translation optional."
     }
   ],
   "prerequisites": [

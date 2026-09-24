@@ -165,6 +165,22 @@ describe("generic rule editing", () => {
     expect(saved).toMatch(/priority\s*=\s*-5/);
     expect(saved).toContain('custom="keep"');
   });
+
+  it("serializes structure changes from the latest draft and clears the legacy padding fallback", async () => {
+    const structureSource = '[structures]\nlocked_entry=["id:minecraft:ancient_city"]\nentry_padding=12\n[structures.rules]\nprevent_block_place=true\n';
+    editor.boot.draft.files[rulesPath] = structureSource;
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    const padding = screen.getByDisplayValue("12");
+    fireEvent.change(padding, { target: { value: "" } });
+    fireEvent.blur(padding);
+    fireEvent.click(screen.getByLabelText("Allow entry"));
+    await waitFor(() => expect(editor.mutateFile).toHaveBeenCalledTimes(2));
+    const first = String(editor.mutateFile.mock.calls[0][1]);
+    expect(first).not.toContain("entry_padding");
+    const second = String(editor.mutateFile.mock.calls[1][1]);
+    expect(second).not.toContain("entry_padding");
+    expect(second).toContain("entry_allowed = true");
+  });
 });
 
 describe("inventory condition authoring", () => {

@@ -1,5 +1,5 @@
 import { extractRows, replaceRows } from "../../lib/tomlRows";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ACTION_LABELS, CATEGORIES, CONDITIONS, EFFECTS, ruleEffects } from "../../data";
 import { InlineCatalogSearch } from "../../components/CatalogPicker";
 import { Badge, Button, EmptyState, Field, Section, Toggle } from "../../components/ui";
@@ -459,6 +459,8 @@ function EnchantmentGenerationCard({ rule, onEdit, onDelete }:
 function StructureControls({ stage }: { stage: StagePackage }) {
   const { boot, mutateFile } = useEditor();
   const content = boot?.draft.files[stage.rulesPath] || "";
+  const latestContent = useRef(content);
+  const mutationQueue = useRef(Promise.resolve());
   const [entries, setEntries] = useState(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
   const [priority, setPriority] = useState(readTomlValue(content, "structures.rules.priority"));
   const [padding, setPadding] = useState(readTomlValue(content, "structures.rules.entry_padding") || readTomlValue(content, "structures.entry_padding"));
@@ -468,6 +470,7 @@ function StructureControls({ stage }: { stage: StagePackage }) {
   const [preventExplosions, setPreventExplosions] = useState(booleanValue(readTomlValue(content, "structures.rules.prevent_explosions") || "false"));
   const [disableSpawns, setDisableSpawns] = useState(booleanValue(readTomlValue(content, "structures.rules.disable_mob_spawning") || "false"));
   useEffect(() => {
+    latestContent.current = content;
     setEntries(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
     setPriority(readTomlValue(content, "structures.rules.priority"));
     setPadding(readTomlValue(content, "structures.rules.entry_padding") || readTomlValue(content, "structures.entry_padding"));
@@ -477,18 +480,39 @@ function StructureControls({ stage }: { stage: StagePackage }) {
     setPreventExplosions(booleanValue(readTomlValue(content, "structures.rules.prevent_explosions") || "false"));
     setDisableSpawns(booleanValue(readTomlValue(content, "structures.rules.disable_mob_spawning") || "false"));
   }, [content]);
-  const save = async (path: string, value: unknown, message: string) => {
-    await mutateFile(stage.rulesPath, upsertToml(content, path, value), message);
+  const save = (path: string, value: unknown, message: string) => {
+    const operation = mutationQueue.current.then(async () => {
+      const next = upsertToml(latestContent.current, path, value);
+      latestContent.current = next;
+      await mutateFile(stage.rulesPath, next, message);
+    });
+    mutationQueue.current = operation.catch(() => undefined);
+    return operation;
   };
-  const savePriority = async () => {
+  const savePriority = () => {
     const next = priority.trim();
     if (next && !/^-?\d+$/.test(next)) return;
-    await mutateFile(stage.rulesPath, next ? upsertToml(content, "structures.rules.priority", Number(next)) : removeTomlValue(content, "structures.rules.priority"), "Structure priority saved");
+    const update = (source: string) => next ? upsertToml(source, "structures.rules.priority", Number(next)) : removeTomlValue(source, "structures.rules.priority");
+    const operation = mutationQueue.current.then(async () => {
+      const updated = update(latestContent.current);
+      latestContent.current = updated;
+      await mutateFile(stage.rulesPath, updated, "Structure priority saved");
+    });
+    mutationQueue.current = operation.catch(() => undefined);
+    return operation;
   };
-  const savePadding = async () => {
+  const savePadding = () => {
     const next = padding.trim();
     if (!/^\d+$/.test(next) && next !== "") return;
-    await mutateFile(stage.rulesPath, next ? upsertToml(content, "structures.rules.entry_padding", Number(next)) : removeTomlValue(content, "structures.rules.entry_padding"), "Structure entry padding saved");
+    const operation = mutationQueue.current.then(async () => {
+      const updated = next
+        ? upsertToml(latestContent.current, "structures.rules.entry_padding", Number(next))
+        : removeTomlValue(removeTomlValue(latestContent.current, "structures.rules.entry_padding"), "structures.entry_padding");
+      latestContent.current = updated;
+      await mutateFile(stage.rulesPath, updated, "Structure entry padding saved");
+    });
+    mutationQueue.current = operation.catch(() => undefined);
+    return operation;
   };
   return <Section title="Structure access" description="Keep entry separate from protections inside the structure. A permanent locked stage can protect blocks after another stage allows entry.">
     <div className="form-grid">

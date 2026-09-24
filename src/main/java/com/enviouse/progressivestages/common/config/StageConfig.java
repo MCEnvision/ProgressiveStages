@@ -10,7 +10,9 @@ import com.electronwill.nightconfig.core.UnmodifiableConfig;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -21,6 +23,7 @@ import java.util.Objects;
 public class StageConfig {
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+    private static final Map<String, Object> EDITOR_PENDING_RESTART_VALUES = new LinkedHashMap<>();
 
     // ============ General Settings ============
 
@@ -930,6 +933,9 @@ public class StageConfig {
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
         if (event.getConfig().getSpec() == SPEC) {
+            EDITOR_PENDING_RESTART_VALUES.clear();
+        }
+        if (event.getConfig().getSpec() == SPEC) {
             com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
         }
         loadValues();
@@ -937,14 +943,17 @@ public class StageConfig {
 
     /** Applies a validated editor candidate to the loaded config and refreshes live values. */
     public static synchronized void applyEditorConfig(UnmodifiableConfig candidate) {
-        applyEditorValues(SPEC.getSpec(), candidate, new ArrayList<>());
+        Map<String, Object> pending = new LinkedHashMap<>();
+        applyEditorValues(SPEC.getSpec(), candidate, new ArrayList<>(), pending);
+        EDITOR_PENDING_RESTART_VALUES.clear();
+        EDITOR_PENDING_RESTART_VALUES.putAll(pending);
         loadValues();
     }
 
     /** Captures the loaded raw values so an editor transaction can restore them on failure. */
     public static synchronized Config snapshotEditorConfig() {
         Config snapshot = Config.inMemory();
-        snapshotEditorValues(SPEC.getValues(), snapshot, new ArrayList<>());
+        snapshotEditorValues(SPEC.getValues(), snapshot, new ArrayList<>(), EDITOR_PENDING_RESTART_VALUES);
         return snapshot;
     }
 
@@ -952,19 +961,20 @@ public class StageConfig {
     public static synchronized List<String> editorPendingRestartPaths() {
         List<String> pending = new ArrayList<>();
         try {
-            pendingEditorValues(SPEC.getValues(), new ArrayList<>(), pending);
+            pendingEditorValues(SPEC.getValues(), new ArrayList<>(), pending, EDITOR_PENDING_RESTART_VALUES);
         } catch (IllegalStateException ignored) {
             return List.of();
         }
         return List.copyOf(pending);
     }
 
-    private static void applyEditorValues(UnmodifiableConfig spec, UnmodifiableConfig candidate, List<String> path) {
+    private static void applyEditorValues(UnmodifiableConfig spec, UnmodifiableConfig candidate, List<String> path,
+                                          Map<String, Object> pending) {
         for (var entry : spec.entrySet()) {
             path.add(entry.getKey());
             Object value = entry.getValue();
             if (value instanceof UnmodifiableConfig nested) {
-                applyEditorValues(nested, candidate, path);
+                applyEditorValues(nested, candidate, path, pending);
             } else if (value instanceof ModConfigSpec.ValueSpec) {
                 Object configured = candidate.contains(path) ? candidate.getRaw(path) : ((ModConfigSpec.ValueSpec) value).getDefault();
                 Object loaded = SPEC.getValues().get(path);
@@ -972,7 +982,7 @@ public class StageConfig {
                     if (configValue.getSpec().restartType() == ModConfigSpec.RestartType.NONE) {
                         setEditorValue(configValue, configured);
                     } else {
-                        setEditorPendingValue(configValue, configured);
+                        pending.put(String.join(".", path), configured);
                     }
                 }
             }
@@ -980,29 +990,35 @@ public class StageConfig {
         }
     }
 
-    private static void snapshotEditorValues(UnmodifiableConfig values, Config snapshot, List<String> path) {
+    private static void snapshotEditorValues(UnmodifiableConfig values, Config snapshot, List<String> path,
+                                             Map<String, Object> pending) {
         for (var entry : values.entrySet()) {
             path.add(entry.getKey());
             Object value = entry.getValue();
             if (value instanceof UnmodifiableConfig nested) {
-                snapshotEditorValues(nested, snapshot, path);
+                snapshotEditorValues(nested, snapshot, path, pending);
             } else if (value instanceof ModConfigSpec.ConfigValue<?> configValue) {
-                snapshot.set(path, configValue.getRaw());
+                String dotted = String.join(".", path);
+                snapshot.set(path, pending.containsKey(dotted) ? pending.get(dotted) : configValue.getRaw());
             }
             path.remove(path.size() - 1);
         }
     }
 
-    private static void pendingEditorValues(UnmodifiableConfig values, List<String> path, List<String> pending) {
+    private static void pendingEditorValues(UnmodifiableConfig values, List<String> path, List<String> pending,
+                                            Map<String, Object> pendingValues) {
         for (var entry : values.entrySet()) {
             path.add(entry.getKey());
             Object value = entry.getValue();
             if (value instanceof UnmodifiableConfig nested) {
-                pendingEditorValues(nested, path, pending);
+                pendingEditorValues(nested, path, pending, pendingValues);
             } else if (value instanceof ModConfigSpec.ConfigValue<?> configValue
-                && configValue.getSpec().restartType() != ModConfigSpec.RestartType.NONE
-                && !Objects.equals(configValue.getRaw(), configValue.get())) {
-                pending.add(String.join(".", path));
+                && configValue.getSpec().restartType() != ModConfigSpec.RestartType.NONE) {
+                String dotted = String.join(".", path);
+                if (pendingValues.containsKey(dotted)
+                    || !Objects.equals(configValue.getRaw(), configValue.get())) {
+                    pending.add(dotted);
+                }
             }
             path.remove(path.size() - 1);
         }
@@ -1010,12 +1026,6 @@ public class StageConfig {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void setEditorValue(ModConfigSpec.ConfigValue<?> configValue, Object value) {
-        ((ModConfigSpec.ConfigValue) configValue).set(value);
-    }
-
-    /** Writes the raw value while NeoForge keeps the cached value until its restart boundary. */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void setEditorPendingValue(ModConfigSpec.ConfigValue<?> configValue, Object value) {
         ((ModConfigSpec.ConfigValue) configValue).set(value);
     }
 

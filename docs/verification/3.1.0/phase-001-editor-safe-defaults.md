@@ -29,6 +29,7 @@
 - `./gradlew test --no-daemon` passed.
 - `./gradlew build --no-daemon` passed. candidate jar sha256 is `a0cab80bbb0f216086efb8babc0816871f6aa15a1c79b02b3baa039ed09c1c68`.
 - `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
+- github checks for phase commit `3f27d96` passed for gradle, node, dependency review, secret scan, java codeql, javascript codeql, and the repository codeql gate. documentation and dependency submission jobs were skipped by workflow conditions.
 - `git diff --check` passed.
 - the editor apply transaction now validates and writes one synchronized draft snapshot, preventing concurrent edits from changing the files between validation and write.
 - restart scoped settings stay pending only when their candidate differs from the effective loaded value, numeric settings expose and enforce schema ranges, invalid local settings block validation and review, graph right click opens the context menu without moving a node, and structure edits serialize against the latest draft content.
@@ -39,4 +40,4 @@ The required silent laptop movement capture and Brave editor interaction capture
 
 ## cleanup
 
-The game test server exited. The exact test-owned `build`, `run`, `editor-ui/node_modules`, and `.codegraph` paths remain registered for removal after this evidence and artifact inspection finish.
+The game test server exited. The exact test-owned `build`, `run`, and `editor-ui/node_modules` paths were removed after artifact inspection. `.codegraph` was absent in the worktree. No owned test processes remain. The shared codegraph service outside the worktree was pre-existing and was left untouched.

@@ -13,9 +13,16 @@ function SettingControl({ schema }: { schema: FieldSchema }) {
   const [value, setValue] = useState(schema.type === "LIST" ? parseSimpleArray(raw).join("\n") : stringValue(initial));
   const [error, setError] = useState("");
   useEffect(() => setValue(schema.type === "LIST" ? parseSimpleArray(raw).join("\n") : stringValue(initial)), [initial, raw, schema.type]);
+  const minimum = typeof schema.controlHints.min === "number" ? schema.controlHints.min : undefined;
+  const maximum = typeof schema.controlHints.max === "number" ? schema.controlHints.max : undefined;
   const validateInput = (next: string) => {
     if (schema.type === "INTEGER" && !/^-?\d+$/.test(next.trim())) return "Enter a whole number, or restore the default.";
     if (schema.type === "DECIMAL" && (!next.trim() || !Number.isFinite(Number(next)))) return "Enter a number, or restore the default.";
+    if (schema.type === "INTEGER" || schema.type === "DECIMAL") {
+      const number = Number(next);
+      if (minimum !== undefined && number < minimum) return `Use a value of at least ${minimum}.`;
+      if (maximum !== undefined && number > maximum) return `Use a value of at most ${maximum}.`;
+    }
     if (schema.type === "ENUM" && !schema.enumValues.includes(next)) return "Choose one of the listed values.";
     return "";
   };
@@ -32,7 +39,7 @@ function SettingControl({ schema }: { schema: FieldSchema }) {
   };
   if (schema.type === "BOOLEAN") return <Toggle label={schema.label} help={schema.help} checked={booleanValue(raw || String(schema.defaultValue))} onChange={checked => void save(String(checked))}/>;
   return <Field label={schema.label} help={`${schema.help}${schema.restartRequirement && schema.restartRequirement !== "NONE" ? ` Restart requirement. ${schema.restartRequirement}.` : ""}`} wide={schema.type === "LIST"}>
-    {schema.type === "ENUM" ? <select value={value} onChange={event => { setValue(event.target.value); void save(event.target.value); }}>{schema.enumValues.map(option => <option key={option} value={option}>{title(option)}</option>)}</select> : schema.type === "LIST" ? <textarea rows={4} value={value} onChange={event => setValue(event.target.value)} onBlur={() => void save()}/> : <input type={schema.type === "INTEGER" || schema.type === "DECIMAL" ? "number" : "text"} step={schema.type === "DECIMAL" ? "any" : undefined} value={value} onChange={event => { setValue(event.target.value); if (error) setError(validateInput(event.target.value)); }} onBlur={() => void save()}/>}
+    {schema.type === "ENUM" ? <select value={value} onChange={event => { setValue(event.target.value); void save(event.target.value); }}>{schema.enumValues.map(option => <option key={option} value={option}>{title(option)}</option>)}</select> : schema.type === "LIST" ? <textarea rows={4} value={value} onChange={event => setValue(event.target.value)} onBlur={() => void save()}/> : <input type={schema.type === "INTEGER" || schema.type === "DECIMAL" ? "number" : "text"} step={schema.type === "DECIMAL" ? "any" : schema.type === "INTEGER" ? 1 : undefined} min={minimum} max={maximum} value={value} onChange={event => { setValue(event.target.value); if (error) setError(validateInput(event.target.value)); }} onBlur={() => void save()}/>}
     {error ? <span className="setting-error" role="alert">{error}</span> : null}
   </Field>;
 }

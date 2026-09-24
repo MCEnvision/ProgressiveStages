@@ -969,7 +969,11 @@ public class StageConfig {
                 Object configured = candidate.contains(path) ? candidate.getRaw(path) : ((ModConfigSpec.ValueSpec) value).getDefault();
                 Object loaded = SPEC.getValues().get(path);
                 if (loaded instanceof ModConfigSpec.ConfigValue<?> configValue) {
-                    setEditorValue(configValue, configured);
+                    if (configValue.getSpec().restartType() == ModConfigSpec.RestartType.NONE) {
+                        setEditorValue(configValue, configured);
+                    } else {
+                        setEditorPendingValue(configValue, configured);
+                    }
                 }
             }
             path.remove(path.size() - 1);
@@ -1006,6 +1010,12 @@ public class StageConfig {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void setEditorValue(ModConfigSpec.ConfigValue<?> configValue, Object value) {
+        ((ModConfigSpec.ConfigValue) configValue).set(value);
+    }
+
+    /** Writes the raw value while NeoForge keeps the cached value until its restart boundary. */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void setEditorPendingValue(ModConfigSpec.ConfigValue<?> configValue, Object value) {
         ((ModConfigSpec.ConfigValue) configValue).set(value);
     }
 

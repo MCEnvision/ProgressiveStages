@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -237,9 +238,18 @@ final class BuiltinEditorSchemas {
                 case WORLD -> RestartRequirement.SERVER_RESTART;
                 case GAME -> RestartRequirement.CLIENT_RESTART;
             };
+            Map<String, Object> hints = new LinkedHashMap<>();
+            hints.put("generated", true);
+            if (type == SchemaValueType.INTEGER || type == SchemaValueType.DECIMAL) {
+                ModConfigSpec.Range<?> range = spec.getRange();
+                if (range != null) {
+                    hints.put("min", range.getMin());
+                    hints.put("max", range.getMax());
+                }
+            }
             sink.accept(id, new EditorFieldSchema(id, "progressivestages.toml", path,
                 title(entry.getKey()), help, type, defaultValue, false, null, Set.of(), List.of(),
-                Set.of(), restart, Map.of("generated", true)));
+                Set.of(), restart, hints));
         }
     }
 

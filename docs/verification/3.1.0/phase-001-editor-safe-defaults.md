@@ -24,13 +24,14 @@
 
 - `npm ci` passed.
 - `npm run check` passed.
-- `npm test -- --run` passed, 16 files and 155 tests.
-- `npm run build` passed. packaged `app.js` sha256 is `47d9c5bde198f25dc0b152a9d72b45fe4983954eb3632da9b41eb5b9e0e54d85`. packaged `app.css` sha256 is `61fe46e00c1c89c2ccd2c120b8f11fa2771c68c529b0687aef1f59340e64d00c`.
+- `npm test -- --run` passed, 17 files and 156 tests.
+- `npm run build` passed. packaged `app.js` sha256 is `d10c108be5b583e7b16a72075828fd55cf40d88cb5c6c9ec7b7a72ff5235f995`. packaged `app.css` sha256 is `61fe46e00c1c89c2ccd2c120b8f11fa2771c68c529b0687aef1f59340e64d00c`.
 - `./gradlew test --no-daemon` passed.
-- `./gradlew build --no-daemon` passed. candidate jar sha256 is `900981bdc729fc0db46b0d8fecbfbd5a2d99861c1f650ca05ddaa8481c4611a0`.
+- `./gradlew build --no-daemon` passed. candidate jar sha256 is `74b7a7dfbb7ed4fc1a6364ef2275d36fb5b9eb11f2e48f25a59929cbe1e698e8`.
 - `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
 - `git diff --check` passed.
 - the editor apply transaction now validates and writes one synchronized draft snapshot, preventing concurrent edits from changing the files between validation and write.
+- restart scoped settings stay pending until their declared restart boundary, numeric settings expose and enforce schema ranges, and graph right click opens the context menu without moving a node.
 
 ## open acceptance gates
 

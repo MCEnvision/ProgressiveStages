@@ -35,6 +35,7 @@ class StageFileParserTest {
 
         assertTrue(result.isSuccess());
         assertEquals("example:root", result.getStageDefinition().getId().toString());
+        assertFalse(result.getStageDefinition().isPriorityAuthored());
     }
 
     @Test
@@ -48,6 +49,21 @@ class StageFileParserTest {
 
         assertFalse(result.isSuccess());
         assertFalse(result.isSyntaxError());
+    }
+
+    @Test
+    void preservesAnExplicitZeroStagePriority() throws IOException {
+        Path file = write("zero_priority.toml", """
+            [stage]
+            id = "example:zero"
+            priority = 0
+            """);
+
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(file);
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        assertEquals(0, result.getStageDefinition().getPriority());
+        assertTrue(result.getStageDefinition().isPriorityAuthored());
     }
 
     @Test
@@ -80,6 +96,7 @@ class StageFileParserTest {
         assertEquals(3, rules.categoryPriority());
         assertEquals(-2, rules.globalPriority());
         assertTrue(rules.preventBlockPlace());
+        assertTrue(result.getStageDefinition().isPriorityAuthored());
         assertEquals("minecraft:stronghold|priority=20", rules.lockedEntry().locked().getFirst().raw());
         assertEquals(20, rules.lockedEntry().locked().getFirst().explicitPriority());
     }

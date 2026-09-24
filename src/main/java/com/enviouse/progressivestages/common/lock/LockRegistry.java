@@ -318,7 +318,7 @@ public final class LockRegistry {
 
         String structureSource = stage.getProvenance() == null ? "structures.rules"
             : stage.getProvenance().file() + "#structures.rules";
-        Integer stagePriority = stage.getPriority() == 0 ? null : stage.getPriority();
+        Integer stagePriority = stage.isPriorityAuthored() ? stage.getPriority() : null;
         structures = structures.merge(locks.structures(), id, structureSource, stagePriority);
 
         for (String slot : locks.curioLockedSlots()) {

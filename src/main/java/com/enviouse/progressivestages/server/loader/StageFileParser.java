@@ -220,10 +220,12 @@ public final class StageFileParser {
             .dependencyPolicy(dependencyMode, dependencyCount)
             .locks(locks)
             .schemaVersion(schemaVersion)
-            .priority((int) readLong(stageSection, "priority", 0L))
             .provenance(packageSource
                 ? ConfigProvenance.packageField(sourceId, fileName, "stage", "")
                 : ConfigProvenance.legacy(sourceId, fileName, "stage", ""));
+        if (stageSection.contains("priority")) {
+            builder.priority((int) readLong(stageSection, "priority", 0L));
+        }
         if (icon != null && !icon.isEmpty()) builder.icon(icon);
         if (unlockMessage != null && !unlockMessage.isEmpty()) builder.unlockMessage(unlockMessage);
 

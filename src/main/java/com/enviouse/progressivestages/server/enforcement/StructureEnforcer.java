@@ -242,8 +242,11 @@ public final class StructureEnforcer {
             LockRegistry.StructureContribution staticWinner = staticContribution(player, structureId, action, aggregate);
             LockRegistry.StructureContribution winner = decisionContribution(structureId, action,
                 decisions == null ? null : decisions.get(structureId), staticWinner);
+            List<LockRegistry.StructureContribution> contributors = new java.util.ArrayList<>(
+                aggregate.contributions.getOrDefault(structureId, List.of()));
+            if (winner != null && !contributors.contains(winner)) contributors.add(winner);
             InteractionCaptureManager.recordStructure(player, structureId, level.dimension().location(), action,
-                aggregate.contributions.getOrDefault(structureId, List.of()),
+                contributors,
                 winner, providerResult, sessionReason,
                 result.allowed());
         }

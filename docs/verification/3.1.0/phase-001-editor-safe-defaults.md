@@ -27,9 +27,9 @@
 - `npm test -- --run` passed, 17 files and 163 tests.
 - `npm run build` passed. packaged `app.js` sha256 is `2522c52f5844433656c725e5e8ac31fc16c7d9a9806502673c41c3489015457f`. packaged `app.css` sha256 is `ba1027c5bed62c3268f9e5701a1a1a4def3d6938f4686e355904e82dc102247e`.
 - `./gradlew test --no-daemon` passed.
-- `./gradlew build --no-daemon` passed. phase candidate jar sha256 is `01c182225c4779c2517823bcd6ea58021d656f128488cc6ca7da891ac7909145`.
+- `./gradlew build --no-daemon` passed. phase candidate jar sha256 is `b141d126f6638cf8201824eb616a6fa764949aa0914b4ad721c9a0b9c813f137`.
 - `./gradlew runGameTestServer --no-daemon` completed 111 tests. the phase editor transaction test and other phase-owned tests completed. the task exit code was 15 because the same 15 pre-existing optional LuckPerms provider tests fail when that provider is unavailable. no new phase-owned failure was reported.
-- github checks for phase commit `3f27d96` passed for gradle, node, dependency review, secret scan, java codeql, javascript codeql, and the repository codeql gate. documentation and dependency submission jobs were skipped by workflow conditions.
+- github checks for the phase commit passed for gradle, node, dependency review, secret scan, java codeql, javascript codeql, and the repository codeql gate. documentation and dependency submission jobs were skipped by workflow conditions.
 - `git diff --check` passed.
 - the editor apply transaction now validates and writes one synchronized draft snapshot, preventing concurrent edits from changing the files between validation and write.
 - restart scoped settings stay pending only when their candidate differs from the effective loaded value, numeric settings expose and enforce schema ranges, invalid local settings block validation and review, graph right click opens the context menu without moving a node, and structure edits serialize against the latest draft content.

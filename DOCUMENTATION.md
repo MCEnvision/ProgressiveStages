@@ -520,7 +520,9 @@ The editor keeps labels and help text as ordinary browser text so pack authors c
 translation control supplied by Brave or a browser Google Translate action. Translate a disposable
 label or help example when checking the workflow, then undo the edit before applying a draft. Keep
 stage IDs, file paths, registry IDs, commands, TOML, and selector values in their original form.
-The editor does not send source text, credentials, or session data to a translation service. If the
+The editor does not send source text, credentials, or session data to a translation service itself.
+Browser translation is provided by the browser and may send the rendered page text to the selected
+translation provider. Do not use browser translation on sensitive stage text or credentials. If the
 browser has no translation control, the English labels, examples, and hover help remain usable and
 the exact source tab is still available.
 
@@ -529,7 +531,9 @@ transaction as stage files. Controls come from `StageConfig.SPEC`, so their type
 defaults, and restart requirements stay synchronized with the server. A bad value or unknown key is
 reported beside the setting and cannot be applied. Live settings update the loaded server cache after
 the review. World and client restart settings are stored but remain marked as pending until the
-required restart. A failed stage reload restores both the file snapshot and the loaded settings.
+required restart. A file watcher reload keeps those pending values out of the live cache while
+applying later live changes. A failed stage reload restores both the file snapshot and the loaded
+settings.
 
 For structures, open the Rules tab and use Structure access. Enter one exact structure ID per line,
 then choose whether entry is allowed and which independent protections remain active. Rule priority

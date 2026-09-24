@@ -93,11 +93,19 @@ public final class AbilityEnforcer {
         Set<String> previous = LAST_CLIENT_STATE.put(player.getUUID(), current);
         if (!current.equals(previous)) {
             NetworkHandler.sendAbilityState(player, current);
-            for (String ability : ENFORCED_ABILITIES) {
+            for (String ability : changedAbilities(current, previous)) {
                 InteractionCaptureManager.recordAbility(player, ability, current.contains(ability),
                     current.contains(ability) ? "static_or_conditional" : "none", Set.of(), true);
             }
         }
+    }
+
+    static Set<String> changedAbilities(Set<String> current, Set<String> previous) {
+        LinkedHashSet<String> changed = new LinkedHashSet<>();
+        for (String ability : ENFORCED_ABILITIES) {
+            if (previous == null || current.contains(ability) != previous.contains(ability)) changed.add(ability);
+        }
+        return Set.copyOf(changed);
     }
 
     static Set<String> lockedAbilities(ServerPlayer player) {

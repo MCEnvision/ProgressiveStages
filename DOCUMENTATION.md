@@ -1604,8 +1604,10 @@ Two parts: the list of exact structure IDs (`locked_entry`) and a single
 `[structures].priority` value is the category fallback in the shared priority
 cascade. Structure lists accept exact resource IDs, with an optional
 `|priority=N` suffix. Tag,
-namespace, wildcard, and name selectors are rejected because structure rules
-must remain attributable to one generated structure type.
+namespace, wildcard, and name selectors are rejected in schema 4 because
+structure rules must remain attributable to one generated structure type.
+Schemas 1 through 3 keep their earlier selector behavior so existing stage
+files continue to load during an upgrade.
 
 `entry_allowed` defaults to `false`. Set it to `true` on a protection stage to
 remove only that stage's entry denial. The stage can then deny placement,

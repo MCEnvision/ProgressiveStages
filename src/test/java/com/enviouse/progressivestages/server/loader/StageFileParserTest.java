@@ -53,6 +53,9 @@ class StageFileParserTest {
     @Test
     void parsesIndependentStructureProtectionAndPriority() throws IOException {
         Path file = write("structure_rules.toml", """
+            [schema]
+            version = 4
+
             [stage]
             id = "example:protection"
             priority = 12
@@ -80,6 +83,27 @@ class StageFileParserTest {
     }
 
     @Test
+    void preservesLegacyStructureSelectorsBeforeSchema4() throws IOException {
+        Path file = write("legacy_structure_selector.toml", """
+            [schema]
+            version = 3
+
+            [stage]
+            id = "example:legacy_structure"
+
+            [structures]
+            locked_entry = ["mod:example", "name:stronghold"]
+            """);
+
+        StageFileParser.ParseResult result = StageFileParser.parseWithErrors(file);
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        assertEquals(List.of("mod:example", "name:stronghold"),
+            result.getStageDefinition().getLocks().structures().lockedEntry().locked().stream()
+                .map(entry -> entry.raw()).toList());
+    }
+
+    @Test
     void rejectsNonBooleanStructureFlagsAndOutOfRangePriorities() throws IOException {
         Path wrongType = write("structure_wrong_type.toml", """
             [stage]
@@ -102,6 +126,9 @@ class StageFileParserTest {
         assertFalse(StageFileParser.parseWithErrors(overflow).isSuccess());
 
         Path inlineOverflow = write("structure_inline_overflow.toml", """
+            [schema]
+            version = 4
+
             [stage]
             id = "example:inline_overflow"
             [structures]

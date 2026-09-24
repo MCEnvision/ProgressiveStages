@@ -12,4 +12,12 @@ class AbilityEnforcerTest {
         assertEquals(Set.of("jump", "elytra", "sprint", "swim", "climb"),
             AbilityEnforcer.ENFORCED_ABILITIES);
     }
+
+    @Test
+    void onlyChangedAbilityStatesAreReported() {
+        assertEquals(Set.of("elytra", "sprint"),
+            AbilityEnforcer.changedAbilities(Set.of("jump", "sprint"), Set.of("jump", "elytra")));
+        assertEquals(AbilityEnforcer.ENFORCED_ABILITIES,
+            AbilityEnforcer.changedAbilities(Set.of("jump"), null));
+    }
 }

@@ -208,7 +208,7 @@ public final class StageFileParser {
             throw new IllegalArgumentException("Dependency count is outside the dependency list size");
         }
 
-        LockDefinition locks = parseLocks(config);
+        LockDefinition locks = parseLocks(config, schemaVersion);
         if (locks.minecraftNamespace()) {
             LOGGER.debug("Stage {} declares minecraft=true (gates minecraft namespace)", stageId);
         }
@@ -1192,7 +1192,7 @@ public final class StageFileParser {
 
     // -------------------- locks --------------------
 
-    private static LockDefinition parseLocks(Config config) {
+    private static LockDefinition parseLocks(Config config, int schemaVersion) {
         LockDefinition.Builder b = LockDefinition.builder();
 
         b.items(        parseCategory(config, "items"));
@@ -1241,7 +1241,7 @@ public final class StageFileParser {
         b.interactions(parseInteractions(config));
         b.mobReplacements(parseMobReplacements(config));
         b.regions(parseRegions(config));
-        b.structures(parseStructures(config));
+        b.structures(parseStructures(config, schemaVersion));
         b.oreOverrides(parseOreOverrides(config));
 
         parseEnforcement(config, b);
@@ -1581,10 +1581,12 @@ public final class StageFileParser {
         return out;
     }
 
-    private static LockDefinition.StructureRules parseStructures(Config config) {
+    private static LockDefinition.StructureRules parseStructures(Config config, int schemaVersion) {
         Config section = config.get("structures");
         if (section == null) return LockDefinition.StructureRules.EMPTY;
-        CategoryLocks lockedEntry = parseStructureEntries(section);
+        CategoryLocks lockedEntry = schemaVersion >= 4
+            ? parseStructureEntries(section)
+            : parseCategoryLists(section, "locked_entry", null);
         Integer categoryPriority = strictInt32(section, "priority", "structures.priority");
         Config rules = section.get("rules");
         boolean entryAllowed = strictBoolean(rules, "entry_allowed", false, "structures.rules.entry_allowed");

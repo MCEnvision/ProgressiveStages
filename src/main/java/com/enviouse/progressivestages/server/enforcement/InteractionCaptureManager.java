@@ -228,9 +228,20 @@ public final class InteractionCaptureManager {
                                                  boolean allowed) {
         Capture capture = active;
         if (capture == null || action == null || !capture.acceptsStructure("structures", dimension, structureId)) return;
+        LockRegistry.StructureContribution winner = selectStructureWinner(contributors);
         capture.recordStructure(server == null ? 0L : server.getTickCount(), structureId, dimension, action,
-            "actorless", contributors, contributors == null || contributors.isEmpty() ? null : contributors.getFirst(),
+            "actorless", contributors, winner,
             "not_evaluated", "not_applicable", allowed);
+    }
+
+    static LockRegistry.StructureContribution selectStructureWinner(
+            List<LockRegistry.StructureContribution> contributors) {
+        if (contributors == null) return null;
+        return contributors.stream()
+            .sorted(java.util.Comparator.comparingInt(LockRegistry.StructureContribution::priority).reversed()
+                .thenComparing(value -> value.ownerStage().toString())
+                .thenComparing(LockRegistry.StructureContribution::sourceKey))
+            .findFirst().orElse(null);
     }
 
     public static void recordCommandPermission(ServerPlayer player, StageId stageId,

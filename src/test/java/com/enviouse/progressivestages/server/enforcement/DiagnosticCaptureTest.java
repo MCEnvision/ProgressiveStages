@@ -193,6 +193,18 @@ class DiagnosticCaptureTest {
         assertTrue(output.contains("pack.toml#structures.rules.locked_entry[0]"));
     }
 
+    @Test
+    void actorlessWinnerUsesPriorityAndDeterministicTieBreak() {
+        var low = new LockRegistry.StructureContribution(
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold"),
+            StageId.parse("test:low"), StructureAction.ACTORLESS_EXPLOSION, 2, "low", 0);
+        var high = new LockRegistry.StructureContribution(
+            net.minecraft.resources.ResourceLocation.withDefaultNamespace("stronghold"),
+            StageId.parse("test:high"), StructureAction.ACTORLESS_EXPLOSION, 9, "high", 0);
+
+        assertEquals(high, InteractionCaptureManager.selectStructureWinner(List.of(low, high)));
+    }
+
     private Capture capture() {
         var value = new Capture("capture" + captures.size(), target, "permissions",
             directory.resolve("capture" + captures.size() + ".log"), 100);

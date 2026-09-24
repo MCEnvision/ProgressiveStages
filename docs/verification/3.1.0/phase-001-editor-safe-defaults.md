@@ -93,8 +93,9 @@ default change. Full guide fields and the in game guide remain assigned to Phase
 
 ## cleanup
 
-The game test server and laptop client remain running until the final phase evidence consumer closes.
-The exact test-owned `build`, `run`, and `editor-ui/node_modules` paths, the disposable laptop
-instance, the authenticated editor tab, and temporary screenshots will be removed after the final
-phase evidence is captured. `.codegraph` was absent in the worktree. The shared codegraph service
-outside the worktree remains untouched.
+The game test server, laptop client, and authenticated editor tab were stopped or closed after the
+final evidence consumer finished. The owned Java process, laptop audio stream, temporary Prism
+instance link and target, `build`, `run`, `editor-ui/node_modules`, and temporary screenshots were
+verified absent. The personal Prism instance and unrelated Brave tabs were left untouched.
+`.codegraph` was absent in the worktree. The shared codegraph service outside the worktree remains
+untouched.

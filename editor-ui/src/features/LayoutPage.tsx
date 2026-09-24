@@ -5,6 +5,7 @@ import { stageDependsOn } from "../lib/model";
 import { numberValue, readTomlValue, removeTomlValue, upsertToml } from "../lib/toml";
 import { useEditor } from "../store/EditorContext";
 import type { StagePackage } from "../types";
+import { ConfirmStageAction, IdentityForm } from "./stages/StageDialogs";
 
 interface Point { x: number; y: number }
 interface Camera { x: number; y: number; width: number; height: number }
@@ -38,7 +39,7 @@ function automaticPositions(stages: StagePackage[]): Record<string, Point> {
 }
 
 export function LayoutPage() {
-  const { boot, stages: everyStage, mutateFile, mutateFiles, notify, selectStage } = useEditor();
+  const { boot, stages: everyStage, mutateFile, mutateFiles, notify, selectStage, setPage, openDialog } = useEditor();
   const stages = useMemo(() => everyStage.filter(stage => !stage.archived && !stage.hidden), [everyStage]);
   const automatic = useMemo(() => automaticPositions(stages), [stages]);
   const [positions, setPositions] = useState<Record<string, Point>>({});
@@ -49,7 +50,10 @@ export function LayoutPage() {
   const [connecting, setConnecting] = useState(false);
   const [drag, setDrag] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const [pan, setPan] = useState<{ startX: number; startY: number; cameraX: number; cameraY: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ stage: StagePackage; x: number; y: number } | null>(null);
   const svg = useRef<SVGSVGElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const contextTrigger = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const next: Record<string, Point> = {};
     for (const stage of stages) {
@@ -116,6 +120,37 @@ export function LayoutPage() {
   const clearPositions = async () => {
     await mutateFiles(stages.map(stage => { let text = boot?.draft.files[stage.stagePath] || ""; text = removeTomlValue(removeTomlValue(text, "display.x"), "display.y"); return { path: stage.stagePath, content: text }; }), "Automatic layout restored");
   };
+  const openContextMenu = (stage: StagePackage, x: number, y: number, trigger?: Element) => {
+    contextTrigger.current = trigger as HTMLElement | null;
+    setContextMenu({ stage, x: Math.max(8, Math.min(x, window.innerWidth - 228)), y: Math.max(8, Math.min(y, window.innerHeight - 250)) });
+  };
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = (event: PointerEvent) => {
+      if (!contextMenuRef.current?.contains(event.target as Node)) {
+        setContextMenu(null);
+        contextTrigger.current?.focus();
+      }
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setContextMenu(null);
+        contextTrigger.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    contextMenuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [contextMenu]);
+  const closeContextMenu = () => {
+    setContextMenu(null);
+    contextTrigger.current?.focus();
+  };
   return <div className="layout-page"><header className="page-heading"><div><h1>Player UI</h1><p>Drag stages to place them. Drag empty space to pan. Scroll to zoom. Draw or remove dependency lines directly.</p></div></header>
     <section className="layout-toolbar"><Field label="Category"><select value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(value => <option key={value}>{value}</option>)}</select></Field><Field label="Find a stage"><div className="input-icon"><Icon name="search" size={16}/><input value={search} onChange={event => setSearch(event.target.value)}/></div></Field><div className="zoom-control"><Button tone="quiet" aria-label="Zoom out" onClick={() => zoom(1.2)}>−</Button><span>{Math.round(WORLD_WIDTH / camera.width * 100)}%</span><Button tone="quiet" aria-label="Zoom in" onClick={() => zoom(0.82)}>+</Button></div><Button onClick={fit}>Fit graph</Button><Button tone={connecting ? "primary" : "neutral"} icon="layout" onClick={() => { setConnecting(value => !value); setConnectSource(""); }}>{connecting ? "Cancel connection" : "Connect stages"}</Button><Button onClick={() => void clearPositions()}>Use automatic layout</Button></section>
     <div className={`connection-help ${connecting ? "active" : ""}`}>{connecting ? connectSource ? <><strong>Choose the destination stage.</strong><span>The selected stage will become its prerequisite.</span></> : <><strong>Choose the prerequisite stage.</strong><span>Then choose the stage it should lead into.</span></> : <><strong>Interactive player map.</strong><span>Click a branch line to remove that prerequisite.</span></>}</div>
@@ -125,7 +160,14 @@ export function LayoutPage() {
     }} onPointerUp={event => { if (drag) { const stage = stages.find(value => value.id === drag.id); const point = positions[drag.id]; if (stage && point) void savePosition(stage, point); } setDrag(null); setPan(null); try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* pointer capture can already be released */ } }}>
       <defs><pattern id="graph-grid" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6"/></pattern></defs><rect className="graph-grid" x={-5000} y={-5000} width={10000} height={10000}/>
       <g className="graph-edges">{edges.map(edge => { const start = positions[edge.parent]; const end = positions[edge.child]; if (!start || !end) return null; const sx = start.x + NODE_WIDTH / 2; const sy = start.y; const ex = end.x + NODE_WIDTH / 2; const ey = end.y + NODE_HEIGHT; const middle = (sy + ey) / 2; const d = `M ${sx} ${sy} C ${sx} ${middle}, ${ex} ${middle}, ${ex} ${ey}`; const remove = () => void removeEdge(edge.parent, edge.child); return <g key={`${edge.parent}:${edge.child}`}><path d={d}/><path className="graph-edge-hit" d={d} role="button" tabIndex={0} aria-label={`Remove progression branch from ${edge.parent} to ${edge.child}`} onClick={event => { event.stopPropagation(); remove(); }} onKeyDown={event => { if (["Enter", " ", "Delete", "Backspace"].includes(event.key)) { event.preventDefault(); event.stopPropagation(); remove(); } }}/></g>; })}</g>
-      <g className="graph-nodes">{visible.map(stage => { const point = positions[stage.id] || automatic[stage.id] || { x: 0, y: 0 }; const source = connectSource === stage.id; return <g key={stage.id} className={`graph-node ${source ? "connection-source" : ""}`} transform={`translate(${point.x} ${point.y})`} role="button" tabIndex={0} aria-label={`${stage.name}, ${stage.category}`} onPointerDown={event => { if (connecting) return; event.stopPropagation(); const world = eventPoint(event); svg.current?.setPointerCapture(event.pointerId); setDrag({ id: stage.id, offsetX: world.x - point.x, offsetY: world.y - point.y }); }} onClick={event => { event.stopPropagation(); if (!drag) void activateNode(stage); }} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void activateNode(stage); } }}><rect width={NODE_WIDTH} height={NODE_HEIGHT} rx="5"/><path className="node-accent" d={`M 0 5 Q 0 0 5 0 H ${NODE_WIDTH - 5}`}/><path className="node-diamond" d="M 18 29 27 20 36 29 27 38Z"/><text className="node-title" x="47" y="25">{stage.name.slice(0, 23)}</text><text className="node-subtitle" x="47" y="43">{stage.category.slice(0, 27)}</text>{stage.dependencies.length ? <text className="node-count" x={NODE_WIDTH - 17} y="34">{stage.dependencies.length}</text> : null}</g>; })}</g>
+      <g className="graph-nodes">{visible.map(stage => { const point = positions[stage.id] || automatic[stage.id] || { x: 0, y: 0 }; const source = connectSource === stage.id; return <g key={stage.id} className={`graph-node ${source ? "connection-source" : ""}`} transform={`translate(${point.x} ${point.y})`} role="button" tabIndex={0} aria-label={`${stage.name}, ${stage.category}`} onPointerDown={event => { if (connecting) return; event.stopPropagation(); const world = eventPoint(event); svg.current?.setPointerCapture(event.pointerId); setDrag({ id: stage.id, offsetX: world.x - point.x, offsetY: world.y - point.y }); }} onClick={event => { event.stopPropagation(); if (!drag) void activateNode(stage); }} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); openContextMenu(stage, event.clientX, event.clientY, event.currentTarget); }} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void activateNode(stage); } else if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) { event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); openContextMenu(stage, rect.left + rect.width / 2, rect.bottom, event.currentTarget); } }}><rect width={NODE_WIDTH} height={NODE_HEIGHT} rx="5"/><path className="node-accent" d={`M 0 5 Q 0 0 5 0 H ${NODE_WIDTH - 5}`}/><path className="node-diamond" d="M 18 29 27 20 36 29 27 38Z"/><text className="node-title" x="47" y="25">{stage.name.slice(0, 23)}</text><text className="node-subtitle" x="47" y="43">{stage.category.slice(0, 27)}</text>{stage.dependencies.length ? <text className="node-count" x={NODE_WIDTH - 17} y="34">{stage.dependencies.length}</text> : null}</g>; })}</g>
     </svg> : <EmptyState icon="layout" title="No stages match this view" description="Clear the category and search filters to restore the full player map."/>}
+    {contextMenu ? <div ref={contextMenuRef} className="graph-context-menu" role="menu" style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={event => event.stopPropagation()}>
+      <strong>{contextMenu.stage.name}</strong>
+      <button role="menuitem" onClick={() => { const stage = contextMenu.stage; closeContextMenu(); setPage("stages"); selectStage(stage.key); }}>Edit stage</button>
+      <button role="menuitem" onClick={() => { const stage = contextMenu.stage; closeContextMenu(); setConnecting(true); setConnectSource(stage.id); notify("info", "Choose the destination stage", `${stage.name} is the prerequisite.`); }}>Connect stage</button>
+      {!contextMenu.stage.legacy ? <button role="menuitem" onClick={() => { const stage = contextMenu.stage; closeContextMenu(); openDialog({ title: "Duplicate stage", description: "Create an independent copy with a new identifier.", content: <IdentityForm mode="duplicate" stage={stage}/> }); }}>Duplicate</button> : null}
+      {!contextMenu.stage.legacy ? <button role="menuitem" className="danger" onClick={() => { const stage = contextMenu.stage; closeContextMenu(); openDialog({ title: `Delete ${stage.name}`, description: "Review this destructive draft change before continuing.", content: <ConfirmStageAction stage={stage} action="delete"/>, width: "compact" }); }}>Delete</button> : null}
+    </div> : null}
   </div>;
 }

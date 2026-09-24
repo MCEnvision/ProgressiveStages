@@ -268,7 +268,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setBoot(fresh);
       rememberValidation(fresh.validation, fresh.draft.id);
       setBusy("");
-      notify("success", "The live server is synchronized", `Server revision ${result.configurationRevision}.`);
+      notify("success", result.restartRequired ? "Settings saved with restart pending" : "The live server is synchronized",
+        result.restartRequired ? `Restart to activate: ${result.pendingRestartSettings?.join(", ") || "some settings"}.` : `Server revision ${result.configurationRevision}.`);
     } catch (failure) {
       if (failure instanceof EditorApiError && failure.code === "draft_conflict") {
         setReview(null);

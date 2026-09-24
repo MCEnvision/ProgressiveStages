@@ -14,10 +14,11 @@ export function Badge({ children, tone = "neutral" }: { children: React.ReactNod
 }
 
 export function Field({ label, help, wide, children }: { label: string; help?: string; wide?: boolean; children: React.ReactNode }) {
+  const helpId = useId();
   return <label className={`field ${wide ? "field-wide" : ""}`}>
-    <span className="field-label">{label}</span>
+    <span className="field-label">{label}{help ? <span className="field-help-trigger" tabIndex={0} aria-describedby={helpId} title={help}>?</span> : null}</span>
     {children}
-    {help ? <span className="field-help">{help}</span> : null}
+    {help ? <span id={helpId} role="tooltip" className="field-help">{help}</span> : null}
   </label>;
 }
 

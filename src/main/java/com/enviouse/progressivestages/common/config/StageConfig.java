@@ -5,10 +5,13 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
+import com.electronwill.nightconfig.core.Config;
+import com.electronwill.nightconfig.core.UnmodifiableConfig;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Main configuration for ProgressiveStages
@@ -929,6 +932,84 @@ public class StageConfig {
         if (event.getConfig().getSpec() == SPEC) {
             com.enviouse.progressivestages.server.enforcement.InteractionCaptureManager.stopForReload();
         }
+        loadValues();
+    }
+
+    /** Applies a validated editor candidate to the loaded config and refreshes live values. */
+    public static synchronized void applyEditorConfig(UnmodifiableConfig candidate) {
+        applyEditorValues(SPEC.getSpec(), candidate, new ArrayList<>());
+        loadValues();
+    }
+
+    /** Captures the loaded raw values so an editor transaction can restore them on failure. */
+    public static synchronized Config snapshotEditorConfig() {
+        Config snapshot = Config.inMemory();
+        snapshotEditorValues(SPEC.getValues(), snapshot, new ArrayList<>());
+        return snapshot;
+    }
+
+    /** Returns settings that were stored but are waiting for their declared restart boundary. */
+    public static synchronized List<String> editorPendingRestartPaths() {
+        List<String> pending = new ArrayList<>();
+        try {
+            pendingEditorValues(SPEC.getValues(), new ArrayList<>(), pending);
+        } catch (IllegalStateException ignored) {
+            return List.of();
+        }
+        return List.copyOf(pending);
+    }
+
+    private static void applyEditorValues(UnmodifiableConfig spec, UnmodifiableConfig candidate, List<String> path) {
+        for (var entry : spec.entrySet()) {
+            path.add(entry.getKey());
+            Object value = entry.getValue();
+            if (value instanceof UnmodifiableConfig nested) {
+                applyEditorValues(nested, candidate, path);
+            } else if (value instanceof ModConfigSpec.ValueSpec) {
+                Object configured = candidate.contains(path) ? candidate.getRaw(path) : ((ModConfigSpec.ValueSpec) value).getDefault();
+                Object loaded = SPEC.getValues().get(path);
+                if (loaded instanceof ModConfigSpec.ConfigValue<?> configValue) {
+                    setEditorValue(configValue, configured);
+                }
+            }
+            path.remove(path.size() - 1);
+        }
+    }
+
+    private static void snapshotEditorValues(UnmodifiableConfig values, Config snapshot, List<String> path) {
+        for (var entry : values.entrySet()) {
+            path.add(entry.getKey());
+            Object value = entry.getValue();
+            if (value instanceof UnmodifiableConfig nested) {
+                snapshotEditorValues(nested, snapshot, path);
+            } else if (value instanceof ModConfigSpec.ConfigValue<?> configValue) {
+                snapshot.set(path, configValue.getRaw());
+            }
+            path.remove(path.size() - 1);
+        }
+    }
+
+    private static void pendingEditorValues(UnmodifiableConfig values, List<String> path, List<String> pending) {
+        for (var entry : values.entrySet()) {
+            path.add(entry.getKey());
+            Object value = entry.getValue();
+            if (value instanceof UnmodifiableConfig nested) {
+                pendingEditorValues(nested, path, pending);
+            } else if (value instanceof ModConfigSpec.ConfigValue<?> configValue
+                && configValue.getSpec().restartType() != ModConfigSpec.RestartType.NONE
+                && !Objects.equals(configValue.getRaw(), configValue.get())) {
+                pending.add(String.join(".", path));
+            }
+            path.remove(path.size() - 1);
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void setEditorValue(ModConfigSpec.ConfigValue<?> configValue, Object value) {
+        ((ModConfigSpec.ConfigValue) configValue).set(value);
+    }
+
+    private static void loadValues() {
         // Starting stages (v1.3 - supports list)
         List<? extends String> stagesList = STARTING_STAGES.get();
         startingStages = new ArrayList<>();

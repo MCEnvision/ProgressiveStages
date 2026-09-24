@@ -148,6 +148,24 @@ schema 4 showcase now demonstrates the editor and class tree directly.
 
 ---
 
+## What's new in 3.1.0
+
+- **Safe movement defaults.** Fresh showcase files and editor-created stages leave jump, sprint,
+  swim, climb, and elytra available. Pack authors can still add an explicit `[abilities].locked`
+  list whenever a movement gate is wanted. Existing files are never rewritten by default generation.
+- **Clearer editor help.** Common labels use plain names such as `Stage name`, `Stage icon`, and
+  `Required stages`. Hover or focus the question mark beside a field for a short explanation and
+  example. The layout graph also offers Edit, Connect, Duplicate, and Delete beside a selected node
+  or from its right-click menu.
+- **Structure entry and protection controls.** The Rules tab can edit the protected structure list,
+  entry policy, signed priority, entry padding, block breaking, block placement, explosions, and mob
+  spawning independently. `entry_allowed = true` keeps a protection stage active after another stage
+  opens entry.
+- **Typed server settings.** The Settings page is generated from the server config spec. Invalid
+  types, ranges, enum values, and unknown keys stay in the draft with an inline error. Accepted live
+  settings apply with the stage transaction, while world or client restart settings are shown as
+  pending. The transaction can be rolled back.
+
 ## What's new in 3.0.2
 
 - **Reliable single-player editor access.** `/pstages editor` now accepts the authenticated

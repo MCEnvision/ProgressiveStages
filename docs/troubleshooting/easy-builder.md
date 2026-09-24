@@ -22,6 +22,19 @@ If the editor reports an invalid Boolean, selector, or priority, correct the fie
 again. The rejected draft and last accepted server snapshot remain available. Do not delete the
 stage file to recover from a validation error.
 
+## main settings
+
+The Settings page is generated from the connected `StageConfig.SPEC`. It edits the main
+`progressivestages.toml` file in the same draft as stage files. Whole numbers, decimals, booleans,
+lists, and enum values are checked before they reach review. Unknown keys and values outside the
+server's configured range are rejected with the exact setting path. A blank numeric field is kept as
+an error instead of being silently changed to zero.
+
+After review, live settings update the running server. Settings marked for a world or client restart
+are saved but appear as pending in the apply result. No restart is started automatically. If a stage
+reload or write fails, the editor restores the previous file and loaded setting snapshot, then keeps
+the draft available for correction.
+
 ## ownership choices
 
 The Setup and Access tabs expose four choices.

@@ -30,4 +30,21 @@ class EditorApplyServiceTest {
         Files.writeString(stage, "[stage]\nid = \"wizard:wizard\"\n");
         assertFalse(service.liveFilesMatch(base));
     }
+
+    @Test
+    void validatesMainSettingsAgainstTheLoadedSpec() {
+        EditorDraftValidator.MainConfigValidation valid = EditorDraftValidator.validateMainConfig(
+            "[enforcement]\nblock_structure_entry = false\nregion_tick_frequency = 20\n");
+        assertTrue(valid.valid(), () -> String.join(". ", valid.errors()));
+
+        EditorDraftValidator.MainConfigValidation invalidRange = EditorDraftValidator.validateMainConfig(
+            "[enforcement]\nregion_tick_frequency = 0\n");
+        assertFalse(invalidRange.valid());
+        assertTrue(invalidRange.errors().stream().anyMatch(error -> error.contains("region_tick_frequency")));
+
+        EditorDraftValidator.MainConfigValidation invalidKey = EditorDraftValidator.validateMainConfig(
+            "[general]\nmade_up_setting = true\n");
+        assertFalse(invalidKey.valid());
+        assertTrue(invalidKey.errors().stream().anyMatch(error -> error.contains("made_up_setting")));
+    }
 }

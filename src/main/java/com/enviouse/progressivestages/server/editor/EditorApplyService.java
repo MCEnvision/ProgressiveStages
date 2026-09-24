@@ -1,6 +1,8 @@
 package com.enviouse.progressivestages.server.editor;
 
+import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.server.loader.StageFileLoader;
+import com.electronwill.nightconfig.core.Config;
 import com.google.gson.Gson;
 import net.minecraft.server.MinecraftServer;
 
@@ -44,9 +46,21 @@ final class EditorApplyService {
         }
         if (diff.isEmpty()) return result(true, "", currentRevision, diff, validation, "no_changes", "The draft has no changes");
         if (!confirmed) return result(false, "", currentRevision, diff, validation, "confirmation_required", "Review and confirm the semantic diff before apply");
+        boolean mainChanged = diff.stream().anyMatch(entry -> entry.path().equals("progressivestages.toml"));
+        EditorDraftValidator.MainConfigValidation mainConfig = null;
+        Config previousMainConfig = null;
+        if (mainChanged) {
+            mainConfig = EditorDraftValidator.validateMainConfig(draft.files().getOrDefault("progressivestages.toml", ""));
+            if (!mainConfig.valid()) {
+                return result(false, "", currentRevision, diff, validation, "validation_failed",
+                    String.join(". ", mainConfig.errors()));
+            }
+            previousMainConfig = StageConfig.snapshotEditorConfig();
+        }
         String transaction = IDS.format(Instant.now()) + "_" + actor.toString().substring(0, 8);
         Path backup = backupRoot.resolve(transaction);
         Map<String, String> before = draft.baseFiles();
+        boolean mainConfigApplied = false;
         try {
             Files.createDirectories(backup);
             for (DraftDiffEntry entry : diff) {
@@ -73,8 +87,13 @@ final class EditorApplyService {
                     move(temporary, target);
                 }
             }
+            if (mainChanged) {
+                mainConfigApplied = true;
+                StageConfig.applyEditorConfig(mainConfig.config());
+            }
             if (!StageFileLoader.getInstance().reload()) {
                 restore(diff, before);
+                if (mainConfigApplied) StageConfig.applyEditorConfig(previousMainConfig);
                 StageFileLoader.getInstance().reload();
                 return result(false, transaction, currentRevision, diff, validation, "reload_failed",
                     String.join(". ", StageFileLoader.getInstance().getLastReloadErrors()));
@@ -86,7 +105,11 @@ final class EditorApplyService {
                 true, "Committed")), StandardCharsets.UTF_8);
             return result(true, transaction, after, diff, validation, "ok", "The draft was applied and synchronized");
         } catch (IOException | RuntimeException error) {
-            try { restore(diff, before); StageFileLoader.getInstance().reload(); }
+            try {
+                restore(diff, before);
+                if (mainConfigApplied) StageConfig.applyEditorConfig(previousMainConfig);
+                StageFileLoader.getInstance().reload();
+            }
             catch (RuntimeException ignored) {}
             return result(false, transaction, currentRevision, diff, validation, "apply_failed", error.getMessage());
         }
@@ -100,6 +123,15 @@ final class EditorApplyService {
         if (!backup.startsWith(backupRoot) || !Files.isDirectory(backup)) return result(false, transaction, current, List.of(), null, "missing_transaction", "The transaction backup was not found");
         try {
             EditorAuditEntry audit = GSON.fromJson(Files.readString(backup.resolve("audit.json")), EditorAuditEntry.class);
+            EditorDraftValidator.MainConfigValidation previousMainConfig = null;
+            Path savedMain = backup.resolve("progressivestages.toml");
+            if (audit.changedFiles().contains("progressivestages.toml") && Files.isRegularFile(savedMain)) {
+                previousMainConfig = EditorDraftValidator.validateMainConfig(Files.readString(savedMain));
+                if (!previousMainConfig.valid()) {
+                    return result(false, transaction, current, List.of(), null, "rollback_validation_failed",
+                        String.join(". ", previousMainConfig.errors()));
+                }
+            }
             for (String changed : audit.changedFiles()) {
                 Path saved = backup.resolve(changed).normalize();
                 Path target = root.resolve(EditorPaths.normalize(changed)).normalize();
@@ -107,6 +139,10 @@ final class EditorApplyService {
                     Files.createDirectories(target.getParent());
                     Files.copy(saved, target, StandardCopyOption.REPLACE_EXISTING);
                 } else Files.deleteIfExists(target);
+            }
+            if (audit.changedFiles().contains("progressivestages.toml")) {
+                StageConfig.applyEditorConfig(previousMainConfig == null
+                    ? EditorDraftValidator.validateMainConfig("").config() : previousMainConfig.config());
             }
             if (!StageFileLoader.getInstance().reload()) return result(false, transaction, current, List.of(), null,
                 "rollback_reload_failed", String.join(". ", StageFileLoader.getInstance().getLastReloadErrors()));
@@ -167,6 +203,8 @@ final class EditorApplyService {
     private static EditorApplyResult result(boolean success, String transaction, long revision,
                                             List<DraftDiffEntry> diff, DraftValidation validation,
                                             String code, String explanation) {
-        return new EditorApplyResult(success, transaction, revision, diff, validation, code, explanation);
+        List<String> pending = StageConfig.editorPendingRestartPaths();
+        return new EditorApplyResult(success, transaction, revision, diff, validation, code, explanation,
+            !pending.isEmpty(), pending);
     }
 }

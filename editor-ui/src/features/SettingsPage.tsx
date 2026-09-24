@@ -11,17 +11,29 @@ function SettingControl({ schema }: { schema: FieldSchema }) {
   const raw = readTomlValue(content, schema.path);
   const initial = raw || String(schema.defaultValue ?? "");
   const [value, setValue] = useState(schema.type === "LIST" ? parseSimpleArray(raw).join("\n") : stringValue(initial));
+  const [error, setError] = useState("");
   useEffect(() => setValue(schema.type === "LIST" ? parseSimpleArray(raw).join("\n") : stringValue(initial)), [initial, raw, schema.type]);
+  const validateInput = (next: string) => {
+    if (schema.type === "INTEGER" && !/^-?\d+$/.test(next.trim())) return "Enter a whole number, or restore the default.";
+    if (schema.type === "DECIMAL" && (!next.trim() || !Number.isFinite(Number(next)))) return "Enter a number, or restore the default.";
+    if (schema.type === "ENUM" && !schema.enumValues.includes(next)) return "Choose one of the listed values.";
+    return "";
+  };
   const save = async (next = value) => {
+    const problem = validateInput(next);
+    if (problem) { setError(problem); return; }
+    setError("");
     let typed: unknown = next;
     if (schema.type === "BOOLEAN") typed = next === "true";
-    else if (schema.type === "INTEGER" || schema.type === "DECIMAL") typed = Number(next || 0);
+    else if (schema.type === "INTEGER") typed = Number(next);
+    else if (schema.type === "DECIMAL") typed = Number(next);
     else if (schema.type === "LIST") typed = lineValues(next);
     await mutateFile("progressivestages.toml", upsertToml(content, schema.path, typed), `${schema.label} saved`);
   };
   if (schema.type === "BOOLEAN") return <Toggle label={schema.label} help={schema.help} checked={booleanValue(raw || String(schema.defaultValue))} onChange={checked => void save(String(checked))}/>;
   return <Field label={schema.label} help={`${schema.help}${schema.restartRequirement && schema.restartRequirement !== "NONE" ? ` Restart requirement. ${schema.restartRequirement}.` : ""}`} wide={schema.type === "LIST"}>
-    {schema.type === "ENUM" ? <select value={value} onChange={event => { setValue(event.target.value); void save(event.target.value); }}>{schema.enumValues.map(option => <option key={option} value={option}>{title(option)}</option>)}</select> : schema.type === "LIST" ? <textarea rows={4} value={value} onChange={event => setValue(event.target.value)} onBlur={() => void save()}/> : <input type={schema.type === "INTEGER" || schema.type === "DECIMAL" ? "number" : "text"} step={schema.type === "DECIMAL" ? "any" : undefined} value={value} onChange={event => setValue(event.target.value)} onBlur={() => void save()}/>}
+    {schema.type === "ENUM" ? <select value={value} onChange={event => { setValue(event.target.value); void save(event.target.value); }}>{schema.enumValues.map(option => <option key={option} value={option}>{title(option)}</option>)}</select> : schema.type === "LIST" ? <textarea rows={4} value={value} onChange={event => setValue(event.target.value)} onBlur={() => void save()}/> : <input type={schema.type === "INTEGER" || schema.type === "DECIMAL" ? "number" : "text"} step={schema.type === "DECIMAL" ? "any" : undefined} value={value} onChange={event => { setValue(event.target.value); if (error) setError(validateInput(event.target.value)); }} onBlur={() => void save()}/>}
+    {error ? <span className="setting-error" role="alert">{error}</span> : null}
   </Field>;
 }
 
@@ -29,5 +41,5 @@ export function SettingsPage() {
   const { boot, validate } = useEditor();
   const schemas = boot?.schemas.filter(schema => schema.file === "progressivestages.toml") || [];
   const groups = useMemo(() => { const result = new Map<string, FieldSchema[]>(); for (const schema of schemas) { const group = schema.path.split(".")[0] || "general"; result.set(group, [...(result.get(group) || []), schema]); } return result; }, [schemas]);
-  return <div className="page-stack"><header className="page-heading"><div><h1>Settings</h1><p>These options come from the connected server.</p></div><div><Button onClick={() => void validate()}>Validate settings</Button></div></header>{[...groups.entries()].map(([group, fields]) => <Section key={group} title={title(group)} description="Server configuration options supplied by the current runtime schema."><div className="form-grid">{fields.map(schema => <SettingControl key={schema.id} schema={schema}/>)}</div></Section>)}</div>;
+  return <div className="page-stack"><header className="page-heading"><div><h1>Settings</h1><p>Edit the connected server settings. Changes stay in the draft until you review and apply them.</p></div><div><Button onClick={() => void validate()}>Validate settings</Button></div></header>{[...groups.entries()].map(([group, fields]) => <Section key={group} title={title(group)} description="These controls use the server schema. Hover the question mark for an example and restart details."><div className="form-grid">{fields.map(schema => <SettingControl key={schema.id} schema={schema}/>)}</div></Section>)}</div>;
 }

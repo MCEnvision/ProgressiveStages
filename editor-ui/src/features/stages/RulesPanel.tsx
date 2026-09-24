@@ -1,8 +1,8 @@
 import { extractRows, replaceRows } from "../../lib/tomlRows";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ACTION_LABELS, CATEGORIES, CONDITIONS, EFFECTS, ruleEffects } from "../../data";
 import { InlineCatalogSearch } from "../../components/CatalogPicker";
-import { Badge, Button, EmptyState, Field, Section } from "../../components/ui";
+import { Badge, Button, EmptyState, Field, Section, Toggle } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import {
   enchantmentGenerationRules,
@@ -15,7 +15,7 @@ import {
 import { serializeInventoryCondition, serializeInventoryInsertionRule, updateInventoryInsertionRule } from "../../lib/inventoryInsertion";
 import { ruleModels, selectorMode, title } from "../../lib/model";
 import { moveRuleTable, updateGenericRule } from "../../lib/ruleSource";
-import { appendTomlBlock, conditionToml, encodeToml, extractArrayGroups, parseSimpleArray, readTomlValue, replaceArrayGroups, upsertToml } from "../../lib/toml";
+import { appendTomlBlock, booleanValue, conditionToml, encodeToml, extractArrayGroups, lineValues, parseSimpleArray, readTomlValue, removeTomlValue, replaceArrayGroups, upsertToml } from "../../lib/toml";
 import { useEditor } from "../../store/EditorContext";
 import type { EnchantmentGenerationRule } from "../../lib/enchantments";
 import type { RuleModel, StagePackage } from "../../types";
@@ -456,6 +456,54 @@ function EnchantmentGenerationCard({ rule, onEdit, onDelete }:
   </article>;
 }
 
+function StructureControls({ stage }: { stage: StagePackage }) {
+  const { boot, mutateFile } = useEditor();
+  const content = boot?.draft.files[stage.rulesPath] || "";
+  const [entries, setEntries] = useState(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
+  const [priority, setPriority] = useState(readTomlValue(content, "structures.rules.priority"));
+  const [padding, setPadding] = useState(readTomlValue(content, "structures.rules.entry_padding") || readTomlValue(content, "structures.entry_padding"));
+  const [entryAllowed, setEntryAllowed] = useState(booleanValue(readTomlValue(content, "structures.rules.entry_allowed") || "false"));
+  const [preventBreak, setPreventBreak] = useState(booleanValue(readTomlValue(content, "structures.rules.prevent_block_break") || "false"));
+  const [preventPlace, setPreventPlace] = useState(booleanValue(readTomlValue(content, "structures.rules.prevent_block_place") || "false"));
+  const [preventExplosions, setPreventExplosions] = useState(booleanValue(readTomlValue(content, "structures.rules.prevent_explosions") || "false"));
+  const [disableSpawns, setDisableSpawns] = useState(booleanValue(readTomlValue(content, "structures.rules.disable_mob_spawning") || "false"));
+  useEffect(() => {
+    setEntries(parseSimpleArray(readTomlValue(content, "structures.locked_entry")).join("\n"));
+    setPriority(readTomlValue(content, "structures.rules.priority"));
+    setPadding(readTomlValue(content, "structures.rules.entry_padding") || readTomlValue(content, "structures.entry_padding"));
+    setEntryAllowed(booleanValue(readTomlValue(content, "structures.rules.entry_allowed") || "false"));
+    setPreventBreak(booleanValue(readTomlValue(content, "structures.rules.prevent_block_break") || "false"));
+    setPreventPlace(booleanValue(readTomlValue(content, "structures.rules.prevent_block_place") || "false"));
+    setPreventExplosions(booleanValue(readTomlValue(content, "structures.rules.prevent_explosions") || "false"));
+    setDisableSpawns(booleanValue(readTomlValue(content, "structures.rules.disable_mob_spawning") || "false"));
+  }, [content]);
+  const save = async (path: string, value: unknown, message: string) => {
+    await mutateFile(stage.rulesPath, upsertToml(content, path, value), message);
+  };
+  const savePriority = async () => {
+    const next = priority.trim();
+    if (next && !/^-?\d+$/.test(next)) return;
+    await mutateFile(stage.rulesPath, next ? upsertToml(content, "structures.rules.priority", Number(next)) : removeTomlValue(content, "structures.rules.priority"), "Structure priority saved");
+  };
+  const savePadding = async () => {
+    const next = padding.trim();
+    if (!/^\d+$/.test(next) && next !== "") return;
+    await mutateFile(stage.rulesPath, next ? upsertToml(content, "structures.rules.entry_padding", Number(next)) : removeTomlValue(content, "structures.rules.entry_padding"), "Structure entry padding saved");
+  };
+  return <Section title="Structure access" description="Keep entry separate from protections inside the structure. A permanent locked stage can protect blocks after another stage allows entry.">
+    <div className="form-grid">
+      <Field label="Structures to protect" help="One exact structure id per line. Use the id:minecraft:ancient_city form. These entries are checked by the server structure session." wide><textarea rows={4} value={entries} onChange={event => setEntries(event.target.value)} onBlur={() => void save("structures.locked_entry", lineValues(entries), "Structure list saved")} placeholder="id:minecraft:ancient_city" /></Field>
+      <Field label="Rule priority" help="Higher signed values win when structure rules overlap. Leave blank to inherit the normal priority cascade."><input type="number" step={1} value={priority} onChange={event => setPriority(event.target.value)} onBlur={() => void savePriority()} placeholder="Inherited" /></Field>
+      <Field label="Entry padding" help="Extra blocks around the structure boundary that still count as inside. Leave blank for the default."><input type="number" min={0} step={1} value={padding} onChange={event => setPadding(event.target.value)} onBlur={() => void savePadding()} placeholder="0" /></Field>
+      <Toggle label="Allow entry" help="Lets players enter while the other structure protections remain active. Use this for a permanent locked protection stage." checked={entryAllowed} onChange={value => { setEntryAllowed(value); void save("structures.rules.entry_allowed", value, "Structure entry policy saved"); }} />
+      <Toggle label="Prevent block breaking" help="Cancel block breaks inside the protected structure." checked={preventBreak} onChange={value => { setPreventBreak(value); void save("structures.rules.prevent_block_break", value, "Structure break policy saved"); }} />
+      <Toggle label="Prevent block placement" help="Cancel block placement inside the protected structure." checked={preventPlace} onChange={value => { setPreventPlace(value); void save("structures.rules.prevent_block_place", value, "Structure placement policy saved"); }} />
+      <Toggle label="Prevent explosions" help="Remove blocks inside the structure from explosion damage." checked={preventExplosions} onChange={value => { setPreventExplosions(value); void save("structures.rules.prevent_explosions", value, "Structure explosion policy saved"); }} />
+      <Toggle label="Disable mob spawning" help="Stop mobs from spawning inside the protected structure." checked={disableSpawns} onChange={value => { setDisableSpawns(value); void save("structures.rules.disable_mob_spawning", value, "Structure spawn policy saved"); }} />
+    </div>
+  </Section>;
+}
+
 export function RulesPanel({ stage }: { stage: StagePackage }) {
   const { boot, mutateFile, openDialog, closeDialog, runDraftAction } = useEditor();
   const content = boot?.draft.files[stage.rulesPath] || "";
@@ -498,6 +546,7 @@ export function RulesPanel({ stage }: { stage: StagePackage }) {
   });
   const simulate = () => openDialog({ title: "Simulate a candidate decision", description: "Ask the server how the current draft resolves a category and target.", content: <SimulationForm run={runDraftAction}/>, width: "standard" });
   return <div className="stage-panel-stack">
+    <StructureControls stage={stage}/>
     <Section title="Rules" description={`${rules.length} active decision${rules.length === 1 ? "" : "s"}. Highest priority wins when several rules match.`} action={<div className="section-actions"><Button onClick={simulate}>Simulate</Button><Button tone="primary" icon="plus" onClick={() => openRule()}>Add rule</Button></div>}>
       <div className="rule-primer"><Icon name="spark" size={22}/><div><strong>Rules combine target, action, result, activation, and priority.</strong><p>Use an exception with a higher priority to carve content out of a broad lock. Temporary rules participate only while their condition and lifetime are active.</p></div></div>
       {rules.length ? <div className="rule-list-new">{rules.map((rule, index) => <RuleCard key={`${rule.table}:${rule.tableIndex}:${rule.selector}`} stage={stage} rule={rule} index={index} total={rules.length} onEdit={() => openRule(rule)} onDelete={() => remove(rule)} onMove={direction => void move(rule, direction)}/>)}</div>

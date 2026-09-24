@@ -67,7 +67,7 @@ class StageCommandAliasTest {
             assertTrue(command != null, category);
             assertTrue(command.getChild("on") != null, category + " on");
             if (category.equals("structures")) {
-                assertTrue(command.getChild("on").getChild("structure") != null,
+                assertTrue(command.getChild("actorless") != null,
                     category + " actorless structure");
             }
             assertTrue(command.getChild("status") != null, category + " status");

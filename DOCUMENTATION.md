@@ -1588,6 +1588,7 @@ locked_entry = [
     "id:minecraft:ancient_city",
 ]
 priority = 0
+global_priority = 0
 
 [structures.rules]
 entry_allowed = false
@@ -1608,6 +1609,9 @@ namespace, wildcard, and name selectors are rejected in schema 4 because
 structure rules must remain attributable to one generated structure type.
 Schemas 1 through 3 keep their earlier selector behavior so existing stage
 files continue to load during an upgrade.
+The optional `[structures].global_priority` value supplies the final fallback
+for structure contributions when no selector, rule, category, or stage priority
+is present.
 
 `entry_allowed` defaults to `false`. Set it to `true` on a protection stage to
 remove only that stage's entry denial. The stage can then deny placement,

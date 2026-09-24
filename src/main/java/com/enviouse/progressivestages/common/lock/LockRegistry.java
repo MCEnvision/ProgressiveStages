@@ -318,7 +318,8 @@ public final class LockRegistry {
 
         String structureSource = stage.getProvenance() == null ? "structures.rules"
             : stage.getProvenance().file() + "#structures.rules";
-        structures = structures.merge(locks.structures(), id, structureSource, stage.getPriority());
+        Integer stagePriority = stage.getPriority() == 0 ? null : stage.getPriority();
+        structures = structures.merge(locks.structures(), id, structureSource, stagePriority);
 
         for (String slot : locks.curioLockedSlots()) {
             if (slot != null && !slot.isEmpty()) {
@@ -2091,7 +2092,7 @@ public final class LockRegistry {
         }
 
         StructureRulesAggregate merge(LockDefinition.StructureRules other, StageId stage, String sourceKey,
-                                      int stagePriority) {
+                                      Integer stagePriority) {
             if (other == null || other.isEmpty()) return this;
             Map<ResourceLocation, List<StructureContribution>> merged = new LinkedHashMap<>();
             this.contributions.forEach((id, values) -> merged.put(id, new ArrayList<>(values)));

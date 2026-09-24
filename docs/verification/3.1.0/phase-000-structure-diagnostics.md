@@ -43,7 +43,7 @@ The focused aggregate and command registration checks also passed:
 
 The required build also passed with `./gradlew build --no-daemon`. The candidate artifact was
 `build/libs/progressivestages-3.0.5.jar`, SHA-256
-`3c56f78be3c57cf57dfcc431a11c8f897452c9f8527a6a0c31f04634ffa186b9`.
+`39eca9a6bad674ea1b78f282c75a0dd617c5d5fbbdffdf4e561f1840921df34d`.
 
 The server-only GameTest task was inspected as a no-client task and run with an isolated `run/`
 directory whose `eula.txt` read back as `eula=true`. The new diagnostic capture command test and

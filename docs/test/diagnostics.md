@@ -84,7 +84,7 @@ Use these commands from the server console or an operator with permission level 
 
 ```text
 /stage debug structures on <player>
-/stage debug structures on structure <dimension_id> <structure_id>
+/stage debug structures actorless <dimension_id> <structure_id>
 /stage debug structures status
 /stage debug structures off
 /stage debug abilities on <player>

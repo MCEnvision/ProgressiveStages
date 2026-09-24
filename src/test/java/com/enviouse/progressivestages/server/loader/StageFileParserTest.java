@@ -62,6 +62,7 @@ class StageFileParserTest {
 
             [structures]
             priority = 3
+            global_priority = -2
             locked_entry = ["minecraft:stronghold|priority=20"]
 
             [structures.rules]
@@ -77,6 +78,7 @@ class StageFileParserTest {
         assertTrue(rules.entryAllowed());
         assertEquals(-7, rules.priority());
         assertEquals(3, rules.categoryPriority());
+        assertEquals(-2, rules.globalPriority());
         assertTrue(rules.preventBlockPlace());
         assertEquals("minecraft:stronghold|priority=20", rules.lockedEntry().locked().getFirst().raw());
         assertEquals(20, rules.lockedEntry().locked().getFirst().explicitPriority());

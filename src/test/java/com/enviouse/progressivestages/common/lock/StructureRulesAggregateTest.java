@@ -56,4 +56,17 @@ class StructureRulesAggregateTest {
         assertEquals("legacy.toml#structures.rules.locked_entry[1].prevent_block_place",
             aggregate.forAction(structure, StructureAction.BLOCK_PLACE).getFirst().sourceKey());
     }
+
+    @Test
+    void appliesConfiguredGlobalPriorityWhenNoMoreSpecificValueExists() {
+        var structure = net.minecraft.resources.ResourceLocation.parse("minecraft:stronghold");
+        var rules = new LockDefinition.StructureRules(
+            CategoryLocks.builder().addLocked(List.of("minecraft:stronghold")).build(),
+            false, true, false, false, 0, true, null, null, 9);
+
+        var aggregate = LockRegistry.StructureRulesAggregate.EMPTY
+            .merge(rules, StageId.parse("test:global"), "global.toml#structures.rules", null);
+
+        assertEquals(9, aggregate.forAction(structure, StructureAction.BLOCK_PLACE).getFirst().priority());
+    }
 }

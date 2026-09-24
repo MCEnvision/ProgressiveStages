@@ -1588,6 +1588,8 @@ public final class StageFileParser {
             ? parseStructureEntries(section)
             : parseCategoryLists(section, "locked_entry", null);
         Integer categoryPriority = strictInt32(section, "priority", "structures.priority");
+        Integer parsedGlobalPriority = strictInt32(section, "global_priority", "structures.global_priority");
+        int globalPriority = parsedGlobalPriority == null ? 0 : parsedGlobalPriority;
         Config rules = section.get("rules");
         boolean entryAllowed = strictBoolean(rules, "entry_allowed", false, "structures.rules.entry_allowed");
         Integer priority = strictInt32(rules, "priority", "structures.rules.priority");
@@ -1604,7 +1606,7 @@ public final class StageFileParser {
         int pad = (int) readLong(section, "entry_padding", 0L);
         if (rules != null) pad = Math.max(pad, (int) readLong(rules, "entry_padding", 0L));
         return new LockDefinition.StructureRules(lockedEntry, pbb, pbp, pex, dms, Math.max(0, pad),
-            entryAllowed, priority, categoryPriority, 0);
+            entryAllowed, priority, categoryPriority, globalPriority);
     }
 
     private static CategoryLocks parseStructureEntries(Config section) {

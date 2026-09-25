@@ -1,6 +1,6 @@
 # ProgressiveStages 3.1.0 phase 002 player guide
 
-This page records the implementation contract and verification procedure for the authored player guide. Runtime observations belong here only after the candidate server, Brave editor, and silent laptop client have been tested.
+This page records the implementation contract and verification procedure for the authored player guide. Runtime observations are recorded only for the candidate server and client paths that were actually exercised.
 
 ## authored data
 
@@ -20,7 +20,7 @@ The editor `Player UI` also has a read only `Player preview`. It uses the curren
 4. Set `general.enable_stage_guide = false` through the main editor settings, apply, and confirm that the ordinary map remains available while the guide tab and guide key do not open it. Reenable the setting and confirm the guide returns after synchronization.
 5. Capture only sanitized diagnostics and remove the owned server, client, browser, screenshots, logs, and build outputs after the last consumer.
 
-The phase completion record will add candidate identity, test commands, hashes, host identity, and cleanup receipts after those gates pass.
+The phase completion record adds candidate identity, test commands, hashes, host identity, and cleanup receipts as each gate is completed. Browser evidence remains explicitly open until the required Brave workflow is available.
 
 ## current local checks
 
@@ -28,10 +28,12 @@ The editor checks pass with `npm run check`, 19 Vitest files and 165 tests pass 
 
 The required headless GameTest server was also started from the disposable phase worktree. It shut down cleanly, but the repository's existing suite reported 15 unrelated world and progression failures. Its disposable runtime files were removed after the run.
 
-Brave editor evidence and silent laptop client evidence remain open. The current execution host is the headless `node-1`, and the authorized `envision` laptop connection was unavailable, so no graphical acceptance result is claimed here.
+The silent laptop client gate is complete for the exercised guide path. The candidate was run on the authorized `envision` laptop in an isolated Hyprland workspace with the discrete renderer verified, joined to the matching private dedicated server, and opened through the existing Prism Launcher installation without changing its launcher configuration or starting another launcher process. The advancement style stage menu showed the `Stages` tab, search, owned filter, category selector, and connected stage nodes. Selecting a stage showed the gold question mark beside the close control. Hovering the question mark showed `How to unlock Guide Start`; hovering the close control showed its close tooltip. Activating the question mark displayed the authored unlock, next step, and location text. The client stream was muted and verified before interaction, then the client, server, tunnel, stream, temporary instance jar replacement, screenshots, and disposable runtime files were removed or restored. No unrelated Minecraft or Prism process was changed.
+
+The required Brave editor edit and apply gate remains open. The available browser control surface does not provide the required Brave extension connection, so this record makes no claim for authoring or applying guide text through Brave, browser console state, or browser network evidence. The phase cannot close until that gate is completed.
 
 ## candidate identity
 
-The current candidate commit is `971c7a4`. A clean `./gradlew build --no-daemon` produced `progressivestages-3.0.5.jar` with SHA 256 `1d84973f4bde78a191c04bab664fbd13aec90a8e5cdccf7f6e46def4d5235ef9` and SHA 512 `83b4ee13aac0e89dfd5a57de4e43629cb897d674e2cc863176d7ada0984abadd12d8d4baece4ca120ad961ecef64b92f5427bc8062cd3aa36aef1bfd2f455307`. The archive contains `StageGuide`, `StageTreeScreen$StageGuideCard`, the packaged editor bundle, and the English language file.
+The current candidate commit is `1513763`. A clean `./gradlew build --no-daemon` produced `progressivestages-3.0.5.jar` with SHA 256 `06b400cddecd1677a720ed35ee76c102608bd4659c26e95092c675eaca304f4a` and SHA 512 `2533ba8c7d56dac86f664ef56b566c977d20315f3f9bf06799077d8ab59c84c878e95efcd9470d71c5ee68a57c371522cf09758c14f5026d404d21e6e22d51df`. The archive contains `StageGuide`, `StageTreeScreen$StageGuideCard`, the packaged editor bundle, and the English language file.
 
-The packaged editor asset hashes for this candidate are `app.js` SHA 256 `5a17db70a780e6b2c9e62a9f3bb18821d3a19a8be7ca15aa5fd6b5113304608a`, `app.css` SHA 256 `808e3108f139631fe36ddf715c610f7308807a660e448f5db0a4580cb8736d15`, and `en_us.json` SHA 256 `caabeaec01641c8710234fcd272b29955549cc37a1316e7880764ccb5385acae`. The build output was removed after inspection.
+The packaged editor asset hashes for this candidate are `app.js` SHA 256 `ddc3911277ca6c18db21ccabadfb932036ddd8f6b6432de7e649829499f7ba79`, `app.css` SHA 256 `6bc163ca7269dfb41c3e0e6d0ecdd3b9e0640d98f60199686dc85909b068baae`, and `en_us.json` SHA 256 `48706395879c60b52adb4fe9cd3a80a12b99b197a0dbca2a2d66678e905a4b51`. The build output remains available only for the current verification consumers and will be removed during phase cleanup.

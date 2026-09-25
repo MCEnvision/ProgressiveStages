@@ -86,7 +86,7 @@ export function LayoutPage() {
   const previewState = (stage: StagePackage) => {
     if (!playerPreview) return "draft";
     if (previewScenario === "unlocked") return "owned";
-    if (previewScenario === "ready" && stage.dependencies.length === 0) return "ready";
+    if (previewScenario === "ready") return "ready";
     return "locked";
   };
   const visible = useMemo(() => stages.filter(stage => previewVisible(stage)

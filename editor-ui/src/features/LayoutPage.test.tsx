@@ -48,6 +48,12 @@ const stage = (id: string, name: string, hidden = false) => ({
   dependencyCount: 0
 });
 
+const dependentStage = (id: string, name: string, dependency: string) => ({
+  ...stage(id, name),
+  dependencies: [dependency],
+  dependencyCount: 1
+});
+
 it("keeps player preview read only and hides hidden stages", () => {
   vi.clearAllMocks();
   editor.stages = [stage("pack:visible", "Visible"), stage("pack:hidden", "Hidden", true)];
@@ -67,4 +73,13 @@ it("keeps player preview read only and hides hidden stages", () => {
   expect(editor.setPage).toHaveBeenCalledWith("stages");
   expect(editor.mutateFile).not.toHaveBeenCalled();
   expect(editor.mutateFiles).not.toHaveBeenCalled();
+});
+
+it("shows dependent stages as ready in the requirements met simulation", () => {
+  vi.clearAllMocks();
+  editor.stages = [stage("pack:root", "Root"), dependentStage("pack:next", "Next", "pack:root")];
+  render(<LayoutPage />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Player preview" }));
+  expect(screen.getByRole("button", { name: /next, base, ready/i })).toBeTruthy();
 });

@@ -8,7 +8,7 @@ Stage files may contain an optional `[guide]` table. The editor writes the four 
 
 ## player presentation
 
-The existing advancement style menu has `Stages` and `What to do next` tabs. The guide lists visible, unrevealed, unowned stages in stable order and shows the pack supplied unlock, next step, location, and prerequisite text. The separate guide keybind is initially unbound. `general.enable_stage_guide` defaults to true and is synchronized from the server.
+The existing advancement style menu remains one map without guide tabs. Selecting an eligible stage shows a gold `?` beside the close control. Pressing it opens `How to unlock <stage name>` with the pack supplied unlock, next step, location, and prerequisite text. The separate guide keybind is initially unbound and selects the next visible suggestion in the same map. `general.enable_stage_guide` defaults to true and is synchronized from the server.
 
 The editor `Player UI` also has a read only `Player preview`. It uses the current draft display name, icon, description, guide, hidden, reveal, category, search, and dependency data. `Locked`, `Requirements met`, and `Unlocked` simulate the quick ownership states. Hidden stages are absent from the preview and its search, category, count, dependency, and empty state surfaces. Clicking a visible node returns to the adjacent stage form for editing. Preview navigation does not write TOML, apply the draft, grant stages, purchase stages, execute rules, or run rewards.
 
@@ -17,7 +17,7 @@ The editor `Player UI` also has a read only `Player preview`. It uses the curren
 1. Use the editor Essentials page to enter multiline Unicode text in all three text fields and choose each recommendation mode. Review and apply the draft.
 2. Reload stage definitions and confirm the authored text survives reconnect and a schema 4 source round trip.
 3. Open the stages menu and switch tabs with the header controls and the guide keybind. Check hidden, reveal, owned, dependency, empty, long wrapping, scrolling, and compact scale cases.
-4. Set `general.enable_stage_guide = false` through the main editor settings, apply, and confirm that the ordinary map remains available while the guide tab and guide key do not open it. Reenable the setting and confirm the guide returns after synchronization.
+4. Set `general.enable_stage_guide = false` through the main editor settings, apply, and confirm that the ordinary map remains available while the question mark and guide key do not open guide help. Reenable the setting and confirm the guide returns after synchronization.
 5. Capture only sanitized diagnostics and remove the owned server, client, browser, screenshots, logs, and build outputs after the last consumer.
 
 The phase completion record adds candidate identity, test commands, hashes, host identity, and cleanup receipts as each gate is completed. Browser evidence remains explicitly open until the required Brave workflow is available.

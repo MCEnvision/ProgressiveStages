@@ -2005,7 +2005,7 @@ recommendation = "auto"
 
 Text accepts normal Unicode, tabs, and line breaks. Each field is limited to 2048 Unicode code points and 8 KiB of UTF 8 data. Control characters and non string values are rejected before a reload can replace the current snapshot. `auto` lists a visible stage when its required stages are ready and it has a trigger route or guide text, `include` keeps a visible stage in the suggestions, and `exclude` removes it from suggestions. Hidden stages and stages concealed by their display reveal rule never appear in the guide.
 
-The stages menu keeps the existing advancement map and adds two header tabs, `Stages` and `What to do next`. The guide tab shows each visible unowned recommendation with its unlock condition, next action, location, and required stages. A separate `Open What to do next guide` keybind starts unbound so packs can assign it without taking a common key. `general.enable_stage_guide` defaults to `true` and is server authoritative. Turning it off hides the tab and keybind entry while preserving the ordinary stage map and authored text.
+The stages menu keeps one advancement style map without an extra guide header. Select a stage and use the gold `?` control beside the close button to show `How to unlock <stage name>` with the authored unlock, next step, location, and prerequisite text. A separate `Open What to do next guide` keybind starts unbound so packs can assign it without taking a common key; it selects the next visible suggestion in the same map. `general.enable_stage_guide` defaults to `true` and is server authoritative. Turning it off hides the question mark and keybind behavior while preserving the ordinary stage map and authored text.
 
 ### 4.23 `[[triggers]]` — automatic stage grants
 

@@ -18,8 +18,6 @@
   "key.progressivestages.open_tree": "Open Progression Tree",
   "key.progressivestages.open_guide": "Open What to do next guide",
   "gui.progressivestages.tree.title": "Progression",
-  "gui.progressivestages.tree.tab.stages": "Stages",
-  "gui.progressivestages.tree.tab.guide": "What to do next",
   "gui.progressivestages.tree.guide.empty": "No next steps are available yet",
   "gui.progressivestages.tree.guide.unlock": "How to unlock. %s",
   "gui.progressivestages.tree.guide.next": "Next steps. %s",

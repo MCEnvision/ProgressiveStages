@@ -4,6 +4,7 @@ import com.enviouse.progressivestages.client.ClientLockCache;
 import com.enviouse.progressivestages.client.ClientStageCache;
 import com.enviouse.progressivestages.client.ClientTriggerProgress;
 import com.enviouse.progressivestages.common.api.StageId;
+import com.enviouse.progressivestages.common.config.StageGuideTemplate;
 import com.enviouse.progressivestages.common.util.TextUtil;
 import net.minecraft.Util;
 import net.minecraft.ChatFormatting;
@@ -859,7 +860,7 @@ public final class StageTreeScreen extends Screen {
                     x, y, innerW, GOLD);
                 if (!guide.howToUnlock().isBlank()) {
                     y = drawGuideLine(g, Component.translatable("gui.progressivestages.tree.guide.unlock.text",
-                        guide.howToUnlock()), x, y, innerW, GOLD);
+                        expandGuideText(guide.howToUnlock(), selected, data)), x, y, innerW, GOLD);
                 } else if (!ClientStageCache.getDependencies(selected).isEmpty()) {
                     y = drawGuideLine(g, Component.translatable("gui.progressivestages.tree.guide.unlock.dependencies",
                         ClientStageCache.getDependencies(selected).stream()
@@ -872,11 +873,11 @@ public final class StageTreeScreen extends Screen {
                 }
                 if (!guide.nextSteps().isBlank()) {
                     y = drawGuideLine(g, Component.translatable("gui.progressivestages.tree.guide.next",
-                        guide.nextSteps()), x, y, innerW, GOLD);
+                        expandGuideText(guide.nextSteps(), selected, data)), x, y, innerW, GOLD);
                 }
                 if (!guide.whereToFind().isBlank()) {
                     y = drawGuideLine(g, Component.translatable("gui.progressivestages.tree.guide.location",
-                        guide.whereToFind()), x, y, innerW, GOLD);
+                        expandGuideText(guide.whereToFind(), selected, data)), x, y, innerW, GOLD);
                 }
             }
         }
@@ -1104,6 +1105,46 @@ public final class StageTreeScreen extends Screen {
         return id != null && ClientStageCache.isStageGuideEnabled()
             && !ClientStageCache.hasStage(id)
             && ClientStageCache.getStageDefinition(id).isPresent();
+    }
+
+    private String expandGuideText(String template, StageId id, ClientTriggerProgress.StageData data) {
+        Map<String, String> values = new HashMap<>();
+        values.put(StageGuideTemplate.STAGE_NAME, ClientStageCache.getDisplayName(id));
+        values.put(StageGuideTemplate.STAGE_REQUIREMENTS, stageRequirements(id));
+        values.put(StageGuideTemplate.REMAINING_REQUIREMENTS, remainingRequirements(data));
+        values.put(StageGuideTemplate.STAGE_PROGRESS, stageProgress(data));
+        return StageGuideTemplate.expand(template, values).text();
+    }
+
+    private String stageRequirements(StageId id) {
+        List<String> dependencies = ClientStageCache.getDependencies(id).stream()
+            .filter(dependency -> !ClientStageCache.isHidden(dependency))
+            .map(ClientStageCache::getDisplayName).toList();
+        if (dependencies.isEmpty()) return "No required stages";
+        String joined = String.join(", ", dependencies);
+        return switch (ClientStageCache.getDependencyMode(id)) {
+            case "any" -> "Any of " + joined;
+            case "at_least" -> "At least " + ClientStageCache.getDependencyCount(id) + " of " + joined;
+            default -> "All of " + joined;
+        };
+    }
+
+    private String remainingRequirements(ClientTriggerProgress.StageData data) {
+        List<String> remaining = new ArrayList<>();
+        for (ClientTriggerProgress.Rule rule : data.rules()) {
+            for (ClientTriggerProgress.Cond condition : rule.conditions()) {
+                if (!condition.satisfied() && !condition.label().isBlank()) remaining.add(condition.label());
+            }
+        }
+        if (!data.canPurchase() && data.purchasable() && !data.costSummary().isBlank()) {
+            remaining.add(data.costSummary());
+        }
+        return remaining.isEmpty() ? "No known remaining requirements" : String.join(", ", remaining);
+    }
+
+    private String stageProgress(ClientTriggerProgress.StageData data) {
+        float percent = data.percent();
+        return percent < 0f ? "Unavailable" : Math.round(percent * 100f) + "%";
     }
 
     private void addHoverHint(int x, int y, int width, int height, Component text) {

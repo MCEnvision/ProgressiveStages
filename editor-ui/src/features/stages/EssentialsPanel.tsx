@@ -1,8 +1,9 @@
 import { OwnershipFeedback } from "../../components/StageCapabilityFeedback";
 import { FieldDiagnostics } from "../../components/ValidationMessages";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogPicker } from "../../components/CatalogPicker";
 import { Badge, Button, Field, Section, Toggle } from "../../components/ui";
+import { GUIDE_BYTE_LIMIT, GUIDE_CODE_POINT_LIMIT, GUIDE_PLACEHOLDERS, expandGuideTemplate, guideTextMetrics, truncateGuideText } from "../../lib/guide";
 import { dependenciesFor, dependencySummary, stageDependsOn } from "../../lib/model";
 import { parseOwnership, writeOwnership } from "../../lib/integrations";
 import { booleanValue, lineValues, numberValue, parseSimpleArray, readTomlValue, removeTomlValue, stringValue, upsertToml } from "../../lib/toml";
@@ -27,15 +28,16 @@ function TextDraftField({ label, value, help, wide, multiline, type = "text", ma
 
 function GuideEditor({ content, save }: { stage: StagePackage; content: string; save: (path: string, value: unknown) => Promise<void> }) {
   const text = (path: string) => stringValue(readTomlValue(content, path));
-  const field = (path: string, label: string, help: string) => <TextDraftField
+  const field = (path: string, label: string, help: string) => <GuideTextField
     label={label}
     value={text(path)}
-    wide
-    multiline
-    maxLength={2048}
-    help={`${help} ${Array.from(text(path)).length}/2048 characters.`}
+    help={help}
+    stageName={text("stage.display_name") || "This stage"}
     onSave={value => save(path, value)}
   />;
+  const previews = ["guide.how_to_unlock", "guide.next_steps", "guide.where_to_find"]
+    .map(path => expandGuideTemplate(text(path), { stage_name: text("stage.display_name") || "This stage", stage_requirements: "Required stages", remaining_requirements: "Current requirements", stage_progress: "50%" }))
+    .filter(value => value.text.trim());
   return <Section title="What to do next" description="Write the short instructions players see in the guide. Text is shown as written and never runs commands or grants stages.">
     <div className="form-grid">
       {field("guide.how_to_unlock", "How to unlock", "Explain the requirement in simple words.")}
@@ -49,7 +51,49 @@ function GuideEditor({ content, save }: { stage: StagePackage; content: string; 
         </select>
       </Field>
     </div>
+    <div className="guide-preview" aria-label="Guide preview">
+      <strong>Guide preview</strong>
+      {previews.length ? previews.map((value, index) => <p key={`${index}:${value.text}`}>{value.text}</p>) : <p className="muted">Add guide text to preview it here.</p>}
+      {previews.some(value => value.unknown.length) ? <small className="setting-error">Unknown placeholders stay visible until corrected.</small> : null}
+    </div>
   </Section>;
+}
+
+function GuideTextField({ label, value, help, stageName, onSave }: { label: string; value: string; help: string; stageName: string; onSave: (value: string) => Promise<void> }) {
+  const [draft, setDraft] = useState(value);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const area = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => setDraft(value), [value]);
+  const saveDraft = async () => {
+    if (draft === value) return;
+    if (!guideTextMetrics(draft).valid) return;
+    setSaving(true);
+    try { await onSave(draft); } finally { setSaving(false); }
+  };
+  const insert = (token: string) => {
+    const element = area.current;
+    const start = element?.selectionStart ?? draft.length;
+    const end = element?.selectionEnd ?? draft.length;
+    const next = `${draft.slice(0, start)}${token}${draft.slice(end)}`;
+    setDraft(truncateGuideText(next));
+    setChooserOpen(false);
+    requestAnimationFrame(() => { element?.focus(); });
+  };
+  const preview = expandGuideTemplate(draft, { stage_name: stageName, stage_requirements: "Required stages", remaining_requirements: "Current requirements", stage_progress: "50%" });
+  const metrics = guideTextMetrics(draft);
+  const limitMessage = `${metrics.codePoints}/${GUIDE_CODE_POINT_LIMIT} characters, ${metrics.bytes}/${GUIDE_BYTE_LIMIT} bytes.`;
+  return <Field label={label} help={`${help} ${limitMessage}`} wide>
+    <textarea ref={element => { area.current = element; }} rows={3} value={draft} onChange={event => setDraft(event.target.value)} onBlur={() => void saveDraft()}/>
+    <div className="guide-placeholder-tools">
+      <Button type="button" tone="quiet" onClick={() => setChooserOpen(open => !open)} help="Insert a fixed read only value into this guide field.">Insert placeholder</Button>
+      {chooserOpen ? <div className="guide-placeholder-menu" role="group" aria-label="Guide placeholders">{GUIDE_PLACEHOLDERS.map(item => <Button key={item.token} type="button" tone="quiet" onClick={() => insert(item.token)} help={`${item.help} Example: ${item.example}.`}>{item.label}</Button>)}</div> : null}
+    </div>
+    {preview.text ? <small className="guide-inline-preview">Preview. {preview.text}</small> : null}
+    {preview.unknown.length ? <small className="setting-error">Unknown placeholders. {preview.unknown.join(", ")}</small> : null}
+    {!metrics.valid ? <small className="setting-error" role="alert">This guide field is too long. Keep it within {GUIDE_CODE_POINT_LIMIT} characters and {GUIDE_BYTE_LIMIT} UTF 8 bytes.</small> : null}
+    {saving ? <small className="muted">Saving to the draft.</small> : null}
+  </Field>;
 }
 
 function DependencyEditor({ stage }: { stage: StagePackage }) {

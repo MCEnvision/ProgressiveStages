@@ -328,10 +328,17 @@ public final class StageTreeScreen extends Screen {
     private void refreshCategories() {
         categories.clear();
         ClientStageCache.getAllStageDefinitionIds().stream()
+            .filter(this::categoryVisible)
             .map(ClientStageCache::getCategory).map(String::trim).filter(s -> !s.isEmpty())
             .distinct().sorted(String.CASE_INSENSITIVE_ORDER).forEach(categories::add);
         if (!categoryFilter.isEmpty()
                 && categories.stream().noneMatch(categoryFilter::equalsIgnoreCase)) categoryFilter = "";
+    }
+
+    private boolean categoryVisible(StageId id) {
+        if (ClientStageCache.isHidden(id)) return false;
+        boolean owned = ClientStageCache.hasStage(id);
+        return revealed(id, owned, !owned && dependenciesSatisfied(id));
     }
 
     private void selectCategory(int index) {

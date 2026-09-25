@@ -110,6 +110,19 @@ class StageTreeScreenRenderOrderTest {
     }
 
     @Test
+    void categoryFiltersDoNotExposeHiddenOrUnrevealedStages() throws IOException {
+        String source = Files.readString(SCREEN);
+        int start = source.indexOf("private void refreshCategories()");
+        int end = source.indexOf("private void selectCategory", start);
+        assertTrue(start >= 0 && end > start);
+        String method = source.substring(start, end);
+        assertTrue(method.contains("filter(this::categoryVisible)"));
+        assertTrue(method.contains("private boolean categoryVisible(StageId id)"));
+        assertTrue(method.contains("ClientStageCache.isHidden(id)"));
+        assertTrue(method.contains("return revealed(id, owned, !owned && dependenciesSatisfied(id))"));
+    }
+
+    @Test
     void categoryMenuRendersAboveStageItemDepth() throws IOException {
         String source = Files.readString(SCREEN);
         int start = source.indexOf("private void renderCategoryMenu(GuiGraphics g, int mouseX, int mouseY)");

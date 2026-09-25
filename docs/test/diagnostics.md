@@ -109,3 +109,18 @@ configuration edit records the validation result, changed file path, effective l
 restart pending paths without recording raw TOML. A failed write or stage reload must leave the prior
 file and effective cache active. Use the editor review response and the sanitized capture excerpt
 together when checking a settings transaction.
+
+## player guide capture
+
+Guide checks reuse the progression capture category. The record stores the accepted definition
+revision, guide policy, recommendation result, visibility and reveal result, stable order key, and
+whether the selected stage has guide text. It does not store authored guide text, trigger details,
+session tokens, or private editor source. A guide field is safe to display only after the server
+accepts its bounded Unicode and UTF 8 value. Use the actual stages menu for rendered text and keep
+that visual proof separate from the server capture.
+
+For a guide support packet, record the candidate commit, JAR hash, policy state, capture ID and
+sequence, then remove the exact capture file after its sanitized excerpt has been retained. Run
+`/stage debug progression off`, confirm `status` reports the writer drained, and verify a later
+matching stimulus creates no record. A disabled `general.enable_stage_guide` policy must leave the
+ordinary map available and must not create guide capture work.

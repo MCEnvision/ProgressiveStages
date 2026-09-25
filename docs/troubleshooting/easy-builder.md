@@ -157,6 +157,21 @@ Removing a collaborator invalidates every existing session they hold for that dr
 owner adds you again, resume the shared draft to obtain a fresh session. Reusing the old session
 does not restore access. Losing operator permission also invalidates the session on its next request.
 
+### guide fields and placeholders
+
+The **What to do next** section writes `guide.how_to_unlock`, `guide.next_steps`, and
+`guide.where_to_find` as inert text. Each field accepts at most 2048 Unicode code points and 8 KiB
+of UTF 8 data. The editor shows both counters, refuses an overlong save, and keeps the last valid
+server draft when validation fails. The placeholder chooser inserts `{stage_name}`,
+`{stage_requirements}`, `{remaining_requirements}`, or `{stage_progress}`. Unknown placeholders
+stay visible with a warning. Double braces, such as `{{stage_name}}`, display a literal brace form.
+
+The preview uses sample values and cannot apply, grant, purchase, execute a command, or change a
+rule. After applying the draft, open the ordinary advancement style stages map, select the stage,
+and press the gold `?` beside the close control. The help title includes the selected stage name and
+the guide disappears for an owned stage or when `general.enable_stage_guide = false`. The separate
+guide keybind starts unbound and selects the next visible suggestion; it never grants a stage.
+
 
 ## Access configuration validation
 

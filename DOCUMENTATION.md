@@ -487,8 +487,11 @@ To create a stage without knowing TOML:
     pointer. Curved connectors follow at every zoom. Select `Player preview` to inspect the same map
     as a read only player view. Use `Locked`, `Requirements met`, or `Unlocked` to simulate the
     three quick ownership states. Hidden stages stay out of the preview, reveal rules are applied,
-    and clicking a visible node opens its nearby editable stage form. Preview controls never write
-    TOML, grant a stage, run a rule, or apply the draft.
+    and clicking a visible node opens an advancement style inspector beside the graph. The inspector
+    shows the display name of each prerequisite, the simulated state, and a gold `?` that opens
+    `How to unlock <stage name>`. Hovering the question mark, close control, and edit control shows
+    short help. Choose `Edit stage fields` to open the selected stage form. Preview controls never
+    write TOML, grant a stage, run a rule, or apply the draft.
     Click `Connect stages` to edit progression directly on the graph. Select the prerequisite stage
     first. Then select the stage that should require it. The editor writes the dependency into the
     destination stage and refuses duplicate branches, self references, and dependency loops. To

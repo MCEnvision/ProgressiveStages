@@ -38,6 +38,6 @@ The required Brave editor edit and apply gate remains open. The available browse
 
 ## candidate identity
 
-The current candidate source commit is `5ad2a9a`. A clean `./gradlew build --no-daemon` produced `progressivestages-3.0.5.jar` with SHA 256 `c2a6bc94260e8506d3031d87c445e2591b2451b0d160c8056bf5931a7684e565` and SHA 512 `5d392f3f874044831de1ccd24478343d89ee8c9db5d0cc1344d7a810a506436213fc408f7a4547f563e484285c1c44c7a93b443bec0f1f3a86223fb2ff0eb579`. The archive contains `StageGuide`, `StageGuideTemplate`, `StageTreeScreen`, the packaged editor bundle, and the English language file.
+The current candidate source commit is `b1b6ecc`. A clean `./gradlew build --no-daemon` produced `progressivestages-3.0.5.jar` with SHA 256 `95f1c87f59c353a7e978c4c27d705a4cffd48e75eff25c5b13db8c20fcfae376` and SHA 512 `11e7217879edd0b782466c832066ed4e6fb059663c3534a85dcec87b3b6e4676e13dd1a2f43d3e8130c61bee66fcce40820eede3ec09ecf8c89c43ec88413eef`. The archive contains `StageGuide`, `StageGuideTemplate`, `StageTreeScreen`, the packaged editor bundle, and the English language file.
 
 The packaged editor asset hashes for this candidate are `app.js` SHA 256 `2af23dce0c525357ac660a75545ca278e7f768769d20cbf33f00ef0e3c700fcf`, `app.css` SHA 256 `c63c620e6c4c81e0ce91124c1dba384ebaafd46433b1d7f08e42a9a581c10f04`, and `en_us.json` SHA 256 `a9799ae8b24b321c26c3285480ba6f43822c2cf62fd7bf937080ad2c8be89a9f`. The build output remains available only for the current verification consumers and will be removed during phase cleanup.

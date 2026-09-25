@@ -1535,7 +1535,7 @@ public final class StageTreeScreen extends Screen {
             }
             return true;
         }
-        if (selected != null) {
+        if (selected != null && (!guideView || guideCardBounds.containsKey(selected))) {
             if (button == 0 && inside(mouseX, mouseY, panelX + panelW - 16, panelY + 4, 13, 13)) {
                 playButtonSound();
                 selected = null;

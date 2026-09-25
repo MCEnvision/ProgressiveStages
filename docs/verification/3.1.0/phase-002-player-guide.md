@@ -12,6 +12,8 @@ The existing advancement style menu remains one map without guide tabs. Selectin
 
 The editor `Player UI` also has a read only `Player preview`. It uses the current draft display name, icon, description, guide, hidden, reveal, category, search, and dependency data. `Locked`, `Requirements met`, and `Unlocked` simulate the quick ownership states. Hidden stages are absent from the preview and its search, category, count, dependency, and empty state surfaces. Clicking a visible node returns to the adjacent stage form for editing. Preview navigation does not write TOML, apply the draft, grant stages, purchase stages, execute rules, or run rewards.
 
+Each guide field has a nearby placeholder chooser and an inert rendered preview. The chooser inserts only `{stage_name}`, `{stage_requirements}`, `{remaining_requirements}`, or `{stage_progress}`. Unknown tokens stay visible with a warning, doubled braces render literal braces, and invalid 2048 code point or 8 KiB UTF 8 values cannot be saved. The preview uses sample values and never applies a draft or runs a command.
+
 ## verification procedure
 
 1. Use the editor Essentials page to enter multiline Unicode text in all three text fields and choose each recommendation mode. Review and apply the draft.
@@ -24,7 +26,7 @@ The phase completion record adds candidate identity, test commands, hashes, host
 
 ## current local checks
 
-`npm ci` completes from the checked lockfile. It reports six dependency audit findings, including two high findings, without changing the pinned dependency set. The editor checks pass with `npm run check`, 19 Vitest files and 165 tests pass with `npm test -- --run`, and the packaged editor is rebuilt with `npm run build`. The Java unit suite passes with `./gradlew test --no-daemon`, and `./gradlew build --no-daemon` produces a jar containing the guide model and packaged editor assets. Incomplete multi-packet definition assemblies now expire after 200 client ticks, while newer revisions supersede older assemblies and logout clears the pending state.
+`npm ci` completes from the checked lockfile. It reports six dependency audit findings, including two high findings, without changing the pinned dependency set. The editor checks pass with `npm run check`, 20 Vitest files and 169 tests pass with `npm test -- --run`, and the packaged editor is rebuilt with `npm run build`. The Java unit suite passes with `./gradlew test --no-daemon`, and `./gradlew build --no-daemon` produces a jar containing the guide model and packaged editor assets. Incomplete multi-packet definition assemblies now expire after 200 client ticks, while newer revisions supersede older assemblies and logout clears the pending state.
 
 The required headless GameTest server was also started from the disposable phase worktree. It shut down cleanly, but the repository's existing suite reported 15 unrelated world and progression failures. Its disposable runtime files were removed after the run.
 
@@ -34,6 +36,6 @@ The required Brave editor edit and apply gate remains open. The available browse
 
 ## candidate identity
 
-The current candidate source commit is `031059d`. A clean `./gradlew build --no-daemon` produced `progressivestages-3.0.5.jar` with SHA 256 `74c7d8e685f0a02024ca9c0fb18fab8061c848e6b6442c7e911b42fecd755952` and SHA 512 `5d8c5c72eb5b71b89f793a5651d9cc15a5b6118ff0e3147d252c1cdb3be588f1bbb2b44eddfbe677ad03181fae5e335eadf45afcf99c4bd913a13d82eb3d2917`. The archive contains `StageGuide`, `StageTreeScreen`, the packaged editor bundle, and the English language file.
+The current candidate source commit is `0487840`. A clean `./gradlew build --no-daemon` produced `progressivestages-3.0.5.jar` with SHA 256 `a9294d7360625727856493df0e6584248d005928c1f94bf14a1e7b9e16c2178e` and SHA 512 `33b99f8b84ec596adffad3981d1696f2d71d7bfd3ecf0fe3664207f52866cdc67992d9e1d37d5c0fb2afa7250d7bee8a2ee522ba89f50193db37d6b16e19641d`. The archive contains `StageGuide`, `StageGuideTemplate`, `StageTreeScreen`, the packaged editor bundle, and the English language file.
 
-The packaged editor asset hashes for this candidate are `app.js` SHA 256 `ddc3911277ca6c18db21ccabadfb932036ddd8f6b6432de7e649829499f7ba79`, `app.css` SHA 256 `6bc163ca7269dfb41c3e0e6d0ecdd3b9e0640d98f60199686dc85909b068baae`, and `en_us.json` SHA 256 `607dff6ab0d805cc0800d395497e89da36afd5ccbf796edbcc99d0681c330d42`. The build output remains available only for the current verification consumers and will be removed during phase cleanup.
+The packaged editor asset hashes for this candidate are `app.js` SHA 256 `2af23dce0c525357ac660a75545ca278e7f768769d20cbf33f00ef0e3c700fcf`, `app.css` SHA 256 `c63c620e6c4c81e0ce91124c1dba384ebaafd46433b1d7f08e42a9a581c10f04`, and `en_us.json` SHA 256 `607dff6ab0d805cc0800d395497e89da36afd5ccbf796edbcc99d0681c330d42`. The build output remains available only for the current verification consumers and will be removed during phase cleanup.

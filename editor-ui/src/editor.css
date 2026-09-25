@@ -309,6 +309,12 @@ input::placeholder, textarea::placeholder { color: #646974; }
 .zoom-control span { min-width: 55px; text-align: center; color: var(--muted); font-size: 10px; }
 .connection-help { display: flex; gap: 7px; padding: 10px 3px; color: var(--muted); font-size: 11px; }
 .connection-help.active { color: #e9ca8a; }
+.preview-banner { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid #6d5930; border-radius: 7px; color: #d9d0bd; background: #211d16; font-size: 11px; }
+.preview-banner strong { color: #f0c66f; }
+.preview-banner span { min-width: 0; }
+.preview-state-list { display: flex; align-items: center; gap: 8px; color: var(--muted); white-space: nowrap; }
+.preview-state { padding: 4px 7px; border-radius: 999px; color: #d8e8d5; background: #263b2b; }
+.preview-state.active { color: #fff0c5; background: #4a3b21; }
 .stage-graph { width: 100%; height: 100%; min-height: 500px; border: 1px solid var(--line); border-radius: 7px; background: #101216; touch-action: none; user-select: none; }
 .graph-grid { fill: url(#graph-grid); }
 #graph-grid circle { fill: #2c3037; }
@@ -317,6 +323,17 @@ input::placeholder, textarea::placeholder { color: #646974; }
 .graph-edge-hit:hover + path, .graph-edges g:hover path:first-child { stroke: var(--red); }
 .graph-node { cursor: grab; }
 .graph-node:active { cursor: grabbing; }
+.preview-node { cursor: pointer; }
+.preview-node rect { stroke-width: 2; }
+.preview-node.preview-locked rect { stroke: #776e61; fill: #292827; }
+.preview-node.preview-ready rect { stroke: #c0974b; fill: #302a1e; }
+.preview-node.preview-owned rect { stroke: #83b66f; fill: #233126; }
+.preview-node.preview-locked .node-diamond { fill: #77736d; stroke: #a7a096; }
+.preview-node.preview-ready .node-diamond { fill: #d1a247; stroke: #f1cf80; }
+.preview-node.preview-owned .node-diamond { fill: #78ad67; stroke: #b7dfa4; }
+.node-status { fill: #d8bb78; font-size: 8px; font-weight: 700; }
+.preview-owned .node-status { fill: #9fd18d; }
+.preview-locked .node-status { fill: #b6afa5; }
 .stage-graph.connecting .graph-node { cursor: crosshair; }
 .graph-node rect { fill: #1d2026; stroke: #444953; stroke-width: 1.5; }
 .graph-node:hover rect, .graph-node.connection-source rect { stroke: var(--gold-bright); fill: #28231a; }

@@ -170,6 +170,7 @@ public class ClientEventHandler {
     /** Prevent lock and progression snapshots from leaking between multiplayer servers/worlds. */
     @SubscribeEvent
     public static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        com.enviouse.progressivestages.common.network.NetworkHandler.clearClientDefinitionAssembly();
         EmiLifecycleBridge.beginClientDisconnect();
         ClientStageCache.clear();
         ClientTriggerProgress.clear();
@@ -206,6 +207,14 @@ public class ClientEventHandler {
         }
         if (pressed) {
             ClientTriggerProgress.requestFromServer();
+        }
+        boolean guidePressed = false;
+        while (ClientModBusEvents.OPEN_GUIDE.consumeClick()) guidePressed = true;
+        var minecraft = net.minecraft.client.Minecraft.getInstance();
+        if (guidePressed && minecraft.player != null
+                && (minecraft.screen == null || minecraft.screen instanceof com.enviouse.progressivestages.client.gui.StageTreeScreen)
+                && ClientStageCache.isStageGuideEnabled()) {
+            com.enviouse.progressivestages.client.gui.StageTreeScreen.openGuide();
         }
     }
 

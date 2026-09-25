@@ -7,6 +7,7 @@ import com.enviouse.progressivestages.common.config.RevokeRule;
 import com.enviouse.progressivestages.common.config.StageAttribute;
 import com.enviouse.progressivestages.common.config.StageCost;
 import com.enviouse.progressivestages.common.config.StageDefinition;
+import com.enviouse.progressivestages.common.config.StageGuide;
 import com.enviouse.progressivestages.common.config.LuckPermsStageOptions;
 import com.enviouse.progressivestages.common.stage.DependencyMode;
 import com.enviouse.progressivestages.common.stage.FieldDiagnostic;
@@ -232,6 +233,7 @@ public final class StageFileParser {
         // v2.3: per-stage [[triggers]] auto-grant rules + [display] overrides.
         builder.triggers(parseTriggers(config));
         applyDisplaySection(config, builder);
+        builder.guide(parseGuide(config));
 
         // v2.4: [stage] presentation/scope metadata + new sections.
         builder.hidden(readBool(stageSection, "hidden"));
@@ -296,6 +298,39 @@ public final class StageFileParser {
         builder.activeLocks(parseActiveLocks(config));
 
         return ParseResult.success(builder.build(), schemaVersion == 4 ? Config.copy(config) : null);
+    }
+
+    private static StageGuide parseGuide(Config config) {
+        Object raw = config.get("guide");
+        if (raw == null) return StageGuide.EMPTY;
+        if (!(raw instanceof Config section)) {
+            throw new FieldValidationException("guide", null, "invalid_type", "The guide section must be a table");
+        }
+        String howToUnlock = guideText(section, "how_to_unlock");
+        String nextSteps = guideText(section, "next_steps");
+        String whereToFind = guideText(section, "where_to_find");
+        Object recommendation = section.get("recommendation");
+        if (recommendation != null && !(recommendation instanceof String)) {
+            throw new FieldValidationException("guide.recommendation", null, "invalid_type", "Guide recommendation must be a string");
+        }
+        try {
+            return new StageGuide(howToUnlock, nextSteps, whereToFind, StageGuide.Recommendation.parse((String) recommendation));
+        } catch (IllegalArgumentException error) {
+            throw new FieldValidationException("guide", null, "invalid_value", error.getMessage());
+        }
+    }
+
+    private static String guideText(Config section, String key) {
+        Object value = section.get(key);
+        if (value == null) return "";
+        if (!(value instanceof String text)) {
+            throw new FieldValidationException("guide." + key, null, "invalid_type", "Guide text must be a string");
+        }
+        try {
+            return new StageGuide(text, "", "", StageGuide.Recommendation.AUTO).howToUnlock();
+        } catch (IllegalArgumentException error) {
+            throw new FieldValidationException("guide." + key, null, "invalid_value", error.getMessage());
+        }
     }
 
     private static LuckPermsStageOptions parseLuckPerms(Config config) {

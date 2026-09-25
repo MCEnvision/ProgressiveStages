@@ -23,10 +23,13 @@ public class ClientStageCache {
     private static long revision;
     private static StageId currentStage = null;
     private static volatile boolean hideStageNamesFromNonOps = false;
+    private static volatile boolean stageGuideEnabled = true;
 
     public static boolean isHideStageNamesFromNonOps() { return hideStageNamesFromNonOps; }
     public static long revision() { return revision; }
     public static void setHideStageNamesFromNonOps(boolean v) { hideStageNamesFromNonOps = v; }
+    public static boolean isStageGuideEnabled() { return stageGuideEnabled; }
+    public static void setStageGuideEnabled(boolean enabled) { stageGuideEnabled = enabled; revision++; }
 
     // v1.3: Stage definitions with dependencies
     private static final Map<StageId, StageDefinitionData> stageDefinitions = new HashMap<>();
@@ -47,7 +50,9 @@ public class ClientStageCache {
                                       boolean hidden, String color, String category,
                                       String slotGroup, int slotLimit, String slotPolicy,
                                       Integer uiX, Integer uiY, String uiFrame,
-                                      String uiBackground, String uiReveal, int uiSortOrder) {
+                                      String uiBackground, String uiReveal, int uiSortOrder,
+                                      String howToUnlock, String nextSteps, String whereToFind,
+                                      String recommendation) {
     }
 
     /** v2.5: true if the stage opted out of the GUI tree via {@code [stage].hidden = true}. */
@@ -465,6 +470,7 @@ public class ClientStageCache {
         revision++;
         currentStage = null;
         stageDefinitions.clear();
+        stageGuideEnabled = true;
         ClientLockCache.clear();
     }
 

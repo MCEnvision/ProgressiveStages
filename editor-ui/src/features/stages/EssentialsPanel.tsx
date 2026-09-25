@@ -9,8 +9,8 @@ import { booleanValue, lineValues, numberValue, parseSimpleArray, readTomlValue,
 import { useEditor } from "../../store/EditorContext";
 import type { StagePackage } from "../../types";
 
-function TextDraftField({ label, value, help, wide, multiline, type = "text", onSave }:
-  { label: string; value: string | number; help?: string; wide?: boolean; multiline?: boolean; type?: string; onSave: (value: string) => Promise<void> }) {
+function TextDraftField({ label, value, help, wide, multiline, type = "text", maxLength, onSave }:
+  { label: string; value: string | number; help?: string; wide?: boolean; multiline?: boolean; type?: string; maxLength?: number; onSave: (value: string) => Promise<void> }) {
   const [draft, setDraft] = useState(String(value));
   const [saving, setSaving] = useState(false);
   useEffect(() => setDraft(String(value)), [value]);
@@ -20,9 +20,36 @@ function TextDraftField({ label, value, help, wide, multiline, type = "text", on
     try { await onSave(draft); } finally { setSaving(false); }
   };
   return <Field label={label} help={saving ? "Saving to the server draft" : help} wide={wide}>
-    {multiline ? <textarea rows={3} value={draft} onChange={event => setDraft(event.target.value)} onBlur={() => void save()}/>
-      : <input type={type} value={draft} onChange={event => setDraft(event.target.value)} onBlur={() => void save()}/>}
+    {multiline ? <textarea rows={3} maxLength={maxLength} value={draft} onChange={event => setDraft(event.target.value)} onBlur={() => void save()}/>
+      : <input type={type} maxLength={maxLength} value={draft} onChange={event => setDraft(event.target.value)} onBlur={() => void save()}/>}
   </Field>;
+}
+
+function GuideEditor({ content, save }: { stage: StagePackage; content: string; save: (path: string, value: unknown) => Promise<void> }) {
+  const text = (path: string) => stringValue(readTomlValue(content, path));
+  const field = (path: string, label: string, help: string) => <TextDraftField
+    label={label}
+    value={text(path)}
+    wide
+    multiline
+    maxLength={2048}
+    help={`${help} ${Array.from(text(path)).length}/2048 characters.`}
+    onSave={value => save(path, value)}
+  />;
+  return <Section title="What to do next" description="Write the short instructions players see in the guide. Text is shown as written and never runs commands or grants stages.">
+    <div className="form-grid">
+      {field("guide.how_to_unlock", "How to unlock", "Explain the requirement in simple words.")}
+      {field("guide.next_steps", "Next steps", "Tell the player what to do after this stage.")}
+      {field("guide.where_to_find", "Where to find it", "Point to a place, menu, quest, or nearby landmark.")}
+      <Field label="Guide recommendation" help="Automatic suggests a visible stage when its prerequisites are ready and it has a trigger or guide text. Always include keeps it eligible. Never include removes it.">
+        <select value={text("guide.recommendation") || "auto"} onChange={event => void save("guide.recommendation", event.target.value)}>
+          <option value="auto">Automatic</option>
+          <option value="include">Always include</option>
+          <option value="exclude">Never include</option>
+        </select>
+      </Field>
+    </div>
+  </Section>;
 }
 
 function DependencyEditor({ stage }: { stage: StagePackage }) {
@@ -123,6 +150,7 @@ export function EssentialsPanel({ stage }: { stage: StagePackage }) {
         <Toggle label="Hide this stage from players" help="Reveal policy still controls when hidden content becomes visible." checked={booleanValue(readTomlValue(content, "stage.hidden"))} onChange={value => void save("stage.hidden", value)}/>
       </div>
     </Section>
+    <GuideEditor stage={stage} content={content} save={save}/>
     <Section title="Player map appearance" description="Use the advancement inspired presentation players see in game.">
       <div className="form-grid">
         <TextDraftField label="Map category" value={stringValue(readTomlValue(content, "stage.category"))} onSave={value => save("stage.category", value)} help="Categories become filters in the player screen."/>

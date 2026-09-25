@@ -96,6 +96,10 @@ public final class StageTreeScreen extends Screen {
     private final Set<StageId> itemFilterMatches = new HashSet<>();
     private int ownedX, ownedY, ownedW = 45, ownedH = 12;
     private int homeX, homeY, homeW = 14, homeH = 12;
+    private int mapTabX, guideTabX, tabY, tabW = 66, tabH = 13;
+    private boolean guideView;
+    private int guideScroll;
+    private final Map<StageId, int[]> guideCardBounds = new HashMap<>();
 
     private int panelX, panelY, panelW, panelH;
     private int panelScroll, panelMax;
@@ -109,14 +113,36 @@ public final class StageTreeScreen extends Screen {
     private record PreviewRow(ItemStack icon, List<FormattedCharSequence> lines, int height) {}
 
     public StageTreeScreen() {
+        this(false);
+    }
+
+    private StageTreeScreen(boolean guideView) {
         super(Component.translatable("gui.progressivestages.tree.title"));
+        this.guideView = guideView;
     }
 
     public static void open() {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
-            if (mc.screen instanceof StageTreeScreen current) current.rebuild(false);
+            if (mc.screen instanceof StageTreeScreen current) {
+                current.guideView = false;
+                current.guideScroll = 0;
+                if (current.searchBox != null) current.searchBox.visible = true;
+                current.rebuild(false);
+            }
             else mc.setScreen(new StageTreeScreen());
+        });
+    }
+
+    public static void openGuide() {
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> {
+            if (!ClientStageCache.isStageGuideEnabled()) return;
+            if (mc.screen instanceof StageTreeScreen current) {
+                current.guideView = true;
+                current.guideScroll = 0;
+                if (current.searchBox != null) current.searchBox.visible = false;
+            } else mc.setScreen(new StageTreeScreen(true));
         });
     }
 
@@ -130,6 +156,10 @@ public final class StageTreeScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
+        if (guideView && !ClientStageCache.isStageGuideEnabled()) {
+            guideView = false;
+            if (searchBox != null) searchBox.visible = true;
+        }
         long revision = ClientStageCache.revision();
         if (stageRevision == revision) return;
         stageRevision = revision;
@@ -153,6 +183,9 @@ public final class StageTreeScreen extends Screen {
         mapBottom = bottom - BOTTOM_H;
         categoryX = mapLeft + 5;
         categoryY = mapTop + 5;
+        tabY = top + 3;
+        mapTabX = left + 84;
+        guideTabX = mapTabX + tabW + 3;
 
         homeX = right - BORDER_X - homeW;
         homeY = top + 3;
@@ -172,6 +205,7 @@ public final class StageTreeScreen extends Screen {
             recomputeItemFilter();
             rebuild(false);
         });
+        searchBox.visible = !guideView;
         addRenderableWidget(searchBox);
 
         recomputeItemFilter();
@@ -361,24 +395,34 @@ public final class StageTreeScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         renderBackground(g, mouseX, mouseY, partialTick);
-        renderMapBackground(g);
+        if (guideView && ClientStageCache.isStageGuideEnabled()) {
+            renderGuideView(g, mouseX, mouseY);
+            if (selected != null && (!guideView || guideCardBounds.containsKey(selected))) {
+                g.pose().pushPose();
+                g.pose().translate(0.0F, 0.0F, 200.0F);
+                renderInspector(g, mouseX, mouseY);
+                g.pose().popPose();
+            }
+        } else {
+            renderMapBackground(g);
 
-        MapNode hoveredNode = inside(mouseX, mouseY, mapLeft, mapTop, mapRight - mapLeft, mapBottom - mapTop)
-            ? nodeAt(mouseX, mouseY)
-            : null;
-        hovered = hoveredNode != null ? hoveredNode.id() : null;
-        refreshFocusedPath(hovered != null ? hovered : selected);
-        g.enableScissor(mapLeft, mapTop, mapRight, mapBottom);
-        renderConnections(g);
-        renderNodes(g);
-        g.disableScissor();
-        renderMapHud(g);
+            MapNode hoveredNode = inside(mouseX, mouseY, mapLeft, mapTop, mapRight - mapLeft, mapBottom - mapTop)
+                ? nodeAt(mouseX, mouseY)
+                : null;
+            hovered = hoveredNode != null ? hoveredNode.id() : null;
+            refreshFocusedPath(hovered != null ? hovered : selected);
+            g.enableScissor(mapLeft, mapTop, mapRight, mapBottom);
+            renderConnections(g);
+            renderNodes(g);
+            g.disableScissor();
+            renderMapHud(g);
 
-        if (selected != null) {
-            g.pose().pushPose();
-            g.pose().translate(0.0F, 0.0F, 200.0F);
-            renderInspector(g, mouseX, mouseY);
-            g.pose().popPose();
+            if (selected != null) {
+                g.pose().pushPose();
+                g.pose().translate(0.0F, 0.0F, 200.0F);
+                renderInspector(g, mouseX, mouseY);
+                g.pose().popPose();
+            }
         }
         renderWindowFrame(g, mouseX, mouseY);
         // Screen.render would run the blur pass again. Render widgets directly above the completed map.
@@ -396,6 +440,92 @@ public final class StageTreeScreen extends Screen {
                 && inside(mouseX, mouseY, categoryX, categoryY, categoryW, categoryH)) {
             g.renderTooltip(font, Component.translatable("gui.progressivestages.tree.category.tooltip"), mouseX, mouseY);
         }
+    }
+
+    private void renderGuideView(GuiGraphics g, int mouseX, int mouseY) {
+        hovered = null;
+        g.fill(mapLeft, mapTop, mapRight, mapBottom, 0xE5101010);
+        renderPixelRoundedOutline(g, mapLeft, mapTop, mapRight - mapLeft, mapBottom - mapTop, 0xFF5D4B78);
+        guideCardBounds.clear();
+        List<StageId> recommendations = guideStages();
+        int x = mapLeft + 10;
+        int y = mapTop + 10 - guideScroll;
+        int width = mapRight - mapLeft - 20;
+        g.enableScissor(mapLeft + 2, mapTop + 2, mapRight - 2, mapBottom - 2);
+        if (recommendations.isEmpty()) {
+            g.drawCenteredString(font, Component.translatable("gui.progressivestages.tree.guide.empty"),
+                (mapLeft + mapRight) / 2, (mapTop + mapBottom) / 2 - 4, 0xFFFFFFFF);
+        } else {
+            for (StageId id : recommendations) {
+                StageGuideCard card = guideCard(g, id, x, y, width);
+                y = card.bottom();
+            }
+        }
+        g.disableScissor();
+        int contentHeight = y + guideScroll - mapTop;
+        int max = Math.max(0, contentHeight - (mapBottom - mapTop));
+        guideScroll = Math.max(0, Math.min(guideScroll, max));
+        if (max > 0) {
+            int track = mapBottom - mapTop - 8;
+            int thumb = Math.max(12, track * track / (track + max));
+            int thumbY = mapTop + 4 + (track - thumb) * guideScroll / max;
+            g.fill(mapRight - 5, mapTop + 4, mapRight - 3, mapBottom - 4, 0x66505050);
+            g.fill(mapRight - 5, thumbY, mapRight - 3, thumbY + thumb, GOLD);
+        }
+    }
+
+    private record StageGuideCard(int bottom) {}
+
+    private StageGuideCard guideCard(GuiGraphics g, StageId id, int x, int y, int width) {
+        var definition = ClientStageCache.getStageDefinition(id).orElse(null);
+        if (definition == null) return new StageGuideCard(y);
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.literal(ClientStageCache.getDisplayName(id)).withStyle(ChatFormatting.BOLD, ChatFormatting.GOLD));
+        if (!definition.howToUnlock().isBlank()) lines.add(Component.translatable("gui.progressivestages.tree.guide.unlock", definition.howToUnlock()));
+        if (!definition.nextSteps().isBlank()) lines.add(Component.translatable("gui.progressivestages.tree.guide.next", definition.nextSteps()));
+        if (!definition.whereToFind().isBlank()) lines.add(Component.translatable("gui.progressivestages.tree.guide.location", definition.whereToFind()));
+        List<StageId> visibleDependencies = ClientStageCache.getDependencies(id).stream()
+            .filter(dependency -> !ClientStageCache.isHidden(dependency)).toList();
+        Component prerequisite = visibleDependencies.isEmpty()
+            ? Component.translatable("gui.progressivestages.tree.guide.no_prerequisites")
+            : Component.translatable("gui.progressivestages.tree.guide.prerequisites",
+                visibleDependencies.stream().map(ClientStageCache::getDisplayName)
+                    .reduce((a, b) -> a + ", " + b).orElse(""));
+        lines.add(prerequisite.copy().withStyle(ChatFormatting.GRAY));
+        int height = 8 + lines.stream().mapToInt(line -> Math.max(1, font.split(line, width - 14).size()) * 10).sum();
+        guideCardBounds.put(id, new int[]{x, y, width, height});
+        fillPixelRounded(g, x, y, width, height, id.equals(selected) ? 0xCC3E3150 : 0xCC191919);
+        renderPixelRoundedOutline(g, x, y, width, height, id.equals(selected) ? GOLD : 0xFF6B557F);
+        int lineY = y + 5;
+        for (Component line : lines) {
+            for (FormattedCharSequence wrapped : font.split(line, width - 14)) {
+                g.drawString(font, wrapped, x + 7, lineY, 0xFFFFFFFF, false);
+                lineY += 10;
+            }
+        }
+        return new StageGuideCard(y + height + 6);
+    }
+
+    private List<StageId> guideStages() {
+        List<StageId> result = new ArrayList<>();
+        for (StageId id : ClientStageCache.getAllStageDefinitionIds()) {
+            if (ClientStageCache.isHidden(id) || ClientStageCache.hasStage(id)) continue;
+            var definition = ClientStageCache.getStageDefinition(id).orElse(null);
+            if (definition == null || "exclude".equalsIgnoreCase(definition.recommendation())) continue;
+            if ("unlocked".equalsIgnoreCase(definition.uiReveal())) continue;
+            if ("dependencies".equalsIgnoreCase(definition.uiReveal()) && !dependenciesSatisfied(id)) continue;
+            if (!dependenciesSatisfied(id)) continue;
+            boolean hasGuideText = !definition.howToUnlock().isBlank()
+                || !definition.nextSteps().isBlank() || !definition.whereToFind().isBlank();
+            if ("auto".equalsIgnoreCase(definition.recommendation())
+                    && !definition.hasTriggers() && !hasGuideText) continue;
+            result.add(id);
+        }
+        result.sort(Comparator.comparingInt(ClientStageCache::getUiSortOrder)
+            .thenComparing(ClientStageCache::getCategory, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(ClientStageCache::getDisplayName, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(StageId::toString, String.CASE_INSENSITIVE_ORDER));
+        return result;
     }
 
     private void renderMapBackground(GuiGraphics g) {
@@ -574,6 +704,10 @@ public final class StageTreeScreen extends Screen {
         }
         String title = Component.translatable("gui.progressivestages.tree.title").getString();
         g.drawString(font, title, left + 8, top + 6, 0xFF404040, false);
+        renderTab(g, mapTabX, tabY, Component.translatable("gui.progressivestages.tree.tab.stages"), !guideView, mouseX, mouseY);
+        if (ClientStageCache.isStageGuideEnabled()) {
+            renderTab(g, guideTabX, tabY, Component.translatable("gui.progressivestages.tree.tab.guide"), guideView, mouseX, mouseY);
+        }
         if (searchBox.getX() - (left + 8) > font.width(title) + 40) {
             String count = owned + "/" + total;
             g.drawString(font, count, searchBox.getX() - font.width(count) - 5, top + 6, 0xFF606060, false);
@@ -604,6 +738,13 @@ public final class StageTreeScreen extends Screen {
                 categoryOpen, 0xFFFFFFFF);
             renderCategoryMenu(g, mouseX, mouseY);
         }
+    }
+
+    private void renderTab(GuiGraphics g, int x, int y, Component label, boolean active, int mouseX, int mouseY) {
+        boolean hover = inside(mouseX, mouseY, x, y, tabW, tabH);
+        renderControl(g, x, y, tabW, tabH, hover, true, active);
+        g.drawCenteredString(font, font.plainSubstrByWidth(label.getString(), tabW - 6), x + tabW / 2, y + 2,
+            active ? GOLD : 0xFFFFFFFF);
     }
 
     private void renderCategoryMenu(GuiGraphics g, int mouseX, int mouseY) {
@@ -702,7 +843,10 @@ public final class StageTreeScreen extends Screen {
 
     private void renderInspector(GuiGraphics g, int mouseX, int mouseY) {
         MapNode node = byId.get(selected);
-        if (node == null) return;
+        if (node == null) {
+            boolean owned = ClientStageCache.hasStage(selected);
+            node = new MapNode(selected, 0, 0, owned, !owned && dependenciesSatisfied(selected));
+        }
         panelW = Math.min(196, Math.max(156, mapRight - mapLeft - 20));
         panelH = Math.max(90, mapBottom - mapTop - 12);
         panelX = mapRight - panelW - 6;
@@ -750,7 +894,26 @@ public final class StageTreeScreen extends Screen {
             y += 7;
         }
 
-        List<StageId> dependencies = ClientStageCache.getDependencies(selected);
+        if (ClientStageCache.isStageGuideEnabled()) {
+            var guide = ClientStageCache.getStageDefinition(selected).orElse(null);
+            if (guide != null) {
+                if (!guide.howToUnlock().isBlank()) {
+                    y = drawGuideLine(g, Component.translatable("gui.progressivestages.tree.guide.unlock",
+                        guide.howToUnlock()), x, y, innerW, GOLD);
+                }
+                if (!guide.nextSteps().isBlank()) {
+                    y = drawGuideLine(g, Component.translatable("gui.progressivestages.tree.guide.next",
+                        guide.nextSteps()), x, y, innerW, GOLD);
+                }
+                if (!guide.whereToFind().isBlank()) {
+                    y = drawGuideLine(g, Component.translatable("gui.progressivestages.tree.guide.location",
+                        guide.whereToFind()), x, y, innerW, GOLD);
+                }
+            }
+        }
+
+        List<StageId> dependencies = ClientStageCache.getDependencies(selected).stream()
+            .filter(dependency -> !guideView || !ClientStageCache.isHidden(dependency)).toList();
         if (!dependencies.isEmpty()) {
             String mode = ClientStageCache.getDependencyMode(selected);
             Component prerequisiteTitle = switch (mode) {
@@ -1174,6 +1337,14 @@ public final class StageTreeScreen extends Screen {
         return y + 14;
     }
 
+    private int drawGuideLine(GuiGraphics g, Component line, int x, int y, int width, int color) {
+        for (FormattedCharSequence wrapped : font.split(line, width)) {
+            g.drawString(font, wrapped, x, y, color, false);
+            y += 10;
+        }
+        return y + 3;
+    }
+
     private void renderControl(
             GuiGraphics g,
             int x,
@@ -1301,6 +1472,32 @@ public final class StageTreeScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && inside(mouseX, mouseY, mapTabX, tabY, tabW, tabH)) {
+            guideView = false;
+            guideScroll = 0;
+            if (searchBox != null) searchBox.visible = true;
+            playButtonSound();
+            return true;
+        }
+        if (button == 0 && ClientStageCache.isStageGuideEnabled()
+                && inside(mouseX, mouseY, guideTabX, tabY, tabW, tabH)) {
+            guideView = true;
+            guideScroll = 0;
+            if (searchBox != null) searchBox.visible = false;
+            playButtonSound();
+            return true;
+        }
+        if (button == 0 && guideView) {
+            for (Map.Entry<StageId, int[]> entry : guideCardBounds.entrySet()) {
+                int[] bounds = entry.getValue();
+                if (inside(mouseX, mouseY, bounds[0], bounds[1], bounds[2], bounds[3])) {
+                    selected = entry.getKey();
+                    panelScroll = 0;
+                    playButtonSound();
+                    return true;
+                }
+            }
+        }
         if (button == 0 && searchBox != null
                 && !inside(mouseX, mouseY, searchBox.getX(), searchBox.getY(), searchBox.getWidth(), searchBox.getHeight())) {
             searchBox.setFocused(false);
@@ -1397,6 +1594,10 @@ public final class StageTreeScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (guideView && inside(mouseX, mouseY, mapLeft, mapTop, mapRight - mapLeft, mapBottom - mapTop)) {
+            guideScroll = Math.max(0, guideScroll - (int) (scrollY * 14));
+            return true;
+        }
         if (categoryOpen) {
             if (inside(mouseX, mouseY, categoryMenuX, categoryMenuY, categoryMenuW, categoryMenuH)) {
                 int rows = Math.min(CATEGORY_VISIBLE_ROWS, categoryOptionCount());

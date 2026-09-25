@@ -2,6 +2,7 @@ package com.enviouse.progressivestages.common.network;
 
 import com.enviouse.progressivestages.common.api.StageId;
 import com.enviouse.progressivestages.common.config.StageDefinition;
+import com.enviouse.progressivestages.common.config.StageGuide;
 import com.enviouse.progressivestages.common.lock.LockRegistry;
 import com.enviouse.progressivestages.common.stage.StageManager;
 import com.enviouse.progressivestages.common.stage.StageOrder;
@@ -25,6 +26,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles network packet registration and sending
@@ -33,9 +35,25 @@ import java.util.*;
 @EventBusSubscriber(modid = Constants.MOD_ID, bus = EventBusSubscriber.Bus.MOD)
 public class NetworkHandler {
 
+    private static final int STAGE_DEFINITION_CHUNK_BYTES =
+        com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.MAX_CHUNK_BYTES;
+    private static final Map<Long, DefinitionAssembly> CLIENT_DEFINITION_ASSEMBLIES = new ConcurrentHashMap<>();
+    private static volatile long latestClientDefinitionRevision = Long.MIN_VALUE;
+
+    private static final class DefinitionAssembly {
+        private final int total;
+        private final boolean guideEnabled;
+        private final Map<Integer, List<StageDefinitionEntry>> chunks = new HashMap<>();
+
+        private DefinitionAssembly(int total, boolean guideEnabled) {
+            this.total = total;
+            this.guideEnabled = guideEnabled;
+        }
+    }
+
     @SubscribeEvent
     public static void registerPayloads(final RegisterPayloadHandlersEvent event) {
-        final PayloadRegistrar registrar = event.registrar("2");
+        final PayloadRegistrar registrar = event.registrar("3");
 
         // Stage sync packet (full snapshot)
         registrar.playToClient(
@@ -999,12 +1017,53 @@ public class NetworkHandler {
                     def.getUiFrame(),
                     def.getUiBackground(),
                     def.getUiReveal(),
-                    def.getUiSortOrder()
+                    def.getUiSortOrder(),
+                    def.getGuide().howToUnlock(),
+                    def.getGuide().nextSteps(),
+                    def.getGuide().whereToFind(),
+                    def.getGuide().recommendation().configName()
                 ));
             });
         }
 
-        PacketDistributor.sendToPlayer(player, new StageDefinitionsSyncPayload(definitions));
+        boolean guideEnabled = com.enviouse.progressivestages.common.config.StageConfig.isEnableStageGuide();
+        List<List<StageDefinitionEntry>> chunks = splitDefinitionEntries(definitions);
+        long revision = System.nanoTime();
+        for (int sequence = 0; sequence < chunks.size(); sequence++) {
+            PacketDistributor.sendToPlayer(player, new StageDefinitionsSyncPayload(revision, sequence,
+                chunks.size(), guideEnabled, chunks.get(sequence)));
+        }
+    }
+
+    private static List<List<StageDefinitionEntry>> splitDefinitionEntries(List<StageDefinitionEntry> definitions) {
+        List<List<StageDefinitionEntry>> chunks = new ArrayList<>();
+        List<StageDefinitionEntry> current = new ArrayList<>();
+        for (StageDefinitionEntry entry : definitions) {
+            List<StageDefinitionEntry> candidate = new ArrayList<>(current);
+            candidate.add(entry);
+            if (!current.isEmpty() && encodedDefinitionBytes(candidate) > STAGE_DEFINITION_CHUNK_BYTES) {
+                chunks.add(List.copyOf(current));
+                current.clear();
+                candidate = List.of(entry);
+            }
+            if (encodedDefinitionBytes(candidate) > STAGE_DEFINITION_CHUNK_BYTES) {
+                throw new IllegalArgumentException("A stage definition exceeds the configured transport chunk limit");
+            }
+            current.add(entry);
+        }
+        if (!current.isEmpty() || chunks.isEmpty()) chunks.add(List.copyOf(current));
+        return chunks;
+    }
+
+    private static int encodedDefinitionBytes(List<StageDefinitionEntry> definitions) {
+        io.netty.buffer.ByteBuf raw = io.netty.buffer.Unpooled.buffer();
+        try {
+            FriendlyByteBuf buffer = new FriendlyByteBuf(raw);
+            StageDefinitionEntry.STREAM_CODEC.apply(ByteBufCodecs.list()).encode(buffer, definitions);
+            return raw.readableBytes();
+        } finally {
+            raw.release();
+        }
     }
 
     /** v2.3: a per-stage [display] override (nullable) falls back to the global default. */
@@ -1146,8 +1205,41 @@ public class NetworkHandler {
 
     private static void handleStageDefinitionsSyncClient(StageDefinitionsSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
+            if (payload.totalChunks() < 1 || payload.sequence() < 0 || payload.sequence() >= payload.totalChunks()) return;
+            if (payload.revision() < latestClientDefinitionRevision) return;
+            if (payload.revision() > latestClientDefinitionRevision) {
+                latestClientDefinitionRevision = payload.revision();
+                CLIENT_DEFINITION_ASSEMBLIES.keySet().removeIf(revision -> revision < payload.revision());
+            }
+            if (payload.totalChunks() == 1) {
+                CLIENT_DEFINITION_ASSEMBLIES.remove(payload.revision());
+                applyStageDefinitionSnapshot(payload.definitions(), payload.guideEnabled());
+                return;
+            }
+            DefinitionAssembly assembly = CLIENT_DEFINITION_ASSEMBLIES.compute(payload.revision(), (key, current) -> {
+                if (current == null || current.total != payload.totalChunks() || current.guideEnabled != payload.guideEnabled()) {
+                    return new DefinitionAssembly(payload.totalChunks(), payload.guideEnabled());
+                }
+                return current;
+            });
+            synchronized (assembly) {
+                assembly.chunks.putIfAbsent(payload.sequence(), payload.definitions());
+                if (assembly.chunks.size() != assembly.total) return;
+                List<StageDefinitionEntry> entries = new ArrayList<>();
+                for (int sequence = 0; sequence < assembly.total; sequence++) {
+                    List<StageDefinitionEntry> chunk = assembly.chunks.get(sequence);
+                    if (chunk == null) return;
+                    entries.addAll(chunk);
+                }
+                CLIENT_DEFINITION_ASSEMBLIES.remove(payload.revision(), assembly);
+                applyStageDefinitionSnapshot(entries, assembly.guideEnabled);
+            }
+        });
+    }
+
+    private static void applyStageDefinitionSnapshot(List<StageDefinitionEntry> entries, boolean guideEnabled) {
             Map<StageId, ClientStageCache.StageDefinitionData> definitions = new HashMap<>();
-            for (StageDefinitionEntry entry : payload.definitions()) {
+            for (StageDefinitionEntry entry : entries) {
                 StageId stageId = StageId.fromResourceLocation(entry.stageId());
                 List<StageId> deps = entry.dependencies().stream()
                     .map(StageId::fromResourceLocation)
@@ -1179,11 +1271,20 @@ public class NetworkHandler {
                     entry.uiFrame(),
                     entry.uiBackground(),
                     entry.uiReveal(),
-                    entry.uiSortOrder()
+                    entry.uiSortOrder(),
+                    entry.howToUnlock(),
+                    entry.nextSteps(),
+                    entry.whereToFind(),
+                    entry.recommendation()
                 ));
             }
             ClientStageCache.setStageDefinitions(definitions);
-        });
+            ClientStageCache.setStageGuideEnabled(guideEnabled);
+    }
+
+    public static void clearClientDefinitionAssembly() {
+        CLIENT_DEFINITION_ASSEMBLIES.clear();
+        latestClientDefinitionRevision = Long.MIN_VALUE;
     }
 
     private static void handleCreativeBypassClient(CreativeBypassPayload payload, IPayloadContext context) {
@@ -1344,10 +1445,29 @@ public class NetworkHandler {
                                        boolean hidden, String color, String category,
                                        String slotGroup, int slotLimit, String slotPolicy,
                                        boolean hasUiPosition, int uiX, int uiY, String uiFrame,
-                                       String uiBackground, String uiReveal, int uiSortOrder) {
+                                       String uiBackground, String uiReveal, int uiSortOrder,
+                                       String howToUnlock, String nextSteps, String whereToFind,
+                                       String recommendation) {
 
         private static final StreamCodec<io.netty.buffer.ByteBuf, List<ResourceLocation>> DEPS_CODEC =
             ResourceLocation.STREAM_CODEC.apply(ByteBufCodecs.list());
+        private static final StreamCodec<FriendlyByteBuf, String> GUIDE_TEXT_CODEC = StreamCodec.of(
+            (buf, value) -> {
+                validateGuideText(value);
+                ByteBufCodecs.STRING_UTF8.encode(buf, value);
+            },
+            buf -> {
+                String value = ByteBufCodecs.STRING_UTF8.decode(buf);
+                validateGuideText(value);
+                return value;
+            });
+
+        private static void validateGuideText(String value) {
+            if (value == null || value.codePoints().count() > StageGuide.MAX_TEXT_CODE_POINTS
+                    || value.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > StageGuide.MAX_TEXT_BYTES) {
+                throw new IllegalArgumentException("Guide text exceeds the configured transport limit");
+            }
+        }
 
         public static final StreamCodec<FriendlyByteBuf, StageDefinitionEntry> STREAM_CODEC = StreamCodec.of(
             (buf, e) -> {
@@ -1379,6 +1499,10 @@ public class NetworkHandler {
                 ByteBufCodecs.STRING_UTF8.encode(buf, e.uiBackground());
                 ByteBufCodecs.STRING_UTF8.encode(buf, e.uiReveal());
                 buf.writeVarInt(e.uiSortOrder());
+                GUIDE_TEXT_CODEC.encode(buf, e.howToUnlock());
+                GUIDE_TEXT_CODEC.encode(buf, e.nextSteps());
+                GUIDE_TEXT_CODEC.encode(buf, e.whereToFind());
+                ByteBufCodecs.STRING_UTF8.encode(buf, e.recommendation());
             },
             buf -> {
                 ResourceLocation stageId = ResourceLocation.STREAM_CODEC.decode(buf);
@@ -1406,12 +1530,17 @@ public class NetworkHandler {
                 String uiBackground = ByteBufCodecs.STRING_UTF8.decode(buf);
                 String uiReveal = ByteBufCodecs.STRING_UTF8.decode(buf);
                 int uiSortOrder = buf.readVarInt();
+                String howToUnlock = GUIDE_TEXT_CODEC.decode(buf);
+                String nextSteps = GUIDE_TEXT_CODEC.decode(buf);
+                String whereToFind = GUIDE_TEXT_CODEC.decode(buf);
+                String recommendation = ByteBufCodecs.STRING_UTF8.decode(buf);
                 return new StageDefinitionEntry(stageId, displayName, dependencies, dependencyMode,
                     dependencyCount, description,
                     icon, displayAsUnknownItem, obscureIcon, showTooltip, showDescriptionOnTooltip,
                     hasTriggers, hidden, color, category, slotGroup, slotLimit, slotPolicy,
                     hasUiPosition, uiX, uiY, uiFrame,
-                    uiBackground, uiReveal, uiSortOrder);
+                    uiBackground, uiReveal, uiSortOrder,
+                    howToUnlock, nextSteps, whereToFind, recommendation);
             }
         );
     }
@@ -1420,14 +1549,34 @@ public class NetworkHandler {
      * Stage definitions sync payload (v1.3)
      * Sends all stage definitions with dependencies to client.
      */
-    public record StageDefinitionsSyncPayload(List<StageDefinitionEntry> definitions) implements CustomPacketPayload {
+    public record StageDefinitionsSyncPayload(long revision, int sequence, int totalChunks,
+                                              boolean guideEnabled, List<StageDefinitionEntry> definitions) implements CustomPacketPayload {
         public static final Type<StageDefinitionsSyncPayload> TYPE = new Type<>(Constants.STAGE_DEFINITIONS_SYNC_PACKET);
 
-        public static final StreamCodec<FriendlyByteBuf, StageDefinitionsSyncPayload> STREAM_CODEC = StreamCodec.composite(
-            StageDefinitionEntry.STREAM_CODEC.apply(ByteBufCodecs.list()),
-            StageDefinitionsSyncPayload::definitions,
-            StageDefinitionsSyncPayload::new
-        );
+        public static final StreamCodec<FriendlyByteBuf, StageDefinitionsSyncPayload> STREAM_CODEC = new StreamCodec<>() {
+            @Override public StageDefinitionsSyncPayload decode(FriendlyByteBuf buffer) {
+                long revision = buffer.readVarLong();
+                int sequence = buffer.readVarInt();
+                int total = buffer.readVarInt();
+                boolean enabled = buffer.readBoolean();
+                List<StageDefinitionEntry> definitions = StageDefinitionEntry.STREAM_CODEC.apply(ByteBufCodecs.list()).decode(buffer);
+                if (total < 1 || total > 4096 || sequence < 0 || sequence >= total) {
+                    throw new IllegalArgumentException("Stage definition snapshot chunk bounds are invalid");
+                }
+                return new StageDefinitionsSyncPayload(revision, sequence, total, enabled, definitions);
+            }
+            @Override public void encode(FriendlyByteBuf buffer, StageDefinitionsSyncPayload payload) {
+                if (payload.totalChunks() < 1 || payload.totalChunks() > 4096
+                        || payload.sequence() < 0 || payload.sequence() >= payload.totalChunks()) {
+                    throw new IllegalArgumentException("Stage definition snapshot chunk bounds are invalid");
+                }
+                buffer.writeVarLong(payload.revision());
+                buffer.writeVarInt(payload.sequence());
+                buffer.writeVarInt(payload.totalChunks());
+                buffer.writeBoolean(payload.guideEnabled());
+                StageDefinitionEntry.STREAM_CODEC.apply(ByteBufCodecs.list()).encode(buffer, payload.definitions());
+            }
+        };
 
         @Override
         public Type<? extends CustomPacketPayload> type() {

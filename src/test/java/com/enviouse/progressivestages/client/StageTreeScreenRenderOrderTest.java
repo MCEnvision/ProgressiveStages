@@ -78,6 +78,32 @@ class StageTreeScreenRenderOrderTest {
     }
 
     @Test
+    void guideTabUsesVisibleCardsAndTheExistingInspector() throws IOException {
+        String source = Files.readString(SCREEN);
+
+        assertTrue(source.contains("renderGuideView(g, mouseX, mouseY)"));
+        assertTrue(source.contains("guideCardBounds.put(id"));
+        assertTrue(source.contains("renderInspector(g, mouseX, mouseY)"));
+        assertTrue(source.contains("guideCardBounds.entrySet()"));
+        assertTrue(source.contains("StageId::toString, String.CASE_INSENSITIVE_ORDER"));
+    }
+
+    @Test
+    void guideEntryPointsRespectTheServerGuideSwitch() throws IOException {
+        String source = Files.readString(SCREEN);
+        String eventSource = Files.readString(PROJECT.resolve(
+            "src/main/java/com/enviouse/progressivestages/client/ClientEventHandler.java"));
+        String keySource = Files.readString(PROJECT.resolve(
+            "src/main/java/com/enviouse/progressivestages/client/ClientModBusEvents.java"));
+
+        assertTrue(source.contains("if (!ClientStageCache.isStageGuideEnabled()) return;"));
+        assertTrue(source.contains("if (guideView && !ClientStageCache.isStageGuideEnabled())"));
+        assertTrue(eventSource.contains("OPEN_GUIDE.consumeClick()"));
+        assertTrue(eventSource.contains("ClientStageCache.isStageGuideEnabled()"));
+        assertTrue(keySource.contains("public static final KeyMapping OPEN_GUIDE"));
+    }
+
+    @Test
     void categoryMenuRendersAboveStageItemDepth() throws IOException {
         String source = Files.readString(SCREEN);
         int start = source.indexOf("private void renderCategoryMenu(GuiGraphics g, int mouseX, int mouseY)");

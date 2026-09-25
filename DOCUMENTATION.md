@@ -484,7 +484,11 @@ To create a stage without knowing TOML:
     Java and KubeJS data remains available through Extensions and the exact source tab.
 14. Open `Player UI`, filter by category, search, zoom, fit the complete graph, or drag nodes to
     save their in game coordinates. Drag empty graph space to pan. Scroll to zoom around the mouse
-    pointer. Curved connectors follow at every zoom.
+    pointer. Curved connectors follow at every zoom. Select `Player preview` to inspect the same map
+    as a read only player view. Use `Locked`, `Requirements met`, or `Unlocked` to simulate the
+    three quick ownership states. Hidden stages stay out of the preview, reveal rules are applied,
+    and clicking a visible node opens its nearby editable stage form. Preview controls never write
+    TOML, grant a stage, run a rule, or apply the draft.
     Click `Connect stages` to edit progression directly on the graph. Select the prerequisite stage
     first. Then select the stage that should require it. The editor writes the dependency into the
     destination stage and refuses duplicate branches, self references, and dependency loops. To
@@ -1986,6 +1990,22 @@ display_as_unknown_item     = true
 obscure_icon                = true
 show_description_on_tooltip = true
 ```
+
+### 4.22a `[guide]` — What to do next instructions
+
+The optional `[guide]` table gives players short, pack authored instructions without running commands or changing progression state. The same table works in a legacy stage file and in the schema 4 `stage.toml` identity file.
+
+```toml
+[guide]
+how_to_unlock = "Complete the copper quest."
+next_steps = "Return to the camp and choose a profession."
+where_to_find = "The quest is in the book beside spawn."
+recommendation = "auto"
+```
+
+Text accepts normal Unicode, tabs, and line breaks. Each field is limited to 2048 Unicode code points and 8 KiB of UTF 8 data. Control characters and non string values are rejected before a reload can replace the current snapshot. `auto` lists a visible stage when its required stages are ready and it has a trigger route or guide text, `include` keeps a visible stage in the suggestions, and `exclude` removes it from suggestions. Hidden stages and stages concealed by their display reveal rule never appear in the guide.
+
+The stages menu keeps the existing advancement map and adds two header tabs, `Stages` and `What to do next`. The guide tab shows each visible unowned recommendation with its unlock condition, next action, location, and required stages. A separate `Open What to do next guide` keybind starts unbound so packs can assign it without taking a common key. `general.enable_stage_guide` defaults to `true` and is server authoritative. Turning it off hides the tab and keybind entry while preserving the ordinary stage map and authored text.
 
 ### 4.23 `[[triggers]]` — automatic stage grants
 
@@ -3736,7 +3756,7 @@ registered coal ore. This keeps large modded tags understandable without
 performing registry scans on every frame.
 
 The structured preview packet uses ProgressiveStages network protocol version
-`2`. Clients and servers must use the same current mod build. A protocol
+`3`. Clients and servers must use the same current mod build. A protocol
 mismatch is rejected during connection instead of allowing an older client to
 decode the changed stage-GUI payload incorrectly.
 
@@ -3827,6 +3847,7 @@ Default values are shown below.
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `starting_stages` | `[]` | Stages auto-granted on first join. Empty by default so showcase classes remain player choices. |
+| `enable_stage_guide` | `true` | Allow the server supplied What to do next tab and guide keybind. Stage guide text remains inert when the guide is disabled. |
 | `reapply_starting_stages_on_login` | `false` | If true, the starting list is re-checked on every login (idempotent — already-granted stages are not re-granted). |
 | `team_mode` | `"ftb_teams"` | `"ftb_teams"` (shared per FTB team) or `"solo"` (per player). Falls back to solo if FTB Teams is not installed. Each stage can override this with optional `team_stage`. |
 | `debug_logging` | `false` | Verbose logging for stage checks, lock queries, team operations. |

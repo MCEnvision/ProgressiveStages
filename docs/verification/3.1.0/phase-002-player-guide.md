@@ -24,7 +24,7 @@ The phase completion record adds candidate identity, test commands, hashes, host
 
 ## current local checks
 
-The editor checks pass with `npm run check`, 19 Vitest files and 165 tests pass with `npm test -- --run`, and the packaged editor is rebuilt with `npm run build`. The Java unit suite passes with `./gradlew test --no-daemon`, and `./gradlew build --no-daemon` produces a jar containing the guide model and packaged editor assets.
+`npm ci` completes from the checked lockfile. It reports six dependency audit findings, including two high findings, without changing the pinned dependency set. The editor checks pass with `npm run check`, 19 Vitest files and 165 tests pass with `npm test -- --run`, and the packaged editor is rebuilt with `npm run build`. The Java unit suite passes with `./gradlew test --no-daemon`, and `./gradlew build --no-daemon` produces a jar containing the guide model and packaged editor assets.
 
 The required headless GameTest server was also started from the disposable phase worktree. It shut down cleanly, but the repository's existing suite reported 15 unrelated world and progression failures. Its disposable runtime files were removed after the run.
 

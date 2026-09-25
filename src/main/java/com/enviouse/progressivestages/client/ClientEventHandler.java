@@ -199,6 +199,7 @@ public class ClientEventHandler {
     public static void onClientTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
         enforceAbilityState();
         clearConcealedCrosshairTarget();
+        com.enviouse.progressivestages.common.network.NetworkHandler.tickClientDefinitionAssemblies();
         // Drain all queued presses (so the keymapping counter is reset) but send at most one
         // request per tick to avoid flooding the server on a double-tap.
         boolean pressed = false;

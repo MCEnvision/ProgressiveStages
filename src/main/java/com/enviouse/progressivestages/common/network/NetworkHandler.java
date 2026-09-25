@@ -37,17 +37,21 @@ public class NetworkHandler {
 
     private static final int STAGE_DEFINITION_CHUNK_BYTES =
         com.enviouse.progressivestages.common.rehaul.client.ClientSnapshotCodec.MAX_CHUNK_BYTES;
+    private static final long DEFINITION_ASSEMBLY_EXPIRY_TICKS = 200L;
     private static final Map<Long, DefinitionAssembly> CLIENT_DEFINITION_ASSEMBLIES = new ConcurrentHashMap<>();
     private static volatile long latestClientDefinitionRevision = Long.MIN_VALUE;
+    private static volatile long clientDefinitionTick;
 
     private static final class DefinitionAssembly {
         private final int total;
         private final boolean guideEnabled;
         private final Map<Integer, List<StageDefinitionEntry>> chunks = new HashMap<>();
+        private long lastSeenTick;
 
         private DefinitionAssembly(int total, boolean guideEnabled) {
             this.total = total;
             this.guideEnabled = guideEnabled;
+            this.lastSeenTick = clientDefinitionTick;
         }
     }
 
@@ -1223,6 +1227,7 @@ public class NetworkHandler {
                 return current;
             });
             synchronized (assembly) {
+                assembly.lastSeenTick = clientDefinitionTick;
                 assembly.chunks.putIfAbsent(payload.sequence(), payload.definitions());
                 if (assembly.chunks.size() != assembly.total) return;
                 List<StageDefinitionEntry> entries = new ArrayList<>();
@@ -1235,6 +1240,13 @@ public class NetworkHandler {
                 applyStageDefinitionSnapshot(entries, assembly.guideEnabled);
             }
         });
+    }
+
+    /** Remove incomplete definition snapshots that were abandoned by a stalled connection. */
+    public static void tickClientDefinitionAssemblies() {
+        long tick = ++clientDefinitionTick;
+        CLIENT_DEFINITION_ASSEMBLIES.entrySet().removeIf(entry ->
+            tick - entry.getValue().lastSeenTick > DEFINITION_ASSEMBLY_EXPIRY_TICKS);
     }
 
     private static void applyStageDefinitionSnapshot(List<StageDefinitionEntry> entries, boolean guideEnabled) {
@@ -1285,6 +1297,7 @@ public class NetworkHandler {
     public static void clearClientDefinitionAssembly() {
         CLIENT_DEFINITION_ASSEMBLIES.clear();
         latestClientDefinitionRevision = Long.MIN_VALUE;
+        clientDefinitionTick = 0L;
     }
 
     private static void handleCreativeBypassClient(CreativeBypassPayload payload, IPayloadContext context) {

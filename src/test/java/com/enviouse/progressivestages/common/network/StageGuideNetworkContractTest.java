@@ -19,5 +19,8 @@ class StageGuideNetworkContractTest {
         assertTrue(source.contains("totalChunks"));
         assertTrue(source.contains("applyStageDefinitionSnapshot"));
         assertTrue(source.contains("MAX_TEXT_BYTES"));
+        assertTrue(source.contains("DEFINITION_ASSEMBLY_EXPIRY_TICKS = 200L"));
+        assertTrue(source.contains("tickClientDefinitionAssemblies"));
+        assertTrue(source.contains("lastSeenTick"));
     }
 }

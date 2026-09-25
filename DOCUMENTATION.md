@@ -90,7 +90,7 @@
    - [4.16 `[structures]` — entry, rules, chest locking](#416-structures--entry-rules-chest-locking)
    - [4.17 `[[regions]]` — fixed 3D boxes with flags + debuffs](#417-regions--fixed-3d-boxes-with-flags--debuffs)
    - [4.18 `[curios]` — per-slot gating when Curios is installed](#418-curios--per-slot-gating-when-curios-is-installed)
-   - [4.19 `[[ores.overrides]]` — ore masquerade](#419-oresoverrides--ore-masquerade)
+   - [4.19 `[[blocks.overrides]]` — block display and drop overrides](#419-blocksoverrides--block-display-and-drop-overrides)
    - [4.20 `[unlocks]` — per-stage carve-outs](#420-unlocks--per-stage-carve-outs)
    - [4.21 `[enforcement]` — per-stage exemptions + toggle overrides](#421-enforcement--per-stage-exemptions--toggle-overrides)
    - [4.22 `[display]` — per-stage tooltip + icon overrides](#422-display--per-stage-tooltip--icon-overrides)
@@ -1783,24 +1783,46 @@ leave in place.
 The implementation is
 [`CuriosCompat`](src/main/java/com/enviouse/progressivestages/compat/curios/CuriosCompat.java).
 
-### 4.19 `[[ores.overrides]]` — ore masquerade
+### 4.19 `[[blocks.overrides]]` — block display and drop overrides
 
 ```toml
-[[ores.overrides]]
-target = "id:minecraft:diamond_ore"
-display_as = "id:minecraft:stone"
-drop_as = "id:minecraft:cobblestone"
+[[blocks.overrides]]
+targets = [
+    "id:minecraft:diamond_ore",
+    "id:minecraft:deepslate_diamond_ore",
+    "tag:c:ores",
+    "mod:immersiveengineering"
+]
+display_as = "minecraft:stone"
+drop_as = "minecraft:cobblestone"
+priority = 100
 ```
 
-Until the player owns the stage, matching ore blocks are rewritten to the
-`display_as` block for that client and yield `drop_as` through the guarded
-harvest/drop path. Unlocking refreshes the affected client view. Per-stage
-spoof radius and the 3.0 `[display].encrypt_blocks` shorthand use the same
-pipeline.
+Until the player owns the stage, matching blocks are shown as `display_as` to
+that player and yield `drop_as` through the guarded harvest and drop path.
+Unlocking refreshes the affected client view. This can replace any block, not
+only ores. Use one `target` for one selector, or a `targets` array to list
+multiple selectors. Selectors accept an exact block ID, a block tag, or a
+`mod:` namespace. `tags:` and the older `#tag` spelling are also accepted for
+block tags. A mod target matches every registered block from that mod; it is
+not limited to ores.
 
-Tracked in
-[`OreOverride`](src/main/java/com/enviouse/progressivestages/common/lock/LockDefinition.java)
-inside `LockDefinition.java` (search "OreOverride").
+`display_as` must be a registered non-air block ID, and `drop_as` must be a
+registered non-air item ID. `priority` is an optional signed 32 bit whole
+number and defaults to zero. Add `|priority=number` to one selector when that
+target needs a different priority; the selector value takes precedence over
+the row value. A higher priority wins when multiple active overrides match
+the same block. An unmatched selector logs a warning with its exact
+configuration field and a match count of zero, which can reveal a missing mod
+or a tag that the pack does not define.
+
+New rules use `[[blocks.overrides]]`. Existing `[[ores.overrides]]` tables
+remain a compatible alias and are kept in place when edited in the Easy
+Builder. Do not use `[ores].locked` for replacement or placement rules. That
+field is invalid and reports the correct table. For placement and right click
+locks, use `[blocks].locked`; replacement does not itself prevent placement.
+The per-stage `[display].encrypt_blocks` shorthand uses the same replacement
+pipeline for exact block IDs in `[blocks].locked`.
 
 ### 4.20 `[unlocks]` — per-stage carve-outs
 

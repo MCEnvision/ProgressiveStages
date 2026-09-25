@@ -18,7 +18,7 @@ export const CATEGORIES: Record<string, CategoryDefinition> = {
   loot: { label: "Loot", catalog: "loot_tables", actions: ["generate", "open", "drop"], description: "Chests, drops, fishing, and loot tables." },
   mobs: { label: "Mob spawning", catalog: "entities", actions: ["spawn", "replace"], description: "Spawn cancellation and replacement." },
   pets: { label: "Pets", catalog: "entities", actions: ["tame", "breed", "command", "ride"], description: "Taming, breeding, commands, and riding." },
-  screens: { label: "Menus and screens", catalog: "blocks", actions: ["open"], description: "Block and held item interfaces." },
+  screens: { label: "Menus and screens", catalog: "menus", actions: ["open"], description: "Block and held item interfaces." },
   trades: { label: "Villager trades", catalog: "items", actions: ["display", "purchase"], description: "Trade visibility and purchase access." },
   professions: { label: "Villager professions", catalog: "professions", actions: ["trade"], description: "Trading by villager profession." },
   advancements: { label: "Advancements", catalog: "advancements", actions: ["display", "toast"], description: "Advancement visibility and notifications." },
@@ -29,6 +29,36 @@ export const CATEGORIES: Record<string, CategoryDefinition> = {
   beacon: { label: "Beacon effects", catalog: "effects", actions: ["apply"], description: "Effects selected through beacons." },
   brewing: { label: "Brewing", catalog: "potions", actions: ["brew", "take"], description: "Potion brewing and output collection." },
   abilities: { label: "Player abilities", catalog: "abilities", actions: ["use"], description: "Jumping, sprinting, swimming, climbing, and elytra." }
+};
+
+export interface LegacyRuleBinding {
+  actions: string[];
+  locked: string | Record<string, string>;
+  alwaysUnlocked?: string;
+  selector: "resource" | "exact" | "ability" | "slot";
+}
+
+/** Fields and actions actually read by the legacy stage compiler. */
+export const LEGACY_RULE_BINDINGS: Record<string, LegacyRuleBinding> = {
+  items: { actions: ["use"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  blocks: { actions: ["interact"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  fluids: { actions: ["interact"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  entities: { actions: ["presence"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  enchants: { actions: ["apply"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  crops: { actions: ["grow"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  screens: { actions: ["open"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  loot: { actions: ["generate"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  trades: { actions: ["trade"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  professions: { actions: ["trade"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  advancements: { actions: ["display"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  beacon: { actions: ["apply"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  brewing: { actions: ["take"], locked: "locked", alwaysUnlocked: "always_unlocked", selector: "resource" },
+  dimensions: { actions: ["enter"], locked: "locked", selector: "exact" },
+  mobs: { actions: ["spawn"], locked: "locked_spawns", selector: "resource" },
+  pets: { actions: ["tame", "breed", "command"], locked: { tame: "locked_taming", breed: "locked_breeding", command: "locked_commanding" }, selector: "resource" },
+  curios: { actions: ["equip"], locked: "locked_slots", selector: "slot" },
+  abilities: { actions: ["use"], locked: "locked", selector: "ability" },
+  recipes: { actions: ["craft"], locked: "locked", selector: "resource" }
 };
 
 export const ACTION_LABELS: Record<string, string> = {
@@ -125,9 +155,7 @@ export function ruleEffects(category: string, action: string) {
   }
   if (category === "recipes" && action === "craft") return EFFECTS.filter(effect => effect.value === "lock");
   return EFFECTS
-    .filter(effect => effect.value !== "exclude")
-    .filter(effect => effect.value !== "replace" || ["mobs", "ores"].includes(category))
-    .filter(effect => effect.value !== "present" || ["recipes", "advancements", "ores"].includes(category));
+    .filter(effect => !["exclude", "replace", "present"].includes(effect.value));
 }
 
 export const NAVIGATION = [

@@ -4,6 +4,24 @@ The localhost Easy Builder edits the authenticated server draft. It does not pub
 until `Apply changes` passes validation and the review is confirmed. The browser can keep editing a
 rejected draft while the last valid runtime remains active.
 
+## block replacements
+
+Use **Block overrides** to hide blocks and change their drops until a stage is owned. This works
+for any block, not only ores. Add exact block IDs, block tags, or a `mod:` namespace. A mod target
+matches all blocks from that mod. Add more targets to cover a list, then choose a registered
+display block and a registered drop item. The optional priority is a signed whole number; a higher
+value wins when more than one override matches a block. Add `|priority=number` to one selector to
+override the row priority for that target.
+
+Block overrides do not stop placement or right click. Use the separate block lock fields when the
+player must not place or interact with a block. New rules are saved as `[[blocks.overrides]]`.
+Existing `[[ores.overrides]]` rows are still read and stay in that table when edited. Do not put
+replacement selectors under `[ores].locked`; that field is rejected because it does not create an
+override.
+
+An unmatched selector produces a server warning with the exact target field and a match count of
+zero. Check that the mod is installed or that the selected block tag exists in the active pack.
+
 ## structure entry and protection
 
 Structure targets use exact resource IDs, for example `minecraft:stronghold`. Tag, namespace,

@@ -1,7 +1,7 @@
 import { extractRows } from "./tomlRows";
 import { readInventoryCondition } from "./inventoryInsertion";
 import { readRuleField } from "./ruleSource";
-import { CATEGORIES } from "../data";
+import { CATEGORIES, LEGACY_RULE_BINDINGS } from "../data";
 import type { ProgressionModel, RuleModel, StagePackage } from "../types";
 import { enchantmentGenerationRules } from "./enchantments";
 import {
@@ -153,32 +153,39 @@ export function ruleModels(text: string): RuleModel[] {
       resetConditionSource: resetCondition
     });
   });
-  for (const [category, definition] of Object.entries(CATEGORIES)) {
-    for (const [field, effect] of [["locked", "lock"], ["allowed", "allow"], ["always_unlocked", "exclude"]] as const) {
-      const selectors = parseSimpleArray(readTomlValue(text, `${category}.${field}`));
-      selectors.forEach((selector, selectorIndex) => {
-        const priorityMatch = selector.match(/\|priority=(-?\d+)$/);
-        models.push({
-          table: "classic",
-          classicField: field,
-          tableIndex: selectorIndex,
-          category,
-          action: definition.actions[0],
-          effect,
-          selector: selector.replace(/\|priority=-?\d+$/, ""),
-          priority: priorityMatch ? Number(priorityMatch[1]) : numberValue(readTomlValue(text, `${category}.priority`)),
-          viewer: "inherit",
-          lifetime: "permanent",
-          duration: "",
-          conditionType: "none",
-          conditionTarget: "",
-          count: 1,
-          exception: "",
-          exceptionPriority: 0,
-          sourceText: selector,
-          ambiguous: category === "recipes"
+  for (const [category, binding] of Object.entries(LEGACY_RULE_BINDINGS)) {
+    for (const action of binding.actions) {
+      const lockedField = typeof binding.locked === "string" ? binding.locked : binding.locked[action];
+      if (!lockedField) continue;
+      const fields = [[lockedField, "lock"] as const,
+        ...(binding.alwaysUnlocked ? [[binding.alwaysUnlocked, "exclude"] as const] : [])];
+      for (const [field, effect] of fields) {
+        const selectors = parseSimpleArray(readTomlValue(text, `${category}.${field}`));
+        selectors.forEach((selector, selectorIndex) => {
+          const hasIgnoredPriority = /\|priority=-?\d+$/.test(selector);
+          models.push({
+            table: "classic",
+            classicField: field,
+            tableIndex: selectorIndex,
+            category,
+            action,
+            effect,
+            selector: selector.replace(/\|priority=-?\d+$/, ""),
+            priority: numberValue(readTomlValue(text, "stage.priority")),
+            viewer: "inherit",
+            lifetime: "permanent",
+            duration: "",
+            conditionType: "none",
+            conditionTarget: "",
+            count: 1,
+            exception: "",
+            exceptionPriority: 0,
+            sourceText: selector,
+            ambiguous: category === "recipes",
+            ineffectivePriority: hasIgnoredPriority
+          });
         });
-      });
+      }
     }
   }
   for (const [field, table, recipeKind] of [

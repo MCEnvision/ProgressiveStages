@@ -6,6 +6,7 @@ import com.enviouse.progressivestages.common.config.StageConfig;
 import com.enviouse.progressivestages.common.config.StageDefinition;
 import com.enviouse.progressivestages.common.rehaul.ConditionNode;
 import com.enviouse.progressivestages.common.rehaul.RuleLifetime;
+import com.enviouse.progressivestages.common.rehaul.decision.PriorityCascade;
 import com.enviouse.progressivestages.server.enforcement.ConditionalLockEngine;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.Holder;
@@ -178,6 +179,7 @@ public final class LockRegistry {
         mobReplacements.clear();
         regions.clear();
         oreOverrides.clear();
+        oreOverrideByTarget.clear();
         structures = StructureRulesAggregate.EMPTY;
         curioSlotLocks.clear();
         useExemptions.clear(); pickupExemptions.clear(); hotbarExemptions.clear();
@@ -271,20 +273,9 @@ public final class LockRegistry {
             regions.add(new RegionLockEntry(r, id));
         }
 
-        for (LockDefinition.OreOverride o : locks.oreOverrides()) {
-            OreOverrideEntry entry = new OreOverrideEntry(o.target(), o.displayAs(), o.dropAs(), id);
-            oreOverrides.add(entry);
-            if (o.target() != null) {
-                // Resolve target block once now (still in registry-warm phase). Skip silently
-                // if the id doesn't resolve — could be a mod block that isn't present.
-                net.minecraft.world.level.block.Block tgt =
-                    BuiltInRegistries.BLOCK.get(o.target());
-                if (tgt != null && tgt != net.minecraft.world.level.block.Blocks.AIR) {
-                    oreOverrideByTarget
-                        .computeIfAbsent(tgt, k -> new java.util.ArrayList<>())
-                        .add(entry);
-                }
-            }
+        int overrideIndex = 0;
+        for (LockDefinition.BlockOverride override : locks.blockOverrides()) {
+            registerBlockOverride(stage, override, overrideIndex++);
         }
         if (locks.oreSpoofRadius() > 0) {
             stageOreSpoofRadius.put(id, locks.oreSpoofRadius());
@@ -301,14 +292,15 @@ public final class LockRegistry {
             if (placeholderId == null) placeholderId = ResourceLocation.withDefaultNamespace("stone");
             int radius = locks.oreSpoofRadius() > 0 ? locks.oreSpoofRadius() : 8;
             boolean anyEncrypted = false;
-            for (PrefixEntry e : locks.blocks().locked()) {
-                if (e.kind() != PrefixEntry.Kind.ID || e.id() == null) continue;
-                net.minecraft.world.level.block.Block tgt = BuiltInRegistries.BLOCK.get(e.id());
-                if (tgt == null || tgt == net.minecraft.world.level.block.Blocks.AIR) continue;
-                OreOverrideEntry entry = new OreOverrideEntry(e.id(), placeholderId, placeholderId, id);
-                oreOverrides.add(entry);
-                oreOverrideByTarget.computeIfAbsent(tgt, k -> new java.util.ArrayList<>()).add(entry);
-                anyEncrypted = true;
+            int encryptedIndex = 0;
+            for (PrefixEntry selector : locks.blocks().locked()) {
+                for (Block target : matchingBlocks(selector)) {
+                    OreOverrideEntry entry = new OreOverrideEntry(BuiltInRegistries.BLOCK.getKey(target),
+                        placeholderId, placeholderId, id, 0, sourcePath(stage, "blocks.locked"),
+                        Integer.MAX_VALUE, encryptedIndex++, "blocks.locked", true);
+                    addOreOverrideEntry(target, entry);
+                    anyEncrypted = true;
+                }
             }
             if (anyEncrypted) {
                 stageOreSpoofRadius.merge(id, radius, Math::max);
@@ -374,6 +366,84 @@ public final class LockRegistry {
         }
 
         LOGGER.debug("Registered locks for stage: {}", id);
+    }
+
+    private void registerBlockOverride(StageDefinition stage, LockDefinition.BlockOverride override,
+                                       int declarationIndex) {
+        String sourcePath = sourcePath(stage, override.sourceTable());
+        Map<Block, OreOverrideEntry> resolved = new LinkedHashMap<>();
+        for (int selectorIndex = 0; selectorIndex < override.targets().size(); selectorIndex++) {
+            PrefixEntry selector = override.targets().get(selectorIndex);
+            int priority = PriorityCascade.resolve(selector.explicitPriority(), override.priority(),
+                null, null, 0).value();
+            List<Block> matches = matchingBlocks(selector);
+            if (matches.isEmpty()) {
+                String selectorField = override.sourceField();
+                if (selectorField.endsWith(".targets")) selectorField += "[" + selectorIndex + "]";
+                LOGGER.warn("[ProgressiveStages] Block override selector {} from {} in stage {} matched {} registered blocks. Check that the block ID, tag, or mod is installed.",
+                    selector.raw(), selectorField, stage.getId(), matches.size());
+            }
+            for (Block block : matches) {
+                ResourceLocation targetId = BuiltInRegistries.BLOCK.getKey(block);
+                OreOverrideEntry candidate = new OreOverrideEntry(targetId, override.displayAs(),
+                    override.dropAs(), stage.getId(), priority, sourcePath, declarationIndex,
+                    selectorIndex, override.sourceTable(), false);
+                OreOverrideEntry previous = resolved.get(block);
+                if (previous == null || compareOreOverrides(candidate, previous) < 0) {
+                    resolved.put(block, candidate);
+                }
+            }
+        }
+        resolved.forEach(this::addOreOverrideEntry);
+    }
+
+    private static String sourcePath(StageDefinition stage, String table) {
+        var provenance = stage.getProvenance();
+        if (provenance == null) return table;
+        return provenance.sourceId() + "/" + provenance.file() + "#" + table;
+    }
+
+    private static List<Block> matchingBlocks(PrefixEntry selector) {
+        if (selector == null) return List.of();
+        if (selector.kind() == PrefixEntry.Kind.ID) {
+            Block block = BuiltInRegistries.BLOCK.get(selector.id());
+            return block == null || block == net.minecraft.world.level.block.Blocks.AIR
+                ? List.of() : List.of(block);
+        }
+        List<Block> matches = new ArrayList<>();
+        for (Block block : BuiltInRegistries.BLOCK) {
+            ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
+            if (id == null || block == net.minecraft.world.level.block.Blocks.AIR) continue;
+            boolean match = switch (selector.kind()) {
+                case MOD -> id.getNamespace().equals(selector.value());
+                case TAG -> selector.id() != null && BuiltInRegistries.BLOCK.wrapAsHolder(block)
+                    .is(TagKey.create(Registries.BLOCK, selector.id()));
+                default -> false;
+            };
+            if (match) matches.add(block);
+        }
+        return matches;
+    }
+
+    private void addOreOverrideEntry(Block target, OreOverrideEntry entry) {
+        oreOverrides.add(entry);
+        List<OreOverrideEntry> entries = oreOverrideByTarget.computeIfAbsent(target,
+            ignored -> new java.util.concurrent.CopyOnWriteArrayList<>());
+        entries.add(entry);
+        entries.sort(LockRegistry::compareOreOverrides);
+    }
+
+    private static int compareOreOverrides(OreOverrideEntry left, OreOverrideEntry right) {
+        int order = Integer.compare(right.priority, left.priority);
+        if (order != 0) return order;
+        order = left.requiredStage.toString().compareTo(right.requiredStage.toString());
+        if (order != 0) return order;
+        order = Boolean.compare(left.synthesized, right.synthesized);
+        if (order != 0) return order;
+        order = left.sourcePath.compareTo(right.sourcePath);
+        if (order != 0) return order;
+        order = Integer.compare(left.declarationIndex, right.declarationIndex);
+        return order != 0 ? order : Integer.compare(left.selectorIndex, right.selectorIndex);
     }
 
     // ================================================================
@@ -2018,13 +2088,32 @@ public final class LockRegistry {
         public final ResourceLocation displayAs;
         public final ResourceLocation dropAs;
         public final StageId requiredStage;
+        public final int priority;
+        public final String sourcePath;
+        public final int declarationIndex;
+        public final int selectorIndex;
+        public final String sourceTable;
+        public final boolean synthesized;
 
         public OreOverrideEntry(ResourceLocation target, ResourceLocation displayAs,
                                 ResourceLocation dropAs, StageId requiredStage) {
+            this(target, displayAs, dropAs, requiredStage, 0, "unknown", 0, 0, "ores.overrides", false);
+        }
+
+        public OreOverrideEntry(ResourceLocation target, ResourceLocation displayAs,
+                                ResourceLocation dropAs, StageId requiredStage, int priority,
+                                String sourcePath, int declarationIndex, int selectorIndex,
+                                String sourceTable, boolean synthesized) {
             this.target = target;
             this.displayAs = displayAs;
             this.dropAs = dropAs;
             this.requiredStage = requiredStage;
+            this.priority = priority;
+            this.sourcePath = sourcePath == null ? "unknown" : sourcePath;
+            this.declarationIndex = declarationIndex;
+            this.selectorIndex = selectorIndex;
+            this.sourceTable = sourceTable == null ? "blocks.overrides" : sourceTable;
+            this.synthesized = synthesized;
         }
     }
 

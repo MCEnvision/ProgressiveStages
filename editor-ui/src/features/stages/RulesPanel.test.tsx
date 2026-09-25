@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { discoverStages, ruleModels } from "../../lib/model";
+import blockOverridesFixture from "./fixtures/block-overrides.toml?raw";
 import { RulesPanel } from "./RulesPanel";
 
 const editor = vi.hoisted(() => ({
@@ -25,11 +26,78 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe("legacy configuration and block overrides", () => {
+  it("does not offer the ignored ores category as a legacy lock", () => {
+    const legacyPath = "stages/challenge4.toml";
+    editor.boot.draft.files = {
+      [legacyPath]: '[stage]\nid = "challenge4"\ndisplay_name = "Industrial Age"\n\n[ores]\nlocked = ["mod:immersiveengineering"]\n'
+    };
+    const stage = discoverStages(editor.boot.draft.files)[0];
+    render(<RulesPanel stage={stage}/>);
+    fireEvent.click(screen.getByRole("button", { name: "Add rule" }));
+    render(editor.openDialog.mock.calls[0][0].content);
+    expect(screen.queryByRole("option", { name: /Ore visuals/ })).toBeNull();
+    expect(screen.getByText(/does not create block overrides/i)).toBeTruthy();
+    expect(editor.mutateFile).not.toHaveBeenCalled();
+  });
+
+  it("saves exact, tag, and mod targets as a usable block override list", async () => {
+    const legacyPath = "stages/challenge4.toml";
+    editor.boot.draft.files = { [legacyPath]: '[stage]\nid = "challenge4"\n' };
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    fireEvent.click(screen.getAllByRole("button", { name: "Add override" }).at(-1)!);
+    render(editor.openDialog.mock.calls[0][0].content);
+
+    fireEvent.change(screen.getByLabelText(/^Target selector/), { target: { value: "minecraft:diamond_ore" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add target" }));
+    fireEvent.change(screen.getByLabelText(/^Target type/), { target: { value: "tag" } });
+    fireEvent.change(screen.getByLabelText(/^Target selector/), { target: { value: "c:ores" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add target" }));
+    fireEvent.change(screen.getByLabelText(/^Target type/), { target: { value: "mod" } });
+    fireEvent.change(screen.getByLabelText(/^Target selector/), { target: { value: "immersiveengineering" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add target" }));
+    fireEvent.change(screen.getByLabelText(/^Show as block/), { target: { value: "minecraft:stone" } });
+    fireEvent.change(screen.getByLabelText(/^Drop item/), { target: { value: "minecraft:cobblestone" } });
+    fireEvent.change(screen.getByLabelText(/^Priority/), { target: { value: "-12" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Add override" }).at(-1)!);
+
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const saved = String(editor.mutateFile.mock.calls[0][1]);
+    expect(saved).toContain("[[blocks.overrides]]");
+    expect(saved).toContain('targets = ["id:minecraft:diamond_ore", "tag:c:ores", "mod:immersiveengineering"]');
+    expect(saved).toContain('display_as = "minecraft:stone"');
+    expect(saved).toContain('drop_as = "minecraft:cobblestone"');
+    expect(saved).toContain("priority = -12");
+    expect(saved).not.toContain("[ores]");
+  });
+
+  it("edits an older ore override in place and preserves its unknown fields", async () => {
+    const legacyPath = "stages/challenge4.toml";
+    editor.boot.draft.files = { [legacyPath]: blockOverridesFixture };
+    render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
+    const aliasCard = screen.getByText("Older ore override").closest("article")!;
+    fireEvent.click(within(aliasCard).getByRole("button", { name: "Edit" }));
+    render(editor.openDialog.mock.calls[0][0].content);
+    fireEvent.change(screen.getByLabelText(/^Show as block/), { target: { value: "minecraft:deepslate" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save override" }));
+
+    await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
+    const saved = String(editor.mutateFile.mock.calls[0][1]);
+    expect(saved).toContain('[blocks]\nlocked = ["mod:immersiveengineering"]');
+    expect(saved).toContain("[[blocks.overrides]]");
+    expect(saved).toContain("[[ores.overrides]]");
+    expect(saved).toContain('# Keep this comment.');
+    expect(saved).toContain('display_as = "minecraft:deepslate"');
+    expect(saved).toContain('custom_note = "keep"');
+    expect(saved).toContain('targets = ["tags:c:ores", "mod:immersiveengineering"]');
+  });
+});
+
 function openRule(source: string) {
   editor.boot.draft.files[rulesPath] = source;
   render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-  render(editor.openDialog.mock.calls[0][0].content);
+  return render(editor.openDialog.mock.calls[0][0].content).container;
 }
 
 describe("generic rule editing", () => {
@@ -43,8 +111,8 @@ describe("generic rule editing", () => {
   });
 
   it("edits priority without losing compound conditions or additional settings", async () => {
-    openRule(source);
-    fireEvent.change(screen.getByLabelText(/^Priority/), { target: { value: "175" } });
+    const form = within(openRule(source));
+    fireEvent.change(form.getByLabelText(/^Rule priority/), { target: { value: "175" } });
     fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
     await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
     expect(editor.mutateFile).toHaveBeenCalledWith(rulesPath, source.replace("priority=100", "priority=175"), "Rule saved to the draft");
@@ -140,17 +208,18 @@ describe("generic rule editing", () => {
     expect(editor.mutateFile).not.toHaveBeenCalled();
   });
 
-  it("keeps legacy enchant edits in the enforced classic category", async () => {
+  it("removes an ignored legacy selector priority when editing the enchant lock", async () => {
     const path = "stages/chef.toml";
     editor.boot.draft.files = { [path]: '[stage]\nid="chef"\n[enchants]\nlocked=["id:minecraft:sharpness|priority=100"]\n' };
     render(<RulesPanel stage={discoverStages(editor.boot.draft.files)[0]}/>);
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    render(editor.openDialog.mock.calls[0][0].content);
-    fireEvent.change(screen.getByLabelText(/^Priority/), { target: { value: "175" } });
+    const form = within(render(editor.openDialog.mock.calls[0][0].content).container);
+    expect((form.getByLabelText(/^Stage priority/) as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
     await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
     const saved = editor.mutateFile.mock.calls[0][1];
-    expect(saved).toContain('"id:minecraft:sharpness|priority=175"');
+    expect(saved).toContain('"id:minecraft:sharpness"');
+    expect(saved).not.toContain("|priority=");
     expect(saved).not.toContain("[[rules]]");
   });
 
@@ -299,8 +368,8 @@ describe("inventory condition authoring", () => {
   });
 
   it.each(sources)("changes priority while retaining the activation and unknown fields", async source => {
-    openRule(source);
-    fireEvent.change(screen.getByLabelText(/^Priority/), { target: { value: "175" } });
+    const form = within(openRule(source));
+    fireEvent.change(form.getByLabelText(/^Rule priority/), { target: { value: "175" } });
     fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
     await waitFor(() => expect(editor.closeDialog).toHaveBeenCalledOnce());
     expect(editor.mutateFile).toHaveBeenCalledWith(rulesPath, source.replace("priority=150", "priority=175"), "Rule saved to the draft");
@@ -329,9 +398,9 @@ describe("inventory condition authoring", () => {
   });
 
   it("rejects a stale row instead of overwriting a concurrent source edit", async () => {
-    openRule(sources[0]);
+    const form = within(openRule(sources[0]));
     editor.boot.draft.files[rulesPath] = sources[0].replace("Keep this description", "Another edit");
-    fireEvent.change(screen.getByLabelText(/^Priority/), { target: { value: "175" } });
+    fireEvent.change(form.getByLabelText(/^Rule priority/), { target: { value: "175" } });
     fireEvent.click(screen.getByRole("button", { name: "Update rule" }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("changed in another edit"));
     expect(editor.mutateFile).not.toHaveBeenCalled();

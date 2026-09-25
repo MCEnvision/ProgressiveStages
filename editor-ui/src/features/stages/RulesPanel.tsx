@@ -1,6 +1,6 @@
 import { extractRows, replaceRows } from "../../lib/tomlRows";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ACTION_LABELS, CATEGORIES, CONDITIONS, EFFECTS, ruleEffects } from "../../data";
+import { ACTION_LABELS, CATEGORIES, CONDITIONS, EFFECTS, LEGACY_RULE_BINDINGS, ruleEffects } from "../../data";
 import { InlineCatalogSearch } from "../../components/CatalogPicker";
 import { Badge, Button, EmptyState, Field, Section, Toggle } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -15,7 +15,7 @@ import {
 import { serializeInventoryCondition, serializeInventoryInsertionRule, updateInventoryInsertionRule } from "../../lib/inventoryInsertion";
 import { ruleModels, selectorMode, title } from "../../lib/model";
 import { moveRuleTable, updateGenericRule } from "../../lib/ruleSource";
-import { appendTomlBlock, booleanValue, conditionToml, encodeToml, extractArrayGroups, lineValues, parseSimpleArray, readTomlValue, removeTomlValue, replaceArrayGroups, upsertToml } from "../../lib/toml";
+import { appendTomlBlock, booleanValue, conditionToml, encodeToml, extractArrayGroups, lineValues, numberValue, parseSimpleArray, readBlockValue, readTomlValue, removeTomlValue, replaceArrayGroups, stringValue, upsertToml } from "../../lib/toml";
 import { useEditor } from "../../store/EditorContext";
 import type { EnchantmentGenerationRule } from "../../lib/enchantments";
 import type { RuleModel, StagePackage } from "../../types";
@@ -122,6 +122,85 @@ function canonicalRecipeField(recipeKind: RuleDraft["recipeKind"]): "locked_item
   return recipeKind === "output" ? "locked_items" : "locked_ids";
 }
 
+function legacyField(category: string, action: string, effect: string): string | undefined {
+  const binding = LEGACY_RULE_BINDINGS[category];
+  if (!binding) return undefined;
+  if (effect === "exclude") return binding.alwaysUnlocked;
+  return typeof binding.locked === "string" ? binding.locked : binding.locked[action];
+}
+
+function exactSelector(value: string): boolean {
+  return !/^(?:all|mod|tag|tags|name):/i.test(value.trim()) && !value.trim().startsWith("#");
+}
+
+function normalizeLegacySelector(category: string, selector: string): string {
+  const binding = LEGACY_RULE_BINDINGS[category];
+  const value = selector.trim();
+  return binding && ["exact", "ability", "slot"].includes(binding.selector)
+    ? value.replace(/^id:/i, "") : value;
+}
+
+type BlockOverrideTable = "blocks.overrides" | "ores.overrides";
+interface BlockOverrideModel {
+  table: BlockOverrideTable;
+  tableIndex: number;
+  targets: string[];
+  displayAs: string;
+  dropAs: string;
+  priority?: number;
+  sourceText: string;
+}
+
+function blockOverrideModels(text: string): BlockOverrideModel[] {
+  return (["blocks.overrides", "ores.overrides"] as const).flatMap(table =>
+    extractArrayGroups(text, table).map(block => {
+      const multiple = readBlockValue(block.text, "targets");
+      const single = readBlockValue(block.text, "target");
+      const targets = multiple ? parseSimpleArray(multiple).map(stringValue)
+        : single ? [stringValue(single)] : [];
+      const rawPriority = readBlockValue(block.text, "priority");
+      const priority = rawPriority ? Number(rawPriority) : undefined;
+      return { table, tableIndex: block.index, targets,
+        displayAs: stringValue(readBlockValue(block.text, "display_as")),
+        dropAs: stringValue(readBlockValue(block.text, "drop_as")),
+        priority: Number.isInteger(priority) ? priority : undefined,
+        sourceText: block.text };
+    }));
+}
+
+function normalizeBlockSelector(mode: string, value: string): string {
+  const selector = value.trim();
+  if (/^(?:id|tag|tags|mod):/i.test(selector)) {
+    return selector.replace(/^tags:/i, "tag:");
+  }
+  return mode === "mod" ? `mod:${selector}`
+    : mode === "tag" ? `tag:${selector.replace(/^#/, "")}`
+      : `id:${selector}`;
+}
+
+function patchBlockOverride(source: string, table: BlockOverrideTable,
+                            draft: { targets: string[]; displayAs: string; dropAs: string; priority: string }): string {
+  let updated = removeTomlValue(source, `${table}.target`);
+  updated = removeTomlValue(updated, `${table}.targets`);
+  updated = upsertToml(updated, `${table}.${draft.targets.length === 1 ? "target" : "targets"}`,
+    draft.targets.length === 1 ? draft.targets[0] : draft.targets);
+  updated = upsertToml(updated, `${table}.display_as`, draft.displayAs.trim().replace(/^id:/i, ""));
+  updated = upsertToml(updated, `${table}.drop_as`, draft.dropAs.trim().replace(/^id:/i, ""));
+  updated = draft.priority.trim()
+    ? upsertToml(updated, `${table}.priority`, Number(draft.priority))
+    : removeTomlValue(updated, `${table}.priority`);
+  return updated;
+}
+
+function serializeBlockOverride(draft: { targets: string[]; displayAs: string; dropAs: string; priority: string }): string {
+  const lines = ["[[blocks.overrides]]"];
+  lines.push(`${draft.targets.length === 1 ? "target" : "targets"} = ${encodeToml(draft.targets.length === 1 ? draft.targets[0] : draft.targets)}`);
+  lines.push(`display_as = ${encodeToml(draft.displayAs.trim().replace(/^id:/i, ""))}`);
+  lines.push(`drop_as = ${encodeToml(draft.dropAs.trim().replace(/^id:/i, ""))}`);
+  if (draft.priority.trim()) lines.push(`priority = ${Number(draft.priority)}`);
+  return lines.join("\n");
+}
+
 function canonicalRecipeSelector(draft: RuleDraft): string {
   const selector = draft.recipeKind === "identifier" ? draft.selector.replace(/^id:/, "").trim() : draft.selector.trim();
   return `${selector}|priority=${draft.priority}`;
@@ -210,18 +289,21 @@ function serializeRule(stage: StagePackage, draft: RuleDraft, table: "rules" | "
 function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const { boot, mutateFile, closeDialog } = useEditor();
   const [saveError, setSaveError] = useState("");
+  const source = boot?.draft.files[stage.rulesPath] || "";
   const initialCategory = rule?.category || "items";
   const [draft, setDraft] = useState<RuleDraft>({
     stageState: rule?.stageState || (["allow", "unlock", "deny"].includes(rule?.effect || "lock") ? "owned" : "missing"),
     ruleId: rule?.id || "",
     category: initialCategory,
-    action: rule?.action || CATEGORIES[initialCategory].actions[0],
+    action: rule?.action || (stage.legacy
+      ? LEGACY_RULE_BINDINGS[initialCategory]?.actions[0] || (initialCategory === "interactions" ? "item_into_inventory" : CATEGORIES[initialCategory].actions[0])
+      : CATEGORIES[initialCategory].actions[0]),
     effect: rule?.action === "item_into_inventory"
       ? rule.effect === "deny" ? "lock" : rule.effect === "unlock" ? "allow" : rule.effect || "lock"
       : rule?.effect || "lock",
     selector: rule?.selector || "",
     mode: selectorMode(rule?.selector || ""),
-    priority: rule?.priority ?? 100,
+    priority: rule?.priority ?? (stage.legacy ? numberValue(readTomlValue(source, "stage.priority")) : 100),
     viewer: rule?.viewer || "inherit",
     lifetime: rule?.lifetime || "permanent",
     duration: rule?.duration || "",
@@ -245,19 +327,29 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
   const condition = CONDITIONS.find(entry => entry.id === draft.conditionType);
   const temporary = draft.lifetime !== "permanent";
   const selectsEverything = draft.mode === "all";
+  const legacyBinding = LEGACY_RULE_BINDINGS[draft.category];
   const canonicalRecipe = draft.category === "recipes" && draft.action === "craft"
     && draft.effect === "lock" && !temporary;
   const inventoryInsertion = draft.category === "interactions" && draft.action === "item_into_inventory";
   const ambiguousRecipe = Boolean(rule?.ambiguous);
   const legacyCategory = stage.legacy && !canonicalRecipe && !inventoryInsertion;
-  const effects = legacyCategory ? EFFECTS.filter(effect => ["lock", "exclude"].includes(effect.value)) : ruleEffects(draft.category, draft.action);
-  const actions = draft.category === "interactions" ? Array.from(new Set(["item_into_inventory", ...(rule?.category === "interactions" ? [rule.action] : [])])) : category.actions;
+  const effects = legacyCategory
+    ? EFFECTS.filter(effect => effect.value === "lock" || effect.value === "exclude" && Boolean(legacyBinding?.alwaysUnlocked))
+    : ruleEffects(draft.category, draft.action);
+  const actions = inventoryInsertion ? ["item_into_inventory"]
+    : legacyCategory ? legacyBinding?.actions || [] : category.actions;
   const targetCatalog = canonicalRecipe
     ? draft.recipeKind === "output" ? "items" : "recipes"
     : category.catalog;
   const targetLabel = canonicalRecipe
     ? draft.recipeKind === "output" ? "Recipe output item" : "Exact recipe identifier"
     : "Selected target";
+  const categoryOptions = Object.entries(CATEGORIES).filter(([id]) =>
+    !stage.legacy || id === "interactions" || Object.hasOwn(LEGACY_RULE_BINDINGS, id));
+  const selectorMethods = legacyCategory
+    ? draft.effect === "exclude" || legacyBinding?.selector !== "resource"
+      ? ["id"] : ["all", "id", "mod", "tag", "name"]
+    : ["all", "id", "mod", "tag", "name"];
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaveError("");
@@ -282,11 +374,18 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
         if (draft.viewer !== "inherit" || draft.exception) throw new Error("Legacy category lists cannot store per rule presentation or nested exceptions. Add a separate always allowed rule instead.");
         if (!["lock", "exclude"].includes(draft.effect)) throw new Error("Legacy category lists support locks and always allowed exceptions. Use a three file stage package for other effects.");
         if (rule && rule.table !== "classic") throw new Error("Edit this legacy rule in Source to preserve its format.");
+        const binding = LEGACY_RULE_BINDINGS[draft.category];
+        if (!binding) throw new Error("This category has no legacy list form. Use its nearby specialized controls or edit the accepted table in Source.");
+        if (draft.effect === "exclude" && (!binding.alwaysUnlocked || !exactSelector(draft.selector))) {
+          throw new Error("Legacy exceptions support exact IDs only. Use one exact ID without a tag, mod, name, or wildcard prefix.");
+        }
         if (rule) content = removeClassicRule(content, rule);
         const field = rule?.effect === draft.effect && rule.classicField ? rule.classicField
-          : ["allow", "unlock", "exclude"].includes(draft.effect) ? "always_unlocked" : "locked";
+          : legacyField(draft.category, draft.action, draft.effect);
+        if (!field) throw new Error("This category does not support that result in legacy stage files.");
         const path = `${draft.category}.${field}`;
-        content = upsertToml(content, path, [...parseSimpleArray(readTomlValue(content, path)), `${draft.selector}|priority=${draft.priority}`]);
+        content = upsertToml(content, path,
+          [...parseSimpleArray(readTomlValue(content, path)), normalizeLegacySelector(draft.category, draft.selector)]);
       } else {
         const previousGeneric = rule?.table === "rules" || rule?.table === "temporary_rules" ? rule : undefined;
         if (previousGeneric && ruleGroups(content, previousGeneric.table as "rules" | "temporary_rules")[previousGeneric.tableIndex]?.text !== previousGeneric.sourceText) {
@@ -313,8 +412,18 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
     <div className="form-grid">
       <Field label="Rule category"><select value={draft.category} onChange={event => {
         const next = event.target.value;
-        setDraft(current => ({ ...current, category: next, action: next === "interactions" ? "item_into_inventory" : CATEGORIES[next].actions[0], effect: ["recipes", "interactions"].includes(next) ? "lock" : current.effect, selector: current.mode === "all" ? "all:*" : "", destination: "" }));
-      }}>{Object.entries(CATEGORIES).map(([id, value]) => <option key={id} value={id}>{value.label}</option>)}</select></Field>
+        if (!CATEGORIES[next]) {
+          setSaveError("Choose a supported rule category. Ore display and drop changes belong in Block overrides.");
+          return;
+        }
+        const binding = LEGACY_RULE_BINDINGS[next];
+        const action = next === "interactions" ? "item_into_inventory"
+          : stage.legacy ? binding?.actions[0] || CATEGORIES[next].actions[0] : CATEGORIES[next].actions[0];
+        setDraft(current => ({ ...current, category: next, action,
+          effect: ["recipes", "interactions"].includes(next) || stage.legacy && !binding?.alwaysUnlocked ? "lock" : current.effect,
+          mode: stage.legacy && binding?.selector !== "resource" ? "id" : current.mode,
+          selector: current.mode === "all" ? "all:*" : "", destination: "" }));
+      }}>{categoryOptions.map(([id, value]) => <option key={id} value={id}>{value.label}</option>)}</select></Field>
       <Field label="Player action" help={legacyCategory ? "Legacy category lists apply to every supported action in this category." : undefined}><select disabled={legacyCategory} value={draft.action} onChange={event => {
         const action = event.target.value;
         setDraft(current => ({
@@ -326,7 +435,9 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
         }));
       }}>{actions.map(action => <option key={action} value={action}>{ACTION_LABELS[action] || title(action)}</option>)}</select></Field>
       <Field label="Result"><select value={draft.effect} onChange={event => setDraft(current => ({ ...current, effect: event.target.value, stageState: ["lock", "exclude"].includes(event.target.value) ? "missing" : "owned" }))}>{effects.map(effect => <option key={effect.value} value={effect.value}>{effectLabel(draft.category, effect.value, draft.action)}</option>)}</select></Field>
-      <Field label="Priority" help="A larger number wins when rules overlap."><input type="number" value={draft.priority} onChange={event => update("priority", Number(event.target.value))}/></Field>
+      <Field label={legacyCategory ? "Stage priority" : "Rule priority"} help={legacyCategory
+        ? "Legacy lists use the stage priority. Change it in the stage settings or use a three file stage for per rule priorities."
+        : "A larger number wins when rules overlap."}><input type="number" value={draft.priority} disabled={legacyCategory} onChange={event => update("priority", Number(event.target.value))}/></Field>
     </div>
     <section className="dialog-section"><header><span className="step-number">1</span><div><h3>{inventoryInsertion ? "Choose what moves where" : "Choose the target"}</h3><p>{inventoryInsertion ? "The server checks the inserted item and destination together before it changes any slot." : `The registry only shows content valid for ${category.label.toLowerCase()}.`}</p></div></header><div className="form-grid">
       {inventoryInsertion ? <>
@@ -345,12 +456,13 @@ function RuleForm({ stage, rule }: { stage: StagePackage; rule?: RuleModel }) {
         {draft.destinationMode !== "all" ? <div className="field-wide"><InlineCatalogSearch catalogId={draft.targetKind === "block" ? "blocks" : draft.targetKind === "menu" ? "menus" : "inventory_targets"} mode={draft.destinationMode} onPick={value => update("destination", value)}/></div> : null}
       </> : <>
       {canonicalRecipe ? <Field label="Recipe lock kind" help="Output locks use item selectors. Identifier locks name one exact recipe."><select value={draft.recipeKind} onChange={event => setDraft(current => ({ ...current, recipeKind: event.target.value as RuleDraft["recipeKind"], mode: event.target.value === "identifier" ? "id" : current.mode, selector: "" }))}><option value="output">Recipe output item</option><option value="identifier">Exact recipe identifier</option></select></Field> : null}
-      {canonicalRecipe && draft.recipeKind === "identifier" ? null : <Field label="Selection method"><select value={draft.mode} onChange={event => {
+      {canonicalRecipe && draft.recipeKind === "identifier" ? null : <Field label="Selection method"><select value={selectorMethods.includes(draft.mode) ? draft.mode : "id"} onChange={event => {
         const mode = event.target.value;
         setDraft(current => ({ ...current, mode, selector: mode === "all" ? "all:*" : current.mode === "all" ? "" : current.selector }));
-      }}><option value="all">Everything in this category</option><option value="id">One exact identifier</option><option value="mod">Everything from a mod</option><option value="tag">Everything in a tag</option><option value="name">Anything with a matching name</option></select></Field>}
+      }}>{selectorMethods.map(mode => <option key={mode} value={mode}>{mode === "all" ? "Everything in this category" : mode === "id" ? "One exact identifier" : mode === "mod" ? "Everything from a mod" : mode === "tag" ? "Everything in a tag" : "Anything with a matching name"}</option>)}</select></Field>}
       <Field label={targetLabel} help={selectsEverything ? `This matches every registered ${canonicalRecipe && draft.recipeKind === "output" ? "recipe output item" : category.label.toLowerCase()}. Add a higher priority exception to allow selected content.` : undefined}><input value={draft.selector} onChange={event => update("selector", event.target.value)} placeholder={canonicalRecipe && draft.recipeKind === "identifier" ? "minecraft:diamond_sword" : "id:minecraft:diamond_sword"} readOnly={selectsEverything} required/></Field>
-      {!selectsEverything ? <div className="field-wide"><InlineCatalogSearch catalogId={targetCatalog} mode={canonicalRecipe && draft.recipeKind === "identifier" ? "id" : draft.mode} onPick={value => update("selector", canonicalRecipe && draft.recipeKind === "identifier" ? value.replace(/^id:/, "") : value)}/></div> : null}
+      {!selectsEverything ? <div className="field-wide"><InlineCatalogSearch catalogId={targetCatalog} mode={canonicalRecipe && draft.recipeKind === "identifier" ? "id" : draft.mode} onPick={value => update("selector", canonicalRecipe && draft.recipeKind === "identifier"
+        ? value.replace(/^id:/, "") : legacyCategory ? normalizeLegacySelector(draft.category, value) : value)}/></div> : null}
       </>}
     </div></section>
     <section className="dialog-section"><header><span className="step-number">2</span><div><h3>Choose when it participates</h3><p>Permanent rules follow stage ownership. Conditional rules can follow locations, events, sessions, and scripts.</p></div></header><div className="form-grid">
@@ -385,7 +497,7 @@ function RuleCard({ stage, rule, index, total, onEdit, onDelete, onMove }:
     : rule.selector;
   return <article className="rule-card-new">
     <div className="rule-card-icon"><Icon name="rules" size={19}/></div>
-    <div className="rule-card-main"><div className="rule-card-title"><strong>{category?.label || title(rule.category)}</strong><Badge tone={rule.effect === "allow" || rule.effect === "unlock" || rule.effect === "exclude" ? "success" : "danger"}>{title(rule.effect)}</Badge><Badge>Priority {rule.priority}</Badge></div><code>{selector}</code><p>{rule.ambiguous ? "This legacy recipe field is ambiguous. Remove it, then create an output item or exact recipe identifier lock." : rule.table === "interactions" && rule.conditionType === "none" ? "The server checks both selectors before changing the inventory." : rule.conditionType === "none" ? "Follows stage ownership." : `Active during ${CONDITIONS.find(value => value.id === rule.conditionType)?.label.toLowerCase() || title(rule.conditionType)}.`}</p></div>
+    <div className="rule-card-main"><div className="rule-card-title"><strong>{category?.label || title(rule.category)}</strong><Badge tone={rule.effect === "allow" || rule.effect === "unlock" || rule.effect === "exclude" ? "success" : "danger"}>{title(rule.effect)}</Badge>{rule.table !== "classic" ? <Badge>Priority {rule.priority}</Badge> : null}</div><code>{selector}</code><p>{rule.ambiguous ? "This legacy recipe field is ambiguous. Remove it, then create an output item or exact recipe identifier lock." : rule.ineffectivePriority ? "This legacy list ignores the inline priority. Legacy rules use the stage priority." : rule.table === "classic" ? "This legacy list uses the stage priority." : rule.table === "interactions" && rule.conditionType === "none" ? "The server checks both selectors before changing the inventory." : rule.conditionType === "none" ? "Follows stage ownership." : `Active during ${CONDITIONS.find(value => value.id === rule.conditionType)?.label.toLowerCase() || title(rule.conditionType)}.`}</p></div>
     <div className="rule-card-actions"><button aria-label="Move rule up" disabled={index === 0 || !movable} onClick={() => onMove(-1)}>↑</button><button aria-label="Move rule down" disabled={index === total - 1 || !movable} onClick={() => onMove(1)}>↓</button><Button tone="quiet" disabled={rule.ambiguous} onClick={onEdit}>Edit</Button><Button tone="danger" onClick={onDelete}>Remove</Button></div>
   </article>;
 }
@@ -590,11 +702,126 @@ function StructureControls({ stage }: { stage: StagePackage }) {
   </Section>;
 }
 
+function BlockOverrideForm({ stage, override, duplicate = false }:
+  { stage: StagePackage; override?: BlockOverrideModel; duplicate?: boolean }) {
+  const { boot, mutateFile, closeDialog } = useEditor();
+  const content = boot?.draft.files[stage.rulesPath] || "";
+  const [targets, setTargets] = useState(override?.targets || []);
+  const [targetMode, setTargetMode] = useState("id");
+  const [targetInput, setTargetInput] = useState("");
+  const [displayAs, setDisplayAs] = useState(override?.displayAs || "");
+  const [dropAs, setDropAs] = useState(override?.dropAs || "");
+  const [priority, setPriority] = useState(override?.priority === undefined ? "" : String(override.priority));
+  const [error, setError] = useState("");
+
+  const addTarget = () => {
+    const selector = normalizeBlockSelector(targetMode, targetInput);
+    if (!targetInput.trim()) return;
+    setTargets(current => current.includes(selector) ? current : [...current, selector]);
+    setTargetInput("");
+  };
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    try {
+      const normalizedTargets = targets.map(value => value.trim().replace(/^tags:/i, "tag:"));
+      if (!normalizedTargets.length || normalizedTargets.some(value => !value)) {
+        throw new Error("Add at least one block, block tag, or mod target.");
+      }
+      if (new Set(normalizedTargets).size !== normalizedTargets.length) {
+        throw new Error("Remove repeated target selectors before saving.");
+      }
+      if (!displayAs.trim() || !dropAs.trim()) throw new Error("Choose both a display block and a drop item.");
+      if (priority.trim()) {
+        const value = Number(priority);
+        if (!Number.isInteger(value) || value < -2147483648 || value > 2147483647) {
+          throw new Error("Priority must be a signed whole number from -2147483648 to 2147483647.");
+        }
+      }
+
+      let updated: string;
+      if (override && !duplicate) {
+        const currentRows = extractArrayGroups(content, override.table);
+        if (currentRows[override.tableIndex]?.text !== override.sourceText) {
+          throw new Error("This override changed in another edit. Reopen it and try again.");
+        }
+        const replacements = currentRows.map(row => row.text);
+        replacements[override.tableIndex] = patchBlockOverride(override.sourceText, override.table,
+          { targets: normalizedTargets, displayAs, dropAs, priority });
+        updated = replaceArrayGroups(content, override.table, replacements);
+      } else {
+        updated = appendTomlBlock(content,
+          serializeBlockOverride({ targets: normalizedTargets, displayAs, dropAs, priority }));
+      }
+      await mutateFile(stage.rulesPath, updated, "Block override saved to the draft");
+      closeDialog();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "The block override was not saved.");
+    }
+  };
+
+  return <form className="dialog-form" onSubmit={save}>
+    <p>Show selected blocks as another block and change the item they drop until this stage is owned. Block locks remain separate.</p>
+    {override?.table === "ores.overrides" ? <p>This older ore override stays in its original table when you edit it. New overrides use <code>[[blocks.overrides]]</code>.</p> : null}
+    <div className="form-grid">
+      <Field label="Target type" help="A mod target includes every block from that mod, not only ores."><select value={targetMode} onChange={event => setTargetMode(event.target.value)}><option value="id">Exact block</option><option value="tag">Block tag</option><option value="mod">Mod</option></select></Field>
+      <Field label="Target selector" help="Choose one or more exact block IDs, block tags, or mod namespaces."><input value={targetInput} onChange={event => setTargetInput(event.target.value)} placeholder={targetMode === "id" ? "minecraft:diamond_ore" : targetMode === "tag" ? "c:ores" : "immersiveengineering"} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addTarget(); } }}/></Field>
+      <div className="field-wide"><InlineCatalogSearch catalogId="blocks" mode={targetMode} onPick={value => setTargetInput(value)}/></div>
+      <div className="field-wide"><Button type="button" onClick={addTarget}>Add target</Button><div className="rule-list-new">{targets.map((target, index) => <div className="rule-card-new" key={`${target}:${index}`}><code>{target}</code><Button type="button" tone="quiet" aria-label={`Remove target ${target}`} onClick={() => setTargets(current => current.filter((_, targetIndex) => targetIndex !== index))}>Remove</Button></div>)}</div></div>
+      <Field label="Show as block" help="This selects the block the client sees. Choose a registered block ID."><input value={displayAs} onChange={event => setDisplayAs(event.target.value)} placeholder="minecraft:stone" required/></Field>
+      <div className="field-wide"><InlineCatalogSearch catalogId="blocks" mode="id" onPick={value => setDisplayAs(value.replace(/^id:/, ""))}/></div>
+      <Field label="Drop item" help="This is one registered item ID used for each legitimate harvest. It does not replace the server block."><input value={dropAs} onChange={event => setDropAs(event.target.value)} placeholder="minecraft:cobblestone" required/></Field>
+      <div className="field-wide"><InlineCatalogSearch catalogId="items" mode="id" onPick={value => setDropAs(value.replace(/^id:/, ""))}/></div>
+      <Field label="Priority" help="Higher values win when several unowned stages override the same block. Blank uses zero."><input type="number" min={-2147483648} max={2147483647} step={1} value={priority} onChange={event => setPriority(event.target.value)} placeholder="0"/></Field>
+    </div>
+    {error ? <p role="alert">{error}</p> : null}
+    <footer className="dialog-actions"><Button type="button" tone="quiet" onClick={closeDialog}>Cancel</Button><Button type="submit" tone="primary" disabled={!targets.length || !displayAs.trim() || !dropAs.trim()}>{override && !duplicate ? "Save override" : duplicate ? "Add copy" : "Add override"}</Button></footer>
+  </form>;
+}
+
+function BlockOverridesControls({ stage }: { stage: StagePackage }) {
+  const { boot, mutateFile, openDialog, closeDialog, setLocalError } = useEditor();
+  const content = boot?.draft.files[stage.rulesPath] || "";
+  const overrides = useMemo(() => blockOverrideModels(content), [content]);
+  const open = (override?: BlockOverrideModel, duplicate = false) => openDialog({
+    title: override && !duplicate ? "Edit block override" : duplicate ? "Copy block override" : "Add block override",
+    description: "Choose what the player sees and receives while the owning stage is missing.",
+    content: <BlockOverrideForm stage={stage} override={override} duplicate={duplicate}/>,
+    width: "wide"
+  });
+  const remove = (override: BlockOverrideModel) => openDialog({
+    title: "Remove block override",
+    description: "This change remains undoable until it is applied.",
+    content: <div className="confirmation"><p>Remove the override for <code>{override.targets.join(", ")}</code>.</p><footer className="dialog-actions"><Button tone="quiet" onClick={closeDialog}>Keep override</Button><Button tone="danger" onClick={async () => {
+      try {
+        const rows = extractArrayGroups(content, override.table);
+        if (rows[override.tableIndex]?.text !== override.sourceText) {
+          throw new Error("This override changed in another edit. Reopen it and try again.");
+        }
+        const next = rows.map(row => row.text);
+        next.splice(override.tableIndex, 1);
+        await mutateFile(stage.rulesPath, replaceArrayGroups(content, override.table, next), "Block override removed from the draft");
+        closeDialog();
+      } catch (failure) {
+        setLocalError(stage.rulesPath, failure instanceof Error ? failure.message : "The block override was not removed.");
+      }
+    }}>Remove</Button></footer></div>,
+    width: "compact"
+  });
+  return <Section title="Block overrides" description="Choose blocks, block tags, or a whole mod. Set the shown block and dropped item separately from block placement locks." action={<Button tone="primary" icon="plus" onClick={() => open()}>Add override</Button>}>
+    {overrides.length ? <div className="rule-list-new">{overrides.map(override => <article className="rule-card-new" key={`${override.table}:${override.tableIndex}`}>
+      <div className="rule-card-main"><div className="rule-card-title"><strong>{override.table === "ores.overrides" ? "Older ore override" : "Block override"}</strong><Badge>{override.priority ?? 0} priority</Badge></div><code>{override.targets.join(", ") || "Missing target"}</code><p>Show as {override.displayAs || "missing block"}. Drop {override.dropAs || "missing item"}. Server validation checks selector matches.</p></div>
+      <div className="rule-card-actions"><Button tone="quiet" onClick={() => open(override, true)}>Duplicate</Button><Button tone="quiet" onClick={() => open(override)}>Edit</Button><Button tone="danger" onClick={() => remove(override)}>Remove</Button></div>
+    </article>)}</div> : <EmptyState icon="blocks" title="No block overrides" description="Add a target, then choose the block players see and the item they receive." action={<Button tone="primary" icon="plus" onClick={() => open()}>Add override</Button>}/>}</Section>;
+}
+
 export function RulesPanel({ stage }: { stage: StagePackage }) {
   const { boot, mutateFile, openDialog, closeDialog, runDraftAction } = useEditor();
   const content = boot?.draft.files[stage.rulesPath] || "";
   const rules = useMemo(() => ruleModels(content), [content]);
   const enchantmentRules = useMemo(() => enchantmentGenerationRules(content), [content]);
+  const ignoredOreLocks = readTomlValue(content, "ores.locked");
   const openRule = (rule?: RuleModel) => openDialog({ title: rule ? "Edit rule" : "Create a rule", description: "Build one server decision in plain language.", content: <RuleForm stage={stage} rule={rule}/>, width: "wide" });
   const openEnchantmentRule = (rule?: EnchantmentGenerationRule) => openDialog({
     title: rule ? "Edit enchantment generation" : "Add enchantment generation",
@@ -633,6 +860,8 @@ export function RulesPanel({ stage }: { stage: StagePackage }) {
   const simulate = () => openDialog({ title: "Simulate a candidate decision", description: "Ask the server how the current draft resolves a category and target.", content: <SimulationForm run={runDraftAction}/>, width: "standard" });
   return <div className="stage-panel-stack">
     <StructureControls stage={stage}/>
+    <BlockOverridesControls stage={stage}/>
+    {ignoredOreLocks ? <div className="form-errors" role="alert"><strong><code>[ores].locked</code> does not create block overrides.</strong><p>Choose <code>[[blocks.overrides]]</code> in Block overrides and set both Show as and Drop item. The editor will not guess those replacement values.</p></div> : null}
     <Section title="Rules" description={`${rules.length} active decision${rules.length === 1 ? "" : "s"}. Highest priority wins when several rules match.`} action={<div className="section-actions"><Button onClick={simulate}>Simulate</Button><Button tone="primary" icon="plus" onClick={() => openRule()}>Add rule</Button></div>}>
       <div className="rule-primer"><Icon name="spark" size={22}/><div><strong>Rules combine target, action, result, activation, and priority.</strong><p>Use an exception with a higher priority to carve content out of a broad lock. Temporary rules participate only while their condition and lifetime are active.</p></div></div>
       {rules.length ? <div className="rule-list-new">{rules.map((rule, index) => <RuleCard key={`${rule.table}:${rule.tableIndex}:${rule.selector}`} stage={stage} rule={rule} index={index} total={rules.length} onEdit={() => openRule(rule)} onDelete={() => remove(rule)} onMove={direction => void move(rule, direction)}/>)}</div>

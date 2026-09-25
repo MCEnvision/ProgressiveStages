@@ -351,6 +351,12 @@ always_unlocked = ["id:create:wrench"]
 [blocks]
 locked = ["id:minecraft:enchanting_table"]
 
+[[blocks.overrides]]
+targets = ["tag:c:ores", "mod:immersiveengineering"]
+display_as = "minecraft:stone"
+drop_as = "minecraft:cobblestone"
+priority = 100
+
 [fluids]
 locked = ["id:minecraft:lava"]
 ```
@@ -373,6 +379,7 @@ Each category lives in its own TOML section. Lists accept the unified prefix syn
 |---|---|---|
 | `[items]` | `locked`, `always_unlocked` | Block use, pickup, holding in inventory/hotbar |
 | `[blocks]` | `locked`, `always_unlocked` | Block placement and right-click interaction |
+| `[[blocks.overrides]]` | `target` or `targets`, `display_as`, `drop_as`, `priority` | Show matching blocks as another block and change their drops until the stage is owned. Targets accept block IDs, tags, and whole mod namespaces. The older `[[ores.overrides]]` name still works. See [block replacement guide](DOCUMENTATION.md#419-blocks-overrides--block-display-and-drop-overrides). |
 | `[fluids]` | `locked`, `always_unlocked` | Pickup/place buckets, hide from EMI/JEI, prevent submersion effects |
 | `[dimensions]` | `locked` (exact ids only) | Cancel travel, eject players from locked dimensions |
 | `[entities]` | `locked`, `always_unlocked` | Legacy complete presence gate. Cancel spawns when every nearby player is denied. Conceal mixed access entities per player. Block attacking, interaction, mounting, mob targeting, and mob damage for denied players. Schema 4 can instead choose `presence`, `attack`, `interact`, or `mount`. |
@@ -389,6 +396,15 @@ Each category lives in its own TOML section. Lists accept the unified prefix syn
 | `[[mobs.replacements]]` | `target`, `replace_with` | Substitute one mob type for another at spawn |
 | `[[interactions]]` | `type`, `held_item`, `target_block` / `target_entity`, `description` | Block right-click / item-on-block / item-on-entity combos |
 | `[[interactions]]` | `type = "item_into_inventory"`, `held_item`, `target_kind`, `target`, `effect`, `priority` | Gate player item insertion into block, menu, or registered inventory targets. See [inventory insertion rules](docs/features/inventory-insertion.md). |
+
+Block replacement is separate from placement locks. Use `[blocks].locked` to stop placing or
+interacting with selected blocks. Use `[[blocks.overrides]]` to hide selected blocks and change
+their drops until a stage is owned. A `mod:` target includes every block in that mod, while a
+`tag:` target can select a pack or mod supplied group such as ores. New rules use
+`[[blocks.overrides]]`; existing `[[ores.overrides]]` rules remain supported. The old
+`[ores].locked` field is not a replacement rule and is rejected with a pointer to the correct
+table. See [Easy Builder troubleshooting](docs/troubleshooting/easy-builder.md#block-replacements)
+for editor steps and examples.
 
 For `item_on_block` and `block_right_click`, selectors are checked against the live item and block holders. Use `tag:c:armors`, `id:selling_bin:selling_bin`, or `all:*`; the legacy `#c:armors` form remains valid. A selective item-on-block rule requires a nonempty held stack. A whole block `all:*` item-on-block rule also gates an empty hand menu open. See the [interaction lock troubleshooting guide](docs/troubleshooting/interaction-locks.md).
 

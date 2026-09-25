@@ -72,6 +72,8 @@ it("keeps player preview read only and hides hidden stages", () => {
   expect(screen.getByRole("complementary", { name: "Player preview inspector" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "How to unlock Visible" }));
   expect(screen.getByText("Find the camp.")).toBeTruthy();
+  fireEvent.change(screen.getByDisplayValue("Requirements met"), { target: { value: "unlocked" } });
+  expect(screen.queryByRole("button", { name: "How to unlock Visible" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Edit stage fields" }));
   expect(editor.selectStage).toHaveBeenCalledWith("pack:visible");
   expect(editor.setPage).toHaveBeenCalledWith("stages");

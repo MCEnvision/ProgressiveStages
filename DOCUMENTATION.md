@@ -3847,7 +3847,7 @@ Default values are shown below.
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `starting_stages` | `[]` | Stages auto-granted on first join. Empty by default so showcase classes remain player choices. |
-| `enable_stage_guide` | `true` | Allow the server supplied What to do next tab and guide keybind. Stage guide text remains inert when the guide is disabled. |
+| `enable_stage_guide` | `true` | Allow the server supplied stage unlock help and guide keybind. Stage guide text remains inert when the guide is disabled. |
 | `reapply_starting_stages_on_login` | `false` | If true, the starting list is re-checked on every login (idempotent — already-granted stages are not re-granted). |
 | `team_mode` | `"ftb_teams"` | `"ftb_teams"` (shared per FTB team) or `"solo"` (per player). Falls back to solo if FTB Teams is not installed. Each stage can override this with optional `team_stage`. |
 | `debug_logging` | `false` | Verbose logging for stage checks, lock queries, team operations. |

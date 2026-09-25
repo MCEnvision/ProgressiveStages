@@ -489,9 +489,10 @@ To create a stage without knowing TOML:
     three quick ownership states. Hidden stages stay out of the preview, reveal rules are applied,
     and clicking a visible node opens an advancement style inspector beside the graph. The inspector
     shows the display name of each prerequisite, the simulated state, and a gold `?` that opens
-    `How to unlock <stage name>`. Hovering the question mark, close control, and edit control shows
-    short help. Choose `Edit stage fields` to open the selected stage form. Preview controls never
-    write TOML, grant a stage, run a rule, or apply the draft.
+    `How to unlock <stage name>`. Hovering the question mark, close control, setup, guide, rules,
+    progression, rewards, and edit controls shows short help. Choose a nearby edit action to open
+    that section of the selected stage form. Preview controls never write TOML, grant a stage, run a
+    rule, or apply the draft.
     Click `Connect stages` to edit progression directly on the graph. Select the prerequisite stage
     first. Then select the stage that should require it. The editor writes the dependency into the
     destination stage and refuses duplicate branches, self references, and dependency loops. To

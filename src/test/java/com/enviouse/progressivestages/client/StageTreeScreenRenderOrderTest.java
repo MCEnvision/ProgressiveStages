@@ -78,14 +78,16 @@ class StageTreeScreenRenderOrderTest {
     }
 
     @Test
-    void guideTabUsesVisibleCardsAndTheExistingInspector() throws IOException {
+    void guideHelpStaysInsideTheSelectedInspector() throws IOException {
         String source = Files.readString(SCREEN);
 
-        assertTrue(source.contains("renderGuideView(g, mouseX, mouseY)"));
-        assertTrue(source.contains("guideCardBounds.put(id"));
+        assertFalse(source.contains("renderGuideView(g, mouseX, mouseY)"));
+        assertFalse(source.contains("gui.progressivestages.tree.tab.guide"));
+        assertTrue(source.contains("gui.progressivestages.tree.guide.unlock.title"));
+        assertTrue(source.contains("helpX = panelX + panelW - 31"));
+        assertTrue(source.contains("unlockHelpOpen = !unlockHelpOpen"));
         assertTrue(source.contains("renderInspector(g, mouseX, mouseY)"));
-        assertTrue(source.contains("guideCardBounds.entrySet()"));
-        assertTrue(source.contains("StageId::toString, String.CASE_INSENSITIVE_ORDER"));
+        assertTrue(source.contains("guideStages().stream().findFirst()"));
     }
 
     @Test
@@ -97,7 +99,7 @@ class StageTreeScreenRenderOrderTest {
             "src/main/java/com/enviouse/progressivestages/client/ClientModBusEvents.java"));
 
         assertTrue(source.contains("if (!ClientStageCache.isStageGuideEnabled()) return;"));
-        assertTrue(source.contains("if (guideView && !ClientStageCache.isStageGuideEnabled())"));
+        assertTrue(source.contains("if (!ClientStageCache.isStageGuideEnabled()) unlockHelpOpen = false;"));
         assertTrue(eventSource.contains("OPEN_GUIDE.consumeClick()"));
         assertTrue(eventSource.contains("ClientStageCache.isStageGuideEnabled()"));
         assertTrue(keySource.contains("public static final KeyMapping OPEN_GUIDE"));

@@ -2,39 +2,48 @@ import { useEffect, useId, useRef } from "react";
 import { useEditor } from "../store/EditorContext";
 import { Icon } from "./Icon";
 
-export function Button({ children, tone = "neutral", icon, className = "", ...props }:
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: "neutral" | "primary" | "danger" | "quiet"; icon?: string }) {
-  return <button {...props} className={`button button-${tone} ${className}`.trim()}>
+export function Button({ children, tone = "neutral", icon, help, className = "", ...props }:
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: "neutral" | "primary" | "danger" | "quiet"; icon?: string; help?: string }) {
+  return <button {...props} title={help || props.title} className={`button button-${tone} ${className}`.trim()}>
     {icon ? <Icon name={icon} size={17}/> : null}<span>{children}</span>
   </button>;
 }
 
-export function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: string }) {
-  return <span className={`badge badge-${tone}`}>{children}</span>;
+export function Badge({ children, tone = "neutral", help }: { children: React.ReactNode; tone?: string; help?: string }) {
+  return <span className={`badge badge-${tone}`} title={help}>{children}</span>;
+}
+
+export function Hint({ text, children }: { text: string; children: React.ReactNode }) {
+  const id = useId();
+  return <span className="hint-wrap" tabIndex={0} aria-describedby={id} title={text}>
+    {children}<span id={id} role="tooltip" className="hint-popover">{text}</span>
+  </span>;
 }
 
 export function Field({ label, help, wide, children }: { label: string; help?: string; wide?: boolean; children: React.ReactNode }) {
   const helpId = useId();
-  return <label className={`field ${wide ? "field-wide" : ""}`}>
-    <span className="field-label">{label}{help ? <span className="field-help-trigger" tabIndex={0} aria-describedby={helpId} title={help}>?</span> : null}</span>
+  const resolvedHelp = help || `Set ${label.toLowerCase()}. The value stays in the draft until you review and apply it.`;
+  return <label className={`field ${wide ? "field-wide" : ""}`} title={resolvedHelp}>
+    <span className="field-label">{label}{help ? <span className="field-help-trigger" role="button" aria-label="Field help" tabIndex={0} aria-describedby={helpId} title={resolvedHelp}>?</span> : null}</span>
     {children}
-    {help ? <span id={helpId} role="tooltip" className="field-help">{help}</span> : null}
+    {help ? <span id={helpId} role="tooltip" className="field-help">{resolvedHelp}</span> : null}
   </label>;
 }
 
 export function Toggle({ label, help, checked, onChange, disabled }:
   { label: string; help?: string; checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) {
-  return <label className="toggle-row">
+  const resolvedHelp = help || `Enable or disable ${label.toLowerCase()}. This setting stays in the draft until you review and apply it.`;
+  return <label className="toggle-row" title={resolvedHelp}>
     <input type="checkbox" aria-label={label} checked={checked} onChange={event => onChange(event.target.checked)} disabled={disabled}/>
     <span className="toggle-control" aria-hidden="true"><span/></span>
-    <span><strong>{label}</strong>{help ? <small>{help}</small> : null}</span>
+    <span><strong>{label}</strong>{help ? <small>{resolvedHelp}</small> : null}</span>
   </label>;
 }
 
 export function Section({ title, description, action, children, className = "" }:
   { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return <section className={`section-card ${className}`}>
-    <header className="section-header"><div><h2>{title}</h2>{description ? <p>{description}</p> : null}</div>{action}</header>
+    <header className="section-header"><div><h2 title={description || `Edit ${title.toLowerCase()} for the current stage.`}>{title}</h2>{description ? <p>{description}</p> : null}</div>{action}</header>
     <div className="section-content">{children}</div>
   </section>;
 }

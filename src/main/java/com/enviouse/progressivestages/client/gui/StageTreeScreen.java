@@ -1112,13 +1112,12 @@ public final class StageTreeScreen extends Screen {
 
     private boolean renderInspectorTooltip(GuiGraphics g, int mouseX, int mouseY) {
         if (selected == null) return false;
-        if (canShowUnlockHelp(selected) && (keyboardControlFocus == 0
-                || inside(mouseX, mouseY, helpX, helpY, helpW, helpH))) {
+        if (canShowUnlockHelp(selected) && inside(mouseX, mouseY, helpX, helpY, helpW, helpH)) {
             g.renderTooltip(font, Component.translatable("gui.progressivestages.tree.guide.unlock.tooltip",
                 ClientStageCache.getDisplayName(selected)), mouseX, mouseY);
             return true;
         }
-        if (keyboardControlFocus == 1 || inside(mouseX, mouseY, panelX + panelW - 16, panelY + 4, 13, 13)) {
+        if (inside(mouseX, mouseY, panelX + panelW - 16, panelY + 4, 13, 13)) {
             g.renderTooltip(font, Component.translatable("gui.progressivestages.tree.close.tooltip"), mouseX, mouseY);
             return true;
         }

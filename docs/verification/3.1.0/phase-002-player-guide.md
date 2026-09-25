@@ -24,7 +24,7 @@ The phase completion record adds candidate identity, test commands, hashes, host
 
 ## current local checks
 
-`npm ci` completes from the checked lockfile. It reports six dependency audit findings, including two high findings, without changing the pinned dependency set. The editor checks pass with `npm run check`, 19 Vitest files and 165 tests pass with `npm test -- --run`, and the packaged editor is rebuilt with `npm run build`. The Java unit suite passes with `./gradlew test --no-daemon`, and `./gradlew build --no-daemon` produces a jar containing the guide model and packaged editor assets.
+`npm ci` completes from the checked lockfile. It reports six dependency audit findings, including two high findings, without changing the pinned dependency set. The editor checks pass with `npm run check`, 19 Vitest files and 165 tests pass with `npm test -- --run`, and the packaged editor is rebuilt with `npm run build`. The Java unit suite passes with `./gradlew test --no-daemon`, and `./gradlew build --no-daemon` produces a jar containing the guide model and packaged editor assets. Incomplete multi-packet definition assemblies now expire after 200 client ticks, while newer revisions supersede older assemblies and logout clears the pending state.
 
 The required headless GameTest server was also started from the disposable phase worktree. It shut down cleanly, but the repository's existing suite reported 15 unrelated world and progression failures. Its disposable runtime files were removed after the run.
 
@@ -34,6 +34,6 @@ The required Brave editor edit and apply gate remains open. The available browse
 
 ## candidate identity
 
-The current candidate source commit is `1513763`. A clean `./gradlew build --no-daemon` produced `progressivestages-3.0.5.jar` with SHA 256 `d98f94cd4f5c72de6e4b4ad63d66dd07d20c767af66ccb407036cea455f4a5f4` and SHA 512 `e5340c24c2eed904aeb69d2abca13089f314b488d9c86e9b13d5310e1e231a7ee24d665f148525b47dbfd90f6b8e068e448c94321324d12e73ad0efb43b86cea`. The archive contains `StageGuide`, `StageTreeScreen`, the packaged editor bundle, and the English language file.
+The current candidate source commit is `dbb7e67`. A clean `./gradlew build --no-daemon` produced `progressivestages-3.0.5.jar` with SHA 256 `a861ce09a71b628a83b303ecd63bfd3325bbb41c167a67a6f2458d4fac2df411` and SHA 512 `4fdd76d9dd589f2af1d4d0a646382ded6c1064c3eff3d8f4b4e7dad26e0045f50bb8d09350e1686d52ac2b578270b726778e2e79be15bec5b9f16f3d77385933`. The archive contains `StageGuide`, `StageTreeScreen`, the packaged editor bundle, and the English language file.
 
 The packaged editor asset hashes for this candidate are `app.js` SHA 256 `ddc3911277ca6c18db21ccabadfb932036ddd8f6b6432de7e649829499f7ba79`, `app.css` SHA 256 `6bc163ca7269dfb41c3e0e6d0ecdd3b9e0640d98f60199686dc85909b068baae`, and `en_us.json` SHA 256 `48706395879c60b52adb4fe9cd3a80a12b99b197a0dbca2a2d66678e905a4b51`. The build output remains available only for the current verification consumers and will be removed during phase cleanup.

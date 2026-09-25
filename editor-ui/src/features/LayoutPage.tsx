@@ -5,7 +5,7 @@ import { expandGuideTemplate } from "../lib/guide";
 import { dependencySummary, stageDependsOn } from "../lib/model";
 import { booleanValue, numberValue, readTomlValue, removeTomlValue, stringValue, upsertToml } from "../lib/toml";
 import { useEditor } from "../store/EditorContext";
-import type { StagePackage } from "../types";
+import type { StagePackage, StageTab } from "../types";
 import { ConfirmStageAction, IdentityForm } from "./stages/StageDialogs";
 
 interface Point { x: number; y: number }
@@ -24,7 +24,7 @@ function PreviewInspector({ stage, stages, scenario, content, helpOpen, onClose,
   helpOpen: boolean;
   onClose: () => void;
   onHelp: () => void;
-  onEdit: () => void;
+  onEdit: (tab: StageTab) => void;
 }) {
   if (!stage) return <aside className="preview-inspector" aria-label="Player preview inspector"><div className="preview-inspector-empty"><strong>Select a stage</strong><p>Choose a visible node to inspect its player view.</p></div></aside>;
   const field = (path: string) => stringValue(readTomlValue(content, path));
@@ -40,7 +40,7 @@ function PreviewInspector({ stage, stages, scenario, content, helpOpen, onClose,
     .filter(entry => entry.text.trim());
   return <aside className="preview-inspector" aria-label="Player preview inspector">
     <header className="preview-inspector-header">
-      <div><span className="preview-inspector-icon">◆</span><div><strong>{stage.name}</strong><small>{scenario === "unlocked" ? "Owned" : scenario === "ready" ? "Requirements met" : "Locked"}</small></div></div>
+      <div><span className="preview-inspector-icon" role="img" aria-label={`Stage icon ${stage.icon}`} title={`Stage icon ${stage.icon}`}>◆</span><div><strong>{stage.name}</strong><small>{scenario === "unlocked" ? "Owned" : scenario === "ready" ? "Requirements met" : "Locked"}</small></div></div>
       <div className="preview-inspector-actions">
         {scenario !== "unlocked" ? <Button tone="quiet" aria-label={`How to unlock ${stage.name}`} help={`How to unlock ${stage.name}`} onClick={onHelp}>?</Button> : null}
         <Button tone="quiet" aria-label="Close stage preview" help="Close stage preview" onClick={onClose}>×</Button>
@@ -48,11 +48,11 @@ function PreviewInspector({ stage, stages, scenario, content, helpOpen, onClose,
     </header>
     <div className="preview-inspector-body">
       {stage.description ? <p className="preview-description">{stage.description}</p> : null}
-      <section><h3>Requirements</h3><p>{requirements}</p></section>
-      {helpOpen && scenario !== "unlocked" ? <section className="preview-guide-help"><h3>How to unlock {stage.name}</h3>{guide.length ? guide.map(entry => <p key={entry.path}>{entry.text}</p>) : <p>No unlock instructions have been added yet.</p>}</section> : null}
+      <section><h3>Requirements</h3><p>{requirements}</p><Button tone="quiet" help="Open this stage's required stages settings." onClick={() => onEdit("essentials")}>Edit requirements</Button></section>
+      {helpOpen && scenario !== "unlocked" ? <section className="preview-guide-help"><h3>How to unlock {stage.name}</h3>{guide.length ? guide.map(entry => <p key={entry.path}>{entry.text}</p>) : <p>No unlock instructions have been added yet.</p>}<Button tone="quiet" help="Open this stage's What to do next fields." onClick={() => onEdit("essentials")}>Edit guide</Button></section> : null}
       {scenario !== "unlocked" && !helpOpen ? <p className="preview-help-hint">Select the gold ? to show unlock instructions.</p> : null}
     </div>
-    <footer><Button tone="primary" onClick={onEdit} help="Open this stage in the editor. The preview remains read only.">Edit stage fields</Button></footer>
+    <footer><div className="preview-inspector-links"><Button tone="quiet" onClick={() => onEdit("essentials")} help="Open names, icons, visibility, map, and guide fields.">Setup</Button><Button tone="quiet" onClick={() => onEdit("rules")} help="Open this stage's rules and conditions.">Rules</Button><Button tone="quiet" onClick={() => onEdit("progression")} help="Open ways players obtain or lose this stage.">Progression</Button><Button tone="quiet" onClick={() => onEdit("effects")} help="Open rewards and effects for this stage.">Rewards</Button><Button tone="primary" onClick={() => onEdit("essentials")} help="Open this stage in the editor. The preview remains read only.">Edit stage fields</Button></div></footer>
   </aside>;
 }
 
@@ -81,7 +81,7 @@ function automaticPositions(stages: StagePackage[]): Record<string, Point> {
 }
 
 export function LayoutPage() {
-  const { boot, stages: everyStage, mutateFile, mutateFiles, notify, selectStage, setPage, openDialog } = useEditor();
+  const { boot, stages: everyStage, mutateFile, mutateFiles, notify, selectStage, setStageTab, setPage, openDialog } = useEditor();
   const stages = useMemo(() => everyStage.filter(stage => !stage.archived), [everyStage]);
   const automatic = useMemo(() => automaticPositions(stages), [stages]);
   const [positions, setPositions] = useState<Record<string, Point>>({});
@@ -253,7 +253,7 @@ export function LayoutPage() {
     <section className="layout-toolbar"><Field label="Category"><select value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(value => <option key={value}>{value}</option>)}</select></Field><Field label="Find a stage"><div className="input-icon"><Icon name="search" size={16}/><input value={search} onChange={event => setSearch(event.target.value)}/></div></Field>{playerPreview ? <Field label="Simulated player" help="Choose a visible state for the preview. This does not change any player's stages."><select value={previewScenario} onChange={event => setPreviewScenario(event.target.value as PreviewScenario)}><option value="locked">Locked</option><option value="ready">Requirements met</option><option value="unlocked">Unlocked</option></select></Field> : null}<div className="zoom-control" title="Change the map scale. This only changes the preview camera."><Button tone="quiet" aria-label="Zoom out" help="Zoom out" onClick={() => zoom(1.2)}>−</Button><span>{Math.round(WORLD_WIDTH / camera.width * 100)}%</span><Button tone="quiet" aria-label="Zoom in" help="Zoom in" onClick={() => zoom(0.82)}>+</Button></div><Button help="Fit every visible stage into the map viewport." onClick={fit}>Fit graph</Button>{playerPreview ? null : <><Button help="Choose two stages to create a prerequisite connection." tone={connecting ? "primary" : "neutral"} icon="layout" onClick={() => { setConnecting(value => !value); setConnectSource(""); }}>{connecting ? "Cancel connection" : "Connect stages"}</Button><Button help="Clear manual positions and use the automatic progression layout." onClick={() => void clearPositions()}>Use automatic layout</Button></>}</section>
     {playerPreview ? <div className="preview-banner"><strong>Draft player preview.</strong><span>Hidden stages stay out of the map. Reveal rules and prerequisites use the selected simulation. Conditions that need a live world are not evaluated here.</span><div className="preview-state-list"><span className="preview-state active">{previewScenario === "locked" ? "No requirements met" : previewScenario === "ready" ? "Prerequisites met" : "Stage owned"}</span><span>Read only</span></div></div> : null}
     <div className={`connection-help ${connecting ? "active" : ""}`}>{connecting ? connectSource ? <><strong>Choose the destination stage.</strong><span>The selected stage will become its prerequisite.</span></> : <><strong>Choose the prerequisite stage.</strong><span>Then choose the stage it should lead into.</span></> : <><strong>{playerPreview ? "Simulated stages screen." : "Interactive player map."}</strong><span>{playerPreview ? "Click a stage node to inspect it, then choose Edit stage fields." : "Click a branch line to remove that prerequisite."}</span></>}</div>
-    {playerPreview ? <div className="player-preview-shell">{graph}<PreviewInspector stage={previewSelected} stages={stages} scenario={previewScenario} content={previewSelected ? boot?.draft.files[previewSelected.stagePath] || "" : ""} helpOpen={previewHelpOpen} onClose={() => { setPreviewSelectedId(""); setPreviewHelpOpen(false); }} onHelp={() => setPreviewHelpOpen(value => !value)} onEdit={() => { if (!previewSelected) return; selectStage(previewSelected.key); setPage("stages"); }}/></div> : graph}
+    {playerPreview ? <div className="player-preview-shell">{graph}<PreviewInspector stage={previewSelected} stages={stages} scenario={previewScenario} content={previewSelected ? boot?.draft.files[previewSelected.stagePath] || "" : ""} helpOpen={previewHelpOpen} onClose={() => { setPreviewSelectedId(""); setPreviewHelpOpen(false); }} onHelp={() => setPreviewHelpOpen(value => !value)} onEdit={tab => { if (!previewSelected) return; selectStage(previewSelected.key); setStageTab(tab); setPage("stages"); }}/></div> : graph}
     {contextMenu ? <div ref={contextMenuRef} className="graph-context-menu" role="menu" style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={event => event.stopPropagation()}>
       <strong>{contextMenu.stage.name}</strong>
       <button role="menuitem" title="Open this stage in the full editor" onClick={() => { const stage = contextMenu.stage; closeContextMenu(); setPage("stages"); selectStage(stage.key); }}>Edit stage</button>

@@ -13,6 +13,7 @@ const editor = vi.hoisted(() => ({
   mutateFiles: vi.fn(async (..._args: unknown[]) => {}),
   notify: vi.fn(),
   selectStage: vi.fn(),
+  setStageTab: vi.fn(),
   setPage: vi.fn(),
   openDialog: vi.fn()
 }));

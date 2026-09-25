@@ -93,6 +93,8 @@ class StageTreeScreenRenderOrderTest {
     @Test
     void guideEntryPointsRespectTheServerGuideSwitch() throws IOException {
         String source = Files.readString(SCREEN);
+        String cacheSource = Files.readString(PROJECT.resolve(
+            "src/main/java/com/enviouse/progressivestages/client/ClientStageCache.java"));
         String eventSource = Files.readString(PROJECT.resolve(
             "src/main/java/com/enviouse/progressivestages/client/ClientEventHandler.java"));
         String keySource = Files.readString(PROJECT.resolve(
@@ -100,6 +102,8 @@ class StageTreeScreenRenderOrderTest {
 
         assertTrue(source.contains("if (!ClientStageCache.isStageGuideEnabled()) return;"));
         assertTrue(source.contains("if (!ClientStageCache.isStageGuideEnabled()) unlockHelpOpen = false;"));
+        assertTrue(cacheSource.contains("stageGuideEnabled = false"));
+        assertTrue(cacheSource.contains("stageGuideEnabled = false;\n        ClientLockCache.clear()"));
         assertTrue(eventSource.contains("OPEN_GUIDE.consumeClick()"));
         assertTrue(eventSource.contains("ClientStageCache.isStageGuideEnabled()"));
         assertTrue(keySource.contains("public static final KeyMapping OPEN_GUIDE"));

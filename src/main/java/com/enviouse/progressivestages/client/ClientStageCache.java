@@ -23,7 +23,8 @@ public class ClientStageCache {
     private static long revision;
     private static StageId currentStage = null;
     private static volatile boolean hideStageNamesFromNonOps = false;
-    private static volatile boolean stageGuideEnabled = true;
+    // The server must publish the current policy before client guide controls become available.
+    private static volatile boolean stageGuideEnabled = false;
 
     public static boolean isHideStageNamesFromNonOps() { return hideStageNamesFromNonOps; }
     public static long revision() { return revision; }
@@ -470,7 +471,7 @@ public class ClientStageCache {
         revision++;
         currentStage = null;
         stageDefinitions.clear();
-        stageGuideEnabled = true;
+        stageGuideEnabled = false;
         ClientLockCache.clear();
     }
 
